@@ -175,7 +175,7 @@ const App: React.FC = () => {
     };
     try {
         switch (type) {
-            case 'presupuesto': generateClientDetailedPDF(tempQuote, config, recipes, glasses, dvhInputs); break;
+            case 'presupuesto': generateClientDetailedPDF(tempQuote, config, recipes, glasses, dvhInputs, treatments); break;
             case 'taller': generateAssemblyOrderPDF(tempQuote, recipes, aluminum, glasses); break;
             case 'materiales': generateMaterialsOrderPDF(tempQuote, recipes, aluminum, accessories, glasses, dvhInputs, config); break;
             case 'barras': generateBarOptimizationPDF(tempQuote, recipes, aluminum, config); break;
@@ -295,7 +295,7 @@ const App: React.FC = () => {
               aluminum={aluminum}
             />
           )}
-          {activeTab === 'history' && <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} />}
+          {activeTab === 'history' && <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} />}
           {activeTab === 'config' && (
               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

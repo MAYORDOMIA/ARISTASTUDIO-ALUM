@@ -1,7 +1,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem } from '../types';
+import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem, Treatment } from '../types';
 import { evaluateFormula } from './calculator';
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
@@ -203,7 +203,7 @@ function drawGeometricPiece(doc: jsPDF, x: number, y: number, w: number, h: numb
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'FD');
 }
 
-export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], glasses: Glass[], dvhInputs: DVHInput[]) => {
+export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], glasses: Glass[], dvhInputs: DVHInput[], treatments: Treatment[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
@@ -234,6 +234,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     const tableData = quote.items.map((item, idx) => {
         const firstMod = item.composition.modules?.[0];
         const recipe = recipes.find(r => r.id === firstMod?.recipeId);
+        const treatment = treatments.find(t => t.id === item.colorId);
         
         // Lógica de Detalle de Vidrio (Avanzada)
         let glassDetailStr = 'No definido';
@@ -248,7 +249,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
             }
         }
 
-        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nVidrio: ${glassDetailStr}`;
+        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nColor: ${treatment?.name || '-'}\nVidrio: ${glassDetailStr}`;
         return [
             idx + 1,
             '', 

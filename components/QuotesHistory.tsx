@@ -16,7 +16,7 @@ import {
   ChevronRight,
   X
 } from 'lucide-react';
-import { Quote, GlobalConfig, ProductRecipe, AluminumProfile, Accessory, Glass, DVHInput } from '../types';
+import { Quote, GlobalConfig, ProductRecipe, AluminumProfile, Accessory, Glass, DVHInput, Treatment } from '../types';
 import { 
   generateClientDetailedPDF, 
   generateMaterialsOrderPDF, 
@@ -34,10 +34,11 @@ interface Props {
   accessories: Accessory[];
   glasses: Glass[];
   dvhInputs: DVHInput[];
+  treatments: Treatment[];
 }
 
 const QuotesHistory: React.FC<Props> = ({ 
-  quotes, setQuotes, config, recipes, aluminum, accessories, glasses, dvhInputs 
+  quotes, setQuotes, config, recipes, aluminum, accessories, glasses, dvhInputs, treatments 
 }) => {
   const [search, setSearch] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
@@ -57,7 +58,7 @@ const QuotesHistory: React.FC<Props> = ({
   const downloadReport = (quote: Quote, type: 'presupuesto' | 'taller' | 'materiales' | 'barras' | 'vidrios') => {
     try {
       switch (type) {
-        case 'presupuesto': generateClientDetailedPDF(quote, config, recipes, glasses, dvhInputs); break;
+        case 'presupuesto': generateClientDetailedPDF(quote, config, recipes, glasses, dvhInputs, treatments); break;
         case 'taller': generateAssemblyOrderPDF(quote, recipes, aluminum, glasses); break;
         case 'materiales': generateMaterialsOrderPDF(quote, recipes, aluminum, accessories, glasses, dvhInputs, config); break;
         case 'barras': generateBarOptimizationPDF(quote, recipes, aluminum, config); break;
