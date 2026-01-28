@@ -111,7 +111,6 @@ export const calculateItemPrice = (
   dvhInputs: DVHInput[], isDVH: boolean, glassOuterId: string, glassInnerId?: string,
   dvhCameraId?: string, extras?: { mosquitero: boolean, tapajuntas: boolean, tapajuntasSides: { top: boolean, bottom: boolean, left: boolean, right: boolean } },
   coupling?: { profileId?: string, position: string }, transoms?: { height: number; profileId: string }[],
-  // Fix: renamed allBlindPanels to blindPanels to match usage in the function body.
   overriddenAccessories?: RecipeAccessory[], blindPanes: number[] = [], blindPaneIds: Record<number, string> = {}, blindPanels: BlindPanel[] = [],
   isSet: boolean = false
 ) => {
@@ -169,7 +168,14 @@ export const calculateItemPrice = (
   // 3. CÁLCULO DE VIDRIOS / CIEGOS (MULTIPLO POR HOJAS)
   const adjustedW = width - (recipe.glassDeductionW || 0); 
   const adjustedH = height - (recipe.glassDeductionH || 0);
-  const gW = evaluateFormula(recipe.glassFormulaW || 'W', adjustedW, adjustedH);
+  
+  // Si es corrediza, la base del vidrio es el ancho total dividido por la cantidad de hojas
+  let leafBaseW = adjustedW;
+  if (visualType.includes('sliding')) {
+      leafBaseW = adjustedW / numLeaves;
+  }
+  
+  const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
   const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
   
   const glassPanes: { w: number, h: number }[] = [];

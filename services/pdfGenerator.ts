@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem } from '../types';
@@ -31,7 +30,20 @@ const getModuleGlassPanes = (
 
     const adjustedW = modW - (recipe.glassDeductionW || 0); 
     const adjustedH = modH - (recipe.glassDeductionH || 0);
-    const gW = evaluateFormula(recipe.glassFormulaW || 'W', adjustedW, adjustedH);
+    
+    // Determinar cantidad de hojas para sliding
+    const visualType = recipe.visualType || '';
+    let numLeaves = 1;
+    if (visualType.includes('sliding_3')) numLeaves = 3;
+    else if (visualType.includes('sliding_4')) numLeaves = 4;
+    else if (visualType.includes('sliding')) numLeaves = 2;
+
+    let leafBaseW = adjustedW;
+    if (visualType.includes('sliding')) {
+        leafBaseW = adjustedW / numLeaves;
+    }
+
+    const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
     const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
     
     const panes: { w: number, h: number, isBlind: boolean }[] = [];
