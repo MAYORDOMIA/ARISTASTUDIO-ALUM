@@ -26,7 +26,6 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Encabezado Profesional
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 40, 'F');
     
@@ -42,7 +41,6 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
 
     let y = 50;
 
-    // Sección: Perfilería
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -73,7 +71,6 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
     const lastTable = (doc as any).lastAutoTable;
     y = lastTable ? lastTable.finalY + 15 : y + 60;
 
-    // Sección: Accesorios
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('LISTADO DE ACCESORIOS / HERRAJES', 15, y);
@@ -101,7 +98,6 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
     const lastTableAcc = (doc as any).lastAutoTable;
     y = lastTableAcc ? lastTableAcc.finalY + 15 : y + 40;
 
-    // Sección: Vidriado y Deducciones
     if (y > 240) { doc.addPage(); y = 20; }
     
     doc.setFillColor(241, 245, 249);
@@ -119,7 +115,6 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
     doc.text(`DESCUENTO BASE W: ${recipe.glassDeductionW || 0} mm`, pageWidth / 2, y + 18);
     doc.text(`DESCUENTO BASE H: ${recipe.glassDeductionH || 0} mm`, pageWidth / 2, y + 24);
 
-    // Pie de página
     const totalPages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
@@ -212,10 +207,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 const drawW = (cut.len / barLenMm) * barW;
                 const color = TYPE_COLORS[cut.type] || TYPE_COLORS['Default'];
                 doc.setFillColor(color[0], color[1], color[2]);
-                
-                // Dibujo gráfico de la pieza con ángulos
                 ctxDrawPiece(doc, curX, y, drawW, barH, cut.cutStart, cut.cutEnd, 2);
-                
                 doc.setTextColor(0); doc.setFontSize(6);
                 if (drawW > 8) {
                     doc.text(`${Math.round(cut.len)}`, curX + drawW/2, y - 1, { align: 'center' });
@@ -254,15 +246,25 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
+
+            const visualType = recipe.visualType || '';
+            let numLeaves = 1;
+            if (visualType.includes('sliding_3')) numLeaves = 3;
+            else if (visualType.includes('sliding_4')) numLeaves = 4;
+            else if (visualType.includes('sliding')) numLeaves = 2;
+
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             const gInner = glasses.find(g => g.id === mod.glassInnerId);
             const adjW = item.width - (recipe.glassDeductionW || 0);
             const adjH = item.height - (recipe.glassDeductionH || 0);
             const gw = evaluate(recipe.glassFormulaW || 'W', adjW, adjH);
             const gh = evaluate(recipe.glassFormulaH || 'H', adjW, adjH);
-            for(let k=0; k<item.quantity; k++) {
-                glassData.push([itemCode, gOuter?.detail || 'S/D', `${Math.round(gw)}x${Math.round(gh)}`, '1']);
-                if (mod.isDVH && gInner) glassData.push([itemCode, gInner.detail, `${Math.round(gw)}x${Math.round(gh)}`, '1']);
+            
+            const totalGlassQty = numLeaves * item.quantity;
+
+            glassData.push([itemCode, gOuter?.detail || 'S/D', `${Math.round(gw)}x${Math.round(gh)}`, totalGlassQty.toString()]);
+            if (mod.isDVH && gInner) {
+                glassData.push([itemCode, gInner.detail, `${Math.round(gw)}x${Math.round(gh)}`, totalGlassQty.toString()]);
             }
         });
     });
@@ -273,7 +275,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         body: glassData,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
-        columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold', fontSize: 11 } }
+        columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold', fontSize: 11 }, 3: { halign: 'center', fontStyle: 'bold' } }
     });
 
     doc.save(`Vidrios_${quote.clientName}.pdf`);
@@ -347,6 +349,12 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[])
         const recipe = recipes.find(r => r.id === item.composition.modules?.[0]?.recipeId);
         doc.text(`Sistema: ${recipe?.name || 'S/D'} | Medida Exterior: ${item.width} x ${item.height} mm`, 62, y + 18);
         
+        const visualType = recipe?.visualType || '';
+        let numLeaves = 1;
+        if (visualType.includes('sliding_3')) numLeaves = 3;
+        else if (visualType.includes('sliding_4')) numLeaves = 4;
+        else if (visualType.includes('sliding')) numLeaves = 2;
+
         const adjW = item.width - (recipe?.glassDeductionW || 0);
         const adjH = item.height - (recipe?.glassDeductionH || 0);
         const gw = evaluate(recipe?.glassFormulaW || 'W', adjW, adjH);
@@ -354,7 +362,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[])
         
         doc.setFont('helvetica', 'bold');
         doc.text(`MEDIDA DE CORTE VIDRIO: ${Math.round(gw)} x ${Math.round(gh)} mm`, 62, y + 26);
-        doc.text(`TIPO: ${item.composition.modules?.[0]?.isDVH ? 'DVH' : 'SIMPLE'}`, 62, y + 32);
+        doc.text(`CANT. VIDRIOS: ${numLeaves} | TIPO: ${item.composition.modules?.[0]?.isDVH ? 'DVH' : 'SIMPLE'}`, 62, y + 32);
         doc.setFont('helvetica', 'normal');
 
         const cutData = recipe?.profiles.map(rp => [

@@ -1,4 +1,3 @@
-
 import { 
   ProductRecipe, AluminumProfile, GlobalConfig, Treatment, Glass, 
   Accessory, DVHInput, RecipeAccessory, BlindPanel, QuoteItem, QuoteItemBreakdown
@@ -112,7 +111,8 @@ export const calculateItemPrice = (
   dvhInputs: DVHInput[], isDVH: boolean, glassOuterId: string, glassInnerId?: string,
   dvhCameraId?: string, extras?: { mosquitero: boolean, tapajuntas: boolean, tapajuntasSides: { top: boolean, bottom: boolean, left: boolean, right: boolean } },
   coupling?: { profileId?: string, position: string }, transoms?: { height: number; profileId: string }[],
-  overriddenAccessories?: RecipeAccessory[], blindPanes: number[] = [], blindPaneIds: Record<number, string> = {}, allBlindPanels: BlindPanel[] = [],
+  // Fix: renamed allBlindPanels to blindPanels to match usage in the function body.
+  overriddenAccessories?: RecipeAccessory[], blindPanes: number[] = [], blindPaneIds: Record<number, string> = {}, blindPanels: BlindPanel[] = [],
   isSet: boolean = false
 ) => {
   let totalAluWeight = 0;
@@ -120,8 +120,14 @@ export const calculateItemPrice = (
   let glassCost = 0;
   let accCost = 0;
 
+  // Determinar cantidad de hojas (multiplicador de vidrios)
+  const visualType = recipe.visualType || '';
+  let numLeaves = 1;
+  if (visualType.includes('sliding_3')) numLeaves = 3;
+  else if (visualType.includes('sliding_4')) numLeaves = 4;
+  else if (visualType.includes('sliding')) numLeaves = 2;
+
   // 1. CÁLCULO DE ALUMINIO (BASE + PINTURA)
-  const isFixed = recipe.type === 'Paño Fijo';
   const activeProfiles = (recipe.profiles || []).filter(rp => {
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
@@ -148,20 +154,19 @@ export const calculateItemPrice = (
 
   aluCost = totalAluWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
 
-  // 2. CÁLCULO DE ACCESORIOS (CRÍTICO: Validar IDs y Códigos)
+  // 2. CÁLCULO DE ACCESORIOS
   const activeAccessories = (overriddenAccessories && overriddenAccessories.length > 0) 
     ? overriddenAccessories 
     : (recipe.accessories || []);
 
   activeAccessories.forEach(ra => {
-    // Intenta encontrar por ID único y como fallback por código (importante en migraciones de datos)
     const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
     if (acc) {
       accCost += acc.unitPrice * ra.quantity;
     }
   });
 
-  // 3. CÁLCULO DE VIDRIOS / CIEGOS
+  // 3. CÁLCULO DE VIDRIOS / CIEGOS (MULTIPLO POR HOJAS)
   const adjustedW = width - (recipe.glassDeductionW || 0); 
   const adjustedH = height - (recipe.glassDeductionH || 0);
   const gW = evaluateFormula(recipe.glassFormulaW || 'W', adjustedW, adjustedH);
@@ -193,22 +198,28 @@ export const calculateItemPrice = (
 
   glassPanes.forEach((pane, index) => {
     const areaM2 = (pane.w * pane.h) / 1000000;
-    const billingArea = Math.max(areaM2, 0.5); 
+    const billingAreaPerPiece = Math.max(areaM2, 0.5); 
+    const totalBillingArea = billingAreaPerPiece * numLeaves;
+
     if (blindPanes.includes(index)) {
-      const specificBlind = allBlindPanels.find(bp => bp.id === blindPaneIds[index]);
-      if (specificBlind) glassCost += specificBlind.unit === 'ml' ? (specificBlind.price * (pane.w / 1000)) : (specificBlind.price * billingArea);
-      else glassCost += (config.blindPanelPricePerM2 || 0) * billingArea;
+      const specificBlind = blindPanels.find(bp => bp.id === blindPaneIds[index]);
+      if (specificBlind) {
+          const unitValue = specificBlind.unit === 'ml' ? (pane.w / 1000) : billingAreaPerPiece;
+          glassCost += specificBlind.price * unitValue * numLeaves;
+      } else {
+          glassCost += (config.blindPanelPricePerM2 || 0) * totalBillingArea;
+      }
     } else {
-      if (outerGlass) glassCost += outerGlass.pricePerM2 * billingArea;
-      if (innerGlass) glassCost += innerGlass.pricePerM2 * billingArea;
+      if (outerGlass) glassCost += outerGlass.pricePerM2 * totalBillingArea;
+      if (innerGlass) glassCost += innerGlass.pricePerM2 * totalBillingArea;
       if (isDVH) {
-        if (dvhCamera) glassCost += dvhCamera.cost * ((pane.w + pane.h) * 2 / 1000);
-        dvhInputs.filter(i => i.type !== 'Cámara').forEach(input => glassCost += input.cost * areaM2);
+        if (dvhCamera) glassCost += dvhCamera.cost * ((pane.w + pane.h) * 2 / 1000) * numLeaves;
+        dvhInputs.filter(i => i.type !== 'Cámara').forEach(input => glassCost += input.cost * areaM2 * numLeaves);
       }
     }
   });
 
-  if (extras?.mosquitero && !isFixed) {
+  if (extras?.mosquitero) {
       const mProfile = profiles.find(p => p.id === recipe.mosquiteroProfileId);
       if (mProfile) {
           const mW = evaluateFormula(recipe.mosquiteroFormulaW || 'W/2', width, height);
