@@ -57,7 +57,7 @@ const QuotesHistory: React.FC<Props> = ({
   const downloadReport = (quote: Quote, type: 'presupuesto' | 'taller' | 'materiales' | 'barras' | 'vidrios') => {
     try {
       switch (type) {
-        case 'presupuesto': generateClientDetailedPDF(quote, config, recipes); break;
+        case 'presupuesto': generateClientDetailedPDF(quote, config, recipes, glasses, dvhInputs); break;
         case 'taller': generateAssemblyOrderPDF(quote, recipes, aluminum, glasses); break;
         case 'materiales': generateMaterialsOrderPDF(quote, recipes, aluminum, accessories, glasses, dvhInputs, config); break;
         case 'barras': generateBarOptimizationPDF(quote, recipes, aluminum, config); break;

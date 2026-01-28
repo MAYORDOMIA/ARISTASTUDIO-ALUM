@@ -80,7 +80,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     const cutsByProfile = new Map<string, {len:number, type:string, cutStart:string, cutEnd:string, label:string}[]>();
     
     quote.items.forEach((item, posIdx) => {
-        // Se utiliza el itemCode personalizado si está definido, sino el genérico POS#
         const itemCode = item.itemCode || `POS#${posIdx+1}`;
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
@@ -204,7 +203,7 @@ function drawGeometricPiece(doc: jsPDF, x: number, y: number, w: number, h: numb
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'FD');
 }
 
-export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[]) => {
+export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], glasses: Glass[], dvhInputs: DVHInput[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
@@ -233,9 +232,23 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     doc.text(`FECHA: ${new Date().toLocaleDateString()}`, pageWidth - 20, 55, { align: 'right' });
 
     const tableData = quote.items.map((item, idx) => {
-        const recipe = recipes.find(r => r.id === item.composition.modules?.[0]?.recipeId);
-        // Se integra itemCode en la descripción técnica
-        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nVidrio: ${item.composition.modules?.[0]?.isDVH ? 'DVH' : 'Simple'}`;
+        const firstMod = item.composition.modules?.[0];
+        const recipe = recipes.find(r => r.id === firstMod?.recipeId);
+        
+        // Lógica de Detalle de Vidrio (Avanzada)
+        let glassDetailStr = 'No definido';
+        if (firstMod) {
+            const gOuter = glasses.find(g => g.id === firstMod.glassOuterId);
+            if (firstMod.isDVH) {
+                const gInner = glasses.find(g => g.id === firstMod.glassInnerId);
+                const camera = dvhInputs.find(i => i.id === firstMod.dvhCameraId);
+                glassDetailStr = `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`;
+            } else {
+                glassDetailStr = gOuter?.detail || 'Simple';
+            }
+        }
+
+        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nVidrio: ${glassDetailStr}`;
         return [
             idx + 1,
             '', 
@@ -327,7 +340,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 doc.addImage(item.previewImage, 'JPEG', 15, y, drawW, drawH); 
             } catch(e){}
         }
-        // Se muestra el itemCode personalizado en la hoja de taller
         doc.setFontSize(11); 
         doc.text(`${item.itemCode || `POS#${idx+1}`} - CANT: ${item.quantity}`, 65, y + 5);
         y += 100;
@@ -368,7 +380,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             glassPanes.forEach(pane => {
-                // Se usa itemCode en la planilla de vidrios
                 if (!pane.isBlind) glassData.push([item.itemCode || `POS#${idx+1}`, gOuter?.detail || 'S/D', `${Math.round(pane.w)} x ${Math.round(pane.h)}`, item.quantity]);
             });
         });

@@ -175,7 +175,7 @@ const App: React.FC = () => {
     };
     try {
         switch (type) {
-            case 'presupuesto': generateClientDetailedPDF(tempQuote, config, recipes); break;
+            case 'presupuesto': generateClientDetailedPDF(tempQuote, config, recipes, glasses, dvhInputs); break;
             case 'taller': generateAssemblyOrderPDF(tempQuote, recipes, aluminum, glasses); break;
             case 'materiales': generateMaterialsOrderPDF(tempQuote, recipes, aluminum, accessories, glasses, dvhInputs, config); break;
             case 'barras': generateBarOptimizationPDF(tempQuote, recipes, aluminum, config); break;
