@@ -246,31 +246,6 @@ const App: React.FC = () => {
             <h1 className="text-sm font-black uppercase tracking-[0.2em] text-[#0f172a] dark:text-white">
               {MENU_ITEMS.find(m => m.id === activeTab)?.label || activeTab}
             </h1>
-            
-            {(activeTab === 'quoter' || activeTab === 'obras') && (
-                <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-300 ml-4 border-l pl-4 border-slate-100 dark:border-slate-800">
-                    <button onClick={() => handleLiveReport('presupuesto')} title="Presupuesto" className="report-btn group">
-                        <FileText size={16} className="icon-style" />
-                        <span className="label-style">PRESUPUESTO</span>
-                    </button>
-                    <button onClick={() => handleLiveReport('taller')} title="Hoja de Armado" className="report-btn group">
-                        <Hammer size={16} className="icon-style" />
-                        <span className="label-style">TALLER</span>
-                    </button>
-                    <button onClick={() => handleLiveReport('materiales')} title="Pedido" className="report-btn group">
-                        <PackageCheck size={16} className="icon-style" />
-                        <span className="label-style">PEDIDO</span>
-                    </button>
-                    <button onClick={() => handleLiveReport('barras')} title="Corte Barras" className="report-btn group">
-                        <Scissors size={16} className="icon-style" />
-                        <span className="label-style">BARRAS</span>
-                    </button>
-                    <button onClick={() => handleLiveReport('vidrios')} title="Corte Vidrios" className="report-btn group">
-                        <Layers size={16} className="icon-style" />
-                        <span className="label-style">VIDRIOS</span>
-                    </button>
-                </div>
-            )}
           </div>
           
           <div className="flex items-center gap-6">
