@@ -330,7 +330,7 @@ const QuotingModule: React.FC<Props> = ({
 }) => {
   const [totalWidth, setTotalWidth] = useState(1500);
   const [totalHeight, setTotalHeight] = useState(1100);
-  const [itemCode, setItemCode] = useState(''); // Nuevo estado para el código de abertura
+  const [itemCode, setItemCode] = useState(''); 
   const [couplingProfileId, setCouplingProfileId] = useState('');
   const [couplingDeduction, setCouplingDeduction] = useState(10);
   const [colorId, setSelectedColorId] = useState('');
@@ -357,6 +357,11 @@ const QuotingModule: React.FC<Props> = ({
     const minY = Math.min(...ys); const maxY = Math.max(...ys);
     return { minX, maxX, minY, maxY, cols: maxX - minX + 1, rows: maxY - minY + 1 };
   }, [modules]);
+
+  const uniqueLines = useMemo(() => {
+    const lines = recipes.map(r => r.line.toUpperCase());
+    return ['TODOS', ...Array.from(new Set(lines))];
+  }, [recipes]);
 
   const liveBreakdown = useMemo(() => {
     const treatment = treatments.find(t => t.id === colorId);
@@ -478,7 +483,7 @@ const QuotingModule: React.FC<Props> = ({
     
     setCurrentWorkItems([...currentWorkItems, tempItem]);
     if (onUpdateActiveItem) onUpdateActiveItem(tempItem);
-    setItemCode(''); // Limpiar código tras carga
+    setItemCode(''); 
   };
 
   useEffect(() => {
@@ -759,13 +764,13 @@ const QuotingModule: React.FC<Props> = ({
 
                 <div className="grid grid-cols-12 gap-10 flex-1 overflow-hidden">
                     <div className="col-span-12 lg:col-span-6 flex flex-col gap-6 overflow-hidden border-r-2 border-slate-50 dark:border-slate-800 pr-8">
-                        <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-700 w-fit">
-                            {['TODOS', 'VENTANA', 'PUERTA', 'PAÑO FIJO'].map(cat => (
-                                <button key={cat} onClick={() => setRecipeFilter(cat)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${recipeFilter === cat ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700'}`}>{cat}</button>
+                        <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-700 w-full overflow-x-auto custom-scrollbar">
+                            {uniqueLines.map(line => (
+                                <button key={line} onClick={() => setRecipeFilter(line)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${recipeFilter === line ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700'}`}>{line}</button>
                             ))}
                         </div>
                         <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 overflow-y-auto custom-scrollbar pr-3 flex-1 pb-6">
-                            {recipes.filter(r => recipeFilter === 'TODOS' || r.type.toUpperCase() === recipeFilter).map(r => (
+                            {recipes.filter(r => recipeFilter === 'TODOS' || r.line.toUpperCase() === recipeFilter).map(r => (
                                 <button key={r.id} onClick={() => updateModule(editingModuleId, { recipeId: r.id, transoms: r.defaultTransoms || [], overriddenAccessories: r.accessories || [] })} 
                                   className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all group relative overflow-hidden ${currentModForEdit.recipeId === r.id ? 'border-indigo-600 bg-indigo-50/30 dark:bg-indigo-900/20 ring-4 ring-indigo-50 dark:ring-indigo-900/10 shadow-2xl' : 'border-slate-50 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-700 bg-white dark:bg-slate-800 hover:shadow-lg'}`}>
                                     <div className="transform group-hover:scale-110 transition-all duration-700 mb-4 drop-shadow-xl"><RecipePreview recipe={r} color={document.documentElement.classList.contains('dark') ? '#94a3b8' : '#1e293b'} allProfiles={aluminum} /></div>
