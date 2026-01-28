@@ -199,6 +199,7 @@ const drawDetailedOpening = (
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else {
+            // UNIFICACIÓN DE TONO: Se utiliza exactamente el mismo degradado para todos los paños
             const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
             glassGrad.addColorStop(0, '#bae6fd');
             glassGrad.addColorStop(0.35, '#e0f2fe');
@@ -243,7 +244,6 @@ const drawDetailedOpening = (
         }
     };
 
-    // Fix: Replace undefined startX, startY with current x, y coordinates
     if (isSinglePreview && extras?.tapajuntas && edges) {
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
@@ -265,6 +265,7 @@ const drawDetailedOpening = (
 
     const drawLeaf = (lx:number, ly:number, lw:number, lh:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string) => {
         const bT = leafHasZocalo ? zocaloT : leafT;
+        // Se llama a drawGlassWithTransoms garantizando que no haya opacidades extras
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), ly + lh);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
         if (force90) {
@@ -297,6 +298,7 @@ const drawDetailedOpening = (
             }
         } else {
             const leafW = (innerW / 2) + overlap;
+            // Se dibujan ambas hojas con la misma lógica para evitar diferencias de tono
             drawLeaf(innerX, innerY, leafW, innerH, is90, hasZocalo, extras?.mosquitero || false, 'sliding');
             drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, is90, hasZocalo, false, 'sliding');
         }
@@ -461,7 +463,7 @@ const QuotingModule: React.FC<Props> = ({
       ctx.putImageData(currentData, 0, 0);
     }
 
-    const previewImage = canvas ? canvas.toDataURL('image/jpeg', 0.2) : undefined;
+    const previewImage = canvas ? canvas.toDataURL('image/jpeg', 0.8) : undefined;
     
     const { finalPrice, breakdown } = calculateCompositePrice({
       id: 'temp', width: totalWidth, height: totalHeight, colorId, quantity,
@@ -528,6 +530,7 @@ const QuotingModule: React.FC<Props> = ({
         const yOffset = (mod.y > bounds.minY) ? (couplingDeduction / 2) : 0;
         
         const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
+        // Corregido: Se pasan los valores de posición calculados para que el dibujo sea exacto y proporcional
         drawDetailedOpening(ctx, startX + (ox_mm + xOffset) * pxPerMm, startY + (oy_mm + yOffset) * pxPerMm, modW * pxPerMm, modH * pxPerMm, recipe, mod.isDVH, aluColor, extras, edges, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
   }, [totalWidth, totalHeight, modules, colSizes, rowSizes, bounds, extras, colorId, treatments, recipes, couplingDeduction, blindPanels, aluminum]);

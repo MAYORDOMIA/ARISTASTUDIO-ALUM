@@ -189,9 +189,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     
     quote.items.forEach((item, posIdx) => {
         const itemCode = `POS#${posIdx+1}`;
-        const validModules = (item.composition.modules || []).filter(Boolean);
-        
-        validModules.forEach(mod => {
+        item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             
@@ -245,18 +243,21 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             if (!placed) bins.push([cut]);
         });
 
-        if (y > 170) { doc.addPage(); y = 40; }
+        if (y > 160) { doc.addPage(); y = 40; }
         
         doc.setFillColor(241, 245, 249);
         doc.roundedRect(10, y - 5, pageWidth - 20, 10, 2, 2, 'F');
         doc.setTextColor(30, 41, 59);
         doc.setFontSize(10);
-        doc.text(`PERFIL: ${String(profile.code)} - ${profile.detail} | BARRAS REQUERIDAS: ${bins.length}`, 15, y + 1.5);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`PERFIL: ${String(profile.code)} - ${profile.detail} | BARRAS: ${bins.length}`, 15, y + 1.5);
         y += 15;
 
         bins.forEach((bin, bIdx) => {
-            if (y > 185) { doc.addPage(); y = 40; }
-            const barW = pageWidth - 60; const barH = 8;
+            if (y > 180) { doc.addPage(); y = 40; }
+            const barW = pageWidth - 60; const barH = 12;
+            
+            // Dibujo de la Barra Maestra
             doc.setDrawColor(203, 213, 225); 
             doc.setFillColor(248, 250, 252); 
             doc.rect(15, y, barW, barH, 'FD');
@@ -264,19 +265,23 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             let curX = 15;
             bin.forEach((cut) => {
                 const pieceW = (cut.len / barLenMm) * barW;
-                const color = TYPE_COLORS[cut.type] || TYPE_COLORS['Default'];
                 
-                doc.setFillColor(color[0], color[1], color[2]);
+                // Color del corte (Indigo para destacar sobre la barra clara)
+                doc.setFillColor(79, 70, 229);
+                doc.setDrawColor(255, 255, 255);
+                doc.setLineWidth(0.3);
+                
                 ctxDrawDetailedPiece(doc, curX, y, pieceW, barH, cut.cutStart, cut.cutEnd);
                 
+                // Etiquetas de medida y código
                 doc.setTextColor(0); 
                 doc.setFontSize(7);
-                if (pieceW > 12) {
+                if (pieceW > 15) {
                     doc.setFont('helvetica', 'bold');
                     doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 2, { align: 'center' });
                     doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(6);
-                    doc.text(cut.label, curX + pieceW/2, y + barH + 4, { align: 'center' });
+                    doc.setFontSize(5);
+                    doc.text(cut.label, curX + pieceW/2, y + barH + 5, { align: 'center' });
                 }
                 curX += pieceW + (config.discWidth / barLenMm) * barW;
             });
@@ -285,9 +290,9 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             doc.setTextColor(100);
             const totalUsed = bin.reduce((a,b)=>a+b.len+config.discWidth, 0);
             const waste = barLenMm - totalUsed;
-            doc.text(`B#${bIdx+1}`, 8, y + 5.5);
-            doc.text(`SOBRANTE: ${Math.round(waste)}mm`, 15 + barW + 5, y + 5.5);
-            y += 22;
+            doc.text(`B#${bIdx+1}`, 8, y + 7.5);
+            doc.text(`SCRAP: ${Math.round(waste)}mm`, 15 + barW + 5, y + 7.5);
+            y += 28;
         });
         y += 10;
     });
@@ -295,31 +300,26 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
 };
 
 function ctxDrawDetailedPiece(doc: jsPDF, x: number, y: number, w: number, h: number, start: string, end: string) {
-    const slant = h * 0.8;
+    const slant = h * 0.7; // Profundidad del ángulo visual
     const x1 = x; 
     const x2 = x + w;
     const y1 = y; 
     const y2 = y + h;
     
+    // Puntos del polígono de la pieza
     let p1 = {x: x1, y: y1}, p2 = {x: x2, y: y1}, p3 = {x: x2, y: y2}, p4 = {x: x1, y: y2};
     
+    // Aplicar ángulos geométricamente
     if (start === '45') p1.x += slant;
     if (end === '45') p2.x -= slant;
     
-    doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'F');
-    doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'F');
-    
-    doc.setDrawColor(0, 0, 0, 40); 
-    doc.setLineWidth(0.1);
-    doc.line(p1.x, p1.y, p2.x, p2.y);
-    doc.line(p2.x, p2.y, p3.x, p3.y);
-    doc.line(p3.x, p3.y, p4.x, p4.y);
-    doc.line(p4.x, p4.y, p1.x, p1.y);
+    doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'FD');
+    doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'FD');
 }
 
 export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[]) => {
     const doc = new jsPDF();
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('PLANILLA DE CORTE DE VIDRIOS (POR CANTIDADES)', 15, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('PLANILLA DE CORTE DE VIDRIOS', 15, 20);
     doc.setFontSize(8); doc.text(`CLIENTE: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 26);
 
     const glassData: any[] = [];
@@ -364,36 +364,45 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 
     autoTable(doc, {
         startY: 35,
-        head: [['ABERTURA', 'ESPECIFICACIÓN DE VIDRIO', 'MEDIDA CORTE (mm)', 'CANT. PIEZAS']],
+        head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT.']],
         body: glassData,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
-        columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold', fontSize: 11 }, 3: { halign: 'center', fontStyle: 'bold' } }
+        columnStyles: { 2: { fontStyle: 'bold' }, 3: { halign: 'center', fontStyle: 'bold' } }
     });
 
-    doc.save(`Vidrios_Consolidado_${quote.clientName}.pdf`);
+    doc.save(`Vidrios_${quote.clientName}.pdf`);
 };
 
 export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    if (config.companyLogo) { try { doc.addImage(config.companyLogo, 'PNG', 15, 10, 25, 25); } catch(e){} }
+    // Gestión Proporcional del LOGO
+    if (config.companyLogo) { 
+        try { 
+            const imgProps = doc.getImageProperties(config.companyLogo);
+            const logoH = 20;
+            const logoW = (imgProps.width * logoH) / imgProps.height;
+            // Dibujar centrado o a la izquierda manteniendo ratio
+            doc.addImage(config.companyLogo, 'PNG', 15, 8, logoW, logoH); 
+        } catch(e){} 
+    }
     
-    doc.setFontSize(18); 
+    doc.setFontSize(16); 
     doc.setFont('helvetica', 'bold'); 
-    doc.text(config.companyName || 'PRESUPUESTO', pageWidth / 2, 20, { align: 'center' });
+    doc.text(config.companyName || 'PRESUPUESTO TÉCNICO', pageWidth / 2, 20, { align: 'center' });
     
     doc.setFontSize(8); 
     doc.setFont('helvetica', 'normal'); 
-    doc.text(`${config.companyAddress || ''} | Tel: ${config.companyPhone || ''}`, pageWidth / 2, 25, { align: 'center' });
+    doc.text(`${config.companyAddress || ''} | Tel: ${config.companyPhone || ''}`, pageWidth / 2, 26, { align: 'center' });
     
-    doc.setDrawColor(241, 245, 249); 
-    doc.line(15, 40, pageWidth - 15, 40);
+    doc.setDrawColor(226, 232, 240); 
+    doc.line(15, 35, pageWidth - 15, 35);
     
     doc.setFontSize(10); 
-    doc.text(`CLIENTE: ${quote.clientName.toUpperCase()}`, 15, 48);
-    doc.text(`FECHA: ${new Date().toLocaleDateString()}`, pageWidth - 15, 48, { align: 'right' });
+    doc.text(`CLIENTE: ${quote.clientName.toUpperCase()}`, 15, 45);
+    doc.text(`FECHA: ${new Date().toLocaleDateString()}`, pageWidth - 15, 45, { align: 'right' });
 
     const tableData = quote.items.map((item, idx) => {
         const firstMod = item.composition?.modules?.[0];
@@ -402,40 +411,37 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
         const desc = `POS#${idx+1}: ${recipe?.type || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nModelo: ${recipe?.name || 'S/D'}\nVidrio: ${glassInfo}`;
         return [
             { content: idx + 1, styles: { valign: 'middle', halign: 'center' } },
-            { content: '', styles: { minCellHeight: 35 } },
-            { content: desc, styles: { valign: 'middle' } },
-            { content: `${item.width} x ${item.height}`, styles: { valign: 'middle', halign: 'center' } },
+            { content: '', styles: { minCellHeight: 40 } },
+            { content: desc, styles: { valign: 'middle', fontSize: 8 } },
+            { content: `${item.width} x ${item.height}`, styles: { valign: 'middle', halign: 'center', fontStyle: 'bold' } },
             { content: item.quantity, styles: { valign: 'middle', halign: 'center' } },
             { content: `$${item.calculatedCost.toLocaleString()}`, styles: { valign: 'middle', halign: 'right' } },
-            { content: `$${(item.calculatedCost * item.quantity).toLocaleString()}`, styles: { valign: 'middle', halign: 'right' } }
+            { content: `$${(item.calculatedCost * item.quantity).toLocaleString()}`, styles: { valign: 'middle', halign: 'right', fontStyle: 'bold' } }
         ];
     });
 
     autoTable(doc, {
-        startY: 55,
-        head: [['#', 'ILUSTRACIÓN', 'DESCRIPCIÓN TÉCNICA', 'MEDIDAS', 'CANT.', 'UNIT.', 'SUBTOTAL']],
+        startY: 52,
+        head: [['#', 'DIBUJO', 'DETALLE', 'MEDIDAS', 'CANT', 'UNIT.', 'TOTAL']],
         body: tableData,
         theme: 'plain',
-        headStyles: { 
-            fillColor: [79, 70, 229], 
-            textColor: 255,
-            fontSize: 8,
-            fontStyle: 'bold'
-        },
-        styles: { 
-            fontSize: 8,
-            lineWidth: 0, 
-            cellPadding: 4
-        },
-        alternateRowStyles: {
-            fillColor: [249, 250, 251]
-        },
+        headStyles: { fillColor: [30, 41, 59], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 3 },
+        alternateRowStyles: { fillColor: [249, 250, 251] },
         didDrawCell: (data) => {
             if (data.section === 'body' && data.column.index === 1) {
                 const item = quote.items[data.row.index];
                 if (item && item.previewImage) {
                     try {
-                        doc.addImage(item.previewImage, 'JPEG', data.cell.x + 2, data.cell.y + 2, data.cell.width - 4, data.cell.height - 4);
+                        const imgProps = doc.getImageProperties(item.previewImage);
+                        const cellW = data.cell.width - 4;
+                        const cellH = data.cell.height - 4;
+                        const ratio = Math.min(cellW / imgProps.width, cellH / imgProps.height);
+                        const drawW = imgProps.width * ratio;
+                        const drawH = imgProps.height * ratio;
+                        const offsetX = (cellW - drawW) / 2;
+                        const offsetY = (cellH - drawH) / 2;
+                        doc.addImage(item.previewImage, 'JPEG', data.cell.x + 2 + offsetX, data.cell.y + 2 + offsetY, drawW, drawH);
                     } catch(e){}
                 }
             }
@@ -445,43 +451,47 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     const lastTable = (doc as any).lastAutoTable;
     const finalY = lastTable ? lastTable.finalY + 15 : 200;
     
-    doc.setDrawColor(241, 245, 249);
-    doc.line(15, finalY - 5, pageWidth - 15, finalY - 5);
+    doc.setDrawColor(30, 41, 59);
+    doc.setLineWidth(0.5);
+    doc.line(pageWidth - 80, finalY - 5, pageWidth - 15, finalY - 5);
     
     doc.setFontSize(14); 
     doc.setFont('helvetica', 'bold');
     doc.text(`TOTAL FINAL: $${quote.totalPrice.toLocaleString()}`, pageWidth - 15, finalY + 5, { align: 'right' });
     
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    doc.text('Precios sujetos a variaciones de mercado. Válido por 10 días.', 15, finalY + 15);
+    doc.text('Documento generado mediante Terminal de Ingeniería AristaStudio v2.8', 15, finalY + 15);
     
     doc.save(`Presupuesto_${quote.clientName}.pdf`);
 };
 
 export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], glasses: Glass[]) => {
     const doc = new jsPDF();
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('HOJA DE TALLER: ARMADO Y CARPINTERÍA', 15, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('HOJA DE TALLER: ARMADO', 15, 20);
     doc.setFontSize(9); doc.text(`CLIENTE: ${quote.clientName} | FECHA: ${new Date().toLocaleDateString()}`, 15, 26);
 
     let y = 35;
     quote.items.forEach((item, idx) => {
-        if (y > 200) { doc.addPage(); y = 20; }
+        if (y > 220) { doc.addPage(); y = 20; }
         
         if (item.previewImage) {
             try { 
-                doc.addImage(item.previewImage, 'JPEG', 15, y, 40, 40); 
+                const imgProps = doc.getImageProperties(item.previewImage);
+                const drawH = 35;
+                const drawW = (imgProps.width * drawH) / imgProps.height;
+                doc.addImage(item.previewImage, 'JPEG', 15, y, drawW, drawH); 
             } catch(e){}
         }
         
-        doc.setFontSize(12); doc.setTextColor(79, 70, 229);
+        doc.setFontSize(11); doc.setTextColor(79, 70, 229);
         doc.text(`POSICIÓN #${idx+1} - CANTIDAD: ${item.quantity}`, 62, y + 5);
         
-        doc.setFontSize(9); doc.setTextColor(0);
+        doc.setFontSize(8); doc.setTextColor(0);
         const mod = item.composition.modules?.[0];
         const recipe = recipes.find(r => r.id === mod?.recipeId);
-        doc.text(`Sistema: ${recipe?.name || 'S/D'} | Medida Exterior: ${item.width} x ${item.height} mm`, 62, y + 13);
+        doc.text(`Sistema: ${recipe?.name || 'S/D'} | Medida: ${item.width} x ${item.height} mm`, 62, y + 12);
         
         const visualType = recipe?.visualType || '';
         let numLeaves = 1;
@@ -489,25 +499,17 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         else if (visualType.includes('sliding_4')) numLeaves = 4;
         else if (visualType.includes('sliding')) numLeaves = 2;
 
-        if (recipe && mod) {
-            const panes = getModuleGlassPanes(item, mod, recipe, aluminum).filter(p => !p.isBlind);
-            
-            const gOuter = glasses.find(g => g.id === mod.glassOuterId);
-            const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
-            const glassDesc = gOuter ? (mod.isDVH ? `${gOuter.detail} + DVH + ${gInner?.detail || '?'}` : gOuter.detail) : 'S/D';
-
-            doc.setFont('helvetica', 'bold');
-            doc.text(`VIDRIADO (${numLeaves} HOJAS / PAÑOS):`, 62, y + 21);
-            panes.forEach((pane, pIdx) => {
-              doc.text(`- P${pIdx+1}: ${Math.round(pane.w)} x ${Math.round(pane.h)} mm | ${glassDesc} (Cant: ${numLeaves})`, 65, y + 27 + (pIdx * 5));
-            });
-            doc.setFont('helvetica', 'normal');
-        }
+        const panes = recipe && mod ? getModuleGlassPanes(item, mod, recipe, aluminum).filter(p => !p.isBlind) : [];
+        doc.setFont('helvetica', 'bold');
+        doc.text(`VIDRIADO:`, 62, y + 20);
+        panes.forEach((pane, pIdx) => {
+            doc.text(`- P${pIdx+1}: ${Math.round(pane.w)} x ${Math.round(pane.h)} mm (Cant: ${numLeaves})`, 65, y + 25 + (pIdx * 5));
+        });
 
         const cutData = recipe?.profiles.map(rp => {
             const pDef = aluminum.find(p => p.id === rp.profileId);
             return [
-                pDef ? `${pDef.code} - ${pDef.detail}` : rp.profileId, 
+                pDef ? `${pDef.code}` : 'S/D', 
                 rp.quantity, 
                 `${Math.round(evaluateFormula(rp.formula, item.width, item.height))} mm`, 
                 `${rp.cutStart}° / ${rp.cutEnd}°`
@@ -515,19 +517,16 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         }) || [];
 
         autoTable(doc, {
-            startY: y + 45 + ((mod?.transoms?.length || 0) * 5),
-            head: [['PERFIL (CÓDIGO - DETALLE)', 'CANT', 'LARGO CORTE', 'ÁNGULOS']],
+            startY: y + 40 + (panes.length * 5),
+            head: [['PERFIL', 'CANT', 'LARGO', 'ÁNGULOS']],
             body: cutData,
             theme: 'grid',
-            headStyles: { fillColor: [50, 50, 50] },
-            styles: { 
-                fontSize: 8,
-                lineWidth: 0.1 
-            },
+            headStyles: { fillColor: [50, 50, 50], fontSize: 7 },
+            styles: { fontSize: 7, cellPadding: 2 },
             margin: { left: 15 }
         });
         const lastTable = (doc as any).lastAutoTable;
-        y = lastTable ? lastTable.finalY + 15 : y + 120;
+        y = lastTable ? lastTable.finalY + 15 : y + 100;
     });
     doc.save(`Taller_${quote.clientName}.pdf`);
 };
@@ -550,6 +549,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         });
     });
     const body = Array.from(summary.values()).map(s => [s.code, s.total.toFixed(2), s.unit]);
-    autoTable(doc, { startY: 35, head: [['CÓDIGO', 'CANTIDAD TOTAL', 'UNIDAD']], body, theme: 'grid' });
+    autoTable(doc, { startY: 35, head: [['CÓDIGO', 'CANTIDAD', 'UNIDAD']], body, theme: 'grid' });
     doc.save(`Pedido_${quote.clientName}.pdf`);
 };
