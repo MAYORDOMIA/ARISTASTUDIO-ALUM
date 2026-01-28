@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Search, 
@@ -58,7 +57,8 @@ const QuotesHistory: React.FC<Props> = ({
     try {
       switch (type) {
         case 'presupuesto': generateClientDetailedPDF(quote, config, recipes); break;
-        case 'taller': generateAssemblyOrderPDF(quote, recipes, aluminum); break;
+        // Fix: Added missing 'glasses' argument to comply with generateAssemblyOrderPDF signature
+        case 'taller': generateAssemblyOrderPDF(quote, recipes, aluminum, glasses); break;
         case 'materiales': generateMaterialsOrderPDF(quote, recipes, aluminum, accessories, glasses, dvhInputs, config); break;
         case 'barras': generateBarOptimizationPDF(quote, recipes, aluminum, config); break;
         case 'vidrios': generateGlassOptimizationPDF(quote, recipes, glasses, aluminum); break;
@@ -194,7 +194,7 @@ const QuotesHistory: React.FC<Props> = ({
                   </div>
                 </button>
                 <button onClick={() => downloadReport(selectedQuote, 'vidrios')} className="flex items-center gap-4 p-5 bg-blue-50 rounded-2xl border-2 border-blue-200 hover:border-blue-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-blue-600/10">
-                  <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white border-2 border-blue-600/20 group-hover:border-blue-700 transition-all">
+                  <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-500 group-hover:text-white border-2 border-blue-600/20 group-hover:border-blue-700 transition-all">
                     <Layers size={20} />
                   </div>
                   <div className="text-left">

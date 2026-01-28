@@ -460,7 +460,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     doc.save(`Presupuesto_${quote.clientName}.pdf`);
 };
 
-export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
+export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], glasses: Glass[]) => {
     const doc = new jsPDF();
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('HOJA DE TALLER: ARMADO Y CARPINTERÍA', 15, 20);
     doc.setFontSize(9); doc.text(`CLIENTE: ${quote.clientName} | FECHA: ${new Date().toLocaleDateString()}`, 15, 26);
@@ -468,21 +468,22 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
     let y = 35;
     quote.items.forEach((item, idx) => {
         if (y > 200) { doc.addPage(); y = 20; }
-        doc.setFillColor(245); doc.rect(15, y, 180, 48, 'F');
         
+        // Ilustración de la abertura (sin recuadro de fondo gris)
         if (item.previewImage) {
             try { 
-                doc.addImage(item.previewImage, 'JPEG', 20, y + 5, 38, 38); 
+                // Añadimos la imagen flotante, sin bordes
+                doc.addImage(item.previewImage, 'JPEG', 15, y, 40, 40); 
             } catch(e){}
         }
         
         doc.setFontSize(12); doc.setTextColor(79, 70, 229);
-        doc.text(`POSICIÓN #${idx+1} - CANTIDAD: ${item.quantity}`, 62, y + 10);
+        doc.text(`POSICIÓN #${idx+1} - CANTIDAD: ${item.quantity}`, 62, y + 5);
         
         doc.setFontSize(9); doc.setTextColor(0);
         const mod = item.composition.modules?.[0];
         const recipe = recipes.find(r => r.id === mod?.recipeId);
-        doc.text(`Sistema: ${recipe?.name || 'S/D'} | Medida Exterior: ${item.width} x ${item.height} mm`, 62, y + 18);
+        doc.text(`Sistema: ${recipe?.name || 'S/D'} | Medida Exterior: ${item.width} x ${item.height} mm`, 62, y + 13);
         
         const visualType = recipe?.visualType || '';
         let numLeaves = 1;
@@ -492,10 +493,16 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
 
         if (recipe && mod) {
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum).filter(p => !p.isBlind);
+            
+            // Obtener descripción técnica del vidrio
+            const gOuter = glasses.find(g => g.id === mod.glassOuterId);
+            const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
+            const glassDesc = gOuter ? (mod.isDVH ? `${gOuter.detail} + DVH + ${gInner?.detail || '?'}` : gOuter.detail) : 'S/D';
+
             doc.setFont('helvetica', 'bold');
-            doc.text(`VIDRIADO (${numLeaves} HOJAS / PAÑOS):`, 62, y + 26);
+            doc.text(`VIDRIADO (${numLeaves} HOJAS / PAÑOS):`, 62, y + 21);
             panes.forEach((pane, pIdx) => {
-              doc.text(`- P${pIdx+1}: ${Math.round(pane.w)} x ${Math.round(pane.h)} mm (Cant: ${numLeaves})`, 65, y + 32 + (pIdx * 5));
+              doc.text(`- P${pIdx+1}: ${Math.round(pane.w)} x ${Math.round(pane.h)} mm | ${glassDesc} (Cant: ${numLeaves})`, 65, y + 27 + (pIdx * 5));
             });
             doc.setFont('helvetica', 'normal');
         }
@@ -511,7 +518,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         }) || [];
 
         autoTable(doc, {
-            startY: y + 55 + ((mod?.transoms?.length || 0) * 5),
+            startY: y + 45 + ((mod?.transoms?.length || 0) * 5),
             head: [['PERFIL (CÓDIGO - DETALLE)', 'CANT', 'LARGO CORTE', 'ÁNGULOS']],
             body: cutData,
             theme: 'grid',

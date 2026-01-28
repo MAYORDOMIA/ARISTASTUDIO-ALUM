@@ -452,6 +452,17 @@ const QuotingModule: React.FC<Props> = ({
     const treatment = treatments.find(t => t.id === colorId);
     if (!treatment) return alert("Seleccione un acabado para cotizar.");
     const canvas = mainCanvasRef.current;
+    
+    // Antes de exportar la imagen, nos aseguramos de que el fondo sea blanco
+    // para evitar que la transparencia se convierta en negro en formato JPEG
+    const ctx = canvas?.getContext('2d');
+    if (ctx && canvas) {
+      const currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.putImageData(currentData, 0, 0);
+    }
+
     const previewImage = canvas ? canvas.toDataURL('image/jpeg', 0.2) : undefined;
     
     const { finalPrice, breakdown } = calculateCompositePrice({
@@ -473,7 +484,14 @@ const QuotingModule: React.FC<Props> = ({
   useEffect(() => {
     const canvas = mainCanvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d'); if (!ctx) return;
+    
+    // Limpieza inicial
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Rellenar fondo de blanco para visualización y exportación coherente
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     const padding = 120;
     const pxPerMm = Math.min((canvas.width - padding * 2) / (totalWidth || 1), (canvas.height - padding * 2) / (totalHeight || 1));
     const startX = (canvas.width - totalWidth * pxPerMm) / 2;
@@ -577,7 +595,6 @@ const QuotingModule: React.FC<Props> = ({
                             <span className="font-black uppercase tracking-tighter">4. Mano de Obra ({config.laborPercentage}%)</span>
                             <span className="font-mono font-bold">${Math.round(liveBreakdown.laborCost).toLocaleString()}</span>
                         </div>
-                        {/* Refactored Layout for the Total Price to prevent leaking/overlapping labels */}
                         <div className="flex flex-col pt-3 mt-2 border-t-2 border-indigo-500/30 gap-2">
                             <span className="text-[11px] font-black uppercase tracking-widest text-white leading-none">Total Carpintería</span>
                             <div className="flex justify-between items-baseline gap-2">
