@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Menu, 
@@ -175,10 +176,10 @@ const App: React.FC = () => {
     try {
         switch (type) {
             case 'presupuesto': generateClientDetailedPDF(tempQuote, config, recipes); break;
-            case 'taller': generateAssemblyOrderPDF(tempQuote, recipes); break;
+            case 'taller': generateAssemblyOrderPDF(tempQuote, recipes, aluminum); break;
             case 'materiales': generateMaterialsOrderPDF(tempQuote, recipes, aluminum, accessories, glasses, dvhInputs, config); break;
             case 'barras': generateBarOptimizationPDF(tempQuote, recipes, aluminum, config); break;
-            case 'vidrios': generateGlassOptimizationPDF(tempQuote, recipes, glasses); break;
+            case 'vidrios': generateGlassOptimizationPDF(tempQuote, recipes, glasses, aluminum); break;
         }
     } catch (err) {
         console.error(err);

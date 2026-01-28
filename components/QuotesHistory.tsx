@@ -58,10 +58,10 @@ const QuotesHistory: React.FC<Props> = ({
     try {
       switch (type) {
         case 'presupuesto': generateClientDetailedPDF(quote, config, recipes); break;
-        case 'taller': generateAssemblyOrderPDF(quote, recipes); break;
+        case 'taller': generateAssemblyOrderPDF(quote, recipes, aluminum); break;
         case 'materiales': generateMaterialsOrderPDF(quote, recipes, aluminum, accessories, glasses, dvhInputs, config); break;
         case 'barras': generateBarOptimizationPDF(quote, recipes, aluminum, config); break;
-        case 'vidrios': generateGlassOptimizationPDF(quote, recipes, glasses); break;
+        case 'vidrios': generateGlassOptimizationPDF(quote, recipes, glasses, aluminum); break;
       }
     } catch (error) {
       alert("Error al generar el reporte técnico.");
@@ -211,7 +211,7 @@ const QuotesHistory: React.FC<Props> = ({
                     <div className="flex items-center gap-4">
                       <div className="text-xs font-black text-indigo-600 border-r-2 border-slate-100 pr-4">#{idx+1}</div>
                       <div>
-                        <div className="text-[10px] font-black text-slate-800 uppercase">{recipes.find(r => r.id === item.recipeId)?.name || 'Producto'}</div>
+                        <div className="text-[10px] font-black text-slate-800 uppercase">{recipes.find(r => r.id === (item.composition.modules?.[0]?.recipeId))?.name || 'Producto'}</div>
                         <div className="text-[9px] text-slate-500 font-mono font-bold">{item.width} x {item.height} mm | {item.quantity} UNID.</div>
                       </div>
                     </div>

@@ -2,6 +2,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem } from '../types';
+import { evaluateFormula } from './calculator';
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
     'Ventana': [59, 130, 246],   
@@ -14,12 +15,46 @@ const TYPE_COLORS: Record<string, [number, number, number]> = {
     'Default': [203, 213, 225]   
 };
 
-const evaluate = (formula: string, W: number, h: number): number => {
-    try {
-        const clean = (formula || '').toString().toUpperCase().replace(/W/g, W.toString()).replace(/H/g, h.toString());
-        if (!clean) return 0;
-        return new Function(`return ${clean}`)();
-    } catch { return 0; }
+// Helper to get glass panes for a specific module
+const getModuleGlassPanes = (
+  item: QuoteItem, 
+  mod: any, 
+  recipe: ProductRecipe, 
+  aluminum: AluminumProfile[]
+): { w: number, h: number, isBlind: boolean }[] => {
+    const sumCols = (item.composition.colRatios || []).reduce((a, b) => a + b, 0) || 1;
+    const sumRows = (item.composition.rowRatios || []).reduce((a, b) => a + b, 0) || 1;
+    const colRatio = item.composition.colRatios[mod.x] || 0;
+    const rowRatio = item.composition.rowRatios[mod.y] || 0;
+    const modW = (item.width * colRatio) / sumCols;
+    const modH = (item.height * rowRatio) / sumRows;
+
+    const adjustedW = modW - (recipe.glassDeductionW || 0); 
+    const adjustedH = modH - (recipe.glassDeductionH || 0);
+    const gW = evaluateFormula(recipe.glassFormulaW || 'W', adjustedW, adjustedH);
+    const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
+    
+    const panes: { w: number, h: number, isBlind: boolean }[] = [];
+    const tProfile = aluminum.find(p => p.id === recipe.defaultTransomProfileId);
+    const transomThickness = tProfile?.thickness || recipe.transomThickness || (recipe.visualType?.startsWith('door_') ? 68 : 38); 
+    const transomGlassDeduction = recipe.transomGlassDeduction || 0; 
+
+    if (!mod.transoms || mod.transoms.length === 0) {
+        panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
+    } else {
+        const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
+        let lastY = 0;
+        sorted.forEach((t, idx) => {
+            const currentTProf = aluminum.find(p => p.id === t.profileId);
+            const currentTThickness = currentTProf?.thickness || transomThickness;
+            const paneH = (idx === 0) ? (t.height - (currentTThickness / 2) - transomGlassDeduction) : (t.height - lastY - currentTThickness - transomGlassDeduction);
+            if (paneH > 0) panes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(idx) || false });
+            lastY = t.height;
+        });
+        const lastPaneH = (gH - lastY - (transomThickness / 2) - transomGlassDeduction);
+        if (lastPaneH > 0) panes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(sorted.length) || false });
+    }
+    return panes;
 };
 
 export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: AluminumProfile[], accessories: Accessory[], config: GlobalConfig) => {
@@ -155,7 +190,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 const isTJ = String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
                 
-                const cutLen = evaluate(rp.formula, modW, modH);
+                const cutLen = evaluateFormula(rp.formula, modW, modH);
                 if (cutLen <= 0) return;
                 
                 const list = cutsByProfile.get(rp.profileId) || [];
@@ -235,9 +270,9 @@ function ctxDrawPiece(doc: jsPDF, x: number, y: number, w: number, h: number, st
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'F');
 }
 
-export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[]) => {
+export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[]) => {
     const doc = new jsPDF();
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('PLANILLA DE CORTE DE VIDRIOS', 15, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('PLANILLA DE CORTE DE VIDRIOS (POR CANTIDADES)', 15, 20);
     doc.setFontSize(8); doc.text(`CLIENTE: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 26);
 
     const glassData: any[] = [];
@@ -253,32 +288,43 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             else if (visualType.includes('sliding_4')) numLeaves = 4;
             else if (visualType.includes('sliding')) numLeaves = 2;
 
+            const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             const gInner = glasses.find(g => g.id === mod.glassInnerId);
-            const adjW = item.width - (recipe.glassDeductionW || 0);
-            const adjH = item.height - (recipe.glassDeductionH || 0);
-            const gw = evaluate(recipe.glassFormulaW || 'W', adjW, adjH);
-            const gh = evaluate(recipe.glassFormulaH || 'H', adjW, adjH);
-            
-            const totalGlassQty = numLeaves * item.quantity;
 
-            glassData.push([itemCode, gOuter?.detail || 'S/D', `${Math.round(gw)}x${Math.round(gh)}`, totalGlassQty.toString()]);
-            if (mod.isDVH && gInner) {
-                glassData.push([itemCode, gInner.detail, `${Math.round(gw)}x${Math.round(gh)}`, totalGlassQty.toString()]);
-            }
+            glassPanes.forEach(pane => {
+                if (pane.isBlind) return;
+                const totalGlassQty = numLeaves * item.quantity;
+                
+                glassData.push([
+                  itemCode, 
+                  gOuter?.detail || 'S/D', 
+                  `${Math.round(pane.w)} x ${Math.round(pane.h)}`, 
+                  totalGlassQty.toString()
+                ]);
+                
+                if (mod.isDVH && gInner) {
+                    glassData.push([
+                      itemCode, 
+                      gInner.detail, 
+                      `${Math.round(pane.w)} x ${Math.round(pane.h)}`, 
+                      totalGlassQty.toString()
+                    ]);
+                }
+            });
         });
     });
 
     autoTable(doc, {
         startY: 35,
-        head: [['ABERTURA', 'ESPECIFICACIÓN DE VIDRIO', 'MEDIDA CORTE (mm)', 'CANT.']],
+        head: [['ABERTURA', 'ESPECIFICACIÓN DE VIDRIO', 'MEDIDA CORTE (mm)', 'CANT. PIEZAS']],
         body: glassData,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
         columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold', fontSize: 11 }, 3: { halign: 'center', fontStyle: 'bold' } }
     });
 
-    doc.save(`Vidrios_${quote.clientName}.pdf`);
+    doc.save(`Vidrios_Consolidado_${quote.clientName}.pdf`);
 };
 
 export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[]) => {
@@ -331,7 +377,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     doc.save(`Presupuesto_${quote.clientName}.pdf`);
 };
 
-export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[]) => {
+export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
     const doc = new jsPDF();
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('HOJA DE TALLER: ARMADO Y CARPINTERÍA', 15, 20);
     doc.setFontSize(9); doc.text(`CLIENTE: ${quote.clientName} | FECHA: ${new Date().toLocaleDateString()}`, 15, 26);
@@ -346,7 +392,8 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[])
         doc.text(`POSICIÓN #${idx+1} - CANTIDAD: ${item.quantity}`, 62, y + 10);
         
         doc.setFontSize(9); doc.setTextColor(0);
-        const recipe = recipes.find(r => r.id === item.composition.modules?.[0]?.recipeId);
+        const mod = item.composition.modules?.[0];
+        const recipe = recipes.find(r => r.id === mod?.recipeId);
         doc.text(`Sistema: ${recipe?.name || 'S/D'} | Medida Exterior: ${item.width} x ${item.height} mm`, 62, y + 18);
         
         const visualType = recipe?.visualType || '';
@@ -355,25 +402,25 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[])
         else if (visualType.includes('sliding_4')) numLeaves = 4;
         else if (visualType.includes('sliding')) numLeaves = 2;
 
-        const adjW = item.width - (recipe?.glassDeductionW || 0);
-        const adjH = item.height - (recipe?.glassDeductionH || 0);
-        const gw = evaluate(recipe?.glassFormulaW || 'W', adjW, adjH);
-        const gh = evaluate(recipe?.glassFormulaH || 'H', adjW, adjH);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.text(`MEDIDA DE CORTE VIDRIO: ${Math.round(gw)} x ${Math.round(gh)} mm`, 62, y + 26);
-        doc.text(`CANT. VIDRIOS: ${numLeaves} | TIPO: ${item.composition.modules?.[0]?.isDVH ? 'DVH' : 'SIMPLE'}`, 62, y + 32);
-        doc.setFont('helvetica', 'normal');
+        if (recipe && mod) {
+            const panes = getModuleGlassPanes(item, mod, recipe, aluminum).filter(p => !p.isBlind);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`VIDRIADO (${numLeaves} HOJAS / PAÑOS):`, 62, y + 26);
+            panes.forEach((pane, pIdx) => {
+              doc.text(`- P${pIdx+1}: ${Math.round(pane.w)} x ${Math.round(pane.h)} mm (Cant: ${numLeaves})`, 65, y + 32 + (pIdx * 5));
+            });
+            doc.setFont('helvetica', 'normal');
+        }
 
         const cutData = recipe?.profiles.map(rp => [
             rp.profileId, 
             rp.quantity, 
-            `${Math.round(evaluate(rp.formula, item.width, item.height))} mm`, 
+            `${Math.round(evaluateFormula(rp.formula, item.width, item.height))} mm`, 
             `${rp.cutStart}° / ${rp.cutEnd}°`
         ]) || [];
 
         autoTable(doc, {
-            startY: y + 50,
+            startY: y + 55 + ((mod?.transoms?.length || 0) * 5),
             head: [['PERFIL', 'CANT', 'LARGO CORTE', 'ÁNGULOS']],
             body: cutData,
             theme: 'grid',
@@ -381,7 +428,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[])
             margin: { left: 15 }
         });
         const lastTable = (doc as any).lastAutoTable;
-        y = lastTable ? lastTable.finalY + 15 : y + 100;
+        y = lastTable ? lastTable.finalY + 15 : y + 120;
     });
     doc.save(`Taller_${quote.clientName}.pdf`);
 };
@@ -391,15 +438,16 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('PEDIDO DE MATERIALES CONSOLIDADO', 15, 20);
     const summary = new Map<string, { code: string, total: number, unit: string }>();
     quote.items.forEach(item => {
-        const firstMod = item.composition?.modules?.[0];
-        const recipe = recipes.find(r => r.id === firstMod?.recipeId);
-        recipe?.profiles.forEach(rp => {
-            const p = aluminum.find(a => a.id === rp.profileId);
-            if (!p) return;
-            const len = evaluate(rp.formula, item.width, item.height) * rp.quantity * item.quantity;
-            const existing = summary.get(p.id) || { code: p.code, total: 0, unit: 'm' };
-            existing.total += (len / 1000);
-            summary.set(p.id, existing);
+        item.composition.modules.forEach(mod => {
+          const recipe = recipes.find(r => r.id === mod?.recipeId);
+          recipe?.profiles.forEach(rp => {
+              const p = aluminum.find(a => a.id === rp.profileId);
+              if (!p) return;
+              const len = evaluateFormula(rp.formula, item.width, item.height) * rp.quantity * item.quantity;
+              const existing = summary.get(p.id) || { code: p.code, total: 0, unit: 'm' };
+              existing.total += (len / 1000);
+              summary.set(p.id, existing);
+          });
         });
     });
     const body = Array.from(summary.values()).map(s => [s.code, s.total.toFixed(2), s.unit]);
