@@ -577,9 +577,15 @@ const QuotingModule: React.FC<Props> = ({
                             <span className="font-black uppercase tracking-tighter">4. Mano de Obra ({config.laborPercentage}%)</span>
                             <span className="font-mono font-bold">${Math.round(liveBreakdown.laborCost).toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between items-center pt-2 mt-2 border-t-2 border-indigo-500/30">
-                            <span className="text-[11px] font-black uppercase tracking-widest text-white">Total Carpintería</span>
-                            <span className="text-xl font-mono font-black text-indigo-400">${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}</span>
+                        {/* Refactored Layout for the Total Price to prevent leaking/overlapping labels */}
+                        <div className="flex flex-col pt-3 mt-2 border-t-2 border-indigo-500/30 gap-2">
+                            <span className="text-[11px] font-black uppercase tracking-widest text-white leading-none">Total Carpintería</span>
+                            <div className="flex justify-between items-baseline gap-2">
+                                 <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter italic">Incl. {quantity} Unid.</span>
+                                 <span className="text-2xl font-mono font-black text-indigo-400 leading-none tracking-tighter overflow-hidden text-ellipsis whitespace-nowrap">
+                                    ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
+                                 </span>
+                            </div>
                         </div>
                     </div>
                 </div>
