@@ -11,6 +11,15 @@ const TYPE_COLORS: Record<string, [number, number, number]> = {
     'Default': [79, 70, 229]   
 };
 
+interface GlassPiece {
+    id: string;
+    itemCode: string;
+    spec: string;
+    w: number;
+    h: number;
+    glassId: string;
+}
+
 const getModuleGlassPanes = (
   item: QuoteItem, 
   mod: any, 
@@ -236,7 +245,6 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
         const recipe = recipes.find(r => r.id === firstMod?.recipeId);
         const treatment = treatments.find(t => t.id === item.colorId);
         
-        // Lógica de Detalle de Vidrio (Avanzada)
         let glassDetailStr = 'No definido';
         if (firstMod) {
             const gOuter = glasses.find(g => g.id === firstMod.glassOuterId);
@@ -370,21 +378,220 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     doc.save(`Pedido_${quote.clientName}.pdf`);
 };
 
-export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[]) => {
-    const doc = new jsPDF();
-    doc.setFontSize(16); doc.text('PLANILLA DE CORTE DE VIDRIOS', 15, 20);
-    const glassData: any[] = [];
-    quote.items.forEach((item, idx) => {
+export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[], dvhInputs: DVHInput[]) => {
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // 1. RECOLECCIÓN DE PIEZAS
+    const allPieces: GlassPiece[] = [];
+    const listTableData: any[] = [];
+
+    quote.items.forEach((item, itemIdx) => {
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
+
+            const visualType = recipe.visualType || '';
+            let numLeaves = 1;
+            if (visualType.includes('sliding_3')) numLeaves = 3;
+            else if (visualType.includes('sliding_4')) numLeaves = 4;
+            else if (visualType.includes('sliding')) numLeaves = 2;
+
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            let spec = 'S/D';
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
+            if (mod.isDVH) {
+                const gInner = glasses.find(g => g.id === mod.glassInnerId);
+                const camera = dvhInputs.find(i => i.id === mod.dvhCameraId);
+                spec = `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`;
+            } else {
+                spec = gOuter?.detail || 'Simple';
+            }
+
             glassPanes.forEach(pane => {
-                if (!pane.isBlind) glassData.push([item.itemCode || `POS#${idx+1}`, gOuter?.detail || 'S/D', `${Math.round(pane.w)} x ${Math.round(pane.h)}`, item.quantity]);
+                if (!pane.isBlind) {
+                    const qtyTotal = item.quantity * numLeaves;
+                    // Agregar a tabla de listado (Pag 1)
+                    listTableData.push([
+                        item.itemCode || `POS#${itemIdx + 1}`,
+                        spec,
+                        `${Math.round(pane.w)} x ${Math.round(pane.h)}`,
+                        qtyTotal
+                    ]);
+                    // Agregar a cola de optimización (individualmente)
+                    for (let i = 0; i < qtyTotal; i++) {
+                        allPieces.push({
+                            id: `${item.id}-${i}`,
+                            itemCode: item.itemCode || `POS#${itemIdx + 1}`,
+                            spec,
+                            w: Math.round(pane.w),
+                            h: Math.round(pane.h),
+                            glassId: mod.glassOuterId
+                        });
+                    }
+                }
             });
         });
     });
-    autoTable(doc, { startY: 35, head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT.']], body: glassData });
-    doc.save(`Vidrios_${quote.clientName}.pdf`);
+
+    // PÁGINA 1: LISTADO CONSOLIDADO
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageWidth, 30, 'F');
+    doc.setTextColor(255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLANILLA DE CORTE DE VIDRIOS - LISTADO', 15, 20);
+
+    autoTable(doc, {
+        startY: 40,
+        head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT. TOTAL']],
+        body: listTableData,
+        theme: 'striped',
+        headStyles: { fillColor: [51, 65, 85] }
+    });
+
+    // PÁGINAS SIGUIENTES: ESQUEMAS DE CORTE
+    // Agrupar por especificación técnica (No mezclamos vidrios distintos en la misma plancha)
+    const groupedBySpec = new Map<string, GlassPiece[]>();
+    allPieces.forEach(p => {
+        const list = groupedBySpec.get(p.spec) || [];
+        list.push(p);
+        groupedBySpec.set(p.spec, list);
+    });
+
+    groupedBySpec.forEach((pieces, specName) => {
+        // Obtener tamaño de plancha del primer vidrio que encuentre con ese ID o defecto
+        const refGlass = glasses.find(g => g.id === pieces[0].glassId);
+        const sheetW = refGlass?.width && refGlass.width > 100 ? refGlass.width : 2400;
+        const sheetH = refGlass?.height && refGlass.height > 100 ? refGlass.height : 1800;
+        const margin = 10; // Margen de corte (mm)
+
+        // Algoritmo Next-Fit Decreasing Height (NFDH) para empaquetado
+        pieces.sort((a, b) => b.h - a.h); // Ordenar por altura descendente
+
+        interface SheetResult {
+            pieces: { p: GlassPiece, x: number, y: number }[];
+            usedArea: number;
+        }
+
+        const resultSheets: SheetResult[] = [];
+        
+        pieces.forEach(piece => {
+            let placed = false;
+            for (const sheet of resultSheets) {
+                // Intentar poner en estantes existentes
+                let currentY = 0;
+                let shelfH = 0;
+                let currentX = 0;
+
+                // Este es un packing muy simplificado pero efectivo visualmente
+                // Buscamos espacio. Para simplificar el código PDF, creamos una nueva "hoja" si no entra.
+            }
+
+            // Lógica de empaquetado por "Shelves"
+            if (!placed) {
+                // Si es la primera o no entró en ninguna, nueva hoja (Shelf 1)
+                // Realizamos un packing simple para el dibujo
+            }
+        });
+
+        // Simulación de packing por "estantes" para el dibujo
+        let sheets: { p: GlassPiece, x: number, y: number }[][] = [[]];
+        let curSheetIdx = 0;
+        let curY = 0;
+        let curShelfH = 0;
+        let curX = 0;
+
+        pieces.forEach(p => {
+            if (p.w > sheetW || p.h > sheetH) {
+                // Caso pieza más grande que plancha (Error de DB, ignorar o ajustar)
+                return;
+            }
+
+            if (curX + p.w + margin > sheetW) {
+                // Nuevo estante
+                curX = 0;
+                curY += curShelfH + margin;
+                curShelfH = 0;
+            }
+
+            if (curY + p.h + margin > sheetH) {
+                // Nueva plancha
+                curX = 0;
+                curY = 0;
+                curShelfH = 0;
+                curSheetIdx++;
+                sheets[curSheetIdx] = [];
+            }
+
+            sheets[curSheetIdx].push({ p, x: curX, y: curY });
+            curX += p.w + margin;
+            if (p.h > curShelfH) curShelfH = p.h;
+        });
+
+        // DIBUJAR LAS PLANCHAS
+        sheets.forEach((sheetPieces, sIdx) => {
+            doc.addPage();
+            
+            // Cabecera de Hoja de Optimización
+            doc.setFillColor(71, 85, 105);
+            doc.rect(0, 0, pageWidth, 20, 'F');
+            doc.setTextColor(255);
+            doc.setFontSize(10);
+            doc.text(`CROQUIS DE CORTE: ${specName.toUpperCase()}`, 15, 10);
+            doc.setFontSize(8);
+            doc.text(`PLANCHA #${sIdx + 1} | DIMENSIÓN: ${sheetW} x ${sheetH} mm`, 15, 15);
+
+            // Calcular escala para que la plancha entre en el PDF
+            const drawMargin = 25;
+            const availableW = pageWidth - (drawMargin * 2);
+            const availableH = pageHeight - (drawMargin * 2) - 30;
+            const scale = Math.min(availableW / sheetW, availableH / sheetH);
+            
+            const startX = (pageWidth - (sheetW * scale)) / 2;
+            const startY = 35;
+
+            // Dibujar Contorno Plancha
+            doc.setDrawColor(100);
+            doc.setLineWidth(0.5);
+            doc.rect(startX, startY, sheetW * scale, sheetH * scale);
+
+            // Dibujar Piezas
+            sheetPieces.forEach(sp => {
+                const px = startX + (sp.x * scale);
+                const py = startY + (sp.y * scale);
+                const pw = sp.p.w * scale;
+                const ph = sp.p.h * scale;
+
+                doc.setFillColor(240, 249, 255);
+                doc.rect(px, py, pw, ph, 'FD');
+                doc.setDrawColor(186, 230, 253);
+                doc.rect(px, py, pw, ph, 'D');
+
+                // Etiquetas internas (si caben)
+                if (pw > 15 && ph > 10) {
+                    doc.setTextColor(30, 58, 138);
+                    doc.setFontSize(Math.min(7, pw / 5));
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(sp.p.itemCode, px + (pw / 2), py + (ph / 2) - 1, { align: 'center' });
+                    doc.setFontSize(Math.min(6, pw / 6));
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`${sp.p.w}x${sp.p.h}`, px + (pw / 2), py + (ph / 2) + 3, { align: 'center' });
+                }
+            });
+
+            // Resumen al pie de la plancha
+            const usedArea = sheetPieces.reduce((acc, sp) => acc + (sp.p.w * sp.p.h), 0);
+            const totalArea = sheetW * sheetH;
+            const efficiency = (usedArea / totalArea) * 100;
+
+            doc.setTextColor(100);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`EFICIENCIA: ${efficiency.toFixed(1)}% | ÁREA UTILIZADA: ${(usedArea / 1000000).toFixed(2)} m2`, startX, startY + (sheetH * scale) + 8);
+        });
+    });
+
+    doc.save(`Optimizacion_Vidrios_${quote.clientName}.pdf`);
 };
