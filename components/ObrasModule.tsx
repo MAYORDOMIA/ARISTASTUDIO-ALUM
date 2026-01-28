@@ -10,7 +10,8 @@ import {
   Ruler,
   ChevronRight,
   Database,
-  Calculator
+  Calculator,
+  Hash
 } from 'lucide-react';
 import { QuoteItem, Quote, ProductRecipe, GlobalConfig, AluminumProfile } from '../types';
 import { evaluateFormula } from '../services/calculator';
@@ -108,7 +109,10 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
               const mainRecipe = recipes.find(r => r.id === item?.composition?.modules?.[0]?.recipeId);
               return (
                 <div key={item.id} className="bg-white border-b border-slate-100 p-4 flex items-center gap-6 hover:bg-slate-50 transition-all group">
-                  <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-400">#{idx+1}</div>
+                  <div className="w-16 h-12 bg-indigo-50 rounded-lg flex flex-col items-center justify-center border border-indigo-100">
+                    <span className="text-[8px] font-black text-indigo-400 uppercase">ABER.</span>
+                    <span className="text-[10px] font-black text-indigo-600 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
+                  </div>
                   <div className="flex-1">
                     <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{mainRecipe?.name || 'Producto Desconocido'}</h3>
                     <div className="flex gap-4 mt-1">

@@ -26,7 +26,8 @@ import {
   Minus,
   RefreshCw,
   MoreHorizontal,
-  DollarSign
+  DollarSign,
+  Hash
 } from 'lucide-react';
 import { 
     ProductRecipe, AluminumProfile, Glass, BlindPanel,
@@ -199,7 +200,6 @@ const drawDetailedOpening = (
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else {
-            // UNIFICACIÓN DE TONO: Se utiliza exactamente el mismo degradado para todos los paños
             const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
             glassGrad.addColorStop(0, '#bae6fd');
             glassGrad.addColorStop(0.35, '#e0f2fe');
@@ -265,7 +265,6 @@ const drawDetailedOpening = (
 
     const drawLeaf = (lx:number, ly:number, lw:number, lh:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string) => {
         const bT = leafHasZocalo ? zocaloT : leafT;
-        // Se llama a drawGlassWithTransoms garantizando que no haya opacidades extras
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), ly + lh);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
         if (force90) {
@@ -298,7 +297,6 @@ const drawDetailedOpening = (
             }
         } else {
             const leafW = (innerW / 2) + overlap;
-            // Se dibujan ambas hojas con la misma lógica para evitar diferencias de tono
             drawLeaf(innerX, innerY, leafW, innerH, is90, hasZocalo, extras?.mosquitero || false, 'sliding');
             drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, is90, hasZocalo, false, 'sliding');
         }
@@ -332,6 +330,7 @@ const QuotingModule: React.FC<Props> = ({
 }) => {
   const [totalWidth, setTotalWidth] = useState(1500);
   const [totalHeight, setTotalHeight] = useState(1100);
+  const [itemCode, setItemCode] = useState(''); // Nuevo estado para el código de abertura
   const [couplingProfileId, setCouplingProfileId] = useState('');
   const [couplingDeduction, setCouplingDeduction] = useState(10);
   const [colorId, setSelectedColorId] = useState('');
@@ -364,13 +363,13 @@ const QuotingModule: React.FC<Props> = ({
     if (!treatment) return null;
 
     const tempItem: QuoteItem = {
-      id: 'temp', width: totalWidth, height: totalHeight, colorId, quantity,
+      id: 'temp', itemCode: itemCode || 'POS#', width: totalWidth, height: totalHeight, colorId, quantity,
       composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction },
       couplingProfileId, extras: { ...extras }, calculatedCost: 0
     };
     const { breakdown } = calculateCompositePrice(tempItem, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
     return breakdown;
-  }, [totalWidth, totalHeight, modules, colSizes, rowSizes, couplingDeduction, extras, colorId, couplingProfileId, recipes, aluminum, config, treatments, glasses, accessories, dvhInputs, blindPanels, quantity]);
+  }, [totalWidth, totalHeight, itemCode, modules, colSizes, rowSizes, couplingDeduction, extras, colorId, couplingProfileId, recipes, aluminum, config, treatments, glasses, accessories, dvhInputs, blindPanels, quantity]);
 
   const updateModule = (id: string, data: Partial<MeasurementModule>) => {
     setModules(prev => (prev || []).map(m => (m && m.id === id ? { ...m, ...data } : m)));
@@ -466,19 +465,20 @@ const QuotingModule: React.FC<Props> = ({
     const previewImage = canvas ? canvas.toDataURL('image/jpeg', 0.8) : undefined;
     
     const { finalPrice, breakdown } = calculateCompositePrice({
-      id: 'temp', width: totalWidth, height: totalHeight, colorId, quantity,
+      id: 'temp', itemCode: itemCode || 'S/C', width: totalWidth, height: totalHeight, colorId, quantity,
       composition: { modules: (modules || []).filter(Boolean), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction },
       couplingProfileId, extras: { ...extras }, calculatedCost: 0
     }, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
 
     const tempItem: QuoteItem = {
-      id: Date.now().toString(), width: totalWidth, height: totalHeight, colorId, quantity,
+      id: Date.now().toString(), itemCode: itemCode || `POS#${currentWorkItems.length + 1}`, width: totalWidth, height: totalHeight, colorId, quantity,
       composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction },
       couplingProfileId, extras: { ...extras }, calculatedCost: Math.round(finalPrice), previewImage, breakdown
     };
     
     setCurrentWorkItems([...currentWorkItems, tempItem]);
     if (onUpdateActiveItem) onUpdateActiveItem(tempItem);
+    setItemCode(''); // Limpiar código tras carga
   };
 
   useEffect(() => {
@@ -530,7 +530,6 @@ const QuotingModule: React.FC<Props> = ({
         const yOffset = (mod.y > bounds.minY) ? (couplingDeduction / 2) : 0;
         
         const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
-        // Corregido: Se pasan los valores de posición calculados para que el dibujo sea exacto y proporcional
         drawDetailedOpening(ctx, startX + (ox_mm + xOffset) * pxPerMm, startY + (oy_mm + yOffset) * pxPerMm, modW * pxPerMm, modH * pxPerMm, recipe, mod.isDVH, aluColor, extras, edges, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
   }, [totalWidth, totalHeight, modules, colSizes, rowSizes, bounds, extras, colorId, treatments, recipes, couplingDeduction, blindPanels, aluminum]);
@@ -563,6 +562,12 @@ const QuotingModule: React.FC<Props> = ({
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-7 shadow-sm space-y-8 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
             <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-5 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
+            
+            <div className="space-y-3 pt-2">
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
+                <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-12 px-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-sm focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
+            </div>
+
             <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Ancho Total</label>

@@ -136,6 +136,7 @@ export interface QuoteItemBreakdown {
 
 export interface QuoteItem {
   id: string;
+  itemCode: string; // Nuevo campo: Código de abertura (ej: V1, P1)
   clientName?: string;
   width: number;
   height: number;

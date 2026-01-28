@@ -80,7 +80,8 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     const cutsByProfile = new Map<string, {len:number, type:string, cutStart:string, cutEnd:string, label:string}[]>();
     
     quote.items.forEach((item, posIdx) => {
-        const itemCode = `POS#${posIdx+1}`;
+        // Se utiliza el itemCode personalizado si está definido, sino el genérico POS#
+        const itemCode = item.itemCode || `POS#${posIdx+1}`;
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
@@ -114,7 +115,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     cutsByProfile.forEach((cuts, profileId) => {
         const profile = aluminum.find(p => p.id === profileId);
         if (!profile || cuts.length === 0) return;
-        
         const barLenMm = profile.barLength > 100 ? profile.barLength : profile.barLength * 1000;
         
         cuts.sort((a, b) => b.len - a.len);
@@ -154,28 +154,22 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             let curX = 15;
             bin.forEach((cut) => {
                 const pieceW = (cut.len / barLenMm) * barW;
-                
-                // COLOR AZUL MÁS CLARO (Sky Blue Industrial)
                 doc.setFillColor(100, 149, 237); 
                 doc.setDrawColor(255);
                 doc.setLineWidth(0.3);
                 
                 drawGeometricPiece(doc, curX, y, pieceW, barH, cut.cutStart, cut.cutEnd);
                 
-                // ETIQUETAS DE MEDIDA Y CÓDIGO (AGRANDADAS)
                 doc.setTextColor(0);
                 if (pieceW > 12) {
-                    // Medida arriba (Largo)
                     doc.setFontSize(8);
                     doc.setFont('helvetica', 'bold');
                     doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 3, { align: 'center' });
                     
-                    // Código abajo (POS#) - AGRANDADO
                     doc.setFontSize(7);
                     doc.setFont('helvetica', 'bold');
                     doc.text(cut.label, curX + pieceW/2, y + barH + 6, { align: 'center' });
                 }
-                
                 curX += pieceW + (config.discWidth / barLenMm) * barW;
             });
             
@@ -240,7 +234,8 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
 
     const tableData = quote.items.map((item, idx) => {
         const recipe = recipes.find(r => r.id === item.composition.modules?.[0]?.recipeId);
-        const desc = `POS#${idx+1}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nVidrio: ${item.composition.modules?.[0]?.isDVH ? 'DVH' : 'Simple'}`;
+        // Se integra itemCode en la descripción técnica
+        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nVidrio: ${item.composition.modules?.[0]?.isDVH ? 'DVH' : 'Simple'}`;
         return [
             idx + 1,
             '', 
@@ -332,7 +327,9 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 doc.addImage(item.previewImage, 'JPEG', 15, y, drawW, drawH); 
             } catch(e){}
         }
-        doc.setFontSize(11); doc.text(`POSICIÓN #${idx+1} - CANT: ${item.quantity}`, 65, y + 5);
+        // Se muestra el itemCode personalizado en la hoja de taller
+        doc.setFontSize(11); 
+        doc.text(`${item.itemCode || `POS#${idx+1}`} - CANT: ${item.quantity}`, 65, y + 5);
         y += 100;
     });
     doc.save(`Taller_${quote.clientName}.pdf`);
@@ -371,7 +368,8 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             glassPanes.forEach(pane => {
-                if (!pane.isBlind) glassData.push([`POS#${idx+1}`, gOuter?.detail || 'S/D', `${Math.round(pane.w)} x ${Math.round(pane.h)}`, item.quantity]);
+                // Se usa itemCode en la planilla de vidrios
+                if (!pane.isBlind) glassData.push([item.itemCode || `POS#${idx+1}`, gOuter?.detail || 'S/D', `${Math.round(pane.w)} x ${Math.round(pane.h)}`, item.quantity]);
             });
         });
     });
