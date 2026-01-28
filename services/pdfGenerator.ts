@@ -306,12 +306,10 @@ function ctxDrawDetailedPiece(doc: jsPDF, x: number, y: number, w: number, h: nu
     if (start === '45') p1.x += slant;
     if (end === '45') p2.x -= slant;
     
-    // Draw the main trapezoid
     doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'F');
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'F');
     
-    // Smooth outline
-    doc.setDrawColor(0, 0, 0, 40); // Soft black for outline
+    doc.setDrawColor(0, 0, 0, 40); 
     doc.setLineWidth(0.1);
     doc.line(p1.x, p1.y, p2.x, p2.y);
     doc.line(p2.x, p2.y, p3.x, p3.y);
@@ -390,7 +388,6 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     doc.setFont('helvetica', 'normal'); 
     doc.text(`${config.companyAddress || ''} | Tel: ${config.companyPhone || ''}`, 45, 25);
     
-    // Línea separadora suave
     doc.setDrawColor(241, 245, 249); 
     doc.line(15, 40, pageWidth - 15, 40);
     
@@ -427,7 +424,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
         },
         styles: { 
             fontSize: 8,
-            lineWidth: 0, // ELIMINA BORDES NEGROS
+            lineWidth: 0, 
             cellPadding: 4
         },
         alternateRowStyles: {
@@ -438,7 +435,6 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
                 const item = quote.items[data.row.index];
                 if (item && item.previewImage) {
                     try {
-                        // Insertar la imagen de la abertura sin borde externo
                         doc.addImage(item.previewImage, 'JPEG', data.cell.x + 2, data.cell.y + 2, data.cell.width - 4, data.cell.height - 4);
                     } catch(e){}
                 }
@@ -473,7 +469,12 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
     quote.items.forEach((item, idx) => {
         if (y > 200) { doc.addPage(); y = 20; }
         doc.setFillColor(245); doc.rect(15, y, 180, 48, 'F');
-        if (item.previewImage) try { doc.addImage(item.previewImage, 'JPEG', 20, y + 5, 38, 38); } catch(e){}
+        
+        if (item.previewImage) {
+            try { 
+                doc.addImage(item.previewImage, 'JPEG', 20, y + 5, 38, 38); 
+            } catch(e){}
+        }
         
         doc.setFontSize(12); doc.setTextColor(79, 70, 229);
         doc.text(`POSICIÓN #${idx+1} - CANTIDAD: ${item.quantity}`, 62, y + 10);
@@ -499,19 +500,26 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             doc.setFont('helvetica', 'normal');
         }
 
-        const cutData = recipe?.profiles.map(rp => [
-            rp.profileId, 
-            rp.quantity, 
-            `${Math.round(evaluateFormula(rp.formula, item.width, item.height))} mm`, 
-            `${rp.cutStart}° / ${rp.cutEnd}°`
-        ]) || [];
+        const cutData = recipe?.profiles.map(rp => {
+            const pDef = aluminum.find(p => p.id === rp.profileId);
+            return [
+                pDef ? `${pDef.code} - ${pDef.detail}` : rp.profileId, 
+                rp.quantity, 
+                `${Math.round(evaluateFormula(rp.formula, item.width, item.height))} mm`, 
+                `${rp.cutStart}° / ${rp.cutEnd}°`
+            ];
+        }) || [];
 
         autoTable(doc, {
             startY: y + 55 + ((mod?.transoms?.length || 0) * 5),
-            head: [['PERFIL', 'CANT', 'LARGO CORTE', 'ÁNGULOS']],
+            head: [['PERFIL (CÓDIGO - DETALLE)', 'CANT', 'LARGO CORTE', 'ÁNGULOS']],
             body: cutData,
             theme: 'grid',
             headStyles: { fillColor: [50, 50, 50] },
+            styles: { 
+                fontSize: 8,
+                lineWidth: 0.1 
+            },
             margin: { left: 15 }
         });
         const lastTable = (doc as any).lastAutoTable;
