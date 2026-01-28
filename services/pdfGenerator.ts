@@ -1,20 +1,20 @@
+
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem } from '../types';
 import { evaluateFormula } from './calculator';
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
-    'Ventana': [59, 130, 246],   
-    'Puerta': [239, 68, 68],    
-    'Paño Fijo': [16, 185, 129], 
-    'Travesaño': [139, 92, 246], 
-    'Acople': [71, 85, 105],     
-    'Tapajuntas': [14, 165, 233], 
-    'Mosquitero': [16, 185, 129], 
-    'Default': [203, 213, 225]   
+    'Ventana': [79, 70, 229],   // Indigo
+    'Puerta': [220, 38, 38],    // Red
+    'Paño Fijo': [5, 150, 105], // Green
+    'Travesaño': [124, 58, 237], // Violet
+    'Acople': [71, 85, 105],     // Slate
+    'Tapajuntas': [2, 132, 199], // Sky
+    'Mosquitero': [16, 185, 129], // Emerald
+    'Default': [148, 163, 184]   // Slate 400
 };
 
-// Helper to get glass panes for a specific module
 const getModuleGlassPanes = (
   item: QuoteItem, 
   mod: any, 
@@ -31,7 +31,6 @@ const getModuleGlassPanes = (
     const adjustedW = modW - (recipe.glassDeductionW || 0); 
     const adjustedH = modH - (recipe.glassDeductionH || 0);
     
-    // Determinar cantidad de hojas para sliding
     const visualType = recipe.visualType || '';
     let numLeaves = 1;
     if (visualType.includes('sliding_3')) numLeaves = 3;
@@ -87,7 +86,6 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
     doc.text(`FECHA DE EMISIÓN: ${new Date().toLocaleDateString()}`, pageWidth - 15, 28, { align: 'right' });
 
     let y = 50;
-
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -175,9 +173,17 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
 };
 
 export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], config: GlobalConfig) => {
-    const doc = new jsPDF();
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('OPTIMIZACIÓN TÉCNICA DE CORTE DE BARRAS', 15, 20);
-    doc.setFontSize(8); doc.text(`CLIENTE: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 26);
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageWidth, 30, 'F');
+    doc.setTextColor(255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('OPTIMIZACIÓN TÉCNICA DE CORTE DE BARRAS', 15, 18);
+    doc.setFontSize(8);
+    doc.text(`OBRA: ${quote.clientName.toUpperCase()} | EMISIÓN: ${new Date().toLocaleDateString()}`, 15, 24);
 
     const cutsByProfile = new Map<string, {len:number, type:string, cutStart:string, cutEnd:string, label:string}[]>();
     
@@ -222,7 +228,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         });
     });
 
-    let y = 35;
+    let y = 45;
     cutsByProfile.forEach((cuts, profileId) => {
         const profile = aluminum.find(p => p.id === profileId);
         if (!profile || cuts.length === 0) return;
@@ -239,47 +245,78 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             if (!placed) bins.push([cut]);
         });
 
-        if (y > 220) { doc.addPage(); y = 20; }
-        doc.setFillColor(30, 41, 59); doc.roundedRect(15, y, 180, 8, 1, 1, 'F');
-        doc.setTextColor(255); doc.setFontSize(9); doc.text(`PERFIL: ${String(profile.code)} - ${profile.detail} | BARRAS: ${bins.length}`, 20, y + 5.5);
+        if (y > 170) { doc.addPage(); y = 40; }
+        
+        doc.setFillColor(241, 245, 249);
+        doc.roundedRect(10, y - 5, pageWidth - 20, 10, 2, 2, 'F');
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(10);
+        doc.text(`PERFIL: ${String(profile.code)} - ${profile.detail} | BARRAS REQUERIDAS: ${bins.length}`, 15, y + 1.5);
         y += 15;
 
         bins.forEach((bin, bIdx) => {
-            if (y > 265) { doc.addPage(); y = 20; }
-            const barW = 165; const barH = 5;
-            doc.setDrawColor(200); doc.setFillColor(245); doc.rect(15, y, barW, barH, 'FD');
+            if (y > 185) { doc.addPage(); y = 40; }
+            const barW = pageWidth - 60; const barH = 8;
+            doc.setDrawColor(203, 213, 225); 
+            doc.setFillColor(248, 250, 252); 
+            doc.rect(15, y, barW, barH, 'FD');
             
             let curX = 15;
             bin.forEach((cut) => {
-                const drawW = (cut.len / barLenMm) * barW;
+                const pieceW = (cut.len / barLenMm) * barW;
                 const color = TYPE_COLORS[cut.type] || TYPE_COLORS['Default'];
+                
                 doc.setFillColor(color[0], color[1], color[2]);
-                ctxDrawPiece(doc, curX, y, drawW, barH, cut.cutStart, cut.cutEnd, 2);
-                doc.setTextColor(0); doc.setFontSize(6);
-                if (drawW > 8) {
-                    doc.text(`${Math.round(cut.len)}`, curX + drawW/2, y - 1, { align: 'center' });
-                    doc.text(cut.label, curX + drawW/2, y + barH + 3, { align: 'center' });
+                ctxDrawDetailedPiece(doc, curX, y, pieceW, barH, cut.cutStart, cut.cutEnd);
+                
+                doc.setTextColor(0); 
+                doc.setFontSize(7);
+                if (pieceW > 12) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 2, { align: 'center' });
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(6);
+                    doc.text(cut.label, curX + pieceW/2, y + barH + 4, { align: 'center' });
                 }
-                curX += drawW + (config.discWidth / barLenMm) * barW;
+                curX += pieceW + (config.discWidth / barLenMm) * barW;
             });
-            doc.setFontSize(6); doc.setTextColor(150);
+            
+            doc.setFontSize(7);
+            doc.setTextColor(100);
             const totalUsed = bin.reduce((a,b)=>a+b.len+config.discWidth, 0);
-            doc.text(`BARRA ${bIdx+1} - SOBRANTE: ${Math.round(barLenMm - totalUsed)}mm`, 182, y + 3.5);
-            y += 18;
+            const waste = barLenMm - totalUsed;
+            doc.text(`B#${bIdx+1}`, 8, y + 5.5);
+            doc.text(`SOBRANTE: ${Math.round(waste)}mm`, 15 + barW + 5, y + 5.5);
+            y += 22;
         });
         y += 10;
     });
     doc.save(`Optimizacion_Barras_${quote.clientName}.pdf`);
 };
 
-function ctxDrawPiece(doc: jsPDF, x: number, y: number, w: number, h: number, start: string, end: string, slant: number) {
-    const x1 = x; const x2 = x + w;
-    const y1 = y; const y2 = y + h;
+function ctxDrawDetailedPiece(doc: jsPDF, x: number, y: number, w: number, h: number, start: string, end: string) {
+    const slant = h * 0.8;
+    const x1 = x; 
+    const x2 = x + w;
+    const y1 = y; 
+    const y2 = y + h;
+    
     let p1 = {x: x1, y: y1}, p2 = {x: x2, y: y1}, p3 = {x: x2, y: y2}, p4 = {x: x1, y: y2};
+    
     if (start === '45') p1.x += slant;
     if (end === '45') p2.x -= slant;
+    
+    // Draw the main trapezoid
     doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'F');
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'F');
+    
+    // Smooth outline
+    doc.setDrawColor(0, 0, 0, 40); // Soft black for outline
+    doc.setLineWidth(0.1);
+    doc.line(p1.x, p1.y, p2.x, p2.y);
+    doc.line(p2.x, p2.y, p3.x, p3.y);
+    doc.line(p3.x, p3.y, p4.x, p4.y);
+    doc.line(p4.x, p4.y, p1.x, p1.y);
 }
 
 export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[]) => {
@@ -342,11 +379,23 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    
     if (config.companyLogo) { try { doc.addImage(config.companyLogo, 'PNG', 15, 10, 25, 25); } catch(e){} }
-    doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.text(config.companyName || 'PRESUPUESTO', 45, 20);
-    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.text(`${config.companyAddress || ''} | Tel: ${config.companyPhone || ''}`, 45, 25);
-    doc.setDrawColor(200); doc.line(15, 40, pageWidth - 15, 40);
-    doc.setFontSize(10); doc.text(`CLIENTE: ${quote.clientName.toUpperCase()}`, 15, 48);
+    
+    doc.setFontSize(18); 
+    doc.setFont('helvetica', 'bold'); 
+    doc.text(config.companyName || 'PRESUPUESTO', 45, 20);
+    
+    doc.setFontSize(8); 
+    doc.setFont('helvetica', 'normal'); 
+    doc.text(`${config.companyAddress || ''} | Tel: ${config.companyPhone || ''}`, 45, 25);
+    
+    // Línea separadora suave
+    doc.setDrawColor(241, 245, 249); 
+    doc.line(15, 40, pageWidth - 15, 40);
+    
+    doc.setFontSize(10); 
+    doc.text(`CLIENTE: ${quote.clientName.toUpperCase()}`, 15, 48);
     doc.text(`FECHA: ${new Date().toLocaleDateString()}`, pageWidth - 15, 48, { align: 'right' });
 
     const tableData = quote.items.map((item, idx) => {
@@ -369,23 +418,49 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
         startY: 55,
         head: [['#', 'ILUSTRACIÓN', 'DESCRIPCIÓN TÉCNICA', 'MEDIDAS', 'CANT.', 'UNIT.', 'SUBTOTAL']],
         body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [79, 70, 229], fontSize: 8 },
-        styles: { fontSize: 8 },
+        theme: 'plain',
+        headStyles: { 
+            fillColor: [79, 70, 229], 
+            textColor: 255,
+            fontSize: 8,
+            fontStyle: 'bold'
+        },
+        styles: { 
+            fontSize: 8,
+            lineWidth: 0, // ELIMINA BORDES NEGROS
+            cellPadding: 4
+        },
+        alternateRowStyles: {
+            fillColor: [249, 250, 251]
+        },
         didDrawCell: (data) => {
             if (data.section === 'body' && data.column.index === 1) {
                 const item = quote.items[data.row.index];
                 if (item && item.previewImage) {
-                    try { doc.addImage(item.previewImage, 'JPEG', data.cell.x + 2, data.cell.y + 2, data.cell.width - 4, data.cell.height - 4); } catch(e){}
+                    try {
+                        // Insertar la imagen de la abertura sin borde externo
+                        doc.addImage(item.previewImage, 'JPEG', data.cell.x + 2, data.cell.y + 2, data.cell.width - 4, data.cell.height - 4);
+                    } catch(e){}
                 }
             }
         }
     });
 
     const lastTable = (doc as any).lastAutoTable;
-    const finalY = lastTable ? lastTable.finalY + 10 : 200;
-    doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL FINAL: $${quote.totalPrice.toLocaleString()}`, pageWidth - 15, finalY, { align: 'right' });
+    const finalY = lastTable ? lastTable.finalY + 15 : 200;
+    
+    doc.setDrawColor(241, 245, 249);
+    doc.line(15, finalY - 5, pageWidth - 15, finalY - 5);
+    
+    doc.setFontSize(14); 
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL FINAL: $${quote.totalPrice.toLocaleString()}`, pageWidth - 15, finalY + 5, { align: 'right' });
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text('Precios sujetos a variaciones de mercado. Válido por 10 días.', 15, finalY + 15);
+    
     doc.save(`Presupuesto_${quote.clientName}.pdf`);
 };
 
