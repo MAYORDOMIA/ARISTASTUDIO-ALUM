@@ -243,6 +243,7 @@ const drawDetailedOpening = (
         }
     };
 
+    // Fix: Replace undefined startX, startY with current x, y coordinates
     if (isSinglePreview && extras?.tapajuntas && edges) {
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
@@ -262,7 +263,7 @@ const drawDetailedOpening = (
     const innerX = x + frameT; const innerY = y + frameT;
     const innerW = w - frameT * 2; const innerH = h - (isDoor ? frameT : frameT * 2);
 
-    const drawLeaf = (lx:number, ly:number, lw:number, lh:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string, isBackLeaf: boolean = false) => {
+    const drawLeaf = (lx:number, ly:number, lw:number, lh:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string) => {
         const bT = leafHasZocalo ? zocaloT : leafT;
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), ly + lh);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
@@ -277,7 +278,6 @@ const drawDetailedOpening = (
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}], true);
             drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}], true);
         }
-        if (isBackLeaf) { ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(lx, ly, lw, lh); }
     };
 
     if (visualType.includes('sliding')) {
@@ -287,18 +287,18 @@ const drawDetailedOpening = (
             const leafW = (innerW / 3) + overlap;
             for(let i=0; i<3; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 2);
-                drawLeaf(lx, innerY, leafW, innerH, is90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding', i === 0 || i === 2);
+                drawLeaf(lx, innerY, leafW, innerH, is90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else if (numLeaves === 4) {
             const leafW = (innerW / 4) + overlap;
             for(let i=0; i<4; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 3);
-                drawLeaf(lx, innerY, leafW, innerH, is90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding', i === 1 || i === 2);
+                drawLeaf(lx, innerY, leafW, innerH, is90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else {
             const leafW = (innerW / 2) + overlap;
-            drawLeaf(innerX, innerY, leafW, innerH, is90, hasZocalo, extras?.mosquitero || false, 'sliding', true);
-            drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, is90, hasZocalo, false, 'sliding', false);
+            drawLeaf(innerX, innerY, leafW, innerH, is90, hasZocalo, extras?.mosquitero || false, 'sliding');
+            drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, is90, hasZocalo, false, 'sliding');
         }
     } else if (visualType.includes('swing') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting')) {
         drawLeaf(innerX, innerY, innerW, innerH, is90, hasZocalo, extras?.mosquitero || false, visualType);
@@ -453,8 +453,6 @@ const QuotingModule: React.FC<Props> = ({
     if (!treatment) return alert("Seleccione un acabado para cotizar.");
     const canvas = mainCanvasRef.current;
     
-    // Antes de exportar la imagen, nos aseguramos de que el fondo sea blanco
-    // para evitar que la transparencia se convierta en negro en formato JPEG
     const ctx = canvas?.getContext('2d');
     if (ctx && canvas) {
       const currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -485,10 +483,8 @@ const QuotingModule: React.FC<Props> = ({
     const canvas = mainCanvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d'); if (!ctx) return;
     
-    // Limpieza inicial
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Rellenar fondo de blanco para visualización y exportación coherente
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 

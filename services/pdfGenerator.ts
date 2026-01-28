@@ -337,7 +337,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
-            const gInner = glasses.find(g => g.id === mod.glassInnerId);
+            const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
 
             glassPanes.forEach(pane => {
                 if (pane.isBlind) return;
@@ -382,11 +382,11 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     
     doc.setFontSize(18); 
     doc.setFont('helvetica', 'bold'); 
-    doc.text(config.companyName || 'PRESUPUESTO', 45, 20);
+    doc.text(config.companyName || 'PRESUPUESTO', pageWidth / 2, 20, { align: 'center' });
     
     doc.setFontSize(8); 
     doc.setFont('helvetica', 'normal'); 
-    doc.text(`${config.companyAddress || ''} | Tel: ${config.companyPhone || ''}`, 45, 25);
+    doc.text(`${config.companyAddress || ''} | Tel: ${config.companyPhone || ''}`, pageWidth / 2, 25, { align: 'center' });
     
     doc.setDrawColor(241, 245, 249); 
     doc.line(15, 40, pageWidth - 15, 40);
@@ -469,10 +469,8 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
     quote.items.forEach((item, idx) => {
         if (y > 200) { doc.addPage(); y = 20; }
         
-        // Ilustración de la abertura (sin recuadro de fondo gris)
         if (item.previewImage) {
             try { 
-                // Añadimos la imagen flotante, sin bordes
                 doc.addImage(item.previewImage, 'JPEG', 15, y, 40, 40); 
             } catch(e){}
         }
@@ -494,7 +492,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         if (recipe && mod) {
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum).filter(p => !p.isBlind);
             
-            // Obtener descripción técnica del vidrio
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
             const glassDesc = gOuter ? (mod.isDVH ? `${gOuter.detail} + DVH + ${gInner?.detail || '?'}` : gOuter.detail) : 'S/D';
