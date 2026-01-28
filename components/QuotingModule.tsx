@@ -27,7 +27,8 @@ import {
   RefreshCw,
   MoreHorizontal,
   DollarSign,
-  Hash
+  Hash,
+  AlignCenter
 } from 'lucide-react';
 import { 
     ProductRecipe, AluminumProfile, Glass, BlindPanel,
@@ -220,10 +221,13 @@ const drawDetailedOpening = (
         if (transoms.length > 0) {
             const sorted = [...transoms].sort((a, b) => a.height - b.height);
             let currentTopY = gy;
+            // Dibujamos de abajo hacia arriba para mayor claridad visual
             sorted.reverse().forEach((t, i) => {
                 const trProf = allProfiles.find(p => p.id === t.profileId);
                 const tHeight = (trProf?.thickness || 40) * pxPerMm;
-                const transomY = absoluteBottomY - (t.height * pxPerMm);
+                // La medida es desde la base exterior del módulo
+                const transomY = (y + h) - (t.height * pxPerMm);
+                
                 if (transomY > gy && transomY < (gy + gh)) {
                     const paneH = (transomY - (tHeight/2)) - currentTopY;
                     const paneIndex = transoms.length - i - 1;
@@ -793,8 +797,17 @@ const QuotingModule: React.FC<Props> = ({
                                     <div key={idx} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 flex items-center gap-4 animate-in slide-in-from-right-2">
                                         <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 w-12 italic">TR #{idx+1}</div>
                                         <div className="flex-1 space-y-1">
-                                            <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter ml-1">Altura desde base (mm)</label>
-                                            <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-[10px] font-black text-indigo-600 dark:text-indigo-400 outline-none" value={t.height} onChange={e => {
+                                            <div className="flex justify-between items-center ml-1">
+                                                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">Altura desde base (mm)</label>
+                                                <button onClick={() => {
+                                                    const modIdxY = currentModForEdit.y - bounds.minY;
+                                                    const modH = rowSizes[modIdxY] || 0;
+                                                    const newTransoms = [...(currentModForEdit.transoms || [])];
+                                                    newTransoms[idx].height = Math.round(modH / 2);
+                                                    updateModule(editingModuleId, { transoms: newTransoms });
+                                                }} className="text-[7px] font-black text-indigo-500 uppercase flex items-center gap-1 hover:text-indigo-700 transition-colors"><AlignCenter size={8}/> Centrar</button>
+                                            </div>
+                                            <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-[10px] font-black text-indigo-600 dark:text-indigo-400 outline-none focus:border-indigo-500" value={t.height} onChange={e => {
                                                 const newTransoms = [...(currentModForEdit.transoms || [])];
                                                 newTransoms[idx].height = parseInt(e.target.value) || 0;
                                                 updateModule(editingModuleId, { transoms: newTransoms });
