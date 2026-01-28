@@ -115,7 +115,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         const profile = aluminum.find(p => p.id === profileId);
         if (!profile || cuts.length === 0) return;
         
-        // CORRECCIÓN DE UNIDADES: Si el valor es < 100 se asume metros y se pasa a mm
         const barLenMm = profile.barLength > 100 ? profile.barLength : profile.barLength * 1000;
         
         cuts.sort((a, b) => b.len - a.len);
@@ -133,7 +132,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             if (!placed) bins.push([cut]);
         });
 
-        if (y > 170) { doc.addPage(); y = 30; }
+        if (y > 165) { doc.addPage(); y = 30; }
         
         doc.setFillColor(241, 245, 249);
         doc.rect(10, y - 5, pageWidth - 20, 8, 'F');
@@ -141,38 +140,40 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         doc.text(`PERFIL: ${profile.code} - ${profile.detail} | BARRAS REQUERIDAS: ${bins.length}`, 15, y + 1);
-        y += 15;
+        y += 18;
 
         bins.forEach((bin, bIdx) => {
             if (y > 185) { doc.addPage(); y = 30; }
-            const barW = pageWidth - 60; 
-            const barH = 10;
+            const barW = pageWidth - 70; 
+            const barH = 12;
             
-            // Dibujar la Barra Base (Gris)
             doc.setDrawColor(200);
-            doc.setFillColor(245, 245, 245);
+            doc.setFillColor(248, 250, 252);
             doc.rect(15, y, barW, barH, 'FD');
             
             let curX = 15;
             bin.forEach((cut) => {
                 const pieceW = (cut.len / barLenMm) * barW;
                 
-                // Dibujar la Pieza con Ángulos Reales
-                doc.setFillColor(79, 70, 229);
+                // COLOR AZUL MÁS CLARO (Sky Blue Industrial)
+                doc.setFillColor(100, 149, 237); 
                 doc.setDrawColor(255);
-                doc.setLineWidth(0.2);
+                doc.setLineWidth(0.3);
                 
                 drawGeometricPiece(doc, curX, y, pieceW, barH, cut.cutStart, cut.cutEnd);
                 
-                // Texto de Medida y POS
+                // ETIQUETAS DE MEDIDA Y CÓDIGO (AGRANDADAS)
                 doc.setTextColor(0);
-                doc.setFontSize(7);
-                if (pieceW > 15) {
+                if (pieceW > 12) {
+                    // Medida arriba (Largo)
+                    doc.setFontSize(8);
                     doc.setFont('helvetica', 'bold');
-                    doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 2, { align: 'center' });
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(5);
-                    doc.text(cut.label, curX + pieceW/2, y + barH + 5, { align: 'center' });
+                    doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 3, { align: 'center' });
+                    
+                    // Código abajo (POS#) - AGRANDADO
+                    doc.setFontSize(7);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(cut.label, curX + pieceW/2, y + barH + 6, { align: 'center' });
                 }
                 
                 curX += pieceW + (config.discWidth / barLenMm) * barW;
@@ -181,19 +182,20 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const totalUsed = bin.reduce((a,b)=>a+b.len+config.discWidth, 0);
             const scrap = barLenMm - totalUsed;
             
-            doc.setFontSize(7);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
             doc.setTextColor(100);
-            doc.text(`B#${bIdx+1}`, 8, y + 6);
-            doc.text(`SCRAP: ${Math.round(scrap)} mm`, 15 + barW + 4, y + 6);
-            y += 28;
+            doc.text(`B#${bIdx+1}`, 8, y + 7.5);
+            doc.text(`SCRAP: ${Math.round(scrap)} mm`, 15 + barW + 5, y + 7.5);
+            y += 32;
         });
         y += 10;
     });
-    doc.save(`Optimizado_Barras_${quote.clientName}.pdf`);
+    doc.save(`Cortes_Barras_${quote.clientName}.pdf`);
 };
 
 function drawGeometricPiece(doc: jsPDF, x: number, y: number, w: number, h: number, start: string, end: string) {
-    const slant = h * 0.7; // Grado visual de la inclinación
+    const slant = h * 0.75; 
     const x1 = x;
     const x2 = x + w;
     const yTop = y;
@@ -204,7 +206,6 @@ function drawGeometricPiece(doc: jsPDF, x: number, y: number, w: number, h: numb
     if (start === '45') p1.x += slant;
     if (end === '45') p2.x -= slant;
 
-    // Dibujar forma cerrada
     doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'FD');
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'FD');
 }
@@ -213,7 +214,6 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Encabezado Centrado y Logo Proporcional
     if (config.companyLogo) { 
         try { 
             const imgProps = doc.getImageProperties(config.companyLogo);
@@ -243,7 +243,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
         const desc = `POS#${idx+1}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nVidrio: ${item.composition.modules?.[0]?.isDVH ? 'DVH' : 'Simple'}`;
         return [
             idx + 1,
-            '', // Imagen
+            '', 
             desc,
             `${item.width} x ${item.height}`,
             item.quantity,
@@ -267,7 +267,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
                     try {
                         const imgProps = doc.getImageProperties(item.previewImage);
                         const cellW = data.cell.width - 4;
-                        const cellH = 30; // Altura fija de fila para imágenes
+                        const cellH = 30; 
                         const ratio = Math.min(cellW / imgProps.width, cellH / imgProps.height);
                         const drawW = imgProps.width * ratio;
                         const drawH = imgProps.height * ratio;
