@@ -511,34 +511,43 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             else if (visualType.includes('sliding')) numLeaves = 2;
 
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            let spec = 'S/D';
+            
+            // Lógica de despiece individual para DVH
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
-            if (mod.isDVH) {
-                const gInner = glasses.find(g => g.id === mod.glassInnerId);
-                const camera = dvhInputs.find(i => i.id === mod.dvhCameraId);
-                spec = `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`;
-            } else {
-                spec = gOuter?.detail || 'Simple';
-            }
+            const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
 
             glassPanes.forEach(pane => {
                 if (!pane.isBlind) {
-                    const qtyTotal = item.quantity * numLeaves;
-                    listTableData.push([
-                        item.itemCode || `POS#${itemIdx + 1}`,
-                        spec,
-                        `${Math.round(pane.w)} x ${Math.round(pane.h)}`,
-                        qtyTotal
-                    ]);
-                    for (let i = 0; i < qtyTotal; i++) {
+                    const qtyPerSheet = item.quantity * numLeaves;
+                    
+                    // Pieza Exterior
+                    const outerSpec = gOuter?.detail || 'Vidrio Exterior';
+                    listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, outerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
+                    for (let i = 0; i < qtyPerSheet; i++) {
                         allPieces.push({
-                            id: `${item.id}-${i}`,
+                            id: `${item.id}-ext-${i}`,
                             itemCode: item.itemCode || `POS#${itemIdx + 1}`,
-                            spec,
+                            spec: outerSpec,
                             w: Math.round(pane.w),
                             h: Math.round(pane.h),
                             glassId: mod.glassOuterId
                         });
+                    }
+
+                    // Pieza Interior (Solo si es DVH)
+                    if (mod.isDVH && gInner) {
+                        const innerSpec = gInner.detail || 'Vidrio Interior';
+                        listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, innerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
+                        for (let i = 0; i < qtyPerSheet; i++) {
+                            allPieces.push({
+                                id: `${item.id}-int-${i}`,
+                                itemCode: item.itemCode || `POS#${itemIdx + 1}`,
+                                spec: innerSpec,
+                                w: Math.round(pane.w),
+                                h: Math.round(pane.h),
+                                glassId: mod.glassInnerId!
+                            });
+                        }
                     }
                 }
             });
@@ -550,11 +559,11 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
     doc.setTextColor(255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('PLANILLA DE CORTE DE VIDRIOS - LISTADO', 15, 20);
+    doc.text('PLANILLA DE CORTE DE VIDRIOS - DESPIECE INDIVIDUAL', 15, 20);
 
     autoTable(doc, {
         startY: 40,
-        head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT. TOTAL']],
+        head: [['ABERTURA', 'ESPECIFICACIÓN CRISTAL', 'MEDIDA (mm)', 'CANT. TOTAL PIEZAS']],
         body: listTableData,
         theme: 'striped',
         headStyles: { fillColor: [51, 65, 85] }
@@ -655,18 +664,14 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         });
     });
 
-    doc.save(`Optimizacion_Vidrios_${quote.clientName}.pdf`);
+    doc.save(`Corte_Vidrios_${quote.clientName}.pdf`);
 };
 
-/**
- * NUEVO REPORTE: PLANILLA DE COSTOS INTERNOS
- */
 export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Encabezado Administrativo
-    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.setFillColor(15, 23, 42); 
     doc.rect(0, 0, pageWidth, 25, 'F');
     doc.setTextColor(255);
     doc.setFontSize(14);
@@ -675,7 +680,6 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
     doc.setFontSize(8);
     doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
 
-    // Totales Consolidados
     let totalAluWeight = 0;
     let totalAluCost = 0;
     let totalGlassCost = 0;
@@ -695,14 +699,15 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
             totalAccCost += b.accCost * item.quantity;
             totalLaborCost += b.laborCost * item.quantity;
 
-            // Cálculo aproximado de área de vidrio para el reporte (sumando áreas netas)
             item.composition.modules.forEach(mod => {
                 const r = recipes.find(rec => rec.id === mod.recipeId);
                 if (r) {
                     const panes = getModuleGlassPanes(item, mod, r, aluminum);
                     panes.forEach(p => {
                         if (!p.isBlind) {
-                            totalGlassArea += (p.w * p.h / 1000000) * item.quantity;
+                            // Cálculo exacto de m2 contando cada cara para DVH
+                            const glassMultiplier = mod.isDVH ? 2 : 1;
+                            totalGlassArea += (p.w * p.h / 1000000) * item.quantity * glassMultiplier;
                         }
                     });
                 }
@@ -735,7 +740,6 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
 
     const finalY = (doc as any).lastAutoTable.finalY + 15;
 
-    // Resumen de Insumos al final
     doc.setFillColor(248, 250, 252);
     doc.rect(15, finalY, pageWidth - 30, 45, 'F');
     doc.setDrawColor(226, 232, 240);
@@ -749,17 +753,14 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     
-    // Columna 1
     doc.text(`TOTAL ALUMINIO: ${totalAluWeight.toFixed(2)} KG`, 20, finalY + 18);
-    doc.text(`TOTAL VIDRIOS: ${totalGlassArea.toFixed(2)} M2`, 20, finalY + 24);
+    doc.text(`TOTAL VIDRIOS (AMBAS CARAS): ${totalGlassArea.toFixed(2)} M2`, 20, finalY + 24);
     doc.text(`COSTO HERRAJES: $${totalAccCost.toLocaleString()}`, 20, finalY + 30);
 
-    // Columna 2 (Valores)
-    doc.text(`VALOR METAL+PINT: $${totalAluCost.toLocaleString()}`, 80, finalY + 18);
-    doc.text(`VALOR CRISTALES: $${totalGlassCost.toLocaleString()}`, 80, finalY + 24);
-    doc.text(`VALOR MANO OBRA: $${totalLaborCost.toLocaleString()}`, 80, finalY + 30);
+    doc.text(`VALOR METAL+PINT: $${totalAluCost.toLocaleString()}`, 90, finalY + 18);
+    doc.text(`VALOR CRISTALES: $${totalGlassCost.toLocaleString()}`, 90, finalY + 24);
+    doc.text(`VALOR MANO OBRA: $${totalLaborCost.toLocaleString()}`, 90, finalY + 30);
 
-    // Total Final
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(79, 70, 229);
