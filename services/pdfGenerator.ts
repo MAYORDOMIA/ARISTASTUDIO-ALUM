@@ -18,6 +18,7 @@ interface GlassPiece {
     w: number;
     h: number;
     glassId: string;
+    rotated?: boolean; // Nueva propiedad para trackear rotación
 }
 
 const getModuleGlassPanes = (
@@ -371,7 +372,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 const drawH = 35;
                 const drawW = (imgProps.width * drawH) / imgProps.height;
                 doc.addImage(item.previewImage, 'JPEG', 15, currentY, drawW, drawH); 
-                // La tabla irá a la derecha de la imagen o debajo si es muy ancha
             } catch(e){}
         }
 
@@ -512,7 +512,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             
-            // Lógica de despiece individual para DVH
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
 
@@ -520,7 +519,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                 if (!pane.isBlind) {
                     const qtyPerSheet = item.quantity * numLeaves;
                     
-                    // Pieza Exterior
                     const outerSpec = gOuter?.detail || 'Vidrio Exterior';
                     listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, outerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
                     for (let i = 0; i < qtyPerSheet; i++) {
@@ -534,7 +532,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                         });
                     }
 
-                    // Pieza Interior (Solo si es DVH)
                     if (mod.isDVH && gInner) {
                         const innerSpec = gInner.detail || 'Vidrio Interior';
                         listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, innerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
@@ -559,11 +556,11 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
     doc.setTextColor(255);
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text('PLANILLA DE CORTE DE VIDRIOS - DESPIECE INDIVIDUAL', 15, 20);
+    doc.text('OPTIMIZADOR DE CORTE DE VIDRIOS (MÓDULO DE ROTACIÓN INTELIGENTE)', 15, 20);
 
     autoTable(doc, {
         startY: 40,
-        head: [['ABERTURA', 'ESPECIFICACIÓN CRISTAL', 'MEDIDA (mm)', 'CANT. TOTAL PIEZAS']],
+        head: [['ABERTURA', 'ESPECIFICACIÓN CRISTAL', 'MEDIDA NOMINAL (mm)', 'CANT. TOTAL PIEZAS']],
         body: listTableData,
         theme: 'striped',
         headStyles: { fillColor: [51, 65, 85] }
@@ -580,33 +577,61 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         const refGlass = glasses.find(g => g.id === pieces[0].glassId);
         const sheetW = refGlass?.width && refGlass.width > 100 ? refGlass.width : 2400;
         const sheetH = refGlass?.height && refGlass.height > 100 ? refGlass.height : 1800;
-        const margin = 10; 
+        const margin = 12; 
 
-        pieces.sort((a, b) => b.h - a.h); 
+        // Algoritmo de empaquetado por estanterías con comprobación de rotación
+        pieces.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h)); 
 
-        let sheets: { p: GlassPiece, x: number, y: number }[][] = [[]];
+        let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
         let curSheetIdx = 0;
         let curY = 0;
         let curShelfH = 0;
         let curX = 0;
 
         pieces.forEach(p => {
-            if (p.w > sheetW || p.h > sheetH) return;
+            let pw = p.w;
+            let ph = p.h;
+            let fitsNormal = (curX + pw + margin <= sheetW) && (curY + ph + margin <= sheetH);
+            let fitsRotated = (curX + ph + margin <= sheetW) && (curY + pw + margin <= sheetH);
 
-            if (curX + p.w + margin > sheetW) {
+            // Intentar colocar normal primero
+            if (fitsNormal) {
+                p.rotated = false;
+            } else if (fitsRotated) {
+                // Rotar 90 grados para que quepa en el ancho restante
+                p.rotated = true;
+                const temp = pw;
+                pw = ph;
+                ph = temp;
+            } else {
+                // Iniciar nueva estantería
                 curX = 0;
                 curY += curShelfH + margin;
                 curShelfH = 0;
+
+                // Re-comprobar en la nueva estantería
+                fitsNormal = (curX + p.w + margin <= sheetW) && (curY + p.h + margin <= sheetH);
+                fitsRotated = (curX + p.h + margin <= sheetW) && (curY + p.w + margin <= sheetH);
+
+                if (fitsNormal) {
+                    p.rotated = false;
+                    pw = p.w; ph = p.h;
+                } else if (fitsRotated) {
+                    p.rotated = true;
+                    pw = p.h; ph = p.w;
+                } else {
+                    // Nueva plancha
+                    curX = 0; curY = 0; curShelfH = 0; curSheetIdx++;
+                    sheets[curSheetIdx] = [];
+                    // En plancha nueva siempre intentamos normal primero
+                    p.rotated = false;
+                    pw = p.w; ph = p.h;
+                }
             }
 
-            if (curY + p.h + margin > sheetH) {
-                curX = 0; curY = 0; curShelfH = 0; curSheetIdx++;
-                sheets[curSheetIdx] = [];
-            }
-
-            sheets[curSheetIdx].push({ p, x: curX, y: curY });
-            curX += p.w + margin;
-            if (p.h > curShelfH) curShelfH = p.h;
+            sheets[curSheetIdx].push({ p, x: curX, y: curY, rw: pw, rh: ph });
+            curX += pw + margin;
+            if (ph > curShelfH) curShelfH = ph;
         });
 
         sheets.forEach((sheetPieces, sIdx) => {
@@ -615,9 +640,9 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             doc.rect(0, 0, pageWidth, 20, 'F');
             doc.setTextColor(255);
             doc.setFontSize(10);
-            doc.text(`CROQUIS DE CORTE: ${specName.toUpperCase()}`, 15, 10);
+            doc.text(`ESQUEMA DE CORTE: ${specName.toUpperCase()}`, 15, 10);
             doc.setFontSize(8);
-            doc.text(`PLANCHA #${sIdx + 1} | DIMENSIÓN: ${sheetW} x ${sheetH} mm`, 15, 15);
+            doc.text(`PLANCHA #${sIdx + 1} | DIMENSIÓN: ${sheetW} x ${sheetH} mm | * (R) Indica pieza rotada 90° para optimización`, 15, 15);
 
             const drawMargin = 25;
             const availableW = pageWidth - (drawMargin * 2);
@@ -634,20 +659,21 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             sheetPieces.forEach(sp => {
                 const px = startX + (sp.x * scale);
                 const py = startY + (sp.y * scale);
-                const pw = sp.p.w * scale;
-                const ph = sp.p.h * scale;
+                const pw = sp.rw * scale;
+                const ph = sp.rh * scale;
 
                 doc.setFillColor(240, 249, 255);
                 doc.rect(px, py, pw, ph, 'FD');
                 doc.setDrawColor(186, 230, 253);
                 doc.rect(px, py, pw, ph, 'D');
 
-                if (pw > 15 && ph > 10) {
+                if (pw > 12 && ph > 8) {
                     doc.setTextColor(30, 58, 138);
-                    doc.setFontSize(Math.min(7, pw / 5));
+                    doc.setFontSize(Math.min(7, pw / 4.5));
                     doc.setFont('helvetica', 'bold');
-                    doc.text(sp.p.itemCode, px + (pw / 2), py + (ph / 2) - 1, { align: 'center' });
-                    doc.setFontSize(Math.min(6, pw / 6));
+                    const label = sp.p.rotated ? `${sp.p.itemCode} (R)` : sp.p.itemCode;
+                    doc.text(label, px + (pw / 2), py + (ph / 2) - 1, { align: 'center' });
+                    doc.setFontSize(Math.min(6, pw / 5.5));
                     doc.setFont('helvetica', 'normal');
                     doc.text(`${sp.p.w}x${sp.p.h}`, px + (pw / 2), py + (ph / 2) + 3, { align: 'center' });
                 }
@@ -660,11 +686,11 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             doc.setTextColor(100);
             doc.setFontSize(8);
             doc.setFont('helvetica', 'bold');
-            doc.text(`EFICIENCIA: ${efficiency.toFixed(1)}% | ÁREA UTILIZADA: ${(usedArea / 1000000).toFixed(2)} m2`, startX, startY + (sheetH * scale) + 8);
+            doc.text(`EFICIENCIA: ${efficiency.toFixed(1)}% | RENDIMIENTO: ${(usedArea / 1000000).toFixed(2)} m2 utilizados`, startX, startY + (sheetH * scale) + 8);
         });
     });
 
-    doc.save(`Corte_Vidrios_${quote.clientName}.pdf`);
+    doc.save(`Optimizacion_Vidrios_${quote.clientName}.pdf`);
 };
 
 export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
@@ -705,7 +731,6 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
                     const panes = getModuleGlassPanes(item, mod, r, aluminum);
                     panes.forEach(p => {
                         if (!p.isBlind) {
-                            // Cálculo exacto de m2 contando cada cara para DVH
                             const glassMultiplier = mod.isDVH ? 2 : 1;
                             totalGlassArea += (p.w * p.h / 1000000) * item.quantity * glassMultiplier;
                         }
