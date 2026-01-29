@@ -14,7 +14,8 @@ import {
   Scissors,
   Layers,
   ChevronRight,
-  X
+  X,
+  Wallet
 } from 'lucide-react';
 import { Quote, GlobalConfig, ProductRecipe, AluminumProfile, Accessory, Glass, DVHInput, Treatment } from '../types';
 import { 
@@ -22,7 +23,8 @@ import {
   generateMaterialsOrderPDF, 
   generateAssemblyOrderPDF, 
   generateBarOptimizationPDF, 
-  generateGlassOptimizationPDF 
+  generateGlassOptimizationPDF,
+  generateCostsPDF
 } from '../services/pdfGenerator';
 
 interface Props {
@@ -55,7 +57,7 @@ const QuotesHistory: React.FC<Props> = ({
     }
   };
 
-  const downloadReport = (quote: Quote, type: 'presupuesto' | 'taller' | 'materiales' | 'barras' | 'vidrios') => {
+  const downloadReport = (quote: Quote, type: 'presupuesto' | 'taller' | 'materiales' | 'barras' | 'vidrios' | 'costos') => {
     try {
       switch (type) {
         case 'presupuesto': 
@@ -72,6 +74,9 @@ const QuotesHistory: React.FC<Props> = ({
           break;
         case 'vidrios': 
           generateGlassOptimizationPDF(quote, recipes, glasses, aluminum, dvhInputs); 
+          break;
+        case 'costos':
+          generateCostsPDF(quote, config, recipes, aluminum);
           break;
       }
     } catch (error) {
@@ -175,7 +180,16 @@ const QuotesHistory: React.FC<Props> = ({
                   </div>
                   <div className="text-left">
                     <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Presupuesto</div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">Documento Comercial</div>
+                    <div className="text-[9px] text-slate-400 font-bold uppercase">Comercial</div>
+                  </div>
+                </button>
+                <button onClick={() => downloadReport(selectedQuote, 'costos')} className="flex items-center gap-4 p-5 bg-amber-50 rounded-2xl border-2 border-amber-200 hover:border-amber-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-amber-500/10">
+                  <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white border-2 border-amber-500/20 group-hover:border-amber-600 transition-all">
+                    <Wallet size={20} />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Costos</div>
+                    <div className="text-[9px] text-slate-400 font-bold uppercase">Auditoría Interna</div>
                   </div>
                 </button>
                 <button onClick={() => downloadReport(selectedQuote, 'taller')} className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-slate-200 hover:border-blue-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-blue-500/10">

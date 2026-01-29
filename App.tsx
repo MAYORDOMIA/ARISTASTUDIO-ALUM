@@ -23,7 +23,8 @@ import {
   MapPin,
   Upload,
   Sun,
-  Moon
+  Moon,
+  Wallet
 } from 'lucide-react';
 import { 
   GlobalConfig, 
@@ -49,7 +50,8 @@ import {
   generateMaterialsOrderPDF, 
   generateAssemblyOrderPDF, 
   generateBarOptimizationPDF, 
-  generateGlassOptimizationPDF 
+  generateGlassOptimizationPDF,
+  generateCostsPDF
 } from './services/pdfGenerator';
 
 const App: React.FC = () => {
@@ -160,7 +162,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLiveReport = (type: 'presupuesto' | 'taller' | 'materiales' | 'barras' | 'vidrios') => {
+  const handleLiveReport = (type: 'presupuesto' | 'taller' | 'materiales' | 'barras' | 'vidrios' | 'costos') => {
     const itemsToReport = activeTab === 'obras' ? currentWorkItems : (activeQuoteItem ? [activeQuoteItem] : []);
     if (itemsToReport.length === 0) {
         alert("No hay carpinterías cargadas para generar el reporte.");
@@ -189,6 +191,9 @@ const App: React.FC = () => {
               break;
             case 'vidrios': 
               generateGlassOptimizationPDF(tempQuote, recipes, glasses, aluminum, dvhInputs); 
+              break;
+            case 'costos':
+              generateCostsPDF(tempQuote, config, recipes, aluminum);
               break;
         }
     } catch (err) {

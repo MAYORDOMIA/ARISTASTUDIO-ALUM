@@ -657,3 +657,114 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 
     doc.save(`Optimizacion_Vidrios_${quote.clientName}.pdf`);
 };
+
+/**
+ * NUEVO REPORTE: PLANILLA DE COSTOS INTERNOS
+ */
+export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Encabezado Administrativo
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLANILLA DE AUDITORÍA DE COSTOS INTERNOS', 15, 12);
+    doc.setFontSize(8);
+    doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
+
+    // Totales Consolidados
+    let totalAluWeight = 0;
+    let totalAluCost = 0;
+    let totalGlassCost = 0;
+    let totalGlassArea = 0;
+    let totalAccCost = 0;
+    let totalLaborCost = 0;
+
+    const tableData = quote.items.map((item, idx) => {
+        const b = item.breakdown;
+        const mainMod = item.composition.modules[0];
+        const recipe = recipes.find(r => r.id === mainMod.recipeId);
+        
+        if (b) {
+            totalAluWeight += b.totalWeight * item.quantity;
+            totalAluCost += b.aluCost * item.quantity;
+            totalGlassCost += b.glassCost * item.quantity;
+            totalAccCost += b.accCost * item.quantity;
+            totalLaborCost += b.laborCost * item.quantity;
+
+            // Cálculo aproximado de área de vidrio para el reporte (sumando áreas netas)
+            item.composition.modules.forEach(mod => {
+                const r = recipes.find(rec => rec.id === mod.recipeId);
+                if (r) {
+                    const panes = getModuleGlassPanes(item, mod, r, aluminum);
+                    panes.forEach(p => {
+                        if (!p.isBlind) {
+                            totalGlassArea += (p.w * p.h / 1000000) * item.quantity;
+                        }
+                    });
+                }
+            });
+        }
+
+        const unitCost = item.calculatedCost;
+        const totalLineCost = unitCost * item.quantity;
+
+        return [
+            item.itemCode || `POS#${idx+1}`,
+            recipe?.name || '-',
+            item.quantity,
+            `$${(b?.materialCost || 0).toLocaleString()}`,
+            `$${(b?.laborCost || 0).toLocaleString()}`,
+            `$${unitCost.toLocaleString()}`,
+            `$${totalLineCost.toLocaleString()}`
+        ];
+    });
+
+    autoTable(doc, {
+        startY: 35,
+        head: [['CÓD.', 'SISTEMA', 'CANT.', 'COSTO MAT.', 'MANO OBRA', 'COSTO UNIT.', 'SUBTOTAL']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [51, 65, 85] },
+        styles: { fontSize: 8 },
+        columnStyles: { 6: { halign: 'right', fontStyle: 'bold' } }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+
+    // Resumen de Insumos al final
+    doc.setFillColor(248, 250, 252);
+    doc.rect(15, finalY, pageWidth - 30, 45, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(15, finalY, pageWidth - 30, 45, 'D');
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN DE INVERSIONES DE OBRA', 20, finalY + 10);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    
+    // Columna 1
+    doc.text(`TOTAL ALUMINIO: ${totalAluWeight.toFixed(2)} KG`, 20, finalY + 18);
+    doc.text(`TOTAL VIDRIOS: ${totalGlassArea.toFixed(2)} M2`, 20, finalY + 24);
+    doc.text(`COSTO HERRAJES: $${totalAccCost.toLocaleString()}`, 20, finalY + 30);
+
+    // Columna 2 (Valores)
+    doc.text(`VALOR METAL+PINT: $${totalAluCost.toLocaleString()}`, 80, finalY + 18);
+    doc.text(`VALOR CRISTALES: $${totalGlassCost.toLocaleString()}`, 80, finalY + 24);
+    doc.text(`VALOR MANO OBRA: $${totalLaborCost.toLocaleString()}`, 80, finalY + 30);
+
+    // Total Final
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(79, 70, 229);
+    const totalNeto = totalAluCost + totalGlassCost + totalAccCost + totalLaborCost;
+    doc.text(`INVERSIÓN TOTAL ESTIMADA: $${totalNeto.toLocaleString()}`, 20, finalY + 40);
+
+    doc.save(`Costos_Internos_${quote.clientName}.pdf`);
+};
