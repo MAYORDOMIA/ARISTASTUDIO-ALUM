@@ -354,7 +354,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
     quote.items.forEach((item, idx) => {
         if (currentY > 220) { doc.addPage(); currentY = 20; }
 
-        // Encabezado de la Carpintería
         doc.setFillColor(241, 245, 249);
         doc.rect(10, currentY, pageWidth - 20, 10, 'F');
         doc.setTextColor(30, 41, 59);
@@ -365,7 +364,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         doc.text(`${item.itemCode || `POS#${idx+1}`} - ${mainRecipe?.name || 'Abertura'} - CANT: ${item.quantity} [${item.width} x ${item.height} mm]`, 15, currentY + 6.5);
         currentY += 15;
 
-        // Imagen a la izquierda
         if (item.previewImage) {
             try { 
                 const imgProps = doc.getImageProperties(item.previewImage);
@@ -375,7 +373,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             } catch(e){}
         }
 
-        // --- TABLA DE PERFILES (DESPIECE) ---
         const profileCuts: any[] = [];
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
@@ -417,7 +414,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
 
         currentY = (doc as any).lastAutoTable.finalY + 5;
 
-        // --- TABLA DE VIDRIOS ---
         const glassPieces: any[] = [];
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
@@ -471,24 +467,146 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
 
 export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], accessories: Accessory[], glasses: Glass[], dvhInputs: DVHInput[], config: GlobalConfig) => {
     const doc = new jsPDF();
-    doc.setFontSize(16); doc.text('PEDIDO DE MATERIALES CONSOLIDADO', 15, 20);
-    const summary = new Map<string, { code: string, total: number }>();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PEDIDO DE MATERIALES CONSOLIDADO', 15, 12);
+    doc.setFontSize(8);
+    doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
+
+    let currentY = 35;
+
+    // --- SECCIÓN 1: ALUMINIO (BARRAS COMPLETAS) ---
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(11);
+    doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY);
+    currentY += 5;
+
+    const aluSummary = new Map<string, { code: string, detail: string, totalMm: number, barLength: number }>();
     quote.items.forEach(item => {
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
-            recipe?.profiles.forEach(rp => {
+            if (!recipe) return;
+            
+            recipe.profiles.forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 if (!p) return;
-                const len = evaluateFormula(rp.formula, item.width, item.height) * rp.quantity * item.quantity;
-                const existing = summary.get(p.id) || { code: p.code, total: 0 };
-                existing.total += (len / 1000);
-                summary.set(p.id, existing);
+                const len = evaluateFormula(rp.formula, item.width, item.height);
+                const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
+                existing.totalMm += totalMm;
+                aluSummary.set(p.id, existing);
             });
         });
     });
-    const body = Array.from(summary.values()).map(s => [s.code, s.total.toFixed(2), 'm']);
-    autoTable(doc, { startY: 35, head: [['CÓDIGO', 'CANTIDAD', 'UNIDAD']], body });
-    doc.save(`Pedido_${quote.clientName}.pdf`);
+
+    const aluBody = Array.from(aluSummary.values()).map(s => {
+        const barLenMm = s.barLength > 100 ? s.barLength : s.barLength * 1000;
+        const totalBars = Math.ceil(s.totalMm / barLenMm);
+        return [s.code, s.detail, `${(s.totalMm / 1000).toFixed(2)} m`, `${s.barLength} m`, totalBars];
+    });
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['CÓDIGO', 'DESCRIPCIÓN', 'METROS TOTALES', 'LARGO BARRA', 'BARRAS A COMPRAR']],
+        body: aluBody,
+        theme: 'grid',
+        headStyles: { fillColor: [51, 65, 85] },
+        styles: { fontSize: 8 },
+        columnStyles: { 4: { halign: 'center', fontStyle: 'bold' } }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // --- SECCIÓN 2: LISTADO DE VIDRIOS ---
+    if (currentY > 250) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(11);
+    doc.text('2. LISTADO DE CRISTALES Y PANELES', 15, currentY);
+    currentY += 5;
+
+    const glassSummary = new Map<string, { spec: string, w: number, h: number, qty: number }>();
+    quote.items.forEach(item => {
+        item.composition.modules.forEach(mod => {
+            const recipe = recipes.find(r => r.id === mod.recipeId);
+            if (!recipe) return;
+
+            const visualType = recipe.visualType || '';
+            let numLeaves = 1;
+            if (visualType.includes('sliding_3')) numLeaves = 3;
+            else if (visualType.includes('sliding_4')) numLeaves = 4;
+            else if (visualType.includes('sliding')) numLeaves = 2;
+
+            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            
+            panes.forEach(pane => {
+                if (pane.isBlind) return;
+                const gOuter = glasses.find(g => g.id === mod.glassOuterId);
+                const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
+                const camera = mod.isDVH ? dvhInputs.find(c => c.id === mod.dvhCameraId) : null;
+
+                const spec = mod.isDVH 
+                    ? `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`
+                    : (gOuter?.detail || 'Vidrio Simple');
+                
+                const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                const existing = glassSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                existing.qty += (item.quantity * numLeaves);
+                glassSummary.set(key, existing);
+            });
+        });
+    });
+
+    const glassBody = Array.from(glassSummary.values()).map(g => [g.spec, `${g.w} x ${g.h}`, g.qty, `${((g.w * g.h / 1000000) * g.qty).toFixed(2)} m2`]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['ESPECIFICACIÓN CRISTAL', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']],
+        body: glassBody,
+        theme: 'striped',
+        headStyles: { fillColor: [71, 85, 105] },
+        styles: { fontSize: 8 }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // --- SECCIÓN 3: LISTADO DE ACCESORIOS ---
+    if (currentY > 250) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(11);
+    doc.text('3. LISTADO DE ACCESORIOS Y HERRAJES', 15, currentY);
+    currentY += 5;
+
+    const accSummary = new Map<string, { code: string, detail: string, qty: number }>();
+    quote.items.forEach(item => {
+        item.composition.modules.forEach(mod => {
+            const recipe = recipes.find(r => r.id === mod.recipeId);
+            if (!recipe) return;
+            recipe.accessories.forEach(ra => {
+                const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
+                if (!acc) return;
+                const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0 };
+                existing.qty += (ra.quantity * item.quantity);
+                accSummary.set(acc.id, existing);
+            });
+        });
+    });
+
+    const accBody = Array.from(accSummary.values()).map(a => [a.code, a.detail, a.qty]);
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['CÓDIGO', 'DESCRIPCIÓN', 'CANTIDAD TOTAL']],
+        body: accBody,
+        theme: 'grid',
+        headStyles: { fillColor: [100, 116, 139] },
+        styles: { fontSize: 8 }
+    });
+
+    doc.save(`Pedido_Consolidado_${quote.clientName}.pdf`);
 };
 
 export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[], dvhInputs: DVHInput[]) => {
@@ -519,7 +637,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                 if (!pane.isBlind) {
                     const qtyPerSheet = item.quantity * numLeaves;
                     
-                    // Pieza Exterior
                     const outerSpec = gOuter?.detail || 'Vidrio Exterior';
                     listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, outerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
                     for (let i = 0; i < qtyPerSheet; i++) {
@@ -533,7 +650,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                         });
                     }
 
-                    // Pieza Interior (Separada para el optimizador si es DVH)
                     if (mod.isDVH && gInner) {
                         const innerSpec = gInner.detail || 'Vidrio Interior';
                         listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, innerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
@@ -581,7 +697,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         const sheetH = refGlass?.height && refGlass.height > 100 ? refGlass.height : 1800;
         const margin = 12; 
 
-        // Algoritmo de empaquetado por estanterías con comprobación de rotación
         pieces.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h)); 
 
         let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
@@ -628,7 +743,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         });
 
         sheets.forEach((sheetPieces, sIdx) => {
-            // REGLA: 1 PLANCHA POR HOJA DE PDF
             doc.addPage();
             doc.setFillColor(71, 85, 105);
             doc.rect(0, 0, pageWidth, 20, 'F');
@@ -725,7 +839,6 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
                     const panes = getModuleGlassPanes(item, mod, r, aluminum);
                     panes.forEach(p => {
                         if (!p.isBlind) {
-                            // CONTABILIZAR AMBAS CARAS SI ES DVH
                             const glassMultiplier = mod.isDVH ? 2 : 1;
                             totalGlassArea += (p.w * p.h / 1000000) * item.quantity * glassMultiplier;
                         }
