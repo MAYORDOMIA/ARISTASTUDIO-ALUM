@@ -1,35 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  Plus, Trash2, Settings, Maximize, 
-  CheckCircle, X, LayoutGrid, 
-  Thermometer, ArrowRightLeft, 
-  Link, Frame, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Columns, Rows,
-  Info,
-  Split,
-  Layers,
-  Square,
-  Box,
-  Wind,
-  Check,
-  Search,
-  Zap,
-  Ruler,
-  Bug,
-  MousePointer2,
-  Lock,
-  Unlock,
-  PlusSquare,
-  MinusSquare,
-  Grid3X3,
-  Minus,
-  RefreshCw,
-  MoreHorizontal,
-  DollarSign,
-  Hash,
-  AlignCenter
-} from 'lucide-react';
+// Corrected imports: removed redundant and incorrect icon imports from '../types'
 import { 
     ProductRecipe, AluminumProfile, Glass, BlindPanel,
     Accessory,
@@ -38,7 +9,41 @@ import {
     RecipeAccessory,
     QuoteItemBreakdown
 } from '../types';
-import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
+import { 
+  Plus as PlusIcon, 
+  Trash2 as TrashIcon, 
+  Settings as SettingsIcon, 
+  Maximize as MaximizeIcon, 
+  CheckCircle as CheckCircleIcon, 
+  X as XIcon, 
+  LayoutGrid as LayoutGridIcon, 
+  Thermometer as ThermometerIcon, 
+  ArrowRightLeft as ArrowRightLeftIcon, 
+  Link as LinkIcon, 
+  Frame as FrameIcon,
+  Columns as ColumnsIcon, 
+  Rows as RowsIcon,
+  Info as InfoIcon,
+  Split as SplitIcon,
+  Layers as LayersIcon,
+  Square as SquareIcon, 
+  Box as BoxIcon,
+  Wind as WindIcon,
+  Check as CheckIcon,
+  Search as SearchIcon,
+  Zap as ZapIcon,
+  Ruler as RulerIcon,
+  Bug as BugIcon,
+  MousePointer2 as MousePointer2Icon,
+  Lock as LockIcon,
+  Unlock as UnlockIcon,
+  Grid3X3 as Grid3X3Icon,
+  Minus as MinusIcon,
+  DollarSign as DollarSignIcon,
+  Hash as HashIcon,
+  AlignCenter as AlignCenterIcon,
+  Tag as TagIcon
+} from 'lucide-react';
 
 const drawGlobalTapajuntas = (
     ctx: CanvasRenderingContext2D,
@@ -349,6 +354,7 @@ const QuotingModule: React.FC<Props> = ({
   
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [recipeFilter, setRecipeFilter] = useState<string>('TODOS');
+  const [recipeSearch, setRecipeSearch] = useState<string>('');
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -570,27 +576,27 @@ const QuotingModule: React.FC<Props> = ({
     <div className="grid grid-cols-12 gap-6 h-full">
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-7 shadow-sm space-y-8 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
-            <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-5 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
+            <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-5 tracking-[0.2em]"><MaximizeIcon size={16} /> Parámetros de Conjunto</h3>
             
             <div className="space-y-3 pt-2">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><HashIcon size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
                 <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-12 px-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-sm focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
             </div>
 
             <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Ancho Total</label>
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><LockIcon size={10} className="text-indigo-400"/> Ancho Total</label>
                     <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalWidth} onChange={e => handleTotalChange('width', parseInt(e.target.value) || 0)} />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Alto Total</label>
+                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><LockIcon size={10} className="text-indigo-400"/> Alto Total</label>
                     <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
                 </div>
             </div>
             
             {liveBreakdown && (
                 <div className="bg-slate-900 dark:bg-slate-950 rounded-3xl p-6 space-y-4 text-white shadow-2xl animate-in zoom-in-95 duration-300">
-                    <h4 className="text-[8px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 mb-2"><DollarSign size={12}/> Cotización Técnica Estimada</h4>
+                    <h4 className="text-[8px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 mb-2"><DollarSignIcon size={12}/> Cotización Técnica Estimada</h4>
                     <div className="space-y-2">
                         <div className="flex justify-between items-center text-[10px]">
                             <span className="text-slate-400 font-black uppercase tracking-tighter">1. Aluminio + Pintura</span>
@@ -630,11 +636,11 @@ const QuotingModule: React.FC<Props> = ({
             </div>
             
             <div className="space-y-5 pt-5 border-t-2 border-indigo-100/50 dark:border-indigo-900/50 bg-indigo-50/20 dark:bg-indigo-950/20 p-5 -mx-7">
-                <h4 className="text-[10px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 px-1"><Settings size={14} /> Ingeniería de Extras</h4>
+                <h4 className="text-[10px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 px-1"><SettingsIcon size={14} /> Ingeniería de Extras</h4>
                 <div className="px-1 space-y-5">
                     <div className="flex items-center justify-between group cursor-pointer" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
                         <div className="flex items-center gap-3">
-                            <Bug size={16} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
+                            <BugIcon size={16} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
                             <span className={`text-[10px] font-black uppercase tracking-widest ${extras.mosquitero ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
                         </div>
                         <button className={`w-11 h-6 rounded-full p-1 transition-all ${extras.mosquitero ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
@@ -644,7 +650,7 @@ const QuotingModule: React.FC<Props> = ({
                     <div className="space-y-4">
                         <div className="flex items-center justify-between group cursor-pointer" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
                             <div className="flex items-center gap-3">
-                                <Frame size={16} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
+                                <FrameIcon size={16} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
                                 <span className={`text-[10px] font-black uppercase tracking-widest ${extras.tapajuntas ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
                             </div>
                             <button className={`w-11 h-6 rounded-full p-1 transition-all ${extras.tapajuntas ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
@@ -668,18 +674,18 @@ const QuotingModule: React.FC<Props> = ({
             </div>
             
             <div className="space-y-6 pt-5 border-t-2 border-slate-50 dark:border-slate-800">
-                <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2 px-1"><Grid3X3 size={14} /> Estructura del Conjunto</h4>
+                <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2 px-1"><Grid3X3Icon size={14} /> Estructura del Conjunto</h4>
                 <div className="px-1 space-y-6">
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <Columns size={16} className="text-indigo-600" />
+                                <ColumnsIcon size={16} className="text-indigo-600" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Columnas</span>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-700">
-                                <button onClick={removeColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
+                                <button onClick={removeColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><MinusIcon size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{colSizes.length}</span>
-                                <button onClick={addColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <button onClick={addColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><PlusIcon size={12} /></button>
                             </div>
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
@@ -697,13 +703,13 @@ const QuotingModule: React.FC<Props> = ({
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <Rows size={16} className="text-indigo-600" />
+                                <RowsIcon size={16} className="text-indigo-600" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Filas</span>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-700">
-                                <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
+                                <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><MinusIcon size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{rowSizes.length}</span>
-                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><PlusIcon size={12} /></button>
                             </div>
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
@@ -731,7 +737,7 @@ const QuotingModule: React.FC<Props> = ({
             </div>
             <div className="pt-4">
                 <button onClick={addItemToWork} className="w-full bg-indigo-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.25em] flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-indigo-700 hover:shadow-indigo-200">
-                    <Plus size={18} /> Cargar a Obra
+                    <PlusIcon size={18} /> Cargar a Obra
                 </button>
             </div>
         </div>
@@ -744,7 +750,7 @@ const QuotingModule: React.FC<Props> = ({
                 {(modules || []).filter(mod => mod && typeof mod.x === 'number' && typeof mod.y === 'number').map(mod => (
                     <div key={mod.id} className="relative pointer-events-auto group border-2 border-transparent hover:border-indigo-600/20 hover:bg-indigo-600/5 transition-all flex items-center justify-center">
                         <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-indigo-900/10 dark:bg-indigo-400/10 backdrop-blur-[2px]">
-                            <button onClick={() => setEditingModuleId(mod.id)} className="p-4 bg-indigo-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
+                            <button onClick={() => setEditingModuleId(mod.id)} className="p-4 bg-indigo-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><SettingsIcon size={18} /> Ingeniería</button>
                         </div>
                     </div>
                 ))}
@@ -757,40 +763,92 @@ const QuotingModule: React.FC<Props> = ({
             <div className="bg-white dark:bg-slate-900 w-full max-w-7xl rounded-[3rem] p-10 shadow-2xl space-y-8 overflow-hidden max-h-[94vh] border-4 border-white/40 dark:border-slate-800/40 flex flex-col ring-1 ring-slate-900/10 transition-colors">
                 <div className="flex justify-between items-center border-b-2 border-slate-50 dark:border-slate-800 pb-7">
                     <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 bg-indigo-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-2xl shadow-indigo-200 dark:shadow-none"><LayoutGrid size={28} /></div>
+                        <div className="w-14 h-14 bg-indigo-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-2xl shadow-indigo-200 dark:shadow-none"><LayoutGridIcon size={28} /></div>
                         <div>
                             <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-2xl leading-none italic">Terminal de Ingeniería</h3>
                             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase mt-2 tracking-[0.3em]">Módulo {currentModForEdit.id.substring(0,8)} - Configuración Maestra</p>
                         </div>
                     </div>
-                    <button onClick={() => setEditingModuleId(null)} className="text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl border-2 border-transparent hover:border-slate-100 dark:hover:border-slate-700"><X size={32} /></button>
+                    <button onClick={() => setEditingModuleId(null)} className="text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-3xl border-2 border-transparent hover:border-slate-100 dark:hover:border-slate-700"><XIcon size={32} /></button>
                 </div>
 
                 <div className="grid grid-cols-12 gap-10 flex-1 overflow-hidden">
                     <div className="col-span-12 lg:col-span-6 flex flex-col gap-6 overflow-hidden border-r-2 border-slate-50 dark:border-slate-800 pr-8">
-                        <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-700 w-full overflow-x-auto custom-scrollbar">
-                            {uniqueLines.map(line => (
-                                <button key={line} onClick={() => setRecipeFilter(line)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${recipeFilter === line ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-700'}`}>{line}</button>
-                            ))}
+                        <div className="flex flex-col gap-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border border-slate-100 dark:border-slate-700">
+                            <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2"><TagIcon size={14}/> Selección de Sistema de Ingeniería</h4>
+                            
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">1. Elegir Línea de Perfilería</label>
+                                    <select 
+                                        className="w-full bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 h-14 px-5 rounded-2xl text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                        value={recipeFilter}
+                                        onChange={e => setRecipeFilter(e.target.value)}
+                                    >
+                                        {uniqueLines.map(line => (
+                                            <option key={line} value={line}>{line}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">2. Seleccionar Tipología Específica</label>
+                                    <select 
+                                        className="w-full bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 h-14 px-5 rounded-2xl text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                        value={currentModForEdit.recipeId}
+                                        onChange={e => {
+                                            const r = recipes.find(x => x.id === e.target.value);
+                                            if (r) updateModule(editingModuleId, { recipeId: r.id, transoms: r.defaultTransoms || [], overriddenAccessories: r.accessories || [] });
+                                        }}
+                                    >
+                                        <option value="">(SELECCIONE TIPOLOGÍA)</option>
+                                        {recipes.filter(r => {
+                                            const matchesLine = recipeFilter === 'TODOS' || r.line.toUpperCase() === recipeFilter;
+                                            return matchesLine;
+                                        }).map(r => (
+                                            <option key={r.id} value={r.id}>{r.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="relative pt-2">
+                                    <SearchIcon size={14} className="absolute left-4 top-[65%] -translate-y-1/2 text-slate-400" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="BUSQUEDA RÁPIDA POR NOMBRE..." 
+                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 pl-11 pr-4 py-3 rounded-2xl text-[9px] font-black uppercase outline-none focus:border-indigo-500 transition-all dark:text-white shadow-inner"
+                                        value={recipeSearch}
+                                        onChange={e => setRecipeSearch(e.target.value)}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 overflow-y-auto custom-scrollbar pr-3 flex-1 pb-6">
-                            {recipes.filter(r => recipeFilter === 'TODOS' || r.line.toUpperCase() === recipeFilter).map(r => (
-                                <button key={r.id} onClick={() => updateModule(editingModuleId, { recipeId: r.id, transoms: r.defaultTransoms || [], overriddenAccessories: r.accessories || [] })} 
-                                  className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all group relative overflow-hidden ${currentModForEdit.recipeId === r.id ? 'border-indigo-600 bg-indigo-50/30 dark:bg-indigo-900/20 ring-4 ring-indigo-50 dark:ring-indigo-900/10 shadow-2xl' : 'border-slate-50 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-700 bg-white dark:bg-slate-800 hover:shadow-lg'}`}>
-                                    <div className="transform group-hover:scale-110 transition-all duration-700 mb-4 drop-shadow-xl"><RecipePreview recipe={r} color={document.documentElement.classList.contains('dark') ? '#94a3b8' : '#1e293b'} allProfiles={aluminum} /></div>
-                                    <span className="text-[10px] font-black uppercase text-center tracking-[0.1em] text-slate-800 dark:text-slate-200 leading-tight border-t border-slate-100 dark:border-slate-700 pt-3 w-full">{r.name}</span>
-                                    <span className="text-[7px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1">{r.line}</span>
-                                    {currentModForEdit.recipeId === r.id && <div className="absolute top-4 right-4 text-indigo-600 animate-in zoom-in"><CheckCircle size={20} fill="white" /></div>}
-                                </button>
-                            ))}
+                        
+                        <div className="flex-1 bg-slate-50/30 dark:bg-slate-900/20 rounded-[2rem] p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center space-y-4">
+                            {currentModForEdit.recipeId ? (
+                                <>
+                                    <div className="w-20 h-20 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white shadow-2xl animate-in zoom-in">
+                                        <CheckIcon size={40} />
+                                    </div>
+                                    <div>
+                                        <h5 className="text-[12px] font-black uppercase text-slate-800 dark:text-white tracking-widest">{recipes.find(r => r.id === currentModForEdit.recipeId)?.name}</h5>
+                                        <p className="text-[9px] font-bold text-indigo-600 uppercase mt-1 tracking-widest">SISTEMA VALIDADO PARA MÓDULO</p>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="opacity-20 flex flex-col items-center">
+                                    <SettingsIcon size={64} className="animate-spin-slow mb-4" />
+                                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">Esperando Selección...</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     <div className="col-span-12 lg:col-span-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-4">
                         <div className="space-y-6">
                             <div className="flex justify-between items-center px-1">
-                                <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-3"><Split size={18} className="rotate-90"/> Divisiones y Travesaños</h4>
-                                <button onClick={addTransomToModule} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-indigo-700 transition-all shadow-lg"><Plus size={14}/> Agregar División</button>
+                                <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-3"><SplitIcon size={18} className="rotate-90"/> Divisiones y Travesaños</h4>
+                                <button onClick={addTransomToModule} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase hover:bg-indigo-700 transition-all shadow-lg"><PlusIcon size={14}/> Agregar División</button>
                             </div>
                             <div className="space-y-3">
                                 {(currentModForEdit.transoms || []).map((t, idx) => (
@@ -805,7 +863,7 @@ const QuotingModule: React.FC<Props> = ({
                                                     const newTransoms = [...(currentModForEdit.transoms || [])];
                                                     newTransoms[idx].height = Math.round(modH / 2);
                                                     updateModule(editingModuleId, { transoms: newTransoms });
-                                                }} className="text-[7px] font-black text-indigo-500 uppercase flex items-center gap-1 hover:text-indigo-700 transition-colors"><AlignCenter size={8}/> Centrar</button>
+                                                }} className="text-[7px] font-black text-indigo-500 uppercase flex items-center gap-1 hover:text-indigo-700 transition-colors"><AlignCenterIcon size={8}/> Centrar</button>
                                             </div>
                                             <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-[10px] font-black text-indigo-600 dark:text-indigo-400 outline-none focus:border-indigo-500" value={t.height} onChange={e => {
                                                 const newTransoms = [...(currentModForEdit.transoms || [])];
@@ -821,7 +879,7 @@ const QuotingModule: React.FC<Props> = ({
                                                 updateModule(editingModuleId, { transoms: newTransoms });
                                             }}>{aluminum.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}</select>
                                         </div>
-                                        <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors mt-4"><Trash2 size={16}/></button>
+                                        <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 transition-colors mt-4"><TrashIcon size={16}/></button>
                                     </div>
                                 ))}
                                 {(currentModForEdit.transoms || []).length === 0 && <div className="p-8 text-center bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 text-[9px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest italic opacity-40">Módulo sin divisiones internas</div>}
@@ -829,7 +887,7 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
 
                         <div className="space-y-6">
-                            <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-3 px-1 border-l-4 border-indigo-600 pl-4"><Wind size={18} /> Herrajes del Módulo</h4>
+                            <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-3 px-1 border-l-4 border-indigo-600 pl-4"><WindIcon size={18} /> Herrajes del Módulo</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {(() => {
                                     const modAccs = (currentModForEdit.overriddenAccessories && currentModForEdit.overriddenAccessories.length > 0)
@@ -855,7 +913,7 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
 
                         <div className="space-y-6">
-                            <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-3 px-1 border-l-4 border-indigo-600 pl-4"><Layers size={18} /> Configuración de Paños y Llenados</h4>
+                            <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] flex items-center gap-3 px-1 border-l-4 border-indigo-600 pl-4"><LayersIcon size={18} /> Configuración de Paños y Llenados</h4>
                             <div className="space-y-4">
                                 {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, paneIdx) => {
                                     const isBlind = (currentModForEdit.blindPanes || []).includes(paneIdx);
@@ -872,15 +930,15 @@ const QuotingModule: React.FC<Props> = ({
                                                     <button onClick={() => {
                                                         const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx);
                                                         updateModule(editingModuleId, { isDVH: false, blindPanes: bps });
-                                                    }} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${infillType === 'vs' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'}`}><Square size={12}/> VS</button>
+                                                    }} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${infillType === 'vs' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'}`}><SquareIcon size={12}/> VS</button>
                                                     <button onClick={() => {
                                                         const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx);
                                                         updateModule(editingModuleId, { isDVH: true, blindPanes: bps });
-                                                    }} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${infillType === 'dvh' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'}`}><Thermometer size={12}/> DVH</button>
+                                                    }} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${infillType === 'dvh' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'}`}><ThermometerIcon size={12}/> DVH</button>
                                                     <button onClick={() => {
                                                         const bps = [...(currentModForEdit.blindPanes || [])];
                                                         if (!bps.includes(paneIdx)) updateModule(editingModuleId, { blindPanes: [...bps, paneIdx] });
-                                                    }} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${infillType === 'ciego' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'}`}><Box size={12}/> CIEGO</button>
+                                                    }} className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center gap-2 ${infillType === 'ciego' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400'}`}><BoxIcon size={12}/> CIEGO</button>
                                                 </div>
                                             </div>
 
@@ -888,7 +946,7 @@ const QuotingModule: React.FC<Props> = ({
                                                 {infillType === 'ciego' ? (
                                                     <div className="space-y-3 bg-slate-50/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                                                         <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Seleccionar Panel Ciego</label>
-                                                        <select className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none shadow-sm focus:border-indigo-500" value={currentModForEdit.blindPaneIds?.[paneIdx] || ''} onChange={e => updateModule(editingModuleId, { blindPaneIds: { ...currentModForEdit.blindPaneIds, [paneIdx]: e.target.value } })}>
+                                                        <select className="w-full bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none shadow-sm focus:border-indigo-500" value={currentModForEdit.blindPaneIds?.[paneIdx] || ''} onChange={e => updateModule(editingModuleId, { blindPaneIds: { ...currentModForEdit.blindPaneIds, [paneIdx]: e.target.value } })}>
                                                             <option value="">(NINGUNO)</option>
                                                             {blindPanels.map(p => <option key={p.id} value={p.id}>{p.code} - {p.detail}</option>)}
                                                         </select>
@@ -918,7 +976,7 @@ const QuotingModule: React.FC<Props> = ({
                                                 ) : (
                                                     <div className="space-y-3 bg-slate-50/50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                                                         <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Vidrio Simple / Espejo</label>
-                                                        <select className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none shadow-sm focus:border-indigo-500" value={currentModForEdit.glassOuterId || ''} onChange={e => updateModule(editingModuleId, { glassOuterId: e.target.value })}>
+                                                        <select className="w-full bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none shadow-sm focus:border-indigo-500" value={currentModForEdit.glassOuterId || ''} onChange={e => updateModule(editingModuleId, { glassOuterId: e.target.value })}>
                                                             {glasses.map(g => <option key={g.id} value={g.id}>{g.detail}</option>)}
                                                         </select>
                                                     </div>
@@ -934,7 +992,7 @@ const QuotingModule: React.FC<Props> = ({
 
                 <div className="pt-8 border-t-2 border-slate-50 dark:border-slate-800 flex gap-6">
                     <button onClick={() => setEditingModuleId(null)} className="flex-1 bg-slate-900 dark:bg-slate-950 text-white font-black py-6 rounded-[2rem] uppercase text-[12px] tracking-[0.3em] shadow-2xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-4 active:scale-95">
-                        <CheckCircle size={22} /> Validar Ingeniería de Módulo
+                        <CheckCircleIcon size={22} /> Validar Ingeniería de Módulo
                     </button>
                 </div>
             </div>
@@ -942,17 +1000,6 @@ const QuotingModule: React.FC<Props> = ({
       )}
     </div>
   );
-};
-
-const RecipePreview: React.FC<{ recipe: ProductRecipe; color: string; allProfiles: AluminumProfile[] }> = ({ recipe, color, allProfiles }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    useEffect(() => {
-        const canvas = canvasRef.current; if (!canvas) return;
-        const ctx = canvas.getContext('2d'); if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawDetailedOpening(ctx, 5, 5, 40, 40, recipe, false, color, { mosquitero: false, tapajuntas: true, tapajuntasSides: { top: true, bottom: true, left: true, right: true } }, undefined, 1, recipe.defaultTransoms, [], {}, [], allProfiles, true);
-    }, [recipe, color, allProfiles]);
-    return <canvas ref={canvasRef} width={50} height={50} className="w-12 h-12 object-contain" />;
 };
 
 export default QuotingModule;
