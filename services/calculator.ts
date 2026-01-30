@@ -1,3 +1,4 @@
+
 import { 
   ProductRecipe, AluminumProfile, GlobalConfig, Treatment, Glass, 
   Accessory, DVHInput, RecipeAccessory, BlindPanel, QuoteItem, QuoteItemBreakdown
@@ -72,7 +73,6 @@ export const calculateCompositePrice = (
     totalAluWeight += result.totalAluWeight;
   });
 
-  // Costo de Acoples (Aluminio)
   if (item.couplingProfileId && isSet) {
     const cProfile = profiles.find(p => p.id === item.couplingProfileId);
     if (cProfile) {
@@ -119,14 +119,12 @@ export const calculateItemPrice = (
   let glassCost = 0;
   let accCost = 0;
 
-  // Determinar cantidad de hojas (multiplicador de vidrios)
   const visualType = recipe.visualType || '';
   let numLeaves = 1;
   if (visualType.includes('sliding_3')) numLeaves = 3;
   else if (visualType.includes('sliding_4')) numLeaves = 4;
   else if (visualType.includes('sliding')) numLeaves = 2;
 
-  // 1. CÁLCULO DE ALUMINIO (BASE + PINTURA)
   const activeProfiles = (recipe.profiles || []).filter(rp => {
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
@@ -144,16 +142,19 @@ export const calculateItemPrice = (
     }
   });
 
-  if (transoms) {
+  // SUMAR TRAVESAÑO SOLO SI EXISTE EN EL MÓDULO
+  if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
-      if (trProf) totalAluWeight += ((width + config.discWidth) / 1000) * trProf.weightPerMeter;
+      if (trProf) {
+        const tCut = width; // El travesaño suele ser el ancho del módulo
+        totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
+      }
     });
   }
 
   aluCost = totalAluWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
 
-  // 2. CÁLCULO DE ACCESORIOS
   const activeAccessories = (overriddenAccessories && overriddenAccessories.length > 0) 
     ? overriddenAccessories 
     : (recipe.accessories || []);
@@ -165,11 +166,9 @@ export const calculateItemPrice = (
     }
   });
 
-  // 3. CÁLCULO DE VIDRIOS / CIEGOS (MULTIPLO POR HOJAS)
   const adjustedW = width - (recipe.glassDeductionW || 0); 
   const adjustedH = height - (recipe.glassDeductionH || 0);
   
-  // Si es corrediza, la base del vidrio es el ancho total dividido por la cantidad de hojas
   let leafBaseW = adjustedW;
   if (visualType.includes('sliding')) {
       leafBaseW = adjustedW / numLeaves;
@@ -179,23 +178,33 @@ export const calculateItemPrice = (
   const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
   
   const glassPanes: { w: number, h: number }[] = [];
-  const tProfile = profiles.find(p => p.id === recipe.defaultTransomProfileId);
-  const transomThickness = tProfile?.thickness || recipe.transomThickness || (recipe.visualType?.startsWith('door_') ? 68 : 38); 
+  const transomThickness = recipe.transomThickness || 40; 
   const transomGlassDeduction = recipe.transomGlassDeduction || 0; 
 
-  if (!transoms || transoms.length === 0) { glassPanes.push({ w: gW, h: gH }); } 
-  else {
+  if (!transoms || transoms.length === 0) { 
+    glassPanes.push({ w: gW, h: gH }); 
+  } else {
+    // Ordenamos por altura para procesar paños secuencialmente
     const sorted = [...transoms].sort((a, b) => a.height - b.height);
     let lastY = 0;
+    
     sorted.forEach((t, idx) => {
-      const currentTProf = profiles.find(p => p.id === t.profileId);
-      const currentTThickness = currentTProf?.thickness || transomThickness;
-      const paneH = (idx === 0) ? (t.height - (currentTThickness / 2) - transomGlassDeduction) : (t.height - lastY - currentTThickness - transomGlassDeduction);
+      // El paño toma la altura desde la base (o el travesaño anterior) 
+      // Restamos la MITAD del espesor del perfil compartido
+      let paneH;
+      if (idx === 0) {
+        paneH = t.height - (transomThickness / 2) - transomGlassDeduction;
+      } else {
+        paneH = (t.height - lastY) - transomThickness - transomGlassDeduction;
+      }
+      
       if (paneH > 0) glassPanes.push({ w: gW, h: paneH });
       lastY = t.height;
     });
-    const lastPaneH = (gH - lastY - (transomThickness / 2) - transomGlassDeduction);
-    if (lastPaneH > 0) glassPanes.push({ w: gW, h: lastPaneH });
+
+    // Último paño (superior)
+    const finalPaneH = (height - lastY) - (transomThickness / 2) - transomGlassDeduction;
+    if (finalPaneH > 0) glassPanes.push({ w: gW, h: finalPaneH });
   }
 
   const outerGlass = glasses.find(g => g.id === glassOuterId);

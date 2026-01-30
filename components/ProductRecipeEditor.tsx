@@ -224,11 +224,19 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Corrected property names from mosquiteroW/H to mosquiteroFormulaW/H */}
                 <GlobalCompCard title="Mosquitero" icon={<Bug size={14}/>} color="emerald" profileId={recipe.mosquiteroProfileId} profiles={aluminum} onSelect={id => updateRecipe(recipe.id, { mosquiteroProfileId: id })} 
                     footer={<div className="flex gap-2"><FormulaInput label="W" value={recipe.mosquiteroFormulaW} onChange={v => updateRecipe(recipe.id, { mosquiteroFormulaW: v })}/><FormulaInput label="H" value={recipe.mosquiteroFormulaH} onChange={v => updateRecipe(recipe.id, { mosquiteroFormulaH: v })}/></div>}/>
                 <GlobalCompCard title="Tapajuntas" icon={<Scissors size={14}/>} color="sky" profileId={recipe.defaultTapajuntasProfileId} profiles={aluminum} onSelect={id => updateRecipe(recipe.id, { defaultTapajuntasProfileId: id })} />
-                <GlobalCompCard title="Travesaño" icon={<Split size={14} className="rotate-90"/>} color="indigo" profileId={recipe.defaultTransomProfileId} profiles={aluminum} onSelect={id => updateRecipe(recipe.id, { defaultTransomProfileId: id })} />
+                <GlobalCompCard title="Travesaño" icon={<Split size={14} className="rotate-90"/>} color="indigo" profileId={recipe.defaultTransomProfileId} profiles={aluminum} onSelect={id => updateRecipe(recipe.id, { defaultTransomProfileId: id })} 
+                    footer={
+                      <div className="space-y-2 mt-2 pt-2 border-t border-indigo-100/30">
+                        <div className="flex gap-2">
+                           <FormulaInput label="Espesor (mm)" value={recipe.transomThickness?.toString()} onChange={v => updateRecipe(recipe.id, { transomThickness: parseFloat(v) || 0 })}/>
+                           <FormulaInput label="Desc. Vidrio" value={recipe.transomGlassDeduction?.toString()} onChange={v => updateRecipe(recipe.id, { transomGlassDeduction: parseFloat(v) || 0 })}/>
+                        </div>
+                        <p className="text-[6px] font-bold text-indigo-400 uppercase leading-tight">El espesor se resta a ambos vidrios al dividir paños.</p>
+                      </div>
+                    }/>
                 <GlobalCompCard title="Acoples" icon={<Link size={14}/>} color="slate" profileId={recipe.defaultCouplingProfileId} profiles={aluminum} onSelect={id => updateRecipe(recipe.id, { defaultCouplingProfileId: id })} 
                     footer={<FormulaInput label="DEDUCCIÓN" value={recipe.defaultCouplingDeduction?.toString()} onChange={v => updateRecipe(recipe.id, { defaultCouplingDeduction: parseFloat(v) || 0 })}/>}/>
             </div>
