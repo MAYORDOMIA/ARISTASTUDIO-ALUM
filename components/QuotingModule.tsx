@@ -150,10 +150,11 @@ const drawDetailedOpening = (
     const drawOpeningSymbol = (sx: number, sy: number, sw: number, sh: number, leafType: string, isMesh: boolean = false) => {
         ctx.save();
         if (isMesh) {
-            ctx.fillStyle = 'rgba(148, 163, 184, 0.4)'; // Gris más claro (slate-400 translúcido)
+            // PATRÓN DE MALLA PARA MOSQUITERO (MÁS CLARO / ALUMINIO)
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.5)'; // Slate-200 translúcido
             ctx.fillRect(sx, sy, sw, sh);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.15)'; // Líneas de malla sutiles
+            ctx.lineWidth = 0.3;
             const step = 4 * pxPerMm;
             for(let i = 0; i <= sw; i += step) {
                 ctx.beginPath(); ctx.moveTo(sx + i, sy); ctx.lineTo(sx + i, sy + sh); ctx.stroke();
@@ -210,20 +211,27 @@ const drawDetailedOpening = (
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else if (isMosquiteroSystem) {
-            // REPRESENTACIÓN DE TELA MOSQUITERA (ALUMINIO) - COLOR GRIS CLARO
-            ctx.fillStyle = '#94a3b8'; // Gris claro (slate-400)
+            // REPRESENTACIÓN DE TELA MOSQUITERA (ALUMINIO) - COLOR GRIS PLATEADO CLARO
+            ctx.fillStyle = '#cbd5e1'; // Gris muy claro (slate-200)
             ctx.fillRect(px, py, pw, ph);
             
             ctx.save();
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.strokeStyle = 'rgba(71, 85, 105, 0.15)'; // Líneas de malla un poco más visibles para el contraste
             ctx.lineWidth = 0.2;
-            const meshStep = 3 * pxPerMm; // Malla fina
+            const meshStep = 2.5 * pxPerMm; // Malla muy fina y densa
             for (let i = 0; i <= ph; i += meshStep) {
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke();
             }
             for (let j = 0; j <= pw; j += meshStep) {
                 ctx.beginPath(); ctx.moveTo(px + j, py); ctx.lineTo(px + j, py + ph); ctx.stroke();
             }
+            // Brillo metálico diagonal sutil
+            const metalGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
+            metalGrad.addColorStop(0, 'rgba(255,255,255,0)');
+            metalGrad.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            metalGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = metalGrad;
+            ctx.fillRect(px, py, pw, ph);
             ctx.restore();
         } else {
             const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
