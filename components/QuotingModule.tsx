@@ -150,9 +150,9 @@ const drawDetailedOpening = (
     const drawOpeningSymbol = (sx: number, sy: number, sw: number, sh: number, leafType: string, isMesh: boolean = false) => {
         ctx.save();
         if (isMesh) {
-            ctx.fillStyle = 'rgba(30, 41, 59, 0.4)'; 
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.4)'; // Gris más claro (slate-400 translúcido)
             ctx.fillRect(sx, sy, sw, sh);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
             ctx.lineWidth = 0.5;
             const step = 4 * pxPerMm;
             for(let i = 0; i <= sw; i += step) {
@@ -196,6 +196,8 @@ const drawDetailedOpening = (
 
     const drawPane = (px: number, py: number, pw: number, ph: number, index: number) => {
         const isBlind = blindPanes.includes(index);
+        const isMosquiteroSystem = visualType === 'mosquitero';
+
         if (isBlind) {
             const specificBlindId = blindPaneIds[index];
             const specificBlind = allBlindPanels.find(bp => bp.id === specificBlindId);
@@ -207,6 +209,22 @@ const drawDetailedOpening = (
             for (let i = 0; i < ph; i += step) { 
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
+        } else if (isMosquiteroSystem) {
+            // REPRESENTACIÓN DE TELA MOSQUITERA (ALUMINIO) - COLOR GRIS CLARO
+            ctx.fillStyle = '#94a3b8'; // Gris claro (slate-400)
+            ctx.fillRect(px, py, pw, ph);
+            
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 0.2;
+            const meshStep = 3 * pxPerMm; // Malla fina
+            for (let i = 0; i <= ph; i += meshStep) {
+                ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke();
+            }
+            for (let j = 0; j <= pw; j += meshStep) {
+                ctx.beginPath(); ctx.moveTo(px + j, py); ctx.lineTo(px + j, py + ph); ctx.stroke();
+            }
+            ctx.restore();
         } else {
             const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
             glassGrad.addColorStop(0, '#bae6fd');

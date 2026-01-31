@@ -247,7 +247,9 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
         const treatment = treatments.find(t => t.id === item.colorId);
         
         let glassDetailStr = 'No definido';
-        if (firstMod) {
+        if (recipe?.visualType === 'mosquitero') {
+            glassDetailStr = 'TELA MOSQUITERA (ALUMINIO)';
+        } else if (firstMod) {
             const gOuter = glasses.find(g => g.id === firstMod.glassOuterId);
             if (firstMod.isDVH) {
                 const gInner = glasses.find(g => g.id === firstMod.glassInnerId);
@@ -258,7 +260,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
             }
         }
 
-        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nAcabado: ${treatment?.name || '-'}\nVidriado: ${glassDetailStr}`;
+        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nAcabado: ${treatment?.name || '-'}\nLlenado: ${glassDetailStr}`;
         return [
             idx + 1,
             '', 
@@ -427,13 +429,18 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
 
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             let spec = 'S/D';
-            const gOuter = glasses.find(g => g.id === mod.glassOuterId);
-            if (mod.isDVH) {
-                const gInner = glasses.find(g => g.id === mod.glassInnerId);
-                const camera = dvhInputs.find(i => i.id === mod.dvhCameraId);
-                spec = `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`;
+            
+            if (recipe.visualType === 'mosquitero') {
+                spec = 'TELA MOSQUITERA (ALUMINIO)';
             } else {
-                spec = gOuter?.detail || 'Vidrio Simple';
+                const gOuter = glasses.find(g => g.id === mod.glassOuterId);
+                if (mod.isDVH) {
+                    const gInner = glasses.find(g => g.id === mod.glassInnerId);
+                    const camera = dvhInputs.find(i => i.id === mod.dvhCameraId);
+                    spec = `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`;
+                } else {
+                    spec = gOuter?.detail || 'Vidrio Simple';
+                }
             }
 
             panes.forEach((p, pIdx) => {
@@ -452,7 +459,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
 
         autoTable(doc, {
             startY: currentY,
-            head: [['UBICACIÓN', 'ESPECIFICACIÓN DE VIDRIO / LLENADO', 'MEDIDAS (mm)', 'CANT POR UNID.']],
+            head: [['UBICACIÓN', 'ESPECIFICACIÓN DE LLENADO', 'MEDIDAS (mm)', 'CANT POR UNID.']],
             body: glassPieces,
             theme: 'striped',
             styles: { fontSize: 7 },
@@ -523,13 +530,13 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
-    // --- SECCIÓN 2: LISTADO DE VIDRIOS ---
+    // --- SECCIÓN 2: LISTADO DE VIDRIOS Y TELAS ---
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11);
-    doc.text('2. LISTADO DE CRISTALES Y PANELES', 15, currentY);
+    doc.text('2. LISTADO DE CRISTALES, PANELES Y TELAS', 15, currentY);
     currentY += 5;
 
-    const glassSummary = new Map<string, { spec: string, w: number, h: number, qty: number }>();
+    const fillSummary = new Map<string, { spec: string, w: number, h: number, qty: number }>();
     quote.items.forEach(item => {
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
@@ -545,27 +552,32 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             
             panes.forEach(pane => {
                 if (pane.isBlind) return;
-                const gOuter = glasses.find(g => g.id === mod.glassOuterId);
-                const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
-                const camera = mod.isDVH ? dvhInputs.find(c => c.id === mod.dvhCameraId) : null;
+                let spec = '';
+                if (recipe.visualType === 'mosquitero') {
+                    spec = 'TELA MOSQUITERA (ALUMINIO)';
+                } else {
+                    const gOuter = glasses.find(g => g.id === mod.glassOuterId);
+                    const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
+                    const camera = mod.isDVH ? dvhInputs.find(c => c.id === mod.dvhCameraId) : null;
 
-                const spec = mod.isDVH 
-                    ? `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`
-                    : (gOuter?.detail || 'Vidrio Simple');
+                    spec = mod.isDVH 
+                        ? `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`
+                        : (gOuter?.detail || 'Vidrio Simple');
+                }
                 
                 const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
-                const existing = glassSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
                 existing.qty += (item.quantity * numLeaves);
-                glassSummary.set(key, existing);
+                fillSummary.set(key, existing);
             });
         });
     });
 
-    const glassBody = Array.from(glassSummary.values()).map(g => [g.spec, `${g.w} x ${g.h}`, g.qty, `${((g.w * g.h / 1000000) * g.qty).toFixed(2)} m2`]);
+    const glassBody = Array.from(fillSummary.values()).map(g => [g.spec, `${g.w} x ${g.h}`, g.qty, `${((g.w * g.h / 1000000) * g.qty).toFixed(2)} m2`]);
 
     autoTable(doc, {
         startY: currentY,
-        head: [['ESPECIFICACIÓN CRISTAL', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']],
+        head: [['ESPECIFICACIÓN LLENADO', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']],
         body: glassBody,
         theme: 'striped',
         headStyles: { fillColor: [71, 85, 105] },
@@ -622,6 +634,9 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
 
+            // Saltar optimización de vidrios si es un mosquitero (tela no es vidrio rígido)
+            if (recipe.visualType === 'mosquitero') return;
+
             const visualType = recipe.visualType || '';
             let numLeaves = 1;
             if (visualType.includes('sliding_3')) numLeaves = 3;
@@ -668,6 +683,11 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             });
         });
     });
+
+    if (allPieces.length === 0) {
+        alert("No se detectaron vidrios para optimizar en esta obra.");
+        return;
+    }
 
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 30, 'F');

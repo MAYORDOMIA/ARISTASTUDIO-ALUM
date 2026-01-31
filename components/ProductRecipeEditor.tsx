@@ -42,6 +42,7 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'projecting_desplazable_45', label: 'Desplazable (45°)', description: 'Apertura hacia afuera mediante tijeras.' },
   { id: 'door_swing_right_zocalo', label: 'Puerta Rebatir Derecha (Zócalo)', description: 'Puerta reforzada con zócalo.' },
   { id: 'door_swing_left_zocalo', label: 'Puerta Rebatir Izquierda (Zócalo)', description: 'Puerta reforzada con zócalo.' },
+  { id: 'mosquitero', label: 'MOSQUITERO', description: 'Marco perimetral para tela mosquitera.' },
 ];
 
 const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config }) => {

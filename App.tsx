@@ -24,7 +24,8 @@ import {
   Upload,
   Sun,
   Moon,
-  Wallet
+  Wallet,
+  Wind
 } from 'lucide-react';
 import { 
   GlobalConfig, 
@@ -69,6 +70,7 @@ const App: React.FC = () => {
     discWidth: 4,
     taxRate: 21,
     blindPanelPricePerM2: 85.0, 
+    meshPricePerM2: 25.0, // Inicialización del precio de tela
     companyName: 'ARISTASTUDIO ALUM',
     companyAddress: 'Planta Industrial Central',
     companyPhone: '+54 11 0000 0000',
@@ -332,6 +334,14 @@ const App: React.FC = () => {
                             <div className="space-y-1">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Hoja Corte (mm)</label>
                                 <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.discWidth} onChange={(e) => setConfig({...config, discWidth: parseFloat(e.target.value) || 0})} />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Ciego ($/M2)</label>
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.blindPanelPricePerM2} onChange={(e) => setConfig({...config, blindPanelPricePerM2: parseFloat(e.target.value) || 0})} />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1"><Wind size={8} /> Tela Mosq. ($/M2)</label>
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.meshPricePerM2} onChange={(e) => setConfig({...config, meshPricePerM2: parseFloat(e.target.value) || 0})} />
                             </div>
                         </div>
                     </div>

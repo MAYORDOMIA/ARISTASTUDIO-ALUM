@@ -142,12 +142,11 @@ export const calculateItemPrice = (
     }
   });
 
-  // SUMAR TRAVESAÑO SOLO SI EXISTE EN EL MÓDULO
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
-        const tCut = width; // El travesaño suele ser el ancho del módulo
+        const tCut = width; 
         totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
       }
     });
@@ -184,25 +183,18 @@ export const calculateItemPrice = (
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
   } else {
-    // Ordenamos por altura para procesar paños secuencialmente
     const sorted = [...transoms].sort((a, b) => a.height - b.height);
     let lastY = 0;
-    
     sorted.forEach((t, idx) => {
-      // El paño toma la altura desde la base (o el travesaño anterior) 
-      // Restamos la MITAD del espesor del perfil compartido
       let paneH;
       if (idx === 0) {
-        paneH = t.height - (transomThickness / 2) - transomGlassDeduction;
+        paneH = t.height - (transomThickness / 2) - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
       } else {
         paneH = (t.height - lastY) - transomThickness - transomGlassDeduction;
       }
-      
       if (paneH > 0) glassPanes.push({ w: gW, h: paneH });
       lastY = t.height;
     });
-
-    // Último paño (superior)
     const finalPaneH = (height - lastY) - (transomThickness / 2) - transomGlassDeduction;
     if (finalPaneH > 0) glassPanes.push({ w: gW, h: finalPaneH });
   }
@@ -215,6 +207,12 @@ export const calculateItemPrice = (
     const areaM2 = (pane.w * pane.h) / 1000000;
     const billingAreaPerPiece = Math.max(areaM2, 0.5); 
     const totalBillingArea = billingAreaPerPiece * numLeaves;
+
+    // REGLA: SI ES TIPO "MOSQUITERO" NO COBRA VIDRIO, COBRA TELA DE ALUMINIO
+    if (visualType === 'mosquitero') {
+      glassCost += (config.meshPricePerM2 || 25.0) * totalBillingArea;
+      return; // Saltar cálculo de vidrios
+    }
 
     if (blindPanes.includes(index)) {
       const specificBlind = blindPanels.find(bp => bp.id === blindPaneIds[index]);
@@ -234,12 +232,12 @@ export const calculateItemPrice = (
     }
   });
 
-  if (extras?.mosquitero) {
+  if (extras?.mosquitero && visualType !== 'mosquitero') {
       const mProfile = profiles.find(p => p.id === recipe.mosquiteroProfileId);
       if (mProfile) {
           const mW = evaluateFormula(recipe.mosquiteroFormulaW || 'W/2', width, height);
           const mH = evaluateFormula(recipe.mosquiteroFormulaH || 'H-45', width, height);
-          glassCost += ((mW * mH) / 1000000) * 25.0;
+          glassCost += ((mW * mH) / 1000000) * (config.meshPricePerM2 || 25.0);
           const frameWeight = ((mW * 2) + (mH * 2)) / 1000 * mProfile.weightPerMeter;
           aluCost += frameWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
           totalAluWeight += frameWeight;

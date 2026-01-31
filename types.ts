@@ -5,6 +5,7 @@ export interface GlobalConfig {
   discWidth: number; 
   taxRate: number;
   blindPanelPricePerM2: number;
+  meshPricePerM2: number; // Nuevo: Precio de tela de aluminio por m2
   companyName?: string;
   companyLogo?: string; 
   companyAddress?: string;
