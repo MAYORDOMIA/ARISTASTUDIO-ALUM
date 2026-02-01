@@ -116,9 +116,12 @@ const drawDetailedOpening = (
 ) => {
     const visualType = recipe.visualType || 'fixed';
     const isDoor = visualType.startsWith('door_') || recipe.type === 'Puerta';
-    const is90 = visualType.includes('_90') || visualType.includes('zocalo');
-    const hasZocalo = visualType.includes('zocalo');
-    const isZocaloChico = visualType.includes('chico');
+    
+    // Lógica para detectar marcos 90 vs 45 en sistemas híbridos
+    const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
+    const isLeaf90 = visualType.includes('_90') || visualType.includes('zocalo') || visualType.includes('45_90');
+    const hasZocalo = visualType.includes('zocalo') || visualType.includes('high');
+    const isZocaloChico = visualType.includes('chico') || visualType.includes('low');
     
     const tjProf = allProfiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
     const frameT = 45 * pxPerMm;
@@ -150,10 +153,9 @@ const drawDetailedOpening = (
     const drawOpeningSymbol = (sx: number, sy: number, sw: number, sh: number, leafType: string, isMesh: boolean = false) => {
         ctx.save();
         if (isMesh) {
-            // PATRÓN DE MALLA PARA MOSQUITERO (MÁS CLARO / ALUMINIO)
-            ctx.fillStyle = 'rgba(226, 232, 240, 0.5)'; // Slate-200 translúcido
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.5)';
             ctx.fillRect(sx, sy, sw, sh);
-            ctx.strokeStyle = 'rgba(100, 116, 139, 0.15)'; // Líneas de malla sutiles
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.15)';
             ctx.lineWidth = 0.3;
             const step = 4 * pxPerMm;
             for(let i = 0; i <= sw; i += step) {
@@ -211,21 +213,18 @@ const drawDetailedOpening = (
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else if (isMosquiteroSystem) {
-            // REPRESENTACIÓN DE TELA MOSQUITERA (ALUMINIO) - COLOR GRIS PLATEADO CLARO
-            ctx.fillStyle = '#cbd5e1'; // Gris muy claro (slate-200)
+            ctx.fillStyle = '#cbd5e1';
             ctx.fillRect(px, py, pw, ph);
-            
             ctx.save();
-            ctx.strokeStyle = 'rgba(71, 85, 105, 0.15)'; // Líneas de malla un poco más visibles para el contraste
+            ctx.strokeStyle = 'rgba(71, 85, 105, 0.15)';
             ctx.lineWidth = 0.2;
-            const meshStep = 2.5 * pxPerMm; // Malla muy fina y densa
+            const meshStep = 2.5 * pxPerMm;
             for (let i = 0; i <= ph; i += meshStep) {
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke();
             }
             for (let j = 0; j <= pw; j += meshStep) {
                 ctx.beginPath(); ctx.moveTo(px + j, py); ctx.lineTo(px + j, py + ph); ctx.stroke();
             }
-            // Brillo metálico diagonal sutil
             const metalGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
             metalGrad.addColorStop(0, 'rgba(255,255,255,0)');
             metalGrad.addColorStop(0.5, 'rgba(255,255,255,0.2)');
@@ -283,7 +282,7 @@ const drawDetailedOpening = (
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
 
-    if (is90) {
+    if (isFrame90) {
         drawProfile([{x:x, y:y}, {x:x+frameT, y:y}, {x:x+frameT, y:y+h}, {x:x, y:y+h}], true);
         drawProfile([{x:x+w-frameT, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h}], true);
         drawProfile([{x:x+frameT, y:y}, {x:x+w-frameT, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}], false);
@@ -322,21 +321,21 @@ const drawDetailedOpening = (
             const leafW = (innerW / 3) + overlap;
             for(let i=0; i<3; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 2);
-                drawLeaf(lx, innerY, leafW, innerH, is90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, leafW, innerH, isLeaf90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else if (numLeaves === 4) {
             const leafW = (innerW / 4) + overlap;
             for(let i=0; i<4; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 3);
-                drawLeaf(lx, innerY, leafW, innerH, is90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, leafW, innerH, isLeaf90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else {
             const leafW = (innerW / 2) + overlap;
-            drawLeaf(innerX, innerY, leafW, innerH, is90, hasZocalo, extras?.mosquitero || false, 'sliding');
-            drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, is90, hasZocalo, false, 'sliding');
+            drawLeaf(innerX, innerY, leafW, innerH, isLeaf90, hasZocalo, extras?.mosquitero || false, 'sliding');
+            drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, isLeaf90, hasZocalo, false, 'sliding');
         }
     } else if (visualType.includes('swing') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting')) {
-        drawLeaf(innerX, innerY, innerW, innerH, is90, hasZocalo, extras?.mosquitero || false, visualType);
+        drawLeaf(innerX, innerY, innerW, innerH, isLeaf90, hasZocalo, extras?.mosquitero || false, visualType);
     } else {
         drawGlassWithTransoms(innerX, innerY, innerW, innerH, innerY + innerH);
     }
@@ -983,7 +982,7 @@ const QuotingModule: React.FC<Props> = ({
                                                     <div className="grid grid-cols-2 gap-4 bg-indigo-50/30 dark:bg-indigo-900/10 p-4 rounded-2xl border border-indigo-100/50 dark:border-indigo-800/50">
                                                         <div className="col-span-2 space-y-2">
                                                             <label className="text-[8px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-widest px-1">Cámara de Aire</label>
-                                                            <select className="w-full bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800 h-10 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none shadow-sm" value={currentModForEdit.dvhCameraId || ''} onChange={e => updateModule(editingModuleId, { dvhCameraId: e.target.value })}>
+                                                            <select className="w-full bg-white dark:bg-slate-800 border border-indigo-100 border-indigo-100 dark:border-indigo-800 h-10 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none shadow-sm" value={currentModForEdit.dvhCameraId || ''} onChange={e => updateModule(editingModuleId, { dvhCameraId: e.target.value })}>
                                                                 <option value="">(SELECCIONAR CÁMARA)</option>
                                                                 {dvhInputs.filter(i => i.type === 'Cámara').map(c => <option key={c.id} value={c.id}>{c.detail}</option>)}
                                                             </select>
