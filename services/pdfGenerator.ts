@@ -665,7 +665,9 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         const sheetH = refGlass?.height || 1800;
         const margin = 12; 
 
-        pieces.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h)); 
+        // Optimización por Area para mejor aprovechamiento
+        pieces.sort((a, b) => (b.w * b.h) - (a.w * a.h)); 
+        
         let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
         let curSheetIdx = 0, curY = 0, curShelfH = 0, curX = 0;
 
@@ -694,19 +696,34 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 
         sheets.forEach((sheetPieces, sIdx) => {
             doc.addPage();
-            doc.setFillColor(71, 85, 105); doc.rect(0, 0, pageWidth, 20, 'F');
+            doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F');
             doc.setTextColor(255); doc.setFontSize(10);
-            doc.text(`CROQUIS DE CORTE: ${specName} - PLANCHA #${sIdx+1}`, 15, 12);
+            doc.text(`CROQUIS DE CORTE: ${specName} - PLANCHA #${sIdx+1} (${sheetW} x ${sheetH} mm)`, 15, 12);
+            doc.setFontSize(7);
+            doc.text(`RENDIMIENTO DE PLANCHA: ${sheetPieces.length} PIEZAS`, 15, 18);
             
             const scale = Math.min((pageWidth - 40) / sheetW, (pageHeight - 60) / sheetH);
             const startX = 20, startY = 35;
-            doc.setDrawColor(100); doc.rect(startX, startY, sheetW * scale, sheetH * scale);
+            
+            doc.setDrawColor(30, 41, 59); 
+            doc.setLineWidth(0.5);
+            doc.rect(startX, startY, sheetW * scale, sheetH * scale);
 
             sheetPieces.forEach(sp => {
                 const px = startX + (sp.x * scale), py = startY + (sp.y * scale), pw = sp.rw * scale, ph = sp.rh * scale;
-                doc.setFillColor(240, 249, 255); doc.rect(px, py, pw, ph, 'FD');
-                doc.setTextColor(30, 58, 138); doc.setFontSize(6);
-                if (pw > 10) doc.text(sp.p.itemCode, px + pw/2, py + ph/2, { align: 'center' });
+                doc.setDrawColor(79, 70, 229);
+                doc.setFillColor(243, 244, 246); 
+                doc.rect(px, py, pw, ph, 'FD');
+                
+                doc.setTextColor(30, 41, 59); 
+                doc.setFontSize(Math.max(4, 7 * scale)); 
+                
+                if (pw > 15 && ph > 15) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(sp.p.itemCode, px + pw/2, py + ph/2 - 2, { align: 'center' });
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`${Math.round(sp.p.w)}x${Math.round(sp.p.h)}`, px + pw/2, py + ph/2 + 2, { align: 'center' });
+                }
             });
         });
     });
@@ -718,7 +735,7 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFillColor(15, 23, 42); doc.rect(0, 0, pageWidth, 25, 'F');
-    doc.setTextColor(255); doc.setFontSize(14); doc.text('AUDITORÍA DE COSTOS INTERNOS', 15, 12);
+    doc.setTextColor(255); doc.setFontSize(14); doc.text('AUDITORÍA DE COSTOS INTERNOS', 15, 15);
 
     const tableData = quote.items.map((item, idx) => {
         const b = item.breakdown;
@@ -728,20 +745,63 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
             item.itemCode || `POS#${idx+1}`,
             recipe?.name || '-',
             item.quantity,
-            `$${(b?.materialCost || 0).toLocaleString()}`,
-            `$${(b?.laborCost || 0).toLocaleString()}`,
-            `$${item.calculatedCost.toLocaleString()}`,
+            `$${((b?.aluCost || 0) * item.quantity).toLocaleString()}`,
+            `$${((b?.glassCost || 0) * item.quantity).toLocaleString()}`,
+            `$${((b?.accCost || 0) * item.quantity).toLocaleString()}`,
+            `$${((b?.laborCost || 0) * item.quantity).toLocaleString()}`,
             `$${(item.calculatedCost * item.quantity).toLocaleString()}`
         ];
     });
 
     autoTable(doc, {
         startY: 35,
-        head: [['CÓD.', 'SISTEMA', 'CANT.', 'COSTO MAT.', 'MANO OBRA', 'UNIT.', 'TOTAL']],
+        head: [['CÓD.', 'SISTEMA', 'CANT.', 'ALUMINIO', 'VIDRIO', 'HERRAJES', 'M. OBRA', 'TOTAL']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [51, 65, 85] }
+        headStyles: { fillColor: [51, 65, 85], fontSize: 8 },
+        styles: { fontSize: 7 }
     });
 
-    doc.save(`Costos_${quote.clientName}.pdf`);
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    
+    // RESUMEN CONSOLIDADO REQUERIDO POR EL DUEÑO
+    const totalAlu = quote.items.reduce((sum, i) => sum + (i.breakdown?.aluCost || 0) * i.quantity, 0);
+    const totalGlass = quote.items.reduce((sum, i) => sum + (i.breakdown?.glassCost || 0) * i.quantity, 0);
+    const totalAcc = quote.items.reduce((sum, i) => sum + (i.breakdown?.accCost || 0) * i.quantity, 0);
+    const totalLabor = quote.items.reduce((sum, i) => sum + (i.breakdown?.laborCost || 0) * i.quantity, 0);
+    const finalTotal = totalAlu + totalGlass + totalAcc + totalLabor;
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(15, finalY, pageWidth - 30, 45, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(15, finalY, pageWidth - 30, 45, 'D');
+
+    doc.setTextColor(100);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMEN DE COSTOS CONSOLIDADO DE OBRA', 20, finalY + 10);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(`TOTAL COSTO ALUMINIO:`, 20, finalY + 20);
+    doc.text(`$${totalAlu.toLocaleString()}`, pageWidth - 20, finalY + 20, { align: 'right' });
+    
+    doc.text(`TOTAL COSTO VIDRIOS/PANELES:`, 20, finalY + 25);
+    doc.text(`$${totalGlass.toLocaleString()}`, pageWidth - 20, finalY + 25, { align: 'right' });
+    
+    doc.text(`TOTAL COSTO ACCESORIOS/GOMAS:`, 20, finalY + 30);
+    doc.text(`$${totalAcc.toLocaleString()}`, pageWidth - 20, finalY + 30, { align: 'right' });
+    
+    doc.text(`MANO DE OBRA Y CARGA OPERATIVA (${config.laborPercentage}%):`, 20, finalY + 35);
+    doc.text(`$${totalLabor.toLocaleString()}`, pageWidth - 20, finalY + 35, { align: 'right' });
+
+    doc.setLineWidth(0.5);
+    doc.line(20, finalY + 38, pageWidth - 20, finalY + 38);
+    
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`VALOR TOTAL FINAL DE OBRA:`, 20, finalY + 43);
+    doc.text(`$${finalTotal.toLocaleString()}`, pageWidth - 20, finalY + 43, { align: 'right' });
+
+    doc.save(`Auditoria_Costos_${quote.clientName}.pdf`);
 };

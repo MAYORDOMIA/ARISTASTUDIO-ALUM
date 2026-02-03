@@ -27,16 +27,32 @@ interface Props {
 }
 
 const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
-  { id: 'sliding_2_45', label: 'Corrediza 2 Hojas (45°)', description: 'Marco y hojas con ensamble a inglete.' },
-  { id: 'sliding_2_90_zocalo', label: 'Corrediza 2 Hojas (90°) - Zócalo Alto', description: 'Ensambles rectos con zócalo de puerta en hojas.' },
-  { id: 'sliding_2_45_90_low', label: 'Corrediza 2 Hojas (M45°/H90°) - Zócalo Bajo', description: 'Marco a 45°, hojas a 90° con zócalo bajo.' },
-  { id: 'sliding_2_45_90_high', label: 'Corrediza 2 Hojas (M45°/H90°) - Zócalo Alto', description: 'Marco a 45°, hojas a 90° con zócalo alto.' },
-  { id: 'sliding_3_45', label: 'Corrediza 3 Hojas (45°)', description: 'Triple guía con cortes a inglete.' },
-  { id: 'sliding_4_45', label: 'Corrediza 4 Hojas (45°)', description: 'Encuentro central, cortes a inglete.' },
-  { id: 'fixed', label: 'Paño Fijo (45°)', description: 'Marco perimetral a inglete.' },
-  { id: 'swing_right', label: 'Abrir Derecha (45°)', description: 'Sistema batiente a inglete.' },
-  { id: 'swing_left', label: 'Abrir Izquierda (45°)', description: 'Sistema batiente a inglete.' },
-  { id: 'mosquitero', label: 'MOSQUITERO', description: 'Marco perimetral para tela mosquitera.' },
+  // Sistemas de Proyección y Rebatir
+  { id: 'banderola', label: 'BANDEROLA', description: 'Abre arriba (interior). Marco + Hoja.' },
+  { id: 'ventiluz', label: 'VENTILUZ', description: 'Abre abajo (exterior). Marco + Hoja.' },
+  { id: 'tilt_turn', label: 'OSCILOBATIENTE', description: 'Doble apertura. Marco + Hoja.' },
+  { id: 'swing_door', label: 'PUERTA DE REBATIR', description: 'Hojas 45°/90°. Sin umbral. Perfil ancho.' },
+  { id: 'swing_v', label: 'V. DE REBATIR', description: 'Ventana de abrir tradicional.' },
+  { id: 'projecting', label: 'DESPLAZABLE', description: 'Apertura proyectante exterior.' },
+  { id: 'fixed', label: 'PAÑO FIJO', description: 'Marco perimetral fijo.' },
+  { id: 'mosquitero', label: 'MOSQUITERO', description: 'Sistema de tela mosquitera.' },
+  
+  // Corredizas 45°
+  { id: 'sliding_2_45', label: 'V.CORREDIZA 2H 45°', description: '2 hojas corte 45°.' },
+  { id: 'sliding_3_45', label: 'V.CORREDIZA 3H 45°', description: '3 hojas corte 45°.' },
+  { id: 'sliding_4_45', label: 'V.CORREDIZA 4H 45°', description: '4 hojas corte 45°.' },
+  
+  // Corredizas 90° - 2 Hojas
+  { id: 'sliding_2_90_low', label: 'V.CORREDIZA 2H 90° zocalo bajo', description: '2 hojas 90° zócalo bajo.' },
+  { id: 'sliding_2_90_high', label: 'V.CORREDIZA 2H 90° zocalo alto', description: '2 hojas 90° zócalo alto.' },
+  
+  // Corredizas 90° - 3 Hojas (Restauradas)
+  { id: 'sliding_3_90_low', label: 'V.CORREDIZA 3H 90° zocalo bajo', description: '3 hojas 90° zócalo bajo.' },
+  { id: 'sliding_3_90_high', label: 'V.CORREDIZA 3H 90° zocalo alto', description: '3 hojas 90° zócalo alto.' },
+  
+  // Corredizas 90° - 4 Hojas (Restauradas)
+  { id: 'sliding_4_90_low', label: 'V.CORREDIZA 4H 90° zocalo bajo', description: '4 hojas 90° zócalo bajo.' },
+  { id: 'sliding_4_90_high', label: 'V.CORREDIZA 4H 90° zocalo alto', description: '4 hojas 90° zócalo alto.' },
 ];
 
 const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config }) => {
@@ -244,7 +260,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                     {recipe.profiles.map((rp, idx) => {
                         const pDef = aluminum.find(a => a.id === rp.profileId);
                         return (
-                            <div key={idx} className="grid grid-cols-12 gap-3 items-center bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 group hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all hover:shadow-sm">
+                            <div key={idx} className="grid grid-cols-12 gap-3 items-center bg-slate-50/50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 group hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100 dark:hover:bg-indigo-900 transition-all hover:shadow-sm">
                                 <div className="col-span-4">
                                     <select className="w-full bg-transparent text-[10px] font-black uppercase text-slate-800 dark:text-slate-200 outline-none cursor-pointer" value={rp.profileId} onChange={e => { const updated = [...recipe.profiles]; updated[idx].profileId = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }}>{aluminum.map(a => <option key={a.id} value={a.id}>{a.code} - {a.detail}</option>)}</select>
                                     {pDef && <span className="text-[7px] font-black text-indigo-400 uppercase mt-0.5 block italic">Espesor DB: {pDef.thickness}mm</span>}

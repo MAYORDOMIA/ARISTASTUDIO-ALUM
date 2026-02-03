@@ -1,5 +1,4 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
     ProductRecipe, AluminumProfile, Glass, BlindPanel,
     Accessory,
@@ -8,6 +7,7 @@ import {
     RecipeAccessory,
     QuoteItemBreakdown
 } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -115,18 +115,20 @@ const drawDetailedOpening = (
     isSinglePreview: boolean = false
 ) => {
     const visualType = recipe.visualType || 'fixed';
-    const isDoor = visualType.startsWith('door_') || recipe.type === 'Puerta';
+    const isDoor = visualType.includes('door') || recipe.type === 'Puerta';
     
-    // Lógica para detectar marcos 90 vs 45 en sistemas híbridos
+    // Una puerta de rebatir no lleva marco abajo (umbral)
+    const hasBottomFrame = !isDoor;
+    
     const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
-    const isLeaf90 = visualType.includes('_90') || visualType.includes('zocalo') || visualType.includes('45_90');
-    const hasZocalo = visualType.includes('zocalo') || visualType.includes('high');
+    const isLeaf90 = visualType.includes('_90') || visualType.includes('zocalo') || visualType.includes('45_90') || isDoor;
+    const hasZocalo = visualType.includes('zocalo') || visualType.includes('high') || isDoor;
     const isZocaloChico = visualType.includes('chico') || visualType.includes('low');
     
     const tjProf = allProfiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
     const frameT = 45 * pxPerMm;
     const leafT = (isDoor ? 75 : 45) * pxPerMm;
-    const zocaloT = (isZocaloChico ? 65 : 115) * pxPerMm;
+    const zocaloT = (isDoor ? 120 : (isZocaloChico ? 65 : 115)) * pxPerMm;
     const tjSize = (tjProf?.thickness || 40) * pxPerMm; 
 
     const drawProfile = (points: {x:number, y:number}[], isVert: boolean) => {
@@ -172,7 +174,7 @@ const drawDetailedOpening = (
         ctx.strokeStyle = 'rgba(79, 70, 229, 0.6)';
         ctx.lineWidth = 1.2;
 
-        if (leafType.includes('swing') || leafType.includes('right') || leafType.includes('left')) {
+        if (leafType.includes('swing') || leafType.includes('door') || leafType.includes('right') || leafType.includes('left')) {
             const isRight = leafType.includes('right');
             ctx.beginPath();
             if (isRight) {
@@ -191,8 +193,13 @@ const drawDetailedOpening = (
             ctx.beginPath();
             ctx.moveTo(midX + 10*pxPerMm, midY - 5*pxPerMm); ctx.lineTo(midX + 18*pxPerMm, midY); ctx.lineTo(midX + 10*pxPerMm, midY + 5*pxPerMm);
             ctx.fill();
-        } else if (leafType.includes('projecting')) {
-            ctx.beginPath(); ctx.moveTo(sx, sy + h); ctx.lineTo(sx + sw/2, sy); ctx.lineTo(sx + sw, sy + sh); ctx.stroke();
+        } else if (leafType.includes('projecting') || leafType.includes('ventiluz')) {
+            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sw/2, sy + sh); ctx.lineTo(sx + sw, sy); ctx.stroke();
+        } else if (leafType.includes('banderola')) {
+            ctx.beginPath(); ctx.moveTo(sx, sy + sh); ctx.lineTo(sx + sw/2, sy); ctx.lineTo(sx + sw, sy + sh); ctx.stroke();
+        } else if (leafType.includes('tilt_turn') || leafType.includes('oscilo')) {
+            ctx.beginPath(); ctx.moveTo(sx + sw, sy); ctx.lineTo(sx, sy + sh/2); ctx.lineTo(sx + sw, sy + sh); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(sx, sy + sh); ctx.lineTo(sx + sw/2, sy); ctx.lineTo(sx + sw, sy + sh); ctx.stroke();
         }
         ctx.restore();
     };
@@ -282,26 +289,39 @@ const drawDetailedOpening = (
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
 
+    // Dibujo del Marco
     if (isFrame90) {
+        // Jambas continuas (90°)
         drawProfile([{x:x, y:y}, {x:x+frameT, y:y}, {x:x+frameT, y:y+h}, {x:x, y:y+h}], true);
         drawProfile([{x:x+w-frameT, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h}], true);
+        // Dintel termina en jamba
         drawProfile([{x:x+frameT, y:y}, {x:x+w-frameT, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}], false);
-        if (!isDoor) drawProfile([{x:x, y:y+h-frameT}, {x:x+w, y:y+h-frameT}, {x:x+w, y:y+h}, {x:x, y:y+h}], false);
+        // Umbral termina en jamba (ajustado según pedido)
+        if (hasBottomFrame) {
+            drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}], false);
+        }
     } else {
+        // Marco a 45°
         drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}], false);
-        if (!isDoor) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}], false);
-        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(isDoor?0:frameT)}, {x:x, y:y+h}], true);
-        drawProfile([{x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-(isDoor?0:frameT)}, {x:x+w-frameT, y:y+frameT}], true);
+        if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}], false);
+        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}], true);
+        drawProfile([{x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w-frameT, y:y+frameT}], true);
     }
 
     const innerX = x + frameT; const innerY = y + frameT;
-    const innerW = w - frameT * 2; const innerH = h - (isDoor ? frameT : frameT * 2);
+    const innerW = w - frameT * 2; const innerH = h - (hasBottomFrame ? frameT * 2 : frameT);
 
     const drawLeaf = (lx:number, ly:number, lw:number, lh:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string) => {
         const bT = leafHasZocalo ? zocaloT : leafT;
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), ly + lh);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
-        if (force90) {
+        
+        if (isDoor) {
+            drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false); 
+            drawProfile([{x:lx+leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+leafT, y:ly+lh}], false); 
+            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}], true); 
+            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+lw-leafT, y:ly+leafT}], true); 
+        } else if (force90) {
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}], true);
             drawProfile([{x:lx+lw-leafT, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}], true);
             drawProfile([{x:lx+leafT, y:ly}, {x:lx+lw-leafT, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false);
@@ -334,7 +354,7 @@ const drawDetailedOpening = (
             drawLeaf(innerX, innerY, leafW, innerH, isLeaf90, hasZocalo, extras?.mosquitero || false, 'sliding');
             drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, isLeaf90, hasZocalo, false, 'sliding');
         }
-    } else if (visualType.includes('swing') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting')) {
+    } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
         drawLeaf(innerX, innerY, innerW, innerH, isLeaf90, hasZocalo, extras?.mosquitero || false, visualType);
     } else {
         drawGlassWithTransoms(innerX, innerY, innerW, innerH, innerY + innerH);
@@ -761,7 +781,7 @@ const QuotingModule: React.FC<Props> = ({
                 ) : null}
             </div>
             <div className="pt-4">
-                <button onClick={addItemToWork} className="w-full bg-indigo-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.25em] flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-indigo-700 hover:shadow-indigo-200">
+                <button onClick={addItemToWork} className="w-full bg-indigo-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-indigo-700 hover:shadow-indigo-200">
                     <Plus size={18} /> Cargar a Obra
                 </button>
             </div>

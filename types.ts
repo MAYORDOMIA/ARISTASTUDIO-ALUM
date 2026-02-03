@@ -5,7 +5,7 @@ export interface GlobalConfig {
   discWidth: number; 
   taxRate: number;
   blindPanelPricePerM2: number;
-  meshPricePerM2: number; // Nuevo: Precio de tela de aluminio por m2
+  meshPricePerM2: number; 
   companyName?: string;
   companyLogo?: string; 
   companyAddress?: string;
@@ -72,8 +72,8 @@ export interface RecipeProfile {
 export interface RecipeAccessory {
   accessoryId: string;
   quantity: number;
-  isLinear?: boolean; // Nuevo: indica si es goma/felpa/burlete
-  formula?: string;   // Nuevo: fórmula de medida (W, H, etc.)
+  isLinear?: boolean; 
+  formula?: string;   
 }
 
 export type VisualOpeningType = string;
@@ -139,7 +139,7 @@ export interface QuoteItemBreakdown {
 
 export interface QuoteItem {
   id: string;
-  itemCode: string; // Nuevo campo: Código de abertura (ej: V1, P1)
+  itemCode: string; 
   clientName?: string;
   width: number;
   height: number;
