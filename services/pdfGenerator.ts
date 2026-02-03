@@ -171,7 +171,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 
                 doc.setTextColor(0);
                 if (pieceW > 2) {
-                    // AGRANDAR MEDIDAS Y REDUCIR SEPARACIÓN
                     doc.setFontSize(9);
                     doc.setFont('helvetica', 'bold');
                     doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 1, { align: 'center' });
@@ -666,7 +665,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         const sheetH = refGlass?.height || 1800;
         const margin = 12; 
 
-        // Optimización por Area para mejor aprovechamiento
         pieces.sort((a, b) => (b.w * b.h) - (a.w * a.h)); 
         
         let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
@@ -716,17 +714,17 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                 doc.setFillColor(243, 244, 246); 
                 doc.rect(px, py, pw, ph, 'FD');
                 
-                // AGRANDAR MEDIDAS Y QUITAR SEPARACIÓN
-                const fontSize = Math.max(8, 14 * scale); 
+                // AJUSTE DE ETIQUETAS: MAS GRANDES Y JUNTAS
+                const fontSize = Math.max(10, 24 * scale); 
                 doc.setFontSize(fontSize);
                 doc.setTextColor(30, 41, 59); 
                 
                 if (pw > 15 && ph > 15) {
+                    const yCenter = py + ph/2;
                     doc.setFont('helvetica', 'bold');
-                    doc.text(sp.p.itemCode, px + pw/2, py + ph/2 - 0.5, { align: 'center' });
+                    doc.text(sp.p.itemCode, px + pw/2, yCenter - (fontSize * 0.1), { align: 'center' });
                     doc.setFont('helvetica', 'normal');
-                    // Tighter dimensions text
-                    doc.text(`${Math.round(sp.p.w)}x${Math.round(sp.p.h)}`, px + pw/2, py + ph/2 + (fontSize * 0.4), { align: 'center' });
+                    doc.text(`${Math.round(sp.p.w)}x${Math.round(sp.p.h)}`, px + pw/2, yCenter + (fontSize * 0.5), { align: 'center' });
                 }
             });
         });
@@ -768,7 +766,6 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     
-    // RESUMEN CONSOLIDADO REQUERIDO POR EL DUEÑO
     const totalAlu = quote.items.reduce((sum, i) => sum + (i.breakdown?.aluCost || 0) * i.quantity, 0);
     const totalGlass = quote.items.reduce((sum, i) => sum + (i.breakdown?.glassCost || 0) * i.quantity, 0);
     const totalAcc = quote.items.reduce((sum, i) => sum + (i.breakdown?.accCost || 0) * i.quantity, 0);
