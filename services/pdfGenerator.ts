@@ -154,7 +154,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         bins.forEach((bin, bIdx) => {
             if (y > 185) { doc.addPage(); y = 30; }
             const barW = pageWidth - 70; 
-            const barH = 12;
+            const barH = 8; // Barra más flaca
             
             doc.setDrawColor(200);
             doc.setFillColor(248, 250, 252);
@@ -170,14 +170,16 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 drawGeometricPiece(doc, curX, y, pieceW, barH, cut.cutStart, cut.cutEnd);
                 
                 doc.setTextColor(0);
-                if (pieceW > 12) {
-                    doc.setFontSize(8);
+                // Mostrar siempre etiquetas si hay espacio mínimo
+                if (pieceW > 2) {
+                    doc.setFontSize(6);
                     doc.setFont('helvetica', 'bold');
-                    doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 3, { align: 'center' });
+                    // Medida arriba (mm)
+                    doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 2, { align: 'center' });
                     
-                    doc.setFontSize(7);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(cut.label, curX + pieceW/2, y + barH + 6, { align: 'center' });
+                    // Código abajo
+                    doc.setFontSize(5);
+                    doc.text(cut.label, curX + pieceW/2, y + barH + 5, { align: 'center' });
                 }
                 curX += pieceW + (config.discWidth / barLenMm) * barW;
             });
@@ -188,9 +190,9 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             doc.setFontSize(8);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(100);
-            doc.text(`B#${bIdx+1}`, 8, y + 7.5);
-            doc.text(`SCRAP: ${Math.round(scrap)} mm`, 15 + barW + 5, y + 7.5);
-            y += 32;
+            doc.text(`B#${bIdx+1}`, 8, y + 5);
+            doc.text(`SCRAP: ${Math.round(scrap)} mm`, 15 + barW + 5, y + 5);
+            y += 24; // Espacio entre barras ajustado
         });
         y += 10;
     });
@@ -209,6 +211,7 @@ function drawGeometricPiece(doc: jsPDF, x: number, y: number, w: number, h: numb
     if (start === '45') p1.x += slant;
     if (end === '45') p2.x -= slant;
 
+    // Asegurar que las coordenadas de dibujo sean válidas visualmente
     doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'FD');
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'FD');
 }
@@ -260,7 +263,13 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
             }
         }
 
-        const desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nAcabado: ${treatment?.name || '-'}\nLlenado: ${glassDetailStr}`;
+        let desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nAcabado: ${treatment?.name || '-'}\nLlenado: ${glassDetailStr}`;
+        
+        // REGLA: SI LLEVA MOSQUITERO, AGREGAR AL DETALLE
+        if (item.extras?.mosquitero) {
+            desc += `\nAdicional: CON MOSQUITERO`;
+        }
+
         return [
             idx + 1,
             '', 
@@ -268,7 +277,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
             `${item.width} x ${item.height}`,
             item.quantity,
             `$${item.calculatedCost.toLocaleString()}`,
-            `$${(item.calculatedCost * item.quantity).toLocaleString()}`
+            `$${((item.calculatedCost * item.quantity)).toLocaleString()}`
         ];
     });
 
