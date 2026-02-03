@@ -42,17 +42,21 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'sliding_3_45', label: 'V.CORREDIZA 3H 45°', description: '3 hojas corte 45°.' },
   { id: 'sliding_4_45', label: 'V.CORREDIZA 4H 45°', description: '4 hojas corte 45°.' },
   
-  // Corredizas 90° - 2 Hojas
+  // Corredizas 90° - Integrales
   { id: 'sliding_2_90_low', label: 'V.CORREDIZA 2H 90° zocalo bajo', description: '2 hojas 90° zócalo bajo.' },
   { id: 'sliding_2_90_high', label: 'V.CORREDIZA 2H 90° zocalo alto', description: '2 hojas 90° zócalo alto.' },
-  
-  // Corredizas 90° - 3 Hojas (Restauradas)
   { id: 'sliding_3_90_low', label: 'V.CORREDIZA 3H 90° zocalo bajo', description: '3 hojas 90° zócalo bajo.' },
   { id: 'sliding_3_90_high', label: 'V.CORREDIZA 3H 90° zocalo alto', description: '3 hojas 90° zócalo alto.' },
-  
-  // Corredizas 90° - 4 Hojas (Restauradas)
   { id: 'sliding_4_90_low', label: 'V.CORREDIZA 4H 90° zocalo bajo', description: '4 hojas 90° zócalo bajo.' },
   { id: 'sliding_4_90_high', label: 'V.CORREDIZA 4H 90° zocalo alto', description: '4 hojas 90° zócalo alto.' },
+
+  // NUEVAS: Corredizas Híbridas (Marco 45 / Hoja 90)
+  { id: 'sliding_2_45_90_low', label: 'V.CORREDIZA 2H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
+  { id: 'sliding_2_45_90_high', label: 'V.CORREDIZA 2H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
+  { id: 'sliding_3_45_90_low', label: 'V.CORREDIZA 3H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
+  { id: 'sliding_3_45_90_high', label: 'V.CORREDIZA 3H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
+  { id: 'sliding_4_45_90_low', label: 'V.CORREDIZA 4H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
+  { id: 'sliding_4_45_90_high', label: 'V.CORREDIZA 4H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
 ];
 
 const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config }) => {
