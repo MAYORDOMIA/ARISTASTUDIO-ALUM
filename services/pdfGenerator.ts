@@ -154,7 +154,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         bins.forEach((bin, bIdx) => {
             if (y > 185) { doc.addPage(); y = 30; }
             const barW = pageWidth - 70; 
-            const barH = 8; // Barra más flaca
+            const barH = 8; 
             
             doc.setDrawColor(200);
             doc.setFillColor(248, 250, 252);
@@ -170,14 +170,10 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 drawGeometricPiece(doc, curX, y, pieceW, barH, cut.cutStart, cut.cutEnd);
                 
                 doc.setTextColor(0);
-                // Mostrar siempre etiquetas si hay espacio mínimo
                 if (pieceW > 2) {
                     doc.setFontSize(6);
                     doc.setFont('helvetica', 'bold');
-                    // Medida arriba (mm)
                     doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 2, { align: 'center' });
-                    
-                    // Código abajo
                     doc.setFontSize(5);
                     doc.text(cut.label, curX + pieceW/2, y + barH + 5, { align: 'center' });
                 }
@@ -192,7 +188,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             doc.setTextColor(100);
             doc.text(`B#${bIdx+1}`, 8, y + 5);
             doc.text(`SCRAP: ${Math.round(scrap)} mm`, 15 + barW + 5, y + 5);
-            y += 24; // Espacio entre barras ajustado
+            y += 24; 
         });
         y += 10;
     });
@@ -211,7 +207,6 @@ function drawGeometricPiece(doc: jsPDF, x: number, y: number, w: number, h: numb
     if (start === '45') p1.x += slant;
     if (end === '45') p2.x -= slant;
 
-    // Asegurar que las coordenadas de dibujo sean válidas visualmente
     doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'FD');
     doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'FD');
 }
@@ -264,11 +259,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
         }
 
         let desc = `${item.itemCode || `POS#${idx+1}`}: ${recipe?.name || 'Abertura'}\nLínea: ${recipe?.line || '-'}\nAcabado: ${treatment?.name || '-'}\nLlenado: ${glassDetailStr}`;
-        
-        // REGLA: SI LLEVA MOSQUITERO, AGREGAR AL DETALLE
-        if (item.extras?.mosquitero) {
-            desc += `\nAdicional: CON MOSQUITERO`;
-        }
+        if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
 
         return [
             idx + 1,
@@ -429,16 +420,8 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-
-            const visualType = recipe.visualType || '';
-            let numLeaves = 1;
-            if (visualType.includes('sliding_3')) numLeaves = 3;
-            else if (visualType.includes('sliding_4')) numLeaves = 4;
-            else if (visualType.includes('sliding')) numLeaves = 2;
-
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             let spec = 'S/D';
-            
             if (recipe.visualType === 'mosquitero') {
                 spec = 'TELA MOSQUITERA (ALUMINIO)';
             } else {
@@ -452,16 +435,13 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 }
             }
 
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4') ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1));
+
             panes.forEach((p, pIdx) => {
                 if (!p.isBlind) {
-                    glassPieces.push([
-                        `Paño ${pIdx + 1}`,
-                        spec,
-                        `${Math.round(p.w)} x ${Math.round(p.h)}`,
-                        numLeaves
-                    ]);
+                    glassPieces.push([`Paño ${pIdx + 1}`, spec, `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]);
                 } else {
-                    glassPieces.push([`Paño ${pIdx + 1}`, 'PANEL CIEGO / PANELING', `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]);
+                    glassPieces.push([`Paño ${pIdx + 1}`, 'PANEL CIEGO', `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]);
                 }
             });
         });
@@ -485,7 +465,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Header
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 25, 'F');
     doc.setTextColor(255);
@@ -497,7 +476,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     let currentY = 35;
 
-    // --- SECCIÓN 1: ALUMINIO (BARRAS COMPLETAS) ---
+    // ALUMINIO
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(11);
     doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY);
@@ -508,7 +487,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-            
             recipe.profiles.forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 if (!p) return;
@@ -539,7 +517,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
-    // --- SECCIÓN 2: LISTADO DE VIDRIOS Y TELAS ---
+    // LLENADO
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11);
     doc.text('2. LISTADO DE CRISTALES, PANELES Y TELAS', 15, currentY);
@@ -550,30 +528,16 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-
-            const visualType = recipe.visualType || '';
-            let numLeaves = 1;
-            if (visualType.includes('sliding_3')) numLeaves = 3;
-            else if (visualType.includes('sliding_4')) numLeaves = 4;
-            else if (visualType.includes('sliding')) numLeaves = 2;
-
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4') ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1));
             
             panes.forEach(pane => {
                 if (pane.isBlind) return;
-                let spec = '';
-                if (recipe.visualType === 'mosquitero') {
-                    spec = 'TELA MOSQUITERA (ALUMINIO)';
-                } else {
+                let spec = (recipe.visualType === 'mosquitero') ? 'TELA MOSQUITERA' : 'Vidrio';
+                if (recipe.visualType !== 'mosquitero') {
                     const gOuter = glasses.find(g => g.id === mod.glassOuterId);
-                    const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
-                    const camera = mod.isDVH ? dvhInputs.find(c => c.id === mod.dvhCameraId) : null;
-
-                    spec = mod.isDVH 
-                        ? `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`
-                        : (gOuter?.detail || 'Vidrio Simple');
+                    spec = mod.isDVH ? `${gOuter?.detail || '?'} / DVH` : (gOuter?.detail || 'VS');
                 }
-                
                 const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                 const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
                 existing.qty += (item.quantity * numLeaves);
@@ -583,40 +547,45 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     });
 
     const glassBody = Array.from(fillSummary.values()).map(g => [g.spec, `${g.w} x ${g.h}`, g.qty, `${((g.w * g.h / 1000000) * g.qty).toFixed(2)} m2`]);
-
     autoTable(doc, {
         startY: currentY,
-        head: [['ESPECIFICACIÓN LLENADO', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']],
+        head: [['ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']],
         body: glassBody,
         theme: 'striped',
-        headStyles: { fillColor: [71, 85, 105] },
-        styles: { fontSize: 8 }
+        headStyles: { fillColor: [71, 85, 105] }
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
-    // --- SECCIÓN 3: LISTADO DE ACCESORIOS ---
+    // ACCESORIOS, GOMAS Y FELPAS
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11);
-    doc.text('3. LISTADO DE ACCESORIOS Y HERRAJES', 15, currentY);
+    doc.text('3. LISTADO DE HERRAJES, GOMAS Y FELPAS', 15, currentY);
     currentY += 5;
 
-    const accSummary = new Map<string, { code: string, detail: string, qty: number }>();
+    const accSummary = new Map<string, { code: string, detail: string, qty: number, isLinear: boolean }>();
     quote.items.forEach(item => {
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-            recipe.accessories.forEach(ra => {
+            const activeAccs = mod.overriddenAccessories || recipe.accessories;
+            activeAccs.forEach(ra => {
                 const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
                 if (!acc) return;
-                const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0 };
-                existing.qty += (ra.quantity * item.quantity);
+                const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
+                
+                if (ra.isLinear && ra.formula) {
+                    const lengthMm = evaluateFormula(ra.formula, item.width, item.height);
+                    existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+                } else {
+                    existing.qty += (ra.quantity * item.quantity);
+                }
                 accSummary.set(acc.id, existing);
             });
         });
     });
 
-    const accBody = Array.from(accSummary.values()).map(a => [a.code, a.detail, a.qty]);
+    const accBody = Array.from(accSummary.values()).map(a => [a.code, a.detail, a.isLinear ? `${a.qty.toFixed(2)} m` : a.qty]);
 
     autoTable(doc, {
         startY: currentY,
@@ -641,51 +610,26 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
     quote.items.forEach((item, itemIdx) => {
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
-            if (!recipe) return;
+            if (!recipe || recipe.visualType === 'mosquitero') return;
 
-            // Saltar optimización de vidrios si es un mosquitero (tela no es vidrio rígido)
-            if (recipe.visualType === 'mosquitero') return;
-
-            const visualType = recipe.visualType || '';
-            let numLeaves = 1;
-            if (visualType.includes('sliding_3')) numLeaves = 3;
-            else if (visualType.includes('sliding_4')) numLeaves = 4;
-            else if (visualType.includes('sliding')) numLeaves = 2;
-
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4') ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1));
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
 
             glassPanes.forEach(pane => {
                 if (!pane.isBlind) {
                     const qtyPerSheet = item.quantity * numLeaves;
-                    
-                    const outerSpec = gOuter?.detail || 'Vidrio Exterior';
+                    const outerSpec = gOuter?.detail || 'Vidrio Ext';
                     listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, outerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
                     for (let i = 0; i < qtyPerSheet; i++) {
-                        allPieces.push({
-                            id: `${item.id}-ext-${i}-${Math.random()}`,
-                            itemCode: item.itemCode || `POS#${itemIdx + 1}`,
-                            spec: outerSpec,
-                            w: Math.round(pane.w),
-                            h: Math.round(pane.h),
-                            glassId: mod.glassOuterId
-                        });
+                        allPieces.push({ id: `${item.id}-ext-${i}-${Math.random()}`, itemCode: item.itemCode || `POS#${itemIdx+1}`, spec: outerSpec, w: Math.round(pane.w), h: Math.round(pane.h), glassId: mod.glassOuterId });
                     }
-
                     if (mod.isDVH && gInner) {
-                        const innerSpec = gInner.detail || 'Vidrio Interior';
+                        const innerSpec = gInner.detail || 'Vidrio Int';
                         listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, innerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
                         for (let i = 0; i < qtyPerSheet; i++) {
-                            allPieces.push({
-                                id: `${item.id}-int-${i}-${Math.random()}`,
-                                itemCode: item.itemCode || `POS#${itemIdx + 1}`,
-                                spec: innerSpec,
-                                w: Math.round(pane.w),
-                                h: Math.round(pane.h),
-                                glassId: mod.glassInnerId!
-                            });
+                            allPieces.push({ id: `${item.id}-int-${i}-${Math.random()}`, itemCode: item.itemCode || `POS#${itemIdx+1}`, spec: innerSpec, w: Math.round(pane.w), h: Math.round(pane.h), glassId: mod.glassInnerId! });
                         }
                     }
                 }
@@ -693,24 +637,19 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         });
     });
 
-    if (allPieces.length === 0) {
-        alert("No se detectaron vidrios para optimizar en esta obra.");
-        return;
-    }
+    if (allPieces.length === 0) return;
 
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 30, 'F');
     doc.setTextColor(255);
     doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('OPTIMIZADOR DE CORTE DE VIDRIOS (PIEZAS INDIVIDUALES)', 15, 20);
+    doc.text('OPTIMIZADOR DE CORTE DE VIDRIOS', 15, 20);
 
     autoTable(doc, {
         startY: 40,
-        head: [['ABERTURA', 'ESPECIFICACIÓN CRISTAL', 'MEDIDA NOMINAL (mm)', 'CANT. TOTAL']],
+        head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT.']],
         body: listTableData,
-        theme: 'striped',
-        headStyles: { fillColor: [51, 65, 85] }
+        theme: 'striped'
     });
 
     const groupedBySpec = new Map<string, GlassPiece[]>();
@@ -722,43 +661,25 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 
     groupedBySpec.forEach((pieces, specName) => {
         const refGlass = glasses.find(g => g.id === pieces[0].glassId);
-        const sheetW = refGlass?.width && refGlass.width > 100 ? refGlass.width : 2400;
-        const sheetH = refGlass?.height && refGlass.height > 100 ? refGlass.height : 1800;
+        const sheetW = refGlass?.width || 2400;
+        const sheetH = refGlass?.height || 1800;
         const margin = 12; 
 
         pieces.sort((a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h)); 
-
         let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
-        let curSheetIdx = 0;
-        let curY = 0;
-        let curShelfH = 0;
-        let curX = 0;
+        let curSheetIdx = 0, curY = 0, curShelfH = 0, curX = 0;
 
         pieces.forEach(p => {
-            let pw = p.w;
-            let ph = p.h;
+            let pw = p.w, ph = p.h;
             let fitsNormal = (curX + pw + margin <= sheetW) && (curY + ph + margin <= sheetH);
-            let fitsRotated = (curX + ph + margin <= sheetW) && (curY + pw + margin <= sheetH);
-
             if (fitsNormal) {
                 p.rotated = false;
-            } else if (fitsRotated) {
-                p.rotated = true;
-                const temp = pw;
-                pw = ph;
-                ph = temp;
             } else {
-                curX = 0;
-                curY += curShelfH + margin;
-                curShelfH = 0;
+                curX = 0; curY += curShelfH + margin; curShelfH = 0;
                 fitsNormal = (curX + p.w + margin <= sheetW) && (curY + p.h + margin <= sheetH);
-                fitsRotated = (curX + p.h + margin <= sheetW) && (curY + p.w + margin <= sheetH);
                 if (fitsNormal) {
                     p.rotated = false;
                     pw = p.w; ph = p.h;
-                } else if (fitsRotated) {
-                    p.rotated = true;
-                    pw = p.h; ph = p.w;
                 } else {
                     curX = 0; curY = 0; curShelfH = 0; curSheetIdx++;
                     sheets[curSheetIdx] = [];
@@ -773,57 +694,20 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 
         sheets.forEach((sheetPieces, sIdx) => {
             doc.addPage();
-            doc.setFillColor(71, 85, 105);
-            doc.rect(0, 0, pageWidth, 20, 'F');
-            doc.setTextColor(255);
-            doc.setFontSize(10);
-            doc.text(`CROQUIS DE CORTE: ${specName.toUpperCase()}`, 15, 10);
-            doc.setFontSize(8);
-            doc.text(`PLANCHA #${sIdx + 1} | DIMENSIÓN: ${sheetW} x ${sheetH} mm | * (R) Indica pieza rotada para optimización`, 15, 15);
-
-            const drawMargin = 25;
-            const availableW = pageWidth - (drawMargin * 2);
-            const availableH = pageHeight - (drawMargin * 2) - 30;
-            const scale = Math.min(availableW / sheetW, availableH / sheetH);
+            doc.setFillColor(71, 85, 105); doc.rect(0, 0, pageWidth, 20, 'F');
+            doc.setTextColor(255); doc.setFontSize(10);
+            doc.text(`CROQUIS DE CORTE: ${specName} - PLANCHA #${sIdx+1}`, 15, 12);
             
-            const startX = (pageWidth - (sheetW * scale)) / 2;
-            const startY = 35;
-
-            doc.setDrawColor(100);
-            doc.setLineWidth(0.5);
-            doc.rect(startX, startY, sheetW * scale, sheetH * scale);
+            const scale = Math.min((pageWidth - 40) / sheetW, (pageHeight - 60) / sheetH);
+            const startX = 20, startY = 35;
+            doc.setDrawColor(100); doc.rect(startX, startY, sheetW * scale, sheetH * scale);
 
             sheetPieces.forEach(sp => {
-                const px = startX + (sp.x * scale);
-                const py = startY + (sp.y * scale);
-                const pw = sp.rw * scale;
-                const ph = sp.rh * scale;
-
-                doc.setFillColor(240, 249, 255);
-                doc.rect(px, py, pw, ph, 'FD');
-                doc.setDrawColor(186, 230, 253);
-                doc.rect(px, py, pw, ph, 'D');
-
-                if (pw > 12 && ph > 8) {
-                    doc.setTextColor(30, 58, 138);
-                    doc.setFontSize(Math.min(8, pw / 4));
-                    doc.setFont('helvetica', 'bold');
-                    const label = sp.p.rotated ? `${sp.p.itemCode} (R)` : sp.p.itemCode;
-                    doc.text(label, px + (pw / 2), py + (ph / 2) - 1, { align: 'center' });
-                    doc.setFontSize(Math.min(7, pw / 5));
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(`${sp.p.w}x${sp.p.h}`, px + (pw / 2), py + (ph / 2) + 3, { align: 'center' });
-                }
+                const px = startX + (sp.x * scale), py = startY + (sp.y * scale), pw = sp.rw * scale, ph = sp.rh * scale;
+                doc.setFillColor(240, 249, 255); doc.rect(px, py, pw, ph, 'FD');
+                doc.setTextColor(30, 58, 138); doc.setFontSize(6);
+                if (pw > 10) doc.text(sp.p.itemCode, px + pw/2, py + ph/2, { align: 'center' });
             });
-
-            const usedArea = sheetPieces.reduce((acc, sp) => acc + (sp.p.w * sp.p.h), 0);
-            const totalArea = sheetW * sheetH;
-            const efficiency = (usedArea / totalArea) * 100;
-
-            doc.setTextColor(100);
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`EFICIENCIA: ${efficiency.toFixed(1)}% | ÁREA UTILIZADA: ${(usedArea / 1000000).toFixed(2)} m2`, startX, startY + (sheetH * scale) + 8);
         });
     });
 
@@ -833,101 +717,31 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
 export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
-    doc.setFillColor(15, 23, 42); 
-    doc.rect(0, 0, pageWidth, 25, 'F');
-    doc.setTextColor(255);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PLANILLA DE AUDITORÍA DE COSTOS INTERNOS', 15, 12);
-    doc.setFontSize(8);
-    doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
-
-    let totalAluWeight = 0;
-    let totalAluCost = 0;
-    let totalGlassCost = 0;
-    let totalGlassArea = 0;
-    let totalAccCost = 0;
-    let totalLaborCost = 0;
+    doc.setFillColor(15, 23, 42); doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255); doc.setFontSize(14); doc.text('AUDITORÍA DE COSTOS INTERNOS', 15, 12);
 
     const tableData = quote.items.map((item, idx) => {
         const b = item.breakdown;
         const mainMod = item.composition.modules[0];
         const recipe = recipes.find(r => r.id === mainMod.recipeId);
-        
-        if (b) {
-            totalAluWeight += b.totalWeight * item.quantity;
-            totalAluCost += b.aluCost * item.quantity;
-            totalGlassCost += b.glassCost * item.quantity;
-            totalAccCost += b.accCost * item.quantity;
-            totalLaborCost += b.laborCost * item.quantity;
-
-            item.composition.modules.forEach(mod => {
-                const r = recipes.find(rec => rec.id === mod.recipeId);
-                if (r) {
-                    const panes = getModuleGlassPanes(item, mod, r, aluminum);
-                    panes.forEach(p => {
-                        if (!p.isBlind) {
-                            const glassMultiplier = mod.isDVH ? 2 : 1;
-                            totalGlassArea += (p.w * p.h / 1000000) * item.quantity * glassMultiplier;
-                        }
-                    });
-                }
-            });
-        }
-
-        const unitCost = item.calculatedCost;
-        const totalLineCost = unitCost * item.quantity;
-
         return [
             item.itemCode || `POS#${idx+1}`,
             recipe?.name || '-',
             item.quantity,
             `$${(b?.materialCost || 0).toLocaleString()}`,
             `$${(b?.laborCost || 0).toLocaleString()}`,
-            `$${unitCost.toLocaleString()}`,
-            `$${totalLineCost.toLocaleString()}`
+            `$${item.calculatedCost.toLocaleString()}`,
+            `$${(item.calculatedCost * item.quantity).toLocaleString()}`
         ];
     });
 
     autoTable(doc, {
         startY: 35,
-        head: [['CÓD.', 'SISTEMA', 'CANT.', 'COSTO MAT.', 'MANO OBRA', 'COSTO UNIT.', 'SUBTOTAL']],
+        head: [['CÓD.', 'SISTEMA', 'CANT.', 'COSTO MAT.', 'MANO OBRA', 'UNIT.', 'TOTAL']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [51, 65, 85] },
-        styles: { fontSize: 8 },
-        columnStyles: { 6: { halign: 'right', fontStyle: 'bold' } }
+        headStyles: { fillColor: [51, 65, 85] }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY + 15;
-
-    doc.setFillColor(248, 250, 252);
-    doc.rect(15, finalY, pageWidth - 30, 45, 'F');
-    doc.setDrawColor(226, 232, 240);
-    doc.rect(15, finalY, pageWidth - 30, 45, 'D');
-
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RESUMEN DE INVERSIONES DE OBRA', 20, finalY + 10);
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    
-    doc.text(`TOTAL ALUMINIO: ${totalAluWeight.toFixed(2)} KG`, 20, finalY + 18);
-    doc.text(`TOTAL VIDRIOS (CADA CARA): ${totalGlassArea.toFixed(2)} M2`, 20, finalY + 24);
-    doc.text(`COSTO HERRAJES: $${totalAccCost.toLocaleString()}`, 20, finalY + 30);
-
-    doc.text(`VALOR METAL+PINT: $${totalAluCost.toLocaleString()}`, 95, finalY + 18);
-    doc.text(`VALOR CRISTALES: $${totalGlassCost.toLocaleString()}`, 95, finalY + 24);
-    doc.text(`VALOR MANO OBRA: $${totalLaborCost.toLocaleString()}`, 95, finalY + 30);
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(79, 70, 229);
-    const totalNeto = totalAluCost + totalGlassCost + totalAccCost + totalLaborCost;
-    doc.text(`INVERSIÓN TOTAL ESTIMADA: $${totalNeto.toLocaleString()}`, 20, finalY + 40);
-
-    doc.save(`Costos_Internos_${quote.clientName}.pdf`);
+    doc.save(`Costos_${quote.clientName}.pdf`);
 };

@@ -161,7 +161,13 @@ export const calculateItemPrice = (
   activeAccessories.forEach(ra => {
     const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
     if (acc) {
-      accCost += acc.unitPrice * ra.quantity;
+      if (ra.isLinear && ra.formula) {
+        const lengthMm = evaluateFormula(ra.formula, width, height);
+        const totalMeters = (lengthMm / 1000) * ra.quantity;
+        accCost += acc.unitPrice * totalMeters;
+      } else {
+        accCost += acc.unitPrice * ra.quantity;
+      }
     }
   });
 
@@ -208,10 +214,9 @@ export const calculateItemPrice = (
     const billingAreaPerPiece = Math.max(areaM2, 0.5); 
     const totalBillingArea = billingAreaPerPiece * numLeaves;
 
-    // REGLA: SI ES TIPO "MOSQUITERO" NO COBRA VIDRIO, COBRA TELA DE ALUMINIO
     if (visualType === 'mosquitero') {
       glassCost += (config.meshPricePerM2 || 25.0) * totalBillingArea;
-      return; // Saltar cálculo de vidrios
+      return; 
     }
 
     if (blindPanes.includes(index)) {

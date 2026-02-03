@@ -72,6 +72,8 @@ export interface RecipeProfile {
 export interface RecipeAccessory {
   accessoryId: string;
   quantity: number;
+  isLinear?: boolean; // Nuevo: indica si es goma/felpa/burlete
+  formula?: string;   // Nuevo: fórmula de medida (W, H, etc.)
 }
 
 export type VisualOpeningType = string;
