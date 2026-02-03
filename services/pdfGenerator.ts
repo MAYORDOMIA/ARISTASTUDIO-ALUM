@@ -171,11 +171,12 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 
                 doc.setTextColor(0);
                 if (pieceW > 2) {
-                    doc.setFontSize(6);
+                    // AGRANDAR MEDIDAS Y REDUCIR SEPARACIÓN
+                    doc.setFontSize(9);
                     doc.setFont('helvetica', 'bold');
-                    doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 2, { align: 'center' });
-                    doc.setFontSize(5);
-                    doc.text(cut.label, curX + pieceW/2, y + barH + 5, { align: 'center' });
+                    doc.text(`${Math.round(cut.len)}`, curX + pieceW/2, y - 1, { align: 'center' });
+                    doc.setFontSize(7);
+                    doc.text(cut.label, curX + pieceW/2, y + barH + 4, { align: 'center' });
                 }
                 curX += pieceW + (config.discWidth / barLenMm) * barW;
             });
@@ -715,14 +716,17 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                 doc.setFillColor(243, 244, 246); 
                 doc.rect(px, py, pw, ph, 'FD');
                 
+                // AGRANDAR MEDIDAS Y QUITAR SEPARACIÓN
+                const fontSize = Math.max(8, 14 * scale); 
+                doc.setFontSize(fontSize);
                 doc.setTextColor(30, 41, 59); 
-                doc.setFontSize(Math.max(4, 7 * scale)); 
                 
                 if (pw > 15 && ph > 15) {
                     doc.setFont('helvetica', 'bold');
-                    doc.text(sp.p.itemCode, px + pw/2, py + ph/2 - 2, { align: 'center' });
+                    doc.text(sp.p.itemCode, px + pw/2, py + ph/2 - 0.5, { align: 'center' });
                     doc.setFont('helvetica', 'normal');
-                    doc.text(`${Math.round(sp.p.w)}x${Math.round(sp.p.h)}`, px + pw/2, py + ph/2 + 2, { align: 'center' });
+                    // Tighter dimensions text
+                    doc.text(`${Math.round(sp.p.w)}x${Math.round(sp.p.h)}`, px + pw/2, py + ph/2 + (fontSize * 0.4), { align: 'center' });
                 }
             });
         });
