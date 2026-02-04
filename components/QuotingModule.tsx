@@ -16,34 +16,23 @@ import {
   CheckCircle, 
   X, 
   LayoutGrid, 
-  Thermometer, 
-  ArrowRightLeft, 
-  Link, 
   Frame,
   Columns, 
   Rows,
-  Info,
   Split,
   Layers,
-  Square, 
-  Box,
   Wind,
   Check,
   Search,
   Zap,
   Ruler,
   Bug,
-  MousePointer2,
   Lock,
-  Unlock,
   Grid3X3,
   Minus,
   DollarSign,
   Hash,
-  AlignCenter,
-  ChevronDown,
-  Tag,
-  ChevronRight
+  Tag
 } from 'lucide-react';
 import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
 
@@ -56,7 +45,7 @@ const drawGlobalTapajuntas = (
 ) => {
     ctx.save();
     ctx.fillStyle = color;
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth = 0.5;
 
     if (sides.top) {
@@ -116,12 +105,9 @@ const drawDetailedOpening = (
 ) => {
     const visualType = recipe.visualType || 'fixed';
     const isDoor = visualType.includes('door') || recipe.type === 'Puerta';
-    const isSwingDoor = visualType.includes('swing_door');
     
     const hasBottomFrame = !isDoor;
-    
     const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
-    const isLeaf90 = visualType.includes('_90') || visualType.includes('zocalo') || visualType.includes('45_90') || isDoor;
     const hasZocalo = visualType.includes('zocalo') || visualType.includes('high') || isDoor;
     const isZocaloChico = visualType.includes('chico') || visualType.includes('low');
     
@@ -131,39 +117,67 @@ const drawDetailedOpening = (
     const zocaloT = (isDoor ? 120 : (isZocaloChico ? 65 : 115)) * pxPerMm;
     const tjSize = (tjProf?.thickness || 40) * pxPerMm; 
 
-    const drawProfile = (points: {x:number, y:number}[], isVert: boolean) => {
+    const drawProfile = (points: {x:number, y:number}[]) => {
         if (!points || points.length < 3) return;
+        
+        const minX = Math.min(...points.map(p => p.x));
+        const maxX = Math.max(...points.map(p => p.x));
+        const minY = Math.min(...points.map(p => p.y));
+        const maxY = Math.max(...points.map(p => p.y));
+        const isVert = (maxX - minX) < (maxY - minY);
+
+        ctx.save();
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
         points.forEach(p => p && ctx.lineTo(p.x, p.y));
         ctx.closePath();
         
-        // Color base del perfil
-        ctx.fillStyle = color; 
+        // 1. Base satinada
+        ctx.fillStyle = color;
         ctx.fill();
 
-        // Aplicamos una capa uniforme de iluminación para evitar gradientes asimétricos
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        // 2. Gradiente Metalizado Soft (Efecto Anodizado)
+        const grad = isVert 
+            ? ctx.createLinearGradient(minX, minY, maxX, minY)
+            : ctx.createLinearGradient(minX, minY, minX, maxY);
+        
+        grad.addColorStop(0, 'rgba(0,0,0,0.15)');       
+        grad.addColorStop(0.2, 'rgba(255,255,255,0.2)'); 
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.05)'); 
+        grad.addColorStop(0.8, 'rgba(255,255,255,0.15)'); 
+        grad.addColorStop(1, 'rgba(0,0,0,0.18)');       
+        
+        ctx.fillStyle = grad;
         ctx.fill();
 
-        // Trazo exterior limpio para definir el perfil en todas las partes igual
-        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-        ctx.lineWidth = 0.8;
+        // 3. Biselado Técnico Central
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        if (isVert) {
+            const midX = minX + (maxX - minX) / 2;
+            ctx.moveTo(midX, minY); ctx.lineTo(midX, maxY);
+        } else {
+            const midY = minY + (maxY - minY) / 2;
+            ctx.moveTo(minX, midY); ctx.lineTo(maxX, midY);
+        }
         ctx.stroke();
 
-        // Trazo interior sutil para simular profundidad de forma uniforme
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 0.4;
+        // 4. Borde de Definición Fino
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.lineWidth = 0.6;
         ctx.stroke();
+
+        ctx.restore();
     };
 
     const drawOpeningSymbol = (sx: number, sy: number, sw: number, sh: number, leafType: string, isMesh: boolean = false) => {
         ctx.save();
         if (isMesh) {
-            ctx.fillStyle = 'rgba(226, 232, 240, 0.5)';
+            ctx.fillStyle = 'rgba(203, 213, 225, 0.5)';
             ctx.fillRect(sx, sy, sw, sh);
-            ctx.strokeStyle = 'rgba(100, 116, 139, 0.15)';
-            ctx.lineWidth = 0.3;
+            ctx.strokeStyle = 'rgba(30, 41, 59, 0.25)';
+            ctx.lineWidth = 0.4;
             const step = 4 * pxPerMm;
             for(let i = 0; i <= sw; i += step) {
                 ctx.beginPath(); ctx.moveTo(sx + i, sy); ctx.lineTo(sx + i, sy + sh); ctx.stroke();
@@ -225,11 +239,11 @@ const drawDetailedOpening = (
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else if (isMosquiteroSystem) {
-            ctx.fillStyle = '#cbd5e1';
+            ctx.fillStyle = '#94a3b8'; // Base más oscura para el mosquitero
             ctx.fillRect(px, py, pw, ph);
             ctx.save();
-            ctx.strokeStyle = 'rgba(71, 85, 105, 0.15)';
-            ctx.lineWidth = 0.2;
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)'; // Trama más definida
+            ctx.lineWidth = 0.3;
             const meshStep = 2.5 * pxPerMm;
             for (let i = 0; i <= ph; i += meshStep) {
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke();
@@ -239,7 +253,7 @@ const drawDetailedOpening = (
             }
             const metalGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
             metalGrad.addColorStop(0, 'rgba(255,255,255,0)');
-            metalGrad.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            metalGrad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
             metalGrad.addColorStop(1, 'rgba(255,255,255,0)');
             ctx.fillStyle = metalGrad;
             ctx.fillRect(px, py, pw, ph);
@@ -253,8 +267,8 @@ const drawDetailedOpening = (
             ctx.fillStyle = glassGrad;
             ctx.fillRect(px, py, pw, ph);
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+            ctx.lineWidth = 1.8;
             ctx.moveTo(px + pw * 0.15, py + 12*pxPerMm);
             ctx.lineTo(px + pw * 0.85, py + ph - 12*pxPerMm);
             ctx.stroke();
@@ -279,7 +293,7 @@ const drawDetailedOpening = (
                         {x: gx + gw, y: transomY - (tHeight/2)}, 
                         {x: gx + gw, y: transomY + (tHeight/2)}, 
                         {x: gx, y: transomY + (tHeight/2)}
-                    ], false);
+                    ]);
                     currentTopY = transomY + (tHeight/2);
                 }
             });
@@ -294,22 +308,18 @@ const drawDetailedOpening = (
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
 
-    // Dibujo del Marco con geometría simétrica para las 4 partes
     if (isFrame90) {
-        drawProfile([{x:x, y:y}, {x:x+frameT, y:y}, {x:x+frameT, y:y+h}, {x:x, y:y+h}], true);
-        drawProfile([{x:x+w-frameT, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h}], true);
-        drawProfile([{x:x+frameT, y:y}, {x:x+w-frameT, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}], false);
+        drawProfile([{x:x, y:y}, {x:x+frameT, y:y}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]);
+        drawProfile([{x:x+w-frameT, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h}]);
+        drawProfile([{x:x+frameT, y:y}, {x:x+w-frameT, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]);
         if (hasBottomFrame) {
-            drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}], false);
+            drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}]);
         }
     } else {
-        // Marco 45° - Todas las partes dibujadas con la misma lógica de trapezoides simétricos
-        drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}], false); // Arriba
-        if (hasBottomFrame) {
-            drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}], false); // Abajo
-        }
-        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}], true); // Izquierda
-        drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}], true); // Derecha
+        drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); // Sup
+        if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}]); // Inf
+        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}]); // Izq
+        drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}]); // Der
     }
 
     const innerX = x + frameT; const innerY = y + frameT;
@@ -320,22 +330,16 @@ const drawDetailedOpening = (
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), ly + lh);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
         
-        if (isSwingDoor) {
-            drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false); 
-            drawProfile([{x:lx+leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+leafT, y:ly+lh}], false); 
-            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}], true); 
-            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+lw-leafT, y:ly+leafT}], true); 
-        } else if (force90) {
-            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}], true);
-            drawProfile([{x:lx+lw-leafT, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}], true);
-            drawProfile([{x:lx+leafT, y:ly}, {x:lx+lw-leafT, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false);
-            drawProfile([{x:lx+leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+leafT, y:ly+lh}], false);
+        if (force90) {
+            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
+            drawProfile([{x:lx+lw-leafT, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}]);
+            drawProfile([{x:lx+leafT, y:ly}, {x:lx+lw-leafT, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}]);
+            drawProfile([{x:lx+leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+leafT, y:ly+lh}]);
         } else {
-            // Hoja 45° con dibujo simétrico en todas sus partes
-            drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false); // Arriba
-            drawProfile([{x:lx, y:ly+lh}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+leafT, y:ly+lh-bT}], false); // Abajo
-            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}], true); // Izquierda
-            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}], true); // Derecha
+            drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}]);
+            drawProfile([{x:lx, y:ly+lh}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+leafT, y:ly+lh-bT}]);
+            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}]);
+            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}]);
         }
     };
 
@@ -346,21 +350,21 @@ const drawDetailedOpening = (
             const leafW = (innerW / 3) + overlap;
             for(let i=0; i<3; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 2);
-                drawLeaf(lx, innerY, leafW, innerH, isLeaf90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, leafW, innerH, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else if (numLeaves === 4) {
             const leafW = (innerW / 4) + overlap;
             for(let i=0; i<4; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 3);
-                drawLeaf(lx, innerY, leafW, innerH, isLeaf90, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, leafW, innerH, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else {
             const leafW = (innerW / 2) + overlap;
-            drawLeaf(innerX, innerY, leafW, innerH, isLeaf90, hasZocalo, extras?.mosquitero || false, 'sliding');
-            drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, isLeaf90, hasZocalo, false, 'sliding');
+            drawLeaf(innerX, innerY, leafW, innerH, true, hasZocalo, extras?.mosquitero || false, 'sliding');
+            drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, true, hasZocalo, false, 'sliding');
         }
     } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
-        drawLeaf(innerX, innerY, innerW, innerH, isLeaf90, hasZocalo, extras?.mosquitero || false, visualType);
+        drawLeaf(innerX, innerY, innerW, innerH, false, hasZocalo, extras?.mosquitero || false, visualType);
     } else {
         drawGlassWithTransoms(innerX, innerY, innerW, innerH, innerY + innerH);
     }
@@ -404,7 +408,6 @@ const QuotingModule: React.FC<Props> = ({
   
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [recipeFilter, setRecipeFilter] = useState<string>('TODOS');
-  const [recipeSearch, setRecipeSearch] = useState<string>('');
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -551,7 +554,6 @@ const QuotingModule: React.FC<Props> = ({
     const ctx = canvas.getContext('2d'); if (!ctx) return;
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
