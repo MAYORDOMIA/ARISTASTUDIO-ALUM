@@ -137,18 +137,23 @@ const drawDetailedOpening = (
         ctx.moveTo(points[0].x, points[0].y);
         points.forEach(p => p && ctx.lineTo(p.x, p.y));
         ctx.closePath();
+        
+        // Color base del perfil
         ctx.fillStyle = color; 
         ctx.fill();
-        const grad = isVert 
-            ? ctx.createLinearGradient(points[0].x, points[0].y, points[1].x > points[0].x ? points[1].x : points[0].x + 10, points[0].y)
-            : ctx.createLinearGradient(points[0].x, points[0].y, points[0].x, points[points.length-1].y > points[0].y ? points[points.length-1].y : points[0].y + 10);
-        grad.addColorStop(0, 'rgba(0,0,0,0.15)');
-        grad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.25)');
-        ctx.fillStyle = grad;
+
+        // Aplicamos una capa uniforme de iluminación para evitar gradientes asimétricos
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-        ctx.lineWidth = 0.5;
+
+        // Trazo exterior limpio para definir el perfil en todas las partes igual
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+
+        // Trazo interior sutil para simular profundidad de forma uniforme
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 0.4;
         ctx.stroke();
     };
 
@@ -289,7 +294,7 @@ const drawDetailedOpening = (
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
 
-    // Dibujo del Marco
+    // Dibujo del Marco con geometría simétrica para las 4 partes
     if (isFrame90) {
         drawProfile([{x:x, y:y}, {x:x+frameT, y:y}, {x:x+frameT, y:y+h}, {x:x, y:y+h}], true);
         drawProfile([{x:x+w-frameT, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h}], true);
@@ -298,10 +303,13 @@ const drawDetailedOpening = (
             drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}], false);
         }
     } else {
-        drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}], false);
-        if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}], false);
-        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}], true);
-        drawProfile([{x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w-frameT, y:y+frameT}], true);
+        // Marco 45° - Todas las partes dibujadas con la misma lógica de trapezoides simétricos
+        drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}], false); // Arriba
+        if (hasBottomFrame) {
+            drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}], false); // Abajo
+        }
+        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}], true); // Izquierda
+        drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}], true); // Derecha
     }
 
     const innerX = x + frameT; const innerY = y + frameT;
@@ -323,10 +331,11 @@ const drawDetailedOpening = (
             drawProfile([{x:lx+leafT, y:ly}, {x:lx+lw-leafT, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false);
             drawProfile([{x:lx+leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+leafT, y:ly+lh}], false);
         } else {
-            drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false);
-            drawProfile([{x:lx, y:ly+lh}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+leafT, y:ly+lh-bT}], false);
-            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}], true);
-            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}], true);
+            // Hoja 45° con dibujo simétrico en todas sus partes
+            drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}], false); // Arriba
+            drawProfile([{x:lx, y:ly+lh}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+leafT, y:ly+lh-bT}], false); // Abajo
+            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}], true); // Izquierda
+            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}], true); // Derecha
         }
     };
 
@@ -723,7 +732,7 @@ const QuotingModule: React.FC<Props> = ({
                                 <Columns size={16} className="text-indigo-600" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Columnas</span>
                             </div>
-                            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{colSizes.length}</span>
                                 <button onClick={addColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
@@ -747,7 +756,7 @@ const QuotingModule: React.FC<Props> = ({
                                 <Rows size={16} className="text-indigo-600" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Filas</span>
                             </div>
-                            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{rowSizes.length}</span>
                                 <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
@@ -875,7 +884,7 @@ const QuotingModule: React.FC<Props> = ({
                     </div>
 
                     <div className="col-span-12 lg:col-span-7 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
-                        {/* Divisiones */}
+                        {/* Divisiones Técnicas */}
                         <div className="space-y-4">
                             <div className="flex justify-between items-center border-l-4 border-indigo-600 pl-3">
                                 <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2"><Split size={14} className="rotate-90"/> Divisiones Técnicas</h4>
@@ -900,14 +909,6 @@ const QuotingModule: React.FC<Props> = ({
                                                 newTransoms[idx].height = parseInt(e.target.value) || 0;
                                                 updateModule(editingModuleId, { transoms: newTransoms });
                                             }} />
-                                        </div>
-                                        <div className="flex-1 space-y-1">
-                                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Perfil</label>
-                                            <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase outline-none" value={t.profileId} onChange={e => {
-                                                const newTransoms = [...(currentModForEdit.transoms || [])];
-                                                newTransoms[idx].profileId = e.target.value;
-                                                updateModule(editingModuleId, { transoms: newTransoms });
-                                            }}>{aluminum.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}</select>
                                         </div>
                                         <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 mt-3"><Trash2 size={14}/></button>
                                     </div>
@@ -976,7 +977,7 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* Herrajes (ABAJO) */}
+                        {/* Herrajes */}
                         <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-slate-800">
                             <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 border-l-4 border-indigo-600 pl-3"><Wind size={14} /> Herrajes del Módulo</h4>
                             <div className="grid grid-cols-2 gap-2">
