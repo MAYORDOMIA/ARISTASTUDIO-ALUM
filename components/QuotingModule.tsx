@@ -7,7 +7,7 @@ import {
     RecipeAccessory,
     QuoteItemBreakdown
 } from '../types';
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -32,7 +32,12 @@ import {
   Minus,
   DollarSign,
   Hash,
-  Tag
+  Tag,
+  GripHorizontal,
+  TrendingUp,
+  Receipt,
+  Hammer,
+  Package
 } from 'lucide-react';
 import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
 
@@ -132,11 +137,9 @@ const drawDetailedOpening = (
         points.forEach(p => p && ctx.lineTo(p.x, p.y));
         ctx.closePath();
         
-        // 1. Base satinada
         ctx.fillStyle = color;
         ctx.fill();
 
-        // 2. Gradiente Metalizado Soft (Efecto Anodizado)
         const grad = isVert 
             ? ctx.createLinearGradient(minX, minY, maxX, minY)
             : ctx.createLinearGradient(minX, minY, minX, maxY);
@@ -150,7 +153,6 @@ const drawDetailedOpening = (
         ctx.fillStyle = grad;
         ctx.fill();
 
-        // 3. Biselado Técnico Central
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.strokeStyle = 'rgba(0,0,0,0.1)';
@@ -163,7 +165,6 @@ const drawDetailedOpening = (
         }
         ctx.stroke();
 
-        // 4. Borde de Definición Fino
         ctx.strokeStyle = 'rgba(0,0,0,0.25)';
         ctx.lineWidth = 0.6;
         ctx.stroke();
@@ -239,10 +240,10 @@ const drawDetailedOpening = (
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else if (isMosquiteroSystem) {
-            ctx.fillStyle = '#94a3b8'; // Base más oscura para el mosquitero
+            ctx.fillStyle = '#94a3b8'; 
             ctx.fillRect(px, py, pw, ph);
             ctx.save();
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)'; // Trama más definida
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)'; 
             ctx.lineWidth = 0.3;
             const meshStep = 2.5 * pxPerMm;
             for (let i = 0; i <= ph; i += meshStep) {
@@ -316,10 +317,10 @@ const drawDetailedOpening = (
             drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}]);
         }
     } else {
-        drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); // Sup
-        if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}]); // Inf
-        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}]); // Izq
-        drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}]); // Der
+        drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); 
+        if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}]); 
+        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}]); 
+        drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}]); 
     }
 
     const innerX = x + frameT; const innerY = y + frameT;
@@ -407,7 +408,19 @@ const QuotingModule: React.FC<Props> = ({
   const [rowSizes, setRowSizes] = useState<number[]>([1100]);
   
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+  const [showBreakdownModal, setShowBreakdownModal] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState<string>('TODOS');
+
+  // Estados para Arrastre (Ventana Ingeniería)
+  const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const modalContainerRef = useRef<HTMLDivElement>(null);
+
+  // Estados para Arrastre (Ventana Breakdown)
+  const [breakdownModalPos, setBreakdownModalPos] = useState({ x: 0, y: 0 });
+  const [isDraggingBreakdown, setIsDraggingBreakdown] = useState(false);
+  const breakdownDragOffset = useRef({ x: 0, y: 0 });
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -624,6 +637,36 @@ const QuotingModule: React.FC<Props> = ({
     updateModule(editingModuleId!, { transoms: currentModForEdit.transoms?.filter((_, i) => i !== idx) });
   };
 
+  // Logica de Arrastre Universal (Inge y Breakdown)
+  const startDragging = useCallback((e: React.MouseEvent, type: 'inge' | 'breakdown') => {
+    if (type === 'inge') {
+        setIsDragging(true);
+        dragOffset.current = { x: e.clientX - modalPos.x, y: e.clientY - modalPos.y };
+    } else {
+        setIsDraggingBreakdown(true);
+        breakdownDragOffset.current = { x: e.clientX - breakdownModalPos.x, y: e.clientY - breakdownModalPos.y };
+    }
+  }, [modalPos, breakdownModalPos]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+        if (isDragging) {
+            setModalPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
+        }
+        if (isDraggingBreakdown) {
+            setBreakdownModalPos({ x: e.clientX - breakdownDragOffset.current.x, y: e.clientY - breakdownDragOffset.current.y });
+        }
+    };
+    const handleMouseUp = () => { setIsDragging(false); setIsDraggingBreakdown(false); };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, isDraggingBreakdown]);
+
   return (
     <div className="grid grid-cols-12 gap-6 h-full">
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
@@ -645,38 +688,32 @@ const QuotingModule: React.FC<Props> = ({
                     <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
                 </div>
             </div>
+
+            <div className="space-y-2">
+                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Layers size={10} className="text-indigo-400"/> Cantidad de Unidades</label>
+                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+            </div>
             
+            {/* BOTON DE ACCESO A COTIZACION EMERGENTE (REEMPLAZO DE BLOQUE ESTATICO) */}
             {liveBreakdown && (
-                <div className="bg-slate-900 dark:bg-slate-950 rounded-3xl p-6 space-y-4 text-white shadow-2xl animate-in zoom-in-95 duration-300">
-                    <h4 className="text-[8px] font-black uppercase tracking-[0.3em] text-indigo-400 flex items-center gap-2 mb-2"><DollarSign size={12}/> Cotización Técnica Estimada</h4>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-400 font-black uppercase tracking-tighter">1. Aluminio + Pintura</span>
-                            <span className="font-mono font-bold">${Math.round(liveBreakdown.aluCost).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-400 font-black uppercase tracking-tighter">2. Vidrio / Paneles</span>
-                            <span className="font-mono font-bold">${Math.round(liveBreakdown.glassCost).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-400 font-black uppercase tracking-tighter">3. Accesorios</span>
-                            <span className="font-mono font-bold">${Math.round(liveBreakdown.accCost).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] border-t border-white/10 pt-2 text-indigo-300">
-                            <span className="font-black uppercase tracking-tighter">4. Mano de Obra ({config.laborPercentage}%)</span>
-                            <span className="font-mono font-bold">${Math.round(liveBreakdown.laborCost).toLocaleString()}</span>
-                        </div>
-                        <div className="flex flex-col pt-3 mt-2 border-t-2 border-indigo-500/30 gap-2">
-                            <span className="text-[11px] font-black uppercase tracking-widest text-white leading-none">Total Carpintería</span>
-                            <div className="flex justify-between items-baseline gap-2">
-                                 <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter italic">Incl. {quantity} Unid.</span>
-                                 <span className="text-2xl font-mono font-black text-indigo-400 leading-none tracking-tighter overflow-hidden text-ellipsis whitespace-nowrap">
-                                    ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
-                                 </span>
-                            </div>
-                        </div>
+                <button 
+                    onClick={() => {
+                        setShowBreakdownModal(true);
+                        setBreakdownModalPos({ x: 0, y: 0 });
+                    }}
+                    className="w-full bg-slate-900 dark:bg-slate-950 rounded-3xl p-5 group hover:bg-indigo-600 transition-all text-left shadow-xl border border-slate-800/50 flex flex-col gap-2"
+                >
+                    <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400 group-hover:text-white flex items-center gap-2"><DollarSign size={12}/> Cotización Técnica</span>
+                        <TrendingUp size={14} className="text-indigo-500 group-hover:text-white" />
                     </div>
-                </div>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-mono font-black text-white leading-none tracking-tighter">
+                            ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
+                        </span>
+                        <span className="text-[8px] font-bold text-slate-500 group-hover:text-indigo-200 uppercase tracking-tighter italic">Ver Análisis</span>
+                    </div>
+                </button>
             )}
 
             <div className="space-y-3 pt-5 border-t-2 border-slate-50 dark:border-slate-800">
@@ -777,15 +814,6 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
                     </div>
                 </div>
-                {colSizes.length > 1 || rowSizes.length > 1 ? (
-                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 pt-2">
-                        <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Perfil de Acople</label>
-                        <select className="w-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 h-10 px-3 rounded-xl text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 outline-none shadow-sm" value={couplingProfileId} onChange={e => setCouplingProfileId(e.target.value)}>
-                            <option value="">(NINGUNO)</option>
-                            {aluminum.map(p => <option key={p.id} value={p.id}>{p.code}</option>)}
-                        </select>
-                    </div>
-                ) : null}
             </div>
             <div className="pt-4">
                 <button onClick={addItemToWork} className="w-full bg-indigo-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-indigo-700 hover:shadow-indigo-200">
@@ -802,7 +830,10 @@ const QuotingModule: React.FC<Props> = ({
                 {(modules || []).filter(mod => mod && typeof mod.x === 'number' && typeof mod.y === 'number').map(mod => (
                     <div key={mod.id} className="relative pointer-events-auto group border-2 border-transparent hover:border-indigo-600/20 hover:bg-indigo-600/5 transition-all flex items-center justify-center">
                         <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-indigo-900/10 dark:bg-indigo-400/10 backdrop-blur-[2px]">
-                            <button onClick={() => setEditingModuleId(mod.id)} className="p-4 bg-indigo-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
+                            <button onClick={() => {
+                                setEditingModuleId(mod.id);
+                                setModalPos({ x: 0, y: 0 });
+                            }} className="p-4 bg-indigo-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
                         </div>
                     </div>
                 ))}
@@ -810,61 +841,138 @@ const QuotingModule: React.FC<Props> = ({
         </div>
       </div>
 
-      {editingModuleId && currentModForEdit && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in transition-all">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl space-y-6 overflow-hidden max-h-[92vh] border-2 border-white/20 dark:border-slate-800/40 flex flex-col transition-colors ring-1 ring-black/5">
-                <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+      {/* VENTANA EMERGENTE: ANÁLISIS DE COTIZACIÓN (ARRISTRABLE) */}
+      {showBreakdownModal && liveBreakdown && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
+             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
+             <div 
+                style={{ transform: `translate(${breakdownModalPos.x}px, ${breakdownModalPos.y}px)`, transition: isDraggingBreakdown ? 'none' : 'transform 0.1s ease-out' }}
+                className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl space-y-6 border-2 border-white dark:border-slate-800 flex flex-col pointer-events-auto relative ring-1 ring-black/5"
+             >
+                <div 
+                    onMouseDown={(e) => startDragging(e, 'breakdown')}
+                    className={`flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-5 select-none ${isDraggingBreakdown ? 'cursor-grabbing' : 'cursor-grab'} group`}
+                >
                     <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><LayoutGrid size={22} /></div>
+                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100"><Receipt size={24} /></div>
                         <div>
-                            <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-lg leading-none italic">Terminal de Ingeniería</h3>
-                            <p className="text-[9px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Módulo {currentModForEdit.id.substring(0,8)}</p>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-xl leading-none italic">Análisis Técnico</h3>
+                                <GripHorizontal size={16} className="text-slate-300 dark:text-slate-700 animate-pulse" />
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Desglose de Costos de Ingeniería</p>
                         </div>
                     </div>
-                    <button onClick={() => setEditingModuleId(null)} className="text-slate-300 hover:text-red-500 transition-all p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"><X size={24} /></button>
+                    <button onClick={() => setShowBreakdownModal(false)} className="text-slate-300 hover:text-red-500 transition-all p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"><X size={24} /></button>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 space-y-4">
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600"><Package size={14}/></div>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">1. Aluminio + Acabado</span>
+                            </div>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">${Math.round(liveBreakdown.aluCost).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600"><Layers size={14}/></div>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">2. Vidrio / Rellenos</span>
+                            </div>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">${Math.round(liveBreakdown.glassCost).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center group">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600"><Wind size={14}/></div>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">3. Herrajes y Gomas</span>
+                            </div>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">${Math.round(liveBreakdown.accCost).toLocaleString()}</span>
+                        </div>
+                        <div className="pt-4 mt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white"><Hammer size={14}/></div>
+                                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter">4. Mano de Obra ({config.laborPercentage}%)</span>
+                            </div>
+                            <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-sm">${Math.round(liveBreakdown.laborCost).toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 dark:bg-indigo-900/80 rounded-[2rem] p-8 text-center space-y-2 shadow-2xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="text-[10px] font-black text-indigo-400 dark:text-indigo-200 uppercase tracking-[0.4em] relative z-10">Total Final de Ingeniería</span>
+                        <div className="text-4xl font-mono font-black text-white tracking-tighter relative z-10">
+                            ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
+                        </div>
+                        <p className="text-[9px] text-slate-400 dark:text-indigo-300 uppercase font-bold italic pt-2 relative z-10">Incluye {quantity} unidad(es) • {totalWidth}x{totalHeight} mm</p>
+                    </div>
+                </div>
+
+                <div className="pt-4 flex justify-center">
+                    <button onClick={() => setShowBreakdownModal(false)} className="px-10 py-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-200 dark:border-slate-700">
+                        Cerrar Análisis de Costos
+                    </button>
+                </div>
+             </div>
+        </div>
+      )}
+
+      {/* TERMINAL DE INGENIERÍA (MODAL MOVIBLE) */}
+      {editingModuleId && currentModForEdit && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 bg-slate-900/10 dark:bg-slate-950/20 backdrop-blur-[1px]" />
+            
+            <div 
+                ref={modalContainerRef}
+                style={{ 
+                    transform: `translate(${modalPos.x}px, ${modalPos.y}px)`,
+                    transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+                }}
+                className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl space-y-6 overflow-hidden max-h-[92vh] border-2 border-white dark:border-slate-800 flex flex-col transition-colors pointer-events-auto ring-1 ring-black/5"
+            >
+                <div 
+                    onMouseDown={(e) => startDragging(e, 'inge')}
+                    className={`flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} group`}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"><LayoutGrid size={22} /></div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-lg leading-none italic">Terminal de Ingeniería</h3>
+                                <GripHorizontal size={16} className="text-slate-300 dark:text-slate-700 animate-pulse" />
+                            </div>
+                            <p className="text-[9px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Módulo {currentModForEdit.id.substring(0,8)} • Arrastre para mover</p>
+                        </div>
+                    </div>
+                    <button 
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={() => setEditingModuleId(null)} 
+                        className="text-slate-300 hover:text-red-500 transition-all p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl"
+                    >
+                        <X size={24} />
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-12 gap-6 flex-1 overflow-hidden">
                     <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-hidden border-r border-slate-50 dark:border-slate-800 pr-6">
                         <div className="flex flex-col gap-4 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700">
                             <h4 className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2"><Tag size={12}/> Sistema y Tipología</h4>
-                            
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Línea Técnica</label>
-                                    <select 
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm"
-                                        value={recipeFilter}
-                                        onChange={e => setRecipeFilter(e.target.value)}
-                                    >
-                                        {uniqueLines.map(line => (
-                                            <option key={line} value={line}>{line}</option>
-                                        ))}
+                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={recipeFilter} onChange={e => setRecipeFilter(e.target.value)}>
+                                        {uniqueLines.map(line => <option key={line} value={line}>{line}</option>)}
                                     </select>
                                 </div>
-
                                 <div className="space-y-1.5">
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Tipología</label>
-                                    <select 
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm"
-                                        value={currentModForEdit.recipeId}
-                                        onChange={e => {
-                                            const r = recipes.find(x => x.id === e.target.value);
-                                            if (r) updateModule(editingModuleId, { recipeId: r.id, transoms: r.defaultTransoms || [], overriddenAccessories: r.accessories || [] });
-                                        }}
-                                    >
+                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { const r = recipes.find(x => x.id === e.target.value); if (r) updateModule(editingModuleId, { recipeId: r.id, transoms: r.defaultTransoms || [], overriddenAccessories: r.accessories || [] }); }}>
                                         <option value="">(SELECCIONE)</option>
-                                        {recipes.filter(r => {
-                                            const matchesLine = recipeFilter === 'TODOS' || r.line.toUpperCase() === recipeFilter;
-                                            return matchesLine;
-                                        }).map(r => (
-                                            <option key={r.id} value={r.id}>{r.name}</option>
-                                        ))}
+                                        {recipes.filter(r => recipeFilter === 'TODOS' || r.line.toUpperCase() === recipeFilter).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>
                                 </div>
                             </div>
                         </div>
-                        
                         <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center">
                             {currentModForEdit.recipeId ? (
                                 <>
@@ -886,7 +994,6 @@ const QuotingModule: React.FC<Props> = ({
                     </div>
 
                     <div className="col-span-12 lg:col-span-7 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
-                        {/* Divisiones Técnicas */}
                         <div className="space-y-4">
                             <div className="flex justify-between items-center border-l-4 border-indigo-600 pl-3">
                                 <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2"><Split size={14} className="rotate-90"/> Divisiones Técnicas</h4>
@@ -918,34 +1025,22 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* Vidriado */}
                         <div className="space-y-4">
                             <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest border-l-4 border-indigo-600 pl-3 flex items-center gap-2"><Layers size={14} /> Paños y Llenado</h4>
                             <div className="space-y-3">
                                 {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, paneIdx) => {
                                     const isBlind = (currentModForEdit.blindPanes || []).includes(paneIdx);
                                     const infillType = isBlind ? 'ciego' : (currentModForEdit.isDVH ? 'dvh' : 'vs');
-                                    
                                     return (
                                         <div key={paneIdx} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4 rounded-2xl shadow-sm space-y-4">
                                             <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-700 pb-3">
                                                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Paño {paneIdx+1}</span>
                                                 <div className="flex gap-1 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl">
-                                                    <button onClick={() => {
-                                                        const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx);
-                                                        updateModule(editingModuleId, { isDVH: false, blindPanes: bps });
-                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
-                                                    <button onClick={() => {
-                                                        const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx);
-                                                        updateModule(editingModuleId, { isDVH: true, blindPanes: bps });
-                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>DVH</button>
-                                                    <button onClick={() => {
-                                                        const bps = [...(currentModForEdit.blindPanes || [])];
-                                                        if (!bps.includes(paneIdx)) updateModule(editingModuleId, { blindPanes: [...bps, paneIdx] });
-                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'ciego' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>CIEGO</button>
+                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
+                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: true, blindPanes: bps }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>DVH</button>
+                                                    <button onClick={() => { const bps = [...(currentModForEdit.blindPanes || [])]; if (!bps.includes(paneIdx)) updateModule(editingModuleId, { blindPanes: [...bps, paneIdx] }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'ciego' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>CIEGO</button>
                                                 </div>
                                             </div>
-
                                             <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                                                 {infillType === 'ciego' ? (
                                                     <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.blindPaneIds?.[paneIdx] || ''} onChange={e => updateModule(editingModuleId, { blindPaneIds: { ...currentModForEdit.blindPaneIds, [paneIdx]: e.target.value } })}>
@@ -960,17 +1055,11 @@ const QuotingModule: React.FC<Props> = ({
                                                                 {dvhInputs.filter(i => i.type === 'Cámara').map(c => <option key={c.id} value={c.id}>{c.detail}</option>)}
                                                             </select>
                                                         </div>
-                                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.glassOuterId || ''} onChange={e => updateModule(editingModuleId, { glassOuterId: e.target.value })}>
-                                                            {glasses.map(g => <option key={g.id} value={g.id}>{g.detail}</option>)}
-                                                        </select>
-                                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.glassInnerId || ''} onChange={e => updateModule(editingModuleId, { glassInnerId: e.target.value })}>
-                                                            {glasses.map(g => <option key={g.id} value={g.id}>{g.detail}</option>)}
-                                                        </select>
+                                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.glassOuterId || ''} onChange={e => updateModule(editingModuleId, { glassOuterId: e.target.value })}>{glasses.map(g => <option key={g.id} value={g.id}>{g.detail}</option>)}</select>
+                                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.glassInnerId || ''} onChange={e => updateModule(editingModuleId, { glassInnerId: e.target.value })}>{glasses.map(g => <option key={g.id} value={g.id}>{g.detail}</option>)}</select>
                                                     </div>
                                                 ) : (
-                                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.glassOuterId || ''} onChange={e => updateModule(editingModuleId, { glassOuterId: e.target.value })}>
-                                                        {glasses.map(g => <option key={g.id} value={g.id}>{g.detail}</option>)}
-                                                    </select>
+                                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.glassOuterId || ''} onChange={e => updateModule(editingModuleId, { glassOuterId: e.target.value })}>{glasses.map(g => <option key={g.id} value={g.id}>{g.detail}</option>)}</select>
                                                 )}
                                             </div>
                                         </div>
@@ -979,15 +1068,11 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* Herrajes */}
                         <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-slate-800">
                             <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 border-l-4 border-indigo-600 pl-3"><Wind size={14} /> Herrajes del Módulo</h4>
                             <div className="grid grid-cols-2 gap-2">
                                 {(() => {
-                                    const modAccs = (currentModForEdit.overriddenAccessories && currentModForEdit.overriddenAccessories.length > 0)
-                                        ? currentModForEdit.overriddenAccessories
-                                        : (recipes.find(r => r.id === currentModForEdit.recipeId)?.accessories || []);
-                                    
+                                    const modAccs = (currentModForEdit.overriddenAccessories && currentModForEdit.overriddenAccessories.length > 0) ? currentModForEdit.overriddenAccessories : (recipes.find(r => r.id === currentModForEdit.recipeId)?.accessories || []);
                                     return modAccs.map((ra, idx) => {
                                         const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
                                         return (
