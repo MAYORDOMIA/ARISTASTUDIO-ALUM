@@ -326,7 +326,7 @@ const drawDetailedOpening = (
     const innerX = x + frameT; const innerY = y + frameT;
     const innerW = w - frameT * 2; const innerH = h - (hasBottomFrame ? frameT * 2 : frameT);
 
-    const drawLeaf = (lx:number, ly:number, lw:number, lh:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string) => {
+    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string) => {
         const bT = leafHasZocalo ? zocaloT : leafT;
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), ly + lh);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
@@ -351,21 +351,21 @@ const drawDetailedOpening = (
             const leafW = (innerW / 3) + overlap;
             for(let i=0; i<3; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 2);
-                drawLeaf(lx, innerY, leafW, innerH, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else if (numLeaves === 4) {
             const leafW = (innerW / 4) + overlap;
             for(let i=0; i<4; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 3);
-                drawLeaf(lx, innerY, leafW, innerH, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
             }
         } else {
             const leafW = (innerW / 2) + overlap;
-            drawLeaf(innerX, innerY, leafW, innerH, true, hasZocalo, extras?.mosquitero || false, 'sliding');
-            drawLeaf(innerX + innerW - leafW, innerY, leafW, innerH, true, hasZocalo, false, 'sliding');
+            drawLeaf(innerX, innerY, innerH, leafW, true, hasZocalo, extras?.mosquitero || false, 'sliding');
+            drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, hasZocalo, false, 'sliding');
         }
     } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
-        drawLeaf(innerX, innerY, innerW, innerH, false, hasZocalo, extras?.mosquitero || false, visualType);
+        drawLeaf(innerX, innerY, innerH, innerW, false, hasZocalo, extras?.mosquitero || false, visualType);
     } else {
         drawGlassWithTransoms(innerX, innerY, innerW, innerH, innerY + innerH);
     }
@@ -498,18 +498,43 @@ const QuotingModule: React.FC<Props> = ({
     setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0));
   };
 
+  // NUEVA LÓGICA: ADAPTARSE DENTRO DE LA MEDIDA TOTAL SIN CAMBIARLA
   const handleBodySizeChange = (dim: 'width' | 'height', index: number, newValue: number) => {
-    if (dim === 'width') {
-        const currentSizes = [...colSizes];
-        currentSizes[index] = newValue;
-        setTotalWidth(currentSizes.reduce((a, b) => a + b, 0));
-        setColSizes(currentSizes);
-    } else {
-        const currentSizes = [...rowSizes];
-        currentSizes[index] = newValue;
-        setTotalHeight(currentSizes.reduce((a, b) => a + b, 0));
-        setRowSizes(currentSizes);
+    const sizes = dim === 'width' ? [...colSizes] : [...rowSizes];
+    const total = dim === 'width' ? totalWidth : totalHeight;
+    const oldValue = sizes[index];
+    const diff = newValue - oldValue;
+
+    // Actualizamos el valor objetivo
+    sizes[index] = newValue;
+
+    // Distribución del error: restamos la diferencia a los otros módulos proporcionalmente
+    const otherIndices = sizes.map((_, i) => i).filter(i => i !== index);
+    
+    if (otherIndices.length > 0) {
+        const othersSum = otherIndices.reduce((acc, i) => acc + sizes[i], 0);
+        
+        if (othersSum > 0) {
+            otherIndices.forEach(i => {
+                const proportion = sizes[i] / othersSum;
+                sizes[i] = Math.max(100, sizes[i] - (diff * proportion));
+            });
+        } else {
+            // Caso borde: otros son 0
+            const sharedDiff = diff / otherIndices.length;
+            otherIndices.forEach(i => {
+                sizes[i] = Math.max(100, sizes[i] - sharedDiff);
+            });
+        }
     }
+
+    // Normalización final para garantizar que la suma sea EXACTAMENTE el total (evitar errores de redondeo float)
+    const currentSum = sizes.reduce((a, b) => a + b, 0);
+    const scale = total / currentSum;
+    const finalSizes = sizes.map(s => Math.round(s * scale));
+
+    if (dim === 'width') setColSizes(finalSizes);
+    else setRowSizes(finalSizes);
   };
 
   const handleTotalChange = (dim: 'width' | 'height', newValue: number) => {
@@ -780,7 +805,10 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
                             {colSizes.map((size, idx) => (
                                 <div key={idx} className="flex items-center justify-between group bg-slate-50/50 dark:bg-slate-800/50 p-2 rounded-xl border border-transparent hover:border-indigo-200 transition-all">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter italic">Cuerpo C{idx+1}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter italic">Cuerpo C{idx+1}</span>
+                                        <span className="text-[7px] text-indigo-500 font-bold uppercase">Dim. Dinámica</span>
+                                    </div>
                                     <div className="flex items-center gap-2">
                                         <input type="number" className="w-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl font-mono font-black text-right text-[10px] text-indigo-600 dark:text-indigo-400 focus:border-indigo-500 outline-none shadow-sm transition-all" value={size} onChange={e => handleBodySizeChange('width', idx, parseInt(e.target.value) || 0)} />
                                         <span className="text-[8px] font-black text-slate-300 dark:text-slate-600">mm</span>
@@ -804,7 +832,10 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
                             {rowSizes.map((size, idx) => (
                                 <div key={idx} className="flex items-center justify-between group bg-slate-50/50 dark:bg-slate-800/50 p-2 rounded-xl border border-transparent hover:border-indigo-200 transition-all">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter italic">Cuerpo R{idx+1}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter italic">Cuerpo R{idx+1}</span>
+                                        <span className="text-[7px] text-indigo-500 font-bold uppercase">Dim. Dinámica</span>
+                                    </div>
                                     <div className="flex items-center gap-2">
                                         <input type="number" className="w-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl font-mono font-black text-right text-[10px] text-indigo-600 dark:text-indigo-400 focus:border-indigo-500 outline-none shadow-sm transition-all" value={size} onChange={e => handleBodySizeChange('height', idx, parseInt(e.target.value) || 0)} />
                                         <span className="text-[8px] font-black text-slate-300 dark:text-slate-600">mm</span>
