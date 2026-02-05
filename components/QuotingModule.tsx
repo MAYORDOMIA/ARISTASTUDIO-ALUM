@@ -1067,8 +1067,17 @@ const QuotingModule: React.FC<Props> = ({
                                             <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-700 pb-3">
                                                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Paño {paneIdx+1}</span>
                                                 <div className="flex gap-1 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl">
-                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
-                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: true, blindPanes: bps }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>DVH</button>
+                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps, glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '' }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
+                                                    <button onClick={() => { 
+                                                        const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); 
+                                                        updateModule(editingModuleId, { 
+                                                            isDVH: true, 
+                                                            blindPanes: bps,
+                                                            glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '',
+                                                            glassInnerId: currentModForEdit.glassInnerId || glasses[0]?.id || '',
+                                                            dvhCameraId: currentModForEdit.dvhCameraId || dvhInputs.find(i => i.type === 'Cámara')?.id || ''
+                                                        }); 
+                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>DVH</button>
                                                     <button onClick={() => { const bps = [...(currentModForEdit.blindPanes || [])]; if (!bps.includes(paneIdx)) updateModule(editingModuleId, { blindPanes: [...bps, paneIdx] }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'ciego' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>CIEGO</button>
                                                 </div>
                                             </div>
