@@ -4,7 +4,8 @@ import {
   Plus, Trash2, Lock, Unlock, Shapes, Maximize, Split, 
   Scissors, Wind, ArrowRightLeft, Link, Bug, Search, 
   Ruler, Box, Info, LayoutGrid, ChevronRight, Settings2,
-  Download, Upload, Share2, FileText, Ruler as RulerIcon
+  Download, Upload, Share2, FileText, Ruler as RulerIcon,
+  ChevronDown
 } from 'lucide-react';
 import { 
   ProductRecipe, AluminumProfile, Accessory, RecipeProfile, 
@@ -27,7 +28,6 @@ interface Props {
 }
 
 const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
-  // Sistemas de Proyección y Rebatir
   { id: 'banderola', label: 'BANDEROLA', description: 'Abre arriba (interior). Marco + Hoja.' },
   { id: 'ventiluz', label: 'VENTILUZ', description: 'Abre abajo (exterior). Marco + Hoja.' },
   { id: 'tilt_turn', label: 'OSCILOBATIENTE', description: 'Doble apertura. Marco + Hoja.' },
@@ -36,21 +36,15 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'projecting', label: 'DESPLAZABLE', description: 'Apertura proyectante exterior.' },
   { id: 'fixed', label: 'PAÑO FIJO', description: 'Marco perimetral fijo.' },
   { id: 'mosquitero', label: 'MOSQUITERO', description: 'Sistema de tela mosquitera.' },
-  
-  // Corredizas 45°
   { id: 'sliding_2_45', label: 'V.CORREDIZA 2H 45°', description: '2 hojas corte 45°.' },
   { id: 'sliding_3_45', label: 'V.CORREDIZA 3H 45°', description: '3 hojas corte 45°.' },
   { id: 'sliding_4_45', label: 'V.CORREDIZA 4H 45°', description: '4 hojas corte 45°.' },
-  
-  // Corredizas 90° - Integrales
   { id: 'sliding_2_90_low', label: 'V.CORREDIZA 2H 90° zocalo bajo', description: '2 hojas 90° zócalo bajo.' },
   { id: 'sliding_2_90_high', label: 'V.CORREDIZA 2H 90° zocalo alto', description: '2 hojas 90° zócalo alto.' },
   { id: 'sliding_3_90_low', label: 'V.CORREDIZA 3H 90° zocalo bajo', description: '3 hojas 90° zócalo bajo.' },
   { id: 'sliding_3_90_high', label: 'V.CORREDIZA 3H 90° zocalo alto', description: '3 hojas 90° zócalo alto.' },
   { id: 'sliding_4_90_low', label: 'V.CORREDIZA 4H 90° zocalo bajo', description: '4 hojas 90° zócalo bajo.' },
   { id: 'sliding_4_90_high', label: 'V.CORREDIZA 4H 90° zocalo alto', description: '4 hojas 90° zócalo alto.' },
-
-  // NUEVAS: Corredizas Híbridas (Marco 45 / Hoja 90)
   { id: 'sliding_2_45_90_low', label: 'V.CORREDIZA 2H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
   { id: 'sliding_2_45_90_high', label: 'V.CORREDIZA 2H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
   { id: 'sliding_3_45_90_low', label: 'V.CORREDIZA 3H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
@@ -299,7 +293,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
                 <div className="bg-slate-50/30 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 p-6 rounded-[2rem] space-y-4">
                     <h4 className="text-[9px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><LayoutGrid size={14} className="text-indigo-500"/> Fórmulas de Vidriado</h4>
                     <div className="grid grid-cols-2 gap-4">
@@ -307,32 +301,86 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                         <FormulaInput label="Alto Cristal" value={recipe.glassFormulaH} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
                     </div>
                 </div>
-                <div className="bg-slate-50/30 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 p-6 rounded-[2rem] space-y-4">
-                    <div className="flex justify-between items-center">
-                        <h5 className="text-[9px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Wind size={14} className="text-indigo-500"/> Herrajes, Gomas y Felpas</h5>
-                        <button onClick={() => updateRecipe(recipe.id, { accessories: [...recipe.accessories, { accessoryId: accessories[0]?.id || '', quantity: 1, isLinear: false, formula: 'W' }] })} className="text-[8px] font-black text-indigo-600 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-slate-700 px-3 py-1 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/50 transition-all">Añadir Insumo</button>
+                
+                {/* SECCIÓN ACTUALIZADA: COMPACTA Y FIEL A LA IMAGEN */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[2.2rem] shadow-sm space-y-4">
+                    <div className="flex justify-between items-center px-2">
+                        <div className="flex items-center gap-2">
+                            <Wind size={16} className="text-indigo-600" />
+                            <h5 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Herrajes, Gomas y Felpas</h5>
+                        </div>
+                        <button 
+                            onClick={() => updateRecipe(recipe.id, { accessories: [...recipe.accessories, { accessoryId: accessories[0]?.id || '', quantity: 1, isLinear: false, formula: 'W' }] })} 
+                            className="px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 rounded-lg text-[9px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all"
+                        >
+                            Añadir Insumo
+                        </button>
                     </div>
-                    <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
-                        {recipe.accessories.map((ra, idx) => (
-                            <div key={idx} className="flex flex-col gap-2 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:border-indigo-100">
+                    
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        {recipe.accessories.length === 0 ? (
+                            <div className="py-8 text-center border-2 border-dashed border-slate-50 dark:border-slate-800 rounded-2xl">
+                                <p className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Sin insumos</p>
+                            </div>
+                        ) : recipe.accessories.map((ra, idx) => (
+                            <div key={idx} className="bg-slate-50/50 dark:bg-slate-800/40 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 transition-all hover:border-indigo-100">
                                 <div className="flex items-center gap-3">
-                                    <select className="flex-1 bg-transparent text-[9px] font-bold uppercase text-slate-600 dark:text-slate-400 outline-none" value={ra.accessoryId} onChange={e => { const updated = [...recipe.accessories]; updated[idx].accessoryId = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }}>{accessories.map(a => <option key={a.id} value={a.id}>{a.code} - {a.detail}</option>)}</select>
-                                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updateRecipe(recipe.id, { accessories: updated }); }} className={`px-2 py-0.5 text-[7px] font-black rounded-md ${!ra.isLinear ? 'bg-white dark:bg-slate-700 text-indigo-600' : 'text-slate-400'}`}>U</button>
-                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = true; updateRecipe(recipe.id, { accessories: updated }); }} className={`px-2 py-0.5 text-[7px] font-black rounded-md ${ra.isLinear ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>ML</button>
+                                    <div className="flex-1 relative">
+                                        <select 
+                                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-9 px-3 pr-8 rounded-lg text-[10px] font-black uppercase text-slate-700 dark:text-slate-200 outline-none appearance-none shadow-sm" 
+                                            value={ra.accessoryId} 
+                                            onChange={e => { const updated = [...recipe.accessories]; updated[idx].accessoryId = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }}
+                                        >
+                                            {accessories.map(a => <option key={a.id} value={a.id}>{a.code} - {a.detail}</option>)}
+                                        </select>
+                                        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     </div>
-                                    <button onClick={() => updateRecipe(recipe.id, { accessories: recipe.accessories.filter((_, i) => i !== idx) })} className="text-slate-300 dark:text-slate-600 hover:text-red-500"><Trash2 size={12}/></button>
+                                    
+                                    <div className="flex bg-slate-200/50 dark:bg-slate-700 p-0.5 rounded-lg shadow-inner h-9 items-center min-w-[70px]">
+                                        <button 
+                                            onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updateRecipe(recipe.id, { accessories: updated }); }} 
+                                            className={`flex-1 h-full text-[9px] font-black rounded-md transition-all ${!ra.isLinear ? 'bg-white dark:bg-slate-600 text-indigo-600 shadow-sm' : 'text-slate-400'}`}
+                                        >
+                                            U
+                                        </button>
+                                        <button 
+                                            onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = true; updateRecipe(recipe.id, { accessories: updated }); }} 
+                                            className={`flex-1 h-full text-[9px] font-black rounded-md transition-all ${ra.isLinear ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400'}`}
+                                        >
+                                            ML
+                                        </button>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={() => updateRecipe(recipe.id, { accessories: recipe.accessories.filter((_, i) => i !== idx) })} 
+                                        className="text-slate-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
-                                <div className="flex gap-2 items-center">
+
+                                <div className="flex gap-3 items-center mt-2">
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="number" 
+                                            className="w-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-8 px-2 rounded-lg text-center font-black text-[11px] dark:text-white outline-none shadow-sm focus:border-indigo-400" 
+                                            value={ra.quantity} 
+                                            onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} 
+                                        />
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{ra.isLinear ? 'ML' : 'UNID.'}</span>
+                                    </div>
+                                    
                                     {ra.isLinear && (
-                                        <div className="flex-1">
-                                            <input className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-1.5 rounded-md font-mono text-[9px] font-black text-indigo-600 outline-none" placeholder="Fórmula (W, H...)" value={ra.formula} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                        <div className="flex-1 relative">
+                                            <RulerIcon size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-indigo-300" />
+                                            <input 
+                                                className="w-full bg-indigo-50/30 dark:bg-indigo-900/20 border border-indigo-100/50 dark:border-indigo-800 h-8 pl-7 pr-2 rounded-lg font-mono text-[9px] font-black text-indigo-600 dark:text-indigo-300 outline-none focus:border-indigo-400" 
+                                                placeholder="Fórmula (Ej: W+H)" 
+                                                value={ra.formula} 
+                                                onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} 
+                                            />
                                         </div>
                                     )}
-                                    <div className="w-20">
-                                        <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 p-1.5 rounded-md text-center font-black text-[9px] dark:text-white outline-none" placeholder="Cant." value={ra.quantity} onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseInt(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
-                                    </div>
-                                    <span className="text-[7px] font-black text-slate-400 uppercase">{ra.isLinear ? 'VECES' : 'UNID.'}</span>
                                 </div>
                             </div>
                         ))}
