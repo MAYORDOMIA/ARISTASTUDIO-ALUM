@@ -31,7 +31,12 @@ export const calculateCompositePrice = (
   let totalAccCost = 0;
   let totalAluWeight = 0;
 
-  const { modules, colRatios, rowRatios, couplingDeduction } = item.composition;
+  const { modules, colRatios, rowRatios, couplingDeduction: baseDeduction } = item.composition;
+  
+  // Si hay un perfil de acople seleccionado, usamos su espesor real de la base de datos
+  const cProfile = item.couplingProfileId ? profiles.find(p => p.id === item.couplingProfileId) : null;
+  const realDeduction = cProfile ? cProfile.thickness : baseDeduction;
+
   const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
   
   if (validModules.length === 0) {
@@ -41,6 +46,8 @@ export const calculateCompositePrice = (
 
   const minX = Math.min(...validModules.map(m => m.x)); 
   const minY = Math.min(...validModules.map(m => m.y));
+  const maxX = Math.max(...validModules.map(m => m.x));
+  const maxY = Math.max(...validModules.map(m => m.y));
   const isSet = validModules.length > 1;
 
   validModules.forEach(mod => {
@@ -50,13 +57,14 @@ export const calculateCompositePrice = (
     let modW = colRatios[mod.x - minX] || 0; 
     let modH = rowRatios[mod.y - minY] || 0;
     
+    // Aplicar descuento de acople si el módulo está en un borde interior
     if (colRatios.length > 1) {
-       if (mod.x !== minX) modW -= (couplingDeduction / 2);
-       if (mod.x !== (minX + colRatios.length - 1)) modW -= (couplingDeduction / 2);
+       if (mod.x !== minX) modW -= (realDeduction / 2);
+       if (mod.x !== maxX) modW -= (realDeduction / 2);
     }
     if (rowRatios.length > 1) {
-       if (mod.y !== minY) modH -= (couplingDeduction / 2);
-       if (mod.y !== (minY + rowRatios.length - 1)) modH -= (couplingDeduction / 2);
+       if (mod.y !== minY) modH -= (realDeduction / 2);
+       if (mod.y !== maxY) modH -= (realDeduction / 2);
     }
 
     const result = calculateItemPrice(
@@ -73,20 +81,17 @@ export const calculateCompositePrice = (
     totalAluWeight += result.totalAluWeight;
   });
 
-  if (item.couplingProfileId && isSet) {
-    const cProfile = profiles.find(p => p.id === item.couplingProfileId);
-    if (cProfile) {
-      const unitCostPerM = (config.aluminumPricePerKg + treatment.pricePerKg) * cProfile.weightPerMeter;
-      let totalCouplingMm = 0;
-      if (colRatios.length > 1) totalCouplingMm += item.height * (colRatios.length - 1);
-      if (rowRatios.length > 1) totalCouplingMm += item.width * (rowRatios.length - 1);
-      
-      const cCost = (totalCouplingMm / 1000) * unitCostPerM;
-      const cWeight = (totalCouplingMm / 1000) * cProfile.weightPerMeter;
-      
-      totalAluCost += cCost;
-      totalAluWeight += cWeight;
-    }
+  if (cProfile && isSet) {
+    const unitCostPerM = (config.aluminumPricePerKg + treatment.pricePerKg) * cProfile.weightPerMeter;
+    let totalCouplingMm = 0;
+    if (colRatios.length > 1) totalCouplingMm += item.height * (colRatios.length - 1);
+    if (rowRatios.length > 1) totalCouplingMm += item.width * (rowRatios.length - 1);
+    
+    const cCost = (totalCouplingMm / 1000) * unitCostPerM;
+    const cWeight = (totalCouplingMm / 1000) * cProfile.weightPerMeter;
+    
+    totalAluCost += cCost;
+    totalAluWeight += cWeight;
   }
 
   const materialCost = totalAluCost + totalGlassCost + totalAccCost;
@@ -110,7 +115,7 @@ export const calculateItemPrice = (
   config: GlobalConfig, treatment: Treatment, glasses: Glass[], accessories: Accessory[],
   dvhInputs: DVHInput[], isDVH: boolean, glassOuterId: string, glassInnerId?: string,
   dvhCameraId?: string, extras?: { mosquitero: boolean, tapajuntas: boolean, tapajuntasSides: { top: boolean, bottom: boolean, left: boolean, right: boolean } },
-  coupling?: { profileId?: string, position: string }, transoms?: { height: number; profileId: string }[],
+  coupling?: { profileId?: string, position: string }, transoms?: { height: number; profileId: string; formula?: string }[],
   overriddenAccessories?: RecipeAccessory[], blindPanes: number[] = [], blindPaneIds: Record<number, string> = {}, blindPanels: BlindPanel[] = [],
   isSet: boolean = false
 ) => {
@@ -118,12 +123,6 @@ export const calculateItemPrice = (
   let aluCost = 0;
   let glassCost = 0;
   let accCost = 0;
-
-  const visualType = recipe.visualType || '';
-  let numLeaves = 1;
-  if (visualType.includes('sliding_3')) numLeaves = 3;
-  else if (visualType.includes('sliding_4')) numLeaves = 4;
-  else if (visualType.includes('sliding')) numLeaves = 2;
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
     const p = profiles.find(x => x.id === rp.profileId);
@@ -146,7 +145,8 @@ export const calculateItemPrice = (
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
-        const tCut = width; 
+        const f = t.formula || recipe.transomFormula || 'W';
+        const tCut = evaluateFormula(f, width, height);
         totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
       }
     });
@@ -174,6 +174,12 @@ export const calculateItemPrice = (
   const adjustedW = width - (recipe.glassDeductionW || 0); 
   const adjustedH = height - (recipe.glassDeductionH || 0);
   
+  const visualType = recipe.visualType || '';
+  let numLeaves = 1;
+  if (visualType.includes('sliding_3')) numLeaves = 3;
+  else if (visualType.includes('sliding_4')) numLeaves = 4;
+  else if (visualType.includes('sliding')) numLeaves = 2;
+
   let leafBaseW = adjustedW;
   if (visualType.includes('sliding')) {
       leafBaseW = adjustedW / numLeaves;

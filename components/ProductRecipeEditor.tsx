@@ -2,7 +2,7 @@
 import { 
   Plus, Trash2, Lock, Unlock, Shapes, Ruler, Box, Wind, 
   Search, Download, Upload, FileText, Ruler as RulerIcon,
-  ChevronDown, Save, AlertTriangle, Check
+  ChevronDown, Save, AlertTriangle, Check, Link2, Split
 } from 'lucide-react';
 import { 
   ProductRecipe, AluminumProfile, Accessory, RecipeProfile, 
@@ -215,23 +215,27 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
 
             <div className="space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Ruler size={14} className="text-indigo-600"/> Despiece de Perfiles</h4>
-                    <button onClick={() => updateRecipe(recipe.id, { profiles: [...recipe.profiles, { profileId: aluminum[0]?.id || '', quantity: 1, formula: 'W', cutStart: '45', cutEnd: '45' }] })} className="text-[8px] font-black uppercase text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">+ Insertar</button>
+                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Ruler size={14} className="text-indigo-600"/> Despiece de Perfiles Estructurales</h4>
+                    <button onClick={() => updateRecipe(recipe.id, { profiles: [...recipe.profiles, { profileId: aluminum[0]?.id || '', quantity: 1, formula: 'W', cutStart: '45', cutEnd: '45', role: 'Marco' }] })} className="text-[8px] font-black uppercase text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">+ Insertar</button>
                 </div>
                 <div className="space-y-1.5">
                     {recipe.profiles.map((rp, idx) => (
                         <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-slate-50/50 dark:bg-slate-800/30 p-2 rounded-xl border border-slate-100 dark:border-slate-700 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100">
-                            <div className="col-span-3">
+                            <div className="col-span-2">
+                                <select className="w-full bg-transparent text-[9px] font-black uppercase outline-none dark:text-white" value={rp.role || 'Marco'} onChange={e => { const updated = [...recipe.profiles]; updated[idx].role = e.target.value as any; updateRecipe(recipe.id, { profiles: updated }); }}>
+                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                            </div>
+                            <div className="col-span-2">
                                 <select className="w-full bg-transparent text-[10px] font-black uppercase outline-none dark:text-white" value={rp.profileId} onChange={e => { const updated = [...recipe.profiles]; updated[idx].profileId = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }}>{aluminum.map(a => <option key={a.id} value={a.id}>{a.code}</option>)}</select>
                             </div>
                             <div className="col-span-1">
                                 <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded text-center font-black text-[10px] dark:text-white" value={rp.quantity} onChange={e => { const updated = [...recipe.profiles]; updated[idx].quantity = parseInt(e.target.value) || 0; updateRecipe(recipe.id, { profiles: updated }); }} />
                             </div>
-                            <div className="col-span-3">
+                            <div className="col-span-2">
                                 <input className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-1.5 rounded font-mono text-[10px] font-black text-indigo-600 dark:text-indigo-400" value={rp.formula} onChange={e => { const updated = [...recipe.profiles]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }} />
                             </div>
                             <div className="col-span-2 space-y-1">
-                                <span className="text-[6px] font-black text-slate-400 uppercase tracking-tighter px-1 block">Extremo A</span>
                                 <div className="flex gap-0.5 bg-slate-200/50 dark:bg-slate-700/50 p-0.5 rounded-md">
                                     {['45', '90'].map(deg => (
                                         <button key={deg} onClick={() => { const updated = [...recipe.profiles]; updated[idx].cutStart = deg as any; updateRecipe(recipe.id, { profiles: updated }); }} className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutStart === deg ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>{deg}°</button>
@@ -239,7 +243,6 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                 </div>
                             </div>
                             <div className="col-span-2 space-y-1">
-                                <span className="text-[6px] font-black text-slate-400 uppercase tracking-tighter px-1 block">Extremo B</span>
                                 <div className="flex gap-0.5 bg-slate-200/50 dark:bg-slate-700/50 p-0.5 rounded-md">
                                     {['45', '90'].map(deg => (
                                         <button key={deg} onClick={() => { const updated = [...recipe.profiles]; updated[idx].cutEnd = deg as any; updateRecipe(recipe.id, { profiles: updated }); }} className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutEnd === deg ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>{deg}°</button>
@@ -255,14 +258,6 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-4 bg-slate-50/50 dark:bg-slate-800/20 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800">
-                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">Fórmulas de Vidriado</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                        <FormulaInput label="Ancho Cristal" value={recipe.glassFormulaW} onChange={v => updateRecipe(recipe.id, { glassFormulaW: v })} />
-                        <FormulaInput label="Alto Cristal" value={recipe.glassFormulaH} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
-                    </div>
-                </div>
-                
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] shadow-sm space-y-4">
                     <div className="flex justify-between items-center px-2">
                         <div className="flex items-center gap-2">
@@ -297,6 +292,23 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                <div className="bg-slate-50/50 dark:bg-slate-800/20 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">Vidriado Maestro</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <FormulaInput label="Ancho Cristal" value={recipe.glassFormulaW} onChange={v => updateRecipe(recipe.id, { glassFormulaW: v })} />
+                        <FormulaInput label="Alto Cristal" value={recipe.glassFormulaH} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
+                        <div className="space-y-1 flex-1">
+                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Desc. Vidrio (Travesaño)</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-lg font-mono text-[9px] font-black text-indigo-600 dark:text-indigo-400 outline-none" 
+                              value={recipe.transomGlassDeduction || 0} 
+                              onChange={e => updateRecipe(recipe.id, { transomGlassDeduction: parseFloat(e.target.value) || 0 })} 
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

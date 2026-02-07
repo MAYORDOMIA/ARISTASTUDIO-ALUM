@@ -38,7 +38,8 @@ import {
   Receipt,
   Hammer,
   Package,
-  ChevronDown
+  ChevronDown,
+  Link2
 } from 'lucide-react';
 import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
 
@@ -410,15 +411,14 @@ const QuotingModule: React.FC<Props> = ({
   
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [showBreakdownModal, setShowBreakdownModal] = useState(false);
+  const [showCouplingModal, setShowCouplingModal] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState<string>('TODOS');
 
-  // Estados para Arrastre (Ventana Ingeniería)
   const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const modalContainerRef = useRef<HTMLDivElement>(null);
 
-  // Estados para Arrastre (Ventana Breakdown)
   const [breakdownModalPos, setBreakdownModalPos] = useState({ x: 0, y: 0 });
   const [isDraggingBreakdown, setIsDraggingBreakdown] = useState(false);
   const breakdownDragOffset = useRef({ x: 0, y: 0 });
@@ -434,6 +434,14 @@ const QuotingModule: React.FC<Props> = ({
     const minY = Math.min(...ys); const maxY = Math.max(...ys);
     return { minX, maxX, minY, maxY, cols: maxX - minX + 1, rows: maxY - minY + 1 };
   }, [modules]);
+
+  const couplingProfiles = useMemo(() => {
+    return aluminum.filter(p => 
+        p.code.toUpperCase().includes('ACOP') || 
+        p.detail.toUpperCase().includes('ACOP') ||
+        p.detail.toUpperCase().includes('INTERM')
+    );
+  }, [aluminum]);
 
   const uniqueLines = useMemo(() => {
     const lines = recipes.map(r => r.line.toUpperCase());
@@ -467,6 +475,7 @@ const QuotingModule: React.FC<Props> = ({
     setModules([...(modules || []), ...newModules]);
     setColSizes(newColSizes);
     setTotalWidth(newColSizes.reduce((a, b) => a + b, 0));
+    setShowCouplingModal(true);
   };
 
   const removeColumn = () => {
@@ -476,6 +485,7 @@ const QuotingModule: React.FC<Props> = ({
     setModules((modules || []).filter(m => m && m.x !== lastX));
     setColSizes(newColSizes);
     setTotalWidth(newColSizes.reduce((a, b) => a + b, 0));
+    if (newColSizes.length <= 1 && rowSizes.length <= 1) setCouplingProfileId('');
   };
 
   const addRow = () => {
@@ -488,6 +498,7 @@ const QuotingModule: React.FC<Props> = ({
     setModules([...(modules || []), ...newModules]);
     setRowSizes(newRowSizes);
     setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0));
+    setShowCouplingModal(true);
   };
 
   const removeRow = () => {
@@ -497,6 +508,7 @@ const QuotingModule: React.FC<Props> = ({
     setModules((modules || []).filter(m => m && m.y !== lastY));
     setRowSizes(newRowSizes);
     setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0));
+    if (colSizes.length <= 1 && newRowSizes.length <= 1) setCouplingProfileId('');
   };
 
   const handleBodySizeChange = (dim: 'width' | 'height', index: number, newValue: number) => {
@@ -592,6 +604,9 @@ const QuotingModule: React.FC<Props> = ({
     const aluColor = treatments.find(t => t.id === colorId)?.hexColor || '#334155';
     const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
 
+    const cProfile = couplingProfileId ? aluminum.find(p => p.id === couplingProfileId) : null;
+    const currentDeduction = cProfile ? cProfile.thickness : couplingDeduction;
+
     if (extras.tapajuntas) {
         const firstRecipe = recipes.find(r => r.id === validModules[0]?.recipeId);
         const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
@@ -610,24 +625,24 @@ const QuotingModule: React.FC<Props> = ({
         let modH = rowSizes[modIdxY] || 0;
         
         if (colSizes.length > 1) {
-            if (mod.x > bounds.minX) modW -= (couplingDeduction / 2);
-            if (mod.x < bounds.maxX) modW -= (couplingDeduction / 2);
+            if (mod.x > bounds.minX) modW -= (currentDeduction / 2);
+            if (mod.x < bounds.maxX) modW -= (currentDeduction / 2);
         }
         if (rowSizes.length > 1) {
-            if (mod.y > bounds.minY) modH -= (couplingDeduction / 2);
-            if (mod.y < bounds.maxY) modH -= (couplingDeduction / 2);
+            if (mod.y > bounds.minY) modH -= (currentDeduction / 2);
+            if (mod.y < bounds.maxY) modH -= (currentDeduction / 2);
         }
         
         let ox_mm = 0; for (let i = 0; i < modIdxX; i++) ox_mm += colSizes[i] || 0;
         let oy_mm = 0; for (let j = 0; j < modIdxY; j++) oy_mm += rowSizes[j] || 0;
         
-        const xOffset = (mod.x > bounds.minX) ? (couplingDeduction / 2) : 0;
-        const yOffset = (mod.y > bounds.minY) ? (couplingDeduction / 2) : 0;
+        const xOffset = (mod.x > bounds.minX) ? (currentDeduction / 2) : 0;
+        const yOffset = (mod.y > bounds.minY) ? (currentDeduction / 2) : 0;
         
         const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
         drawDetailedOpening(ctx, startX + (ox_mm + xOffset) * pxPerMm, startY + (oy_mm + yOffset) * pxPerMm, modW * pxPerMm, modH * pxPerMm, recipe, mod.isDVH, aluColor, extras, edges, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
-  }, [totalWidth, totalHeight, modules, colSizes, rowSizes, bounds, extras, colorId, treatments, recipes, couplingDeduction, blindPanels, aluminum]);
+  }, [totalWidth, totalHeight, modules, colSizes, rowSizes, bounds, extras, colorId, treatments, recipes, couplingDeduction, couplingProfileId, blindPanels, aluminum]);
 
   const currentModForEdit = (modules || []).find(m => m && m.id === editingModuleId);
 
@@ -859,6 +874,38 @@ const QuotingModule: React.FC<Props> = ({
         </div>
       </div>
 
+      {showCouplingModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-indigo-100 dark:border-indigo-900/30 text-center space-y-6">
+            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-950/50 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-lg">
+              <Link2 size={32} />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tighter">Ingeniería de Acople</h3>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">Seleccione el perfil de unión para el conjunto</p>
+            </div>
+            <div className="space-y-4">
+                <select className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500" value={couplingProfileId} onChange={e => {
+                    const prof = aluminum.find(p => p.id === e.target.value);
+                    if (prof) {
+                        setCouplingProfileId(prof.id);
+                        setCouplingDeduction(prof.thickness);
+                    }
+                }}>
+                    <option value="">(SIN ACOPLE / UNIÓN DIRECTA)</option>
+                    {couplingProfiles.map(p => <option key={p.id} value={p.id}>{p.code} - {p.detail} ({p.thickness}mm)</option>)}
+                </select>
+            </div>
+            <button 
+              onClick={() => setShowCouplingModal(false)}
+              className="w-full bg-slate-900 dark:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all"
+            >
+              Aplicar y Continuar
+            </button>
+          </div>
+        </div>
+      )}
+
       {showBreakdownModal && liveBreakdown && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
              <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
@@ -1052,7 +1099,6 @@ const QuotingModule: React.FC<Props> = ({
                                                     <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps, glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '' }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
                                                     <button onClick={() => { 
                                                         const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); 
-                                                        // FIJAMOS VALORES POR DEFECTO PARA DVH SI ESTÁN VACÍOS
                                                         updateModule(editingModuleId, { 
                                                             isDVH: true, 
                                                             blindPanes: bps,

@@ -67,6 +67,7 @@ export interface RecipeProfile {
   formula: string; 
   cutStart: '45' | '90';
   cutEnd: '45' | '90';
+  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Otro';
 }
 
 export interface RecipeAccessory {
@@ -95,6 +96,7 @@ export interface ProductRecipe {
   glassFormulaW: string; 
   glassFormulaH: string; 
   defaultTransomProfileId?: string;
+  transomFormula?: string; 
   transomThickness?: number; 
   transomGlassDeduction?: number;
   defaultTransoms?: { height: number; profileId: string }[];
@@ -124,7 +126,7 @@ export interface MeasurementModule {
   dvhCameraId?: string;
   blindPanes?: number[];
   blindPaneIds?: Record<number, string>;
-  transoms?: { height: number; profileId: string }[];
+  transoms?: { height: number; profileId: string; formula?: string }[];
   overriddenAccessories?: RecipeAccessory[];
 }
 
