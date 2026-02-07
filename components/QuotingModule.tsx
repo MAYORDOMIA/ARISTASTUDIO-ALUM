@@ -37,7 +37,8 @@ import {
   TrendingUp,
   Receipt,
   Hammer,
-  Package
+  Package,
+  ChevronDown
 } from 'lucide-react';
 import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
 
@@ -498,41 +499,30 @@ const QuotingModule: React.FC<Props> = ({
     setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0));
   };
 
-  // NUEVA LÓGICA: ADAPTARSE DENTRO DE LA MEDIDA TOTAL SIN CAMBIARLA
   const handleBodySizeChange = (dim: 'width' | 'height', index: number, newValue: number) => {
     const sizes = dim === 'width' ? [...colSizes] : [...rowSizes];
     const total = dim === 'width' ? totalWidth : totalHeight;
     const oldValue = sizes[index];
     const diff = newValue - oldValue;
-
-    // Actualizamos el valor objetivo
     sizes[index] = newValue;
-
-    // Distribución del error: restamos la diferencia a los otros módulos proporcionalmente
     const otherIndices = sizes.map((_, i) => i).filter(i => i !== index);
-    
     if (otherIndices.length > 0) {
         const othersSum = otherIndices.reduce((acc, i) => acc + sizes[i], 0);
-        
         if (othersSum > 0) {
             otherIndices.forEach(i => {
                 const proportion = sizes[i] / othersSum;
                 sizes[i] = Math.max(100, sizes[i] - (diff * proportion));
             });
         } else {
-            // Caso borde: otros son 0
             const sharedDiff = diff / otherIndices.length;
             otherIndices.forEach(i => {
                 sizes[i] = Math.max(100, sizes[i] - sharedDiff);
             });
         }
     }
-
-    // Normalización final para garantizar que la suma sea EXACTAMENTE el total (evitar errores de redondeo float)
     const currentSum = sizes.reduce((a, b) => a + b, 0);
     const scale = total / currentSum;
     const finalSizes = sizes.map(s => Math.round(s * scale));
-
     if (dim === 'width') setColSizes(finalSizes);
     else setRowSizes(finalSizes);
   };
@@ -662,7 +652,6 @@ const QuotingModule: React.FC<Props> = ({
     updateModule(editingModuleId!, { transoms: currentModForEdit.transoms?.filter((_, i) => i !== idx) });
   };
 
-  // Logica de Arrastre Universal (Inge y Breakdown)
   const startDragging = useCallback((e: React.MouseEvent, type: 'inge' | 'breakdown') => {
     if (type === 'inge') {
         setIsDragging(true);
@@ -683,7 +672,6 @@ const QuotingModule: React.FC<Props> = ({
         }
     };
     const handleMouseUp = () => { setIsDragging(false); setIsDraggingBreakdown(false); };
-
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => {
@@ -719,7 +707,6 @@ const QuotingModule: React.FC<Props> = ({
                 <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
             </div>
             
-            {/* BOTON DE ACCESO A COTIZACION EMERGENTE (REEMPLAZO DE BLOQUE ESTATICO) */}
             {liveBreakdown && (
                 <button 
                     onClick={() => {
@@ -872,7 +859,6 @@ const QuotingModule: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* VENTANA EMERGENTE: ANÁLISIS DE COTIZACIÓN (ARRISTRABLE) */}
       {showBreakdownModal && liveBreakdown && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
              <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
@@ -948,11 +934,9 @@ const QuotingModule: React.FC<Props> = ({
         </div>
       )}
 
-      {/* TERMINAL DE INGENIERÍA (MODAL MOVIBLE) */}
       {editingModuleId && currentModForEdit && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
             <div className="absolute inset-0 bg-slate-900/10 dark:bg-slate-950/20 backdrop-blur-[1px]" />
-            
             <div 
                 ref={modalContainerRef}
                 style={{ 
@@ -1007,9 +991,7 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center">
                             {currentModForEdit.recipeId ? (
                                 <>
-                                    <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl animate-in zoom-in">
-                                        <Check size={32} />
-                                    </div>
+                                    <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl animate-in zoom-in"><Check size={32} /></div>
                                     <div className="mt-4">
                                         <h5 className="text-[11px] font-black uppercase text-slate-800 dark:text-white tracking-widest">{recipes.find(r => r.id === currentModForEdit.recipeId)?.name}</h5>
                                         <p className="text-[8px] font-bold text-indigo-500 uppercase mt-1 tracking-widest">SISTEMA VALIDADO</p>
@@ -1070,6 +1052,7 @@ const QuotingModule: React.FC<Props> = ({
                                                     <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps, glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '' }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
                                                     <button onClick={() => { 
                                                         const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); 
+                                                        // FIJAMOS VALORES POR DEFECTO PARA DVH SI ESTÁN VACÍOS
                                                         updateModule(editingModuleId, { 
                                                             isDVH: true, 
                                                             blindPanes: bps,
