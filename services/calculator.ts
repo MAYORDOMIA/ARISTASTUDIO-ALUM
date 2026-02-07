@@ -153,8 +153,8 @@ export const calculateItemPrice = (
       if (trProf) {
         const f = t.formula || recipe.transomFormula || 'W';
         const tCut = evaluateFormula(f, width, height);
-        // Multiplicamos por la cantidad de hojas de la abertura
-        totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter * numLeaves;
+        // Según requerimiento: No se multiplica por hojas, es la medida de la fórmula
+        totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
       }
     });
   }
@@ -195,8 +195,7 @@ export const calculateItemPrice = (
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
   } else {
-    // Si lleva travesaños, dividimos la altura total del cristal (gH) equitativamente
-    // restando el descuento por cada travesaño presente.
+    // Los vidrios se dividen equitativamente restando el descuento por travesaño
     const numPanes = transoms.length + 1;
     const totalDeduction = transomGlassDeduction * transoms.length;
     const equalPaneH = (gH - totalDeduction) / numPanes;

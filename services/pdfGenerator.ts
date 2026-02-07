@@ -57,7 +57,6 @@ const getModuleGlassPanes = (
     if (!mod.transoms || mod.transoms.length === 0) {
         panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
     } else {
-        // Nueva lógica: Dividir la altura total del vidrio equitativamente restando descuentos
         const numPanes = mod.transoms.length + 1;
         const totalDeduction = transomGlassDeduction * mod.transoms.length;
         const equalPaneH = (gH - totalDeduction) / numPanes;
@@ -103,7 +102,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
-            // Perfiles de la receta base
             recipe.profiles.forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId);
                 if (!pDef) return;
@@ -120,14 +118,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 cutsByProfile.set(rp.profileId, list);
             });
 
-            // Perfiles de travesaño adicionales del módulo
             if (mod.transoms && mod.transoms.length > 0) {
-                const visualType = recipe.visualType || '';
-                let numLeaves = 1;
-                if (visualType.includes('sliding_3')) numLeaves = 3;
-                else if (visualType.includes('sliding_4')) numLeaves = 4;
-                else if (visualType.includes('sliding')) numLeaves = 2;
-
                 mod.transoms.forEach((t: any) => {
                     const pDef = aluminum.find(a => a.id === t.profileId);
                     if (!pDef) return;
@@ -136,8 +127,8 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                     if (cutLen <= 0) return;
 
                     const list = cutsByProfile.get(t.profileId) || [];
-                    // Multiplicamos por la cantidad de hojas y cantidad de la abertura
-                    for(let k=0; k < numLeaves * item.quantity; k++) {
+                    // Según requerimiento: No se multiplica por hojas
+                    for(let k=0; k < item.quantity; k++) {
                         list.push({ len: cutLen, type: 'Travesaño', cutStart: '90', cutEnd: '90', label: itemCode });
                     }
                     cutsByProfile.set(t.profileId, list);
@@ -413,12 +404,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
-            const visualType = recipe.visualType || '';
-            let numLeaves = 1;
-            if (visualType.includes('sliding_3')) numLeaves = 3;
-            else if (visualType.includes('sliding_4')) numLeaves = 4;
-            else if (visualType.includes('sliding')) numLeaves = 2;
-
             recipe.profiles.forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 const isTJ = String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
@@ -443,7 +428,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                         p?.code || 'S/D',
                         'TRAVESAÑO',
                         Math.round(cutLen),
-                        numLeaves, // Multiplicado por hojas
+                        1, // Según requerimiento: No se multiplica por nada
                         '90° / 90°'
                     ]);
                 });
@@ -523,7 +508,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     let currentY = 35;
 
-    // ALUMINIO
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(11);
     doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY);
@@ -544,20 +528,14 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 aluSummary.set(p.id, existing);
             });
 
-            // Sumar travesaños adicionales
             if (mod.transoms && mod.transoms.length > 0) {
-                const visualType = recipe.visualType || '';
-                let numLeaves = 1;
-                if (visualType.includes('sliding_3')) numLeaves = 3;
-                else if (visualType.includes('sliding_4')) numLeaves = 4;
-                else if (visualType.includes('sliding')) numLeaves = 2;
-
                 mod.transoms.forEach((t: any) => {
                     const p = aluminum.find(a => a.id === t.profileId);
                     if (!p) return;
                     const f = t.formula || recipe.transomFormula || 'W';
                     const len = evaluateFormula(f, item.width, item.height);
-                    const totalMm = (len + config.discWidth) * numLeaves * item.quantity;
+                    // Según requerimiento: No se multiplica por hojas
+                    const totalMm = (len + config.discWidth) * item.quantity;
                     const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
                     existing.totalMm += totalMm;
                     aluSummary.set(p.id, existing);
@@ -584,7 +562,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
-    // LLENADO
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11);
     doc.text('2. LISTADO DE CRISTALES, PANELES Y TELAS', 15, currentY);
@@ -624,7 +601,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
-    // ACCESORIOS, GOMAS Y FELPAS
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11);
     doc.text('3. LISTADO DE HERRAJES, GOMAS Y FELPAS', 15, currentY);
