@@ -52,24 +52,25 @@ const getModuleGlassPanes = (
     const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
     
     const panes: { w: number, h: number, isBlind: boolean }[] = [];
-    const tProfile = aluminum.find(p => p.id === recipe.defaultTransomProfileId);
-    const transomThickness = tProfile?.thickness || recipe.transomThickness || (recipe.visualType?.startsWith('door_') ? 68 : 38); 
     const transomGlassDeduction = recipe.transomGlassDeduction || 0; 
 
     if (!mod.transoms || mod.transoms.length === 0) {
         panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
     } else {
-        const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
-        let lastY = 0;
-        sorted.forEach((t, idx) => {
-            const currentTProf = aluminum.find(p => p.id === t.profileId);
-            const currentTThickness = currentTProf?.thickness || transomThickness;
-            const paneH = (idx === 0) ? (t.height - (currentTThickness / 2) - transomGlassDeduction) : (t.height - lastY - currentTThickness - transomGlassDeduction);
-            if (paneH > 0) panes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(idx) || false });
-            lastY = t.height;
-        });
-        const lastPaneH = (gH - lastY - (transomThickness / 2) - transomGlassDeduction);
-        if (lastPaneH > 0) panes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(sorted.length) || false });
+        // Nueva lógica: Dividir la altura total del vidrio equitativamente restando descuentos
+        const numPanes = mod.transoms.length + 1;
+        const totalDeduction = transomGlassDeduction * mod.transoms.length;
+        const equalPaneH = (gH - totalDeduction) / numPanes;
+
+        for (let i = 0; i < numPanes; i++) {
+            if (equalPaneH > 0) {
+                panes.push({ 
+                    w: gW, 
+                    h: equalPaneH, 
+                    isBlind: mod.blindPanes?.includes(i) || false 
+                });
+            }
+        }
     }
     return panes;
 };
@@ -102,6 +103,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
+            // Perfiles de la receta base
             recipe.profiles.forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId);
                 if (!pDef) return;
@@ -117,6 +119,30 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 }
                 cutsByProfile.set(rp.profileId, list);
             });
+
+            // Perfiles de travesaño adicionales del módulo
+            if (mod.transoms && mod.transoms.length > 0) {
+                const visualType = recipe.visualType || '';
+                let numLeaves = 1;
+                if (visualType.includes('sliding_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4')) numLeaves = 4;
+                else if (visualType.includes('sliding')) numLeaves = 2;
+
+                mod.transoms.forEach((t: any) => {
+                    const pDef = aluminum.find(a => a.id === t.profileId);
+                    if (!pDef) return;
+                    const f = t.formula || recipe.transomFormula || 'W';
+                    const cutLen = evaluateFormula(f, modW, modH);
+                    if (cutLen <= 0) return;
+
+                    const list = cutsByProfile.get(t.profileId) || [];
+                    // Multiplicamos por la cantidad de hojas y cantidad de la abertura
+                    for(let k=0; k < numLeaves * item.quantity; k++) {
+                        list.push({ len: cutLen, type: 'Travesaño', cutStart: '90', cutEnd: '90', label: itemCode });
+                    }
+                    cutsByProfile.set(t.profileId, list);
+                });
+            }
         });
     });
 
@@ -387,6 +413,12 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
+            const visualType = recipe.visualType || '';
+            let numLeaves = 1;
+            if (visualType.includes('sliding_3')) numLeaves = 3;
+            else if (visualType.includes('sliding_4')) numLeaves = 4;
+            else if (visualType.includes('sliding')) numLeaves = 2;
+
             recipe.profiles.forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 const isTJ = String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
@@ -401,6 +433,21 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                     `${rp.cutStart}° / ${rp.cutEnd}°`
                 ]);
             });
+
+            if (mod.transoms && mod.transoms.length > 0) {
+                mod.transoms.forEach((t: any) => {
+                    const p = aluminum.find(a => a.id === t.profileId);
+                    const f = t.formula || recipe.transomFormula || 'W';
+                    const cutLen = evaluateFormula(f, modW, modH);
+                    profileCuts.push([
+                        p?.code || 'S/D',
+                        'TRAVESAÑO',
+                        Math.round(cutLen),
+                        numLeaves, // Multiplicado por hojas
+                        '90° / 90°'
+                    ]);
+                });
+            }
         });
 
         autoTable(doc, {
@@ -496,6 +543,26 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 existing.totalMm += totalMm;
                 aluSummary.set(p.id, existing);
             });
+
+            // Sumar travesaños adicionales
+            if (mod.transoms && mod.transoms.length > 0) {
+                const visualType = recipe.visualType || '';
+                let numLeaves = 1;
+                if (visualType.includes('sliding_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4')) numLeaves = 4;
+                else if (visualType.includes('sliding')) numLeaves = 2;
+
+                mod.transoms.forEach((t: any) => {
+                    const p = aluminum.find(a => a.id === t.profileId);
+                    if (!p) return;
+                    const f = t.formula || recipe.transomFormula || 'W';
+                    const len = evaluateFormula(f, item.width, item.height);
+                    const totalMm = (len + config.discWidth) * numLeaves * item.quantity;
+                    const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
+                    existing.totalMm += totalMm;
+                    aluSummary.set(p.id, existing);
+                });
+            }
         });
     });
 
@@ -714,7 +781,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                 doc.setFillColor(243, 244, 246); 
                 doc.rect(px, py, pw, ph, 'FD');
                 
-                // AJUSTE DE ETIQUETAS: MAS GRANDES Y JUNTAS
                 const fontSize = Math.max(10, 24 * scale); 
                 doc.setFontSize(fontSize);
                 doc.setTextColor(30, 41, 59); 
