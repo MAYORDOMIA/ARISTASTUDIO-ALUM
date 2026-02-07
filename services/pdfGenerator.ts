@@ -102,11 +102,11 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
-            // ELIMINACIÓN DEL ERROR 1500:
-            // Filtramos cualquier perfil que tenga rol 'Travesaño' en la receta base.
-            // Esto evita que se genere un corte extra de medida "W" (como el de 1500 de la imagen) 
-            // cuando el usuario ya ha definido travesaños dinámicos.
-            recipe.profiles.filter(rp => rp.role !== 'Travesaño').forEach(rp => {
+            // Filtro para eliminar el corte extra de 1500 (W total) cuando hay travesaños dinámicos
+            recipe.profiles.filter(rp => {
+                if (rp.role === 'Travesaño' && mod.transoms && mod.transoms.length > 0) return false;
+                return true;
+            }).forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId);
                 if (!pDef) return;
                 const isTJ = String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
@@ -122,7 +122,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 cutsByProfile.set(rp.profileId, list);
             });
 
-            // Solo se añaden los travesaños dinámicos (Sin multiplicador de hojas)
+            // Solo se añaden los travesaños dinámicos tal cual dicta la fórmula
             if (mod.transoms && mod.transoms.length > 0) {
                 mod.transoms.forEach((t: any) => {
                     const pDef = aluminum.find(a => a.id === t.profileId);
@@ -132,6 +132,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                     if (cutLen <= 0) return;
 
                     const list = cutsByProfile.get(t.profileId) || [];
+                    // Sin multiplicación por hojas, 1 travesaño es 1 corte por abertura
                     for(let k=0; k < item.quantity; k++) {
                         list.push({ len: cutLen, type: 'Travesaño', cutStart: '90', cutEnd: '90', label: itemCode });
                     }
@@ -409,7 +410,10 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const modH = (item.height * rowRatio) / sumRows;
 
             // EXCLUIR Travesaños de receta fija para evitar duplicados en la hoja de armado
-            recipe.profiles.filter(rp => rp.role !== 'Travesaño').forEach(rp => {
+            recipe.profiles.filter(rp => {
+                if (rp.role === 'Travesaño' && mod.transoms && mod.transoms.length > 0) return false;
+                return true;
+            }).forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 const isTJ = String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
@@ -433,7 +437,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                         p?.code || 'S/D',
                         'TRAVESAÑO',
                         Math.round(cutLen),
-                        1, // Cantidad estricta por pieza
+                        1, // Cantidad estricta 1 por pieza
                         '90° / 90°'
                     ]);
                 });
@@ -524,8 +528,11 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
 
-            // Solo sumar perfiles que no sean travesaños de la receta (para no duplicar el corte de 1500)
-            recipe.profiles.filter(rp => rp.role !== 'Travesaño').forEach(rp => {
+            // Filtrar perfiles base (Excluir rol Travesaño si hay dinámicos para evitar el corte extra de 1500)
+            recipe.profiles.filter(rp => {
+                if (rp.role === 'Travesaño' && mod.transoms && mod.transoms.length > 0) return false;
+                return true;
+            }).forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 if (!p) return;
                 const len = evaluateFormula(rp.formula, item.width, item.height);
@@ -535,7 +542,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 aluSummary.set(p.id, existing);
             });
 
-            // Añadir los travesaños dinámicos reales
+            // Añadir travesaños dinámicos
             if (mod.transoms && mod.transoms.length > 0) {
                 mod.transoms.forEach((t: any) => {
                     const p = aluminum.find(a => a.id === t.profileId);

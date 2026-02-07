@@ -129,9 +129,9 @@ export const calculateItemPrice = (
   else if (visualType.includes('sliding')) numLeaves = 2;
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
-    // Si el perfil tiene rol Travesaño en la receta fija, NO se suma aquí porque el usuario los define dinámicamente.
-    // Esto evita duplicar piezas como la de "1500" si ya hay travesaños específicos.
-    if (rp.role === 'Travesaño') return false;
+    // Si el usuario añadió travesaños dinámicos, ignoramos los travesaños fijos de la receta
+    // para evitar el error del corte extra (como el de 1500).
+    if (rp.role === 'Travesaño' && transoms && transoms.length > 0) return false;
 
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
@@ -151,14 +151,14 @@ export const calculateItemPrice = (
     }
   });
 
-  // Cálculo de Travesaños Dinámicos (Sin multiplicadores de hojas)
+  // Cálculo de Travesaños Dinámicos: NO SE MULTIPLICA POR HOJAS
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
         const f = t.formula || recipe.transomFormula || 'W';
         const tCut = evaluateFormula(f, width, height);
-        // Según requerimiento: No se multiplica por nada, solo la medida de la fórmula
+        // Se suma el peso de 1 unidad de travesaño por definición, sin multiplicadores
         totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
       }
     });
@@ -200,7 +200,7 @@ export const calculateItemPrice = (
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
   } else {
-    // Los vidrios se dividen equitativamente restando el descuento por travesaño para que sean simétricos
+    // División equitativa de vidrios restando la deducción del travesaño
     const numPanes = transoms.length + 1;
     const totalDeduction = transomGlassDeduction * transoms.length;
     const equalPaneH = (gH - totalDeduction) / numPanes;
@@ -242,6 +242,7 @@ export const calculateItemPrice = (
     }
   });
 
+  // Solo se suma el mosquitero si el usuario lo solicita explícitamente
   if (extras?.mosquitero && visualType !== 'mosquitero') {
       const hasRoleMosq = recipe.profiles.some(rp => rp.role === 'Mosquitero');
       if (!hasRoleMosq) {
