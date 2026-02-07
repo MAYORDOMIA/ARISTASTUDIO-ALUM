@@ -280,24 +280,26 @@ const drawDetailedOpening = (
 
     const drawGlassWithTransoms = (gx: number, gy: number, gw: number, gh: number, absoluteBottomY: number) => {
         if (transoms.length > 0) {
-            const sorted = [...transoms].sort((a, b) => a.height - b.height);
+            const sorted = [...transoms].sort((a, b) => b.height - a.height);
             let currentTopY = gy;
+            
             sorted.reverse().forEach((t, i) => {
                 const trProf = allProfiles.find(p => p.id === t.profileId);
-                const tHeight = (trProf?.thickness || 40) * pxPerMm;
-                const transomY = (y + h) - (t.height * pxPerMm);
+                const tThickness = (trProf?.thickness || 40) * pxPerMm;
+                const transomY = absoluteBottomY - (t.height * pxPerMm);
                 
                 if (transomY > gy && transomY < (gy + gh)) {
-                    const paneH = (transomY - (tHeight/2)) - currentTopY;
-                    const paneIndex = transoms.length - i - 1;
+                    const paneH = (transomY - (tThickness/2)) - currentTopY;
+                    const paneIndex = i;
                     if (paneH > 0) drawPane(gx, currentTopY, gw, paneH, paneIndex);
+                    
                     drawProfile([
-                        {x: gx, y: transomY - (tHeight/2)}, 
-                        {x: gx + gw, y: transomY - (tHeight/2)}, 
-                        {x: gx + gw, y: transomY + (tHeight/2)}, 
-                        {x: gx, y: transomY + (tHeight/2)}
+                        {x: gx, y: transomY - (tThickness/2)}, 
+                        {x: gx + gw, y: transomY - (tThickness/2)}, 
+                        {x: gx + gw, y: transomY + (tThickness/2)}, 
+                        {x: gx, y: transomY + (tThickness/2)}
                     ]);
-                    currentTopY = transomY + (tHeight/2);
+                    currentTopY = transomY + (tThickness/2);
                 }
             });
             const lastPaneH = (gy + gh) - currentTopY;
@@ -665,6 +667,21 @@ const QuotingModule: React.FC<Props> = ({
   const removeTransomFromModule = (idx: number) => {
     if (!currentModForEdit) return;
     updateModule(editingModuleId!, { transoms: currentModForEdit.transoms?.filter((_, i) => i !== idx) });
+  };
+
+  const centerTransoms = () => {
+    if (!currentModForEdit || !currentModForEdit.transoms || currentModForEdit.transoms.length === 0) return;
+    const modIdxY = currentModForEdit.y - bounds.minY;
+    const modH = rowSizes[modIdxY] || 0;
+    
+    // Si hay N travesaños, se divide el espacio en N+1 partes iguales.
+    const parts = currentModForEdit.transoms.length + 1;
+    const step = modH / parts;
+    const newTransoms = currentModForEdit.transoms.map((t, idx) => ({
+        ...t,
+        height: Math.round(step * (idx + 1))
+    }));
+    updateModule(editingModuleId!, { transoms: newTransoms });
   };
 
   const startDragging = useCallback((e: React.MouseEvent, type: 'inge' | 'breakdown') => {
@@ -1057,7 +1074,10 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="space-y-4">
                             <div className="flex justify-between items-center border-l-4 border-indigo-600 pl-3">
                                 <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2"><Split size={14} className="rotate-90"/> Divisiones Técnicas</h4>
-                                <button onClick={addTransomToModule} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5"><Plus size={12}/> Nueva</button>
+                                <div className="flex gap-2">
+                                  <button onClick={centerTransoms} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase shadow hover:bg-slate-200 transition-all flex items-center gap-1.5">Equidistar</button>
+                                  <button onClick={addTransomToModule} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5"><Plus size={12}/> Nueva</button>
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 {(currentModForEdit.transoms || []).map((t, idx) => (
@@ -1065,13 +1085,7 @@ const QuotingModule: React.FC<Props> = ({
                                         <div className="flex-1 space-y-1">
                                             <div className="flex justify-between items-center">
                                                 <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Altura (mm)</label>
-                                                <button onClick={() => {
-                                                    const modIdxY = currentModForEdit.y - bounds.minY;
-                                                    const modH = rowSizes[modIdxY] || 0;
-                                                    const newTransoms = [...(currentModForEdit.transoms || [])];
-                                                    newTransoms[idx].height = Math.round(modH / 2);
-                                                    updateModule(editingModuleId, { transoms: newTransoms });
-                                                }} className="text-[7px] font-black text-indigo-500 uppercase hover:text-indigo-700">Centrar</button>
+                                                <span className="text-[7px] font-black text-indigo-500 uppercase">Posición Travesaño {idx+1}</span>
                                             </div>
                                             <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none" value={t.height} onChange={e => {
                                                 const newTransoms = [...(currentModForEdit.transoms || [])];

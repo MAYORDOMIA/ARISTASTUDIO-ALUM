@@ -57,19 +57,28 @@ const getModuleGlassPanes = (
     if (!mod.transoms || mod.transoms.length === 0) {
         panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
     } else {
-        const numPanes = mod.transoms.length + 1;
-        const totalDeduction = transomGlassDeduction * mod.transoms.length;
-        const equalPaneH = (gH - totalDeduction) / numPanes;
-
-        for (let i = 0; i < numPanes; i++) {
-            if (equalPaneH > 0) {
-                panes.push({ 
-                    w: gW, 
-                    h: equalPaneH, 
-                    isBlind: mod.blindPanes?.includes(i) || false 
-                });
+        const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
+        let lastY = 0;
+        
+        sorted.forEach((t, idx) => {
+            const currentTProf = aluminum.find(p => p.id === t.profileId);
+            const currentTThickness = currentTProf?.thickness || recipe.transomThickness || 40;
+            
+            let paneH;
+            if (idx === 0) {
+              paneH = (t.height - (currentTThickness / 2)) - (recipe.glassDeductionH || 0) / (mod.transoms.length + 1) - transomGlassDeduction;
+            } else {
+              paneH = (t.height - lastY) - currentTThickness - transomGlassDeduction;
             }
-        }
+            
+            if (paneH > 0) panes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(idx) || false });
+            lastY = t.height;
+        });
+        
+        const lastTProf = aluminum.find(p => p.id === sorted[sorted.length-1].profileId);
+        const lastTThickness = lastTProf?.thickness || recipe.transomThickness || 40;
+        const lastPaneH = (modH - lastY) - (lastTThickness / 2) - (recipe.glassDeductionH || 0) / (mod.transoms.length + 1) - transomGlassDeduction;
+        if (lastPaneH > 0) panes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(sorted.length) || false });
     }
     return panes;
 };
@@ -102,16 +111,15 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
-            // Filtro para eliminar el corte extra de 1500 (W total) cuando hay travesaños dinámicos
-            recipe.profiles.filter(rp => {
-                if (rp.role === 'Travesaño' && mod.transoms && mod.transoms.length > 0) return false;
-                return true;
-            }).forEach(rp => {
+            recipe.profiles.forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId);
                 if (!pDef) return;
                 const isTJ = String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
                 
+                const isMosq = rp.role === 'Mosquitero' || pDef.id === recipe.mosquiteroProfileId;
+                if (isMosq && !item.extras.mosquitero) return;
+
                 const cutLen = evaluateFormula(rp.formula, modW, modH);
                 if (cutLen <= 0) return;
                 
@@ -121,24 +129,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 }
                 cutsByProfile.set(rp.profileId, list);
             });
-
-            // Solo se añaden los travesaños dinámicos tal cual dicta la fórmula
-            if (mod.transoms && mod.transoms.length > 0) {
-                mod.transoms.forEach((t: any) => {
-                    const pDef = aluminum.find(a => a.id === t.profileId);
-                    if (!pDef) return;
-                    const f = t.formula || recipe.transomFormula || 'W';
-                    const cutLen = evaluateFormula(f, modW, modH);
-                    if (cutLen <= 0) return;
-
-                    const list = cutsByProfile.get(t.profileId) || [];
-                    // Sin multiplicación por hojas, 1 travesaño es 1 corte por abertura
-                    for(let k=0; k < item.quantity; k++) {
-                        list.push({ len: cutLen, type: 'Travesaño', cutStart: '90', cutEnd: '90', label: itemCode });
-                    }
-                    cutsByProfile.set(t.profileId, list);
-                });
-            }
         });
     });
 
@@ -409,14 +399,13 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
-            // EXCLUIR Travesaños de receta fija para evitar duplicados en la hoja de armado
-            recipe.profiles.filter(rp => {
-                if (rp.role === 'Travesaño' && mod.transoms && mod.transoms.length > 0) return false;
-                return true;
-            }).forEach(rp => {
+            recipe.profiles.forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 const isTJ = String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
+
+                const isMosq = rp.role === 'Mosquitero' || p?.id === recipe.mosquiteroProfileId;
+                if (isMosq && !item.extras.mosquitero) return;
                 
                 const cutLen = evaluateFormula(rp.formula, modW, modH);
                 profileCuts.push([
@@ -427,21 +416,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                     `${rp.cutStart}° / ${rp.cutEnd}°`
                 ]);
             });
-
-            if (mod.transoms && mod.transoms.length > 0) {
-                mod.transoms.forEach((t: any) => {
-                    const p = aluminum.find(a => a.id === t.profileId);
-                    const f = t.formula || recipe.transomFormula || 'W';
-                    const cutLen = evaluateFormula(f, modW, modH);
-                    profileCuts.push([
-                        p?.code || 'S/D',
-                        'TRAVESAÑO',
-                        Math.round(cutLen),
-                        1, // Cantidad estricta 1 por pieza
-                        '90° / 90°'
-                    ]);
-                });
-            }
         });
 
         autoTable(doc, {
@@ -517,6 +491,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     let currentY = 35;
 
+    // ALUMINIO
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(11);
     doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY);
@@ -527,34 +502,22 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-
-            // Filtrar perfiles base (Excluir rol Travesaño si hay dinámicos para evitar el corte extra de 1500)
-            recipe.profiles.filter(rp => {
-                if (rp.role === 'Travesaño' && mod.transoms && mod.transoms.length > 0) return false;
-                return true;
-            }).forEach(rp => {
+            recipe.profiles.forEach(rp => {
                 const p = aluminum.find(a => a.id === rp.profileId);
                 if (!p) return;
+
+                const isTJ = String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
+                if (isTJ && !item.extras.tapajuntas) return;
+
+                const isMosq = rp.role === 'Mosquitero' || p.id === recipe.mosquiteroProfileId;
+                if (isMosq && !item.extras.mosquitero) return;
+
                 const len = evaluateFormula(rp.formula, item.width, item.height);
                 const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
                 const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
                 existing.totalMm += totalMm;
                 aluSummary.set(p.id, existing);
             });
-
-            // Añadir travesaños dinámicos
-            if (mod.transoms && mod.transoms.length > 0) {
-                mod.transoms.forEach((t: any) => {
-                    const p = aluminum.find(a => a.id === t.profileId);
-                    if (!p) return;
-                    const f = t.formula || recipe.transomFormula || 'W';
-                    const len = evaluateFormula(f, item.width, item.height);
-                    const totalMm = (len + config.discWidth) * item.quantity;
-                    const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
-                    existing.totalMm += totalMm;
-                    aluSummary.set(p.id, existing);
-                });
-            }
         });
     });
 
@@ -576,6 +539,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
+    // LLENADO
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11);
     doc.text('2. LISTADO DE CRISTALES, PANELES Y TELAS', 15, currentY);
@@ -615,6 +579,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
+    // ACCESORIOS, GOMAS Y FELPAS
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11);
     doc.text('3. LISTADO DE HERRAJES, GOMAS Y FELPAS', 15, currentY);
