@@ -127,8 +127,15 @@ export const calculateItemPrice = (
   const activeProfiles = (recipe.profiles || []).filter(rp => {
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
-    const isTJ = String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
+    
+    // Filtro para Tapajuntas
+    const isTJ = rp.role === 'Tapajuntas' || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
     if (isTJ && !extras?.tapajuntas) return false;
+
+    // Filtro para Mosquitero
+    const isMosq = rp.role === 'Mosquitero' || p.id === recipe.mosquiteroProfileId;
+    if (isMosq && !extras?.mosquitero) return false;
+
     return true;
   });
 
@@ -243,31 +250,39 @@ export const calculateItemPrice = (
     }
   });
 
+  // Cálculo adicional de mosquitero si no está incluido en la receta como perfil con rol
   if (extras?.mosquitero && visualType !== 'mosquitero') {
-      const mProfile = profiles.find(p => p.id === recipe.mosquiteroProfileId);
-      if (mProfile) {
-          const mW = evaluateFormula(recipe.mosquiteroFormulaW || 'W/2', width, height);
-          const mH = evaluateFormula(recipe.mosquiteroFormulaH || 'H-45', width, height);
-          glassCost += ((mW * mH) / 1000000) * (config.meshPricePerM2 || 25.0);
-          const frameWeight = ((mW * 2) + (mH * 2)) / 1000 * mProfile.weightPerMeter;
-          aluCost += frameWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
-          totalAluWeight += frameWeight;
+      const hasRoleMosq = recipe.profiles.some(rp => rp.role === 'Mosquitero');
+      if (!hasRoleMosq) {
+          const mProfile = profiles.find(p => p.id === recipe.mosquiteroProfileId);
+          if (mProfile) {
+              const mW = evaluateFormula(recipe.mosquiteroFormulaW || 'W/2', width, height);
+              const mH = evaluateFormula(recipe.mosquiteroFormulaH || 'H-45', width, height);
+              glassCost += ((mW * mH) / 1000000) * (config.meshPricePerM2 || 25.0);
+              const frameWeight = ((mW * 2) + (mH * 2)) / 1000 * mProfile.weightPerMeter;
+              aluCost += frameWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
+              totalAluWeight += frameWeight;
+          }
       }
   }
   
+  // Cálculo adicional de tapajuntas si no está incluido en la receta como perfil con rol
   if (extras?.tapajuntas && extras.tapajuntasSides) {
-    const tjProfile = profiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
-    if (tjProfile) {
-        const tjThick = tjProfile.thickness || recipe.tapajuntasThickness || 30;
-        const { top, bottom, left, right } = extras.tapajuntasSides;
-        let totalTJMm = 0;
-        if (top) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
-        if (bottom) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
-        if (left) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-        if (right) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-        const tjWeight = (totalTJMm / 1000) * tjProfile.weightPerMeter;
-        aluCost += tjWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
-        totalAluWeight += tjWeight;
+    const hasRoleTJ = recipe.profiles.some(rp => rp.role === 'Tapajuntas');
+    if (!hasRoleTJ) {
+        const tjProfile = profiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
+        if (tjProfile) {
+            const tjThick = tjProfile.thickness || recipe.tapajuntasThickness || 30;
+            const { top, bottom, left, right } = extras.tapajuntasSides;
+            let totalTJMm = 0;
+            if (top) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
+            if (bottom) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
+            if (left) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+            if (right) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+            const tjWeight = (totalTJMm / 1000) * tjProfile.weightPerMeter;
+            aluCost += tjWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
+            totalAluWeight += tjWeight;
+        }
     }
   }
 

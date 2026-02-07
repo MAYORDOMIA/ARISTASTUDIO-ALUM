@@ -67,7 +67,7 @@ export interface RecipeProfile {
   formula: string; 
   cutStart: '45' | '90';
   cutEnd: '45' | '90';
-  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Otro';
+  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Tapajuntas' | 'Mosquitero' | 'Otro';
 }
 
 export interface RecipeAccessory {

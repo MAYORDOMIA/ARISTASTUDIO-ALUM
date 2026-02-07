@@ -121,7 +121,6 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
 
   return (
     <div className="flex h-full gap-6 animate-in fade-in duration-500">
-      {/* MODAL DE ADVERTENCIA */}
       {showWarning && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-100 dark:border-amber-900/30 text-center space-y-6">
@@ -223,7 +222,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                         <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-slate-50/50 dark:bg-slate-800/30 p-2 rounded-xl border border-slate-100 dark:border-slate-700 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100">
                             <div className="col-span-2">
                                 <select className="w-full bg-transparent text-[9px] font-black uppercase outline-none dark:text-white" value={rp.role || 'Marco'} onChange={e => { const updated = [...recipe.profiles]; updated[idx].role = e.target.value as any; updateRecipe(recipe.id, { profiles: updated }); }}>
-                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
+                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Tapajuntas', 'Mosquitero', 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
                             </div>
                             <div className="col-span-2">
