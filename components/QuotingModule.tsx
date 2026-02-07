@@ -280,28 +280,33 @@ const drawDetailedOpening = (
 
     const drawGlassWithTransoms = (gx: number, gy: number, gw: number, gh: number, absoluteBottomY: number) => {
         if (transoms.length > 0) {
-            const sorted = [...transoms].sort((a, b) => b.height - a.height);
+            // Ordenar por altura desde abajo (t.height es mm desde la base del módulo)
+            const sorted = [...transoms].sort((a, b) => a.height - b.height);
             let currentTopY = gy;
             
-            sorted.reverse().forEach((t, i) => {
+            sorted.forEach((t, i) => {
                 const trProf = allProfiles.find(p => p.id === t.profileId);
                 const tThickness = (trProf?.thickness || 40) * pxPerMm;
+                // Posición Y en canvas relativa a la base absoluta del módulo (y + h)
                 const transomY = absoluteBottomY - (t.height * pxPerMm);
                 
-                if (transomY > gy && transomY < (gy + gh)) {
-                    const paneH = (transomY - (tThickness/2)) - currentTopY;
-                    const paneIndex = i;
-                    if (paneH > 0) drawPane(gx, currentTopY, gw, paneH, paneIndex);
-                    
-                    drawProfile([
-                        {x: gx, y: transomY - (tThickness/2)}, 
-                        {x: gx + gw, y: transomY - (tThickness/2)}, 
-                        {x: gx + gw, y: transomY + (tThickness/2)}, 
-                        {x: gx, y: transomY + (tThickness/2)}
-                    ]);
-                    currentTopY = transomY + (tThickness/2);
-                }
+                // Dibujar paño debajo del travesaño actual
+                const paneH = (transomY - (tThickness/2)) - currentTopY;
+                if (paneH > 0) drawPane(gx, currentTopY, gw, paneH, i);
+                
+                // Dibujar travesaño físico
+                drawProfile([
+                    {x: gx, y: transomY - (tThickness/2)}, 
+                    {x: gx + gw, y: transomY - (tThickness/2)}, 
+                    {x: gx + gw, y: transomY + (tThickness/2)}, 
+                    {x: gx, y: transomY + (tThickness/2)}
+                ]);
+                
+                // El siguiente paño empezará justo donde termina este travesaño
+                currentTopY = transomY + (tThickness/2);
             });
+            
+            // Paño final superior
             const lastPaneH = (gy + gh) - currentTopY;
             if (lastPaneH > 0) drawPane(gx, currentTopY, gw, lastPaneH, transoms.length);
         } else {
@@ -330,9 +335,9 @@ const drawDetailedOpening = (
     const innerX = x + frameT; const innerY = y + frameT;
     const innerW = w - frameT * 2; const innerH = h - (hasBottomFrame ? frameT * 2 : frameT);
 
-    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string) => {
+    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string, absoluteBottomY: number) => {
         const bT = leafHasZocalo ? zocaloT : leafT;
-        drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), ly + lh);
+        drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), absoluteBottomY);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
         
         if (force90) {
@@ -355,23 +360,24 @@ const drawDetailedOpening = (
             const leafW = (innerW / 3) + overlap;
             for(let i=0; i<3; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 2);
-                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
             }
         } else if (numLeaves === 4) {
             const leafW = (innerW / 4) + overlap;
             for(let i=0; i<4; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 3);
-                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding');
+                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
             }
         } else {
             const leafW = (innerW / 2) + overlap;
-            drawLeaf(innerX, innerY, innerH, leafW, true, hasZocalo, extras?.mosquitero || false, 'sliding');
-            drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, hasZocalo, false, 'sliding');
+            drawLeaf(innerX, innerY, innerH, leafW, true, hasZocalo, extras?.mosquitero || false, 'sliding', y + h);
+            drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, hasZocalo, false, 'sliding', y + h);
         }
     } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
-        drawLeaf(innerX, innerY, innerH, innerW, false, hasZocalo, extras?.mosquitero || false, visualType);
+        drawLeaf(innerX, innerY, innerH, innerW, false, hasZocalo, extras?.mosquitero || false, visualType, y + h);
     } else {
-        drawGlassWithTransoms(innerX, innerY, innerW, innerH, innerY + innerH);
+        // Para paño fijo, la base absoluta para travesaños es el borde inferior del marco (y + h)
+        drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
     }
 };
 
@@ -655,33 +661,56 @@ const QuotingModule: React.FC<Props> = ({
     });
   };
 
+  const centerTransomsForModule = (modId: string) => {
+    setModules(prev => prev.map(m => {
+        if (m.id !== modId || !m.transoms || m.transoms.length === 0) return m;
+        const modIdxY = m.y - bounds.minY;
+        const modH = rowSizes[modIdxY] || 0;
+        
+        const parts = m.transoms.length + 1;
+        const step = modH / parts;
+        const newTransoms = m.transoms.map((t, idx) => ({
+            ...t,
+            height: Math.round(step * (idx + 1))
+        }));
+        return { ...m, transoms: newTransoms };
+    }));
+  };
+
   const addTransomToModule = () => {
     if (!currentModForEdit) return;
-    const modIdxY = currentModForEdit.y - bounds.minY;
+    const modIdxY = currentModForEdit.y - bounds.minY; 
     const modH = rowSizes[modIdxY] || 0;
     const transomRecipe = recipes.find(r => r.id === currentModForEdit.recipeId);
-    const newTransom = { height: Math.round(modH / 2), profileId: transomRecipe?.defaultTransomProfileId || aluminum[0]?.id || '' };
-    updateModule(editingModuleId!, { transoms: [...(currentModForEdit.transoms || []), newTransom] });
+    
+    // Al añadir uno nuevo, invocamos redistribución para que aparezcan centrados por defecto
+    const updatedTransoms = [...(currentModForEdit.transoms || []), { height: 0, profileId: transomRecipe?.defaultTransomProfileId || aluminum[0]?.id || '' }];
+    
+    const parts = updatedTransoms.length + 1;
+    const step = modH / parts;
+    const redistributed = updatedTransoms.map((t, idx) => ({
+        ...t,
+        height: Math.round(step * (idx + 1))
+    }));
+
+    updateModule(editingModuleId!, { transoms: redistributed });
   };
 
   const removeTransomFromModule = (idx: number) => {
     if (!currentModForEdit) return;
-    updateModule(editingModuleId!, { transoms: currentModForEdit.transoms?.filter((_, i) => i !== idx) });
-  };
-
-  const centerTransoms = () => {
-    if (!currentModForEdit || !currentModForEdit.transoms || currentModForEdit.transoms.length === 0) return;
+    const filtered = currentModForEdit.transoms?.filter((_, i) => i !== idx) || [];
+    
+    // Al quitar uno, también redistribuimos los restantes para mantener la equidistancia por defecto
     const modIdxY = currentModForEdit.y - bounds.minY;
     const modH = rowSizes[modIdxY] || 0;
-    
-    // Si hay N travesaños, se divide el espacio en N+1 partes iguales.
-    const parts = currentModForEdit.transoms.length + 1;
+    const parts = filtered.length + 1;
     const step = modH / parts;
-    const newTransoms = currentModForEdit.transoms.map((t, idx) => ({
+    const redistributed = filtered.map((t, tidx) => ({
         ...t,
-        height: Math.round(step * (idx + 1))
+        height: Math.round(step * (tidx + 1))
     }));
-    updateModule(editingModuleId!, { transoms: newTransoms });
+
+    updateModule(editingModuleId!, { transoms: redistributed });
   };
 
   const startDragging = useCallback((e: React.MouseEvent, type: 'inge' | 'breakdown') => {
@@ -1075,25 +1104,28 @@ const QuotingModule: React.FC<Props> = ({
                             <div className="flex justify-between items-center border-l-4 border-indigo-600 pl-3">
                                 <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2"><Split size={14} className="rotate-90"/> Divisiones Técnicas</h4>
                                 <div className="flex gap-2">
-                                  <button onClick={centerTransoms} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase shadow hover:bg-slate-200 transition-all flex items-center gap-1.5">Equidistar</button>
-                                  <button onClick={addTransomToModule} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5"><Plus size={12}/> Nueva</button>
+                                  <button onClick={() => centerTransomsForModule(editingModuleId!)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase shadow hover:bg-slate-200 transition-all flex items-center gap-1.5">Equidistar</button>
+                                  <button onClick={addTransomToModule} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5"><Plus size={12}/> Nueva División</button>
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 {(currentModForEdit.transoms || []).map((t, idx) => (
-                                    <div key={idx} className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                                    <div key={idx} className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-3 group/item">
                                         <div className="flex-1 space-y-1">
                                             <div className="flex justify-between items-center">
-                                                <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Altura (mm)</label>
-                                                <span className="text-[7px] font-black text-indigo-500 uppercase">Posición Travesaño {idx+1}</span>
+                                                <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Altura desde Base (mm)</label>
+                                                <span className="text-[7px] font-black text-indigo-500 uppercase">Travesaño {idx+1}</span>
                                             </div>
-                                            <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none" value={t.height} onChange={e => {
-                                                const newTransoms = [...(currentModForEdit.transoms || [])];
-                                                newTransoms[idx].height = parseInt(e.target.value) || 0;
-                                                updateModule(editingModuleId, { transoms: newTransoms });
-                                            }} />
+                                            <div className="relative">
+                                                <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none pr-12" value={t.height} onChange={e => {
+                                                    const newTransoms = [...(currentModForEdit.transoms || [])];
+                                                    newTransoms[idx].height = parseInt(e.target.value) || 0;
+                                                    updateModule(editingModuleId, { transoms: newTransoms });
+                                                }} />
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">MM</div>
+                                            </div>
                                         </div>
-                                        <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 mt-3"><Trash2 size={14}/></button>
+                                        <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"><Trash2 size={16}/></button>
                                     </div>
                                 ))}
                             </div>
@@ -1108,7 +1140,7 @@ const QuotingModule: React.FC<Props> = ({
                                     return (
                                         <div key={paneIdx} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4 rounded-2xl shadow-sm space-y-4">
                                             <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-700 pb-3">
-                                                <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Paño {paneIdx+1}</span>
+                                                <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Paño {paneIdx === 0 ? 'Inferior' : (paneIdx === currentModForEdit.transoms?.length ? 'Superior' : `Medio ${paneIdx}`)}</span>
                                                 <div className="flex gap-1 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl">
                                                     <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps, glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '' }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
                                                     <button onClick={() => { 

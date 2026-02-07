@@ -197,6 +197,7 @@ export const calculateItemPrice = (
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
   } else {
+    // IMPORTANTE: Ordenamos de abajo hacia arriba para el cálculo
     const sorted = [...transoms].sort((a, b) => a.height - b.height);
     let lastY = 0;
     
@@ -206,10 +207,11 @@ export const calculateItemPrice = (
       
       let paneH;
       if (idx === 0) {
-        // First pane (bottom one if sorted ascending by height from bottom)
+        // Paño inferior: desde la base hasta la mitad inferior del primer travesaño
+        // Restamos proporcionalmente la deducción global del vidrio
         paneH = (t.height - (transomThickness / 2)) - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
       } else {
-        // Middle panes
+        // Paños intermedios: entre la mitad superior del travesaño anterior y la mitad inferior del actual
         paneH = (t.height - lastY) - transomThickness - transomGlassDeduction;
       }
       
@@ -217,9 +219,10 @@ export const calculateItemPrice = (
       lastY = t.height;
     });
     
+    // Último paño (superior)
     const lastTrProf = profiles.find(p => p.id === sorted[sorted.length-1].profileId);
     const lastTransomThickness = lastTrProf?.thickness || recipe.transomThickness || 40;
-    const finalPaneH = (height - lastY) - (lastTransomThickness / 2) - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
+    const finalPaneH = (height - lastY) - (lastTrProf?.thickness || 40) / 2 - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
     if (finalPaneH > 0) glassPanes.push({ w: gW, h: finalPaneH });
   }
 
