@@ -129,6 +129,9 @@ export const calculateItemPrice = (
   else if (visualType.includes('sliding')) numLeaves = 2;
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
+    // Si el perfil tiene rol Travesaño en la receta, NO se suma aquí porque se suma dinámicamente abajo
+    if (rp.role === 'Travesaño') return false;
+
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     const isTJ = rp.role === 'Tapajuntas' || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
@@ -147,13 +150,13 @@ export const calculateItemPrice = (
     }
   });
 
+  // Cálculo de Travesaños Dinámicos (Sólo medida de fórmula)
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
         const f = t.formula || recipe.transomFormula || 'W';
         const tCut = evaluateFormula(f, width, height);
-        // Según requerimiento: No se multiplica por hojas, es la medida de la fórmula
         totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
       }
     });
@@ -195,7 +198,7 @@ export const calculateItemPrice = (
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
   } else {
-    // Los vidrios se dividen equitativamente restando el descuento por travesaño
+    // División exacta y simétrica de vidrios
     const numPanes = transoms.length + 1;
     const totalDeduction = transomGlassDeduction * transoms.length;
     const equalPaneH = (gH - totalDeduction) / numPanes;
