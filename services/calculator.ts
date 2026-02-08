@@ -123,6 +123,10 @@ export const calculateItemPrice = (
   let accCost = 0;
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
+    // REGLA DE NEGOCIO: Los travesaños de la receta SE IGNORAN. 
+    // Solo se sumarán si el usuario los añade manualmente a través de la interfaz (array 'transoms').
+    if (rp.role === 'Travesaño') return false;
+
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
@@ -144,6 +148,7 @@ export const calculateItemPrice = (
     }
   });
 
+  // Solo se suman travesaños si vienen en la lista dinámica de ingeniería solicitada por el usuario
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
@@ -197,7 +202,6 @@ export const calculateItemPrice = (
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
   } else {
-    // IMPORTANTE: Ordenamos de abajo hacia arriba para el cálculo
     const sorted = [...transoms].sort((a, b) => a.height - b.height);
     let lastY = 0;
     
@@ -207,11 +211,8 @@ export const calculateItemPrice = (
       
       let paneH;
       if (idx === 0) {
-        // Paño inferior: desde la base hasta la mitad inferior del primer travesaño
-        // Restamos proporcionalmente la deducción global del vidrio
         paneH = (t.height - (transomThickness / 2)) - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
       } else {
-        // Paños intermedios: entre la mitad superior del travesaño anterior y la mitad inferior del actual
         paneH = (t.height - lastY) - transomThickness - transomGlassDeduction;
       }
       
@@ -219,7 +220,6 @@ export const calculateItemPrice = (
       lastY = t.height;
     });
     
-    // Último paño (superior)
     const lastTrProf = profiles.find(p => p.id === sorted[sorted.length-1].profileId);
     const lastTransomThickness = lastTrProf?.thickness || recipe.transomThickness || 40;
     const finalPaneH = (height - lastY) - (lastTrProf?.thickness || 40) / 2 - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
