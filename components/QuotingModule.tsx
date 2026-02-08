@@ -98,7 +98,7 @@ const drawDetailedOpening = (
     ctx: CanvasRenderingContext2D,
     x: number, y: number, w: number, h: number,
     recipe: ProductRecipe,
-    isDVH: boolean,
+    isDVH,
     color: string,
     extras?: QuoteItem['extras'],
     edges?: { top: boolean, bottom: boolean, left: boolean, right: boolean },
@@ -1024,7 +1024,7 @@ const QuotingModule: React.FC<Props> = ({
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Tipología</label>
-                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { const r = recipes.find(x => x.id === e.target.value); if (r) updateModule(editingModuleId, { recipeId: r.id, transoms: r.defaultTransoms || [], overriddenAccessories: r.accessories || [] }); }}>
+                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { const r = recipes.find(x => x.id === e.target.value); if (r) updateModule(editingModuleId, { recipeId: r.id, transoms: [], overriddenAccessories: r.accessories || [] }); }}>
                                         <option value="">(SELECCIONE)</option>
                                         {recipes.filter(r => recipeFilter === 'TODOS' || r.line.toUpperCase() === recipeFilter).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>

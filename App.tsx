@@ -70,7 +70,7 @@ const App: React.FC = () => {
     discWidth: 4,
     taxRate: 21,
     blindPanelPricePerM2: 85.0, 
-    meshPricePerM2: 25.0, // Inicialización del precio de tela
+    meshPricePerM2: 25.0,
     companyName: 'ARISTASTUDIO ALUM',
     companyAddress: 'Planta Industrial Central',
     companyPhone: '+54 11 0000 0000',
@@ -90,7 +90,6 @@ const App: React.FC = () => {
   const [currentWorkItems, setCurrentWorkItems] = useState<QuoteItem[]>([]);
   const [activeQuoteItem, setActiveQuoteItem] = useState<QuoteItem | null>(null);
 
-  // Gestión de Tema
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -161,46 +160,6 @@ const App: React.FC = () => {
         setConfig(prev => ({ ...prev, companyLogo: reader.result as string }));
       };
       reader.readAsDataURL(file);
-    }
-  };
-
-  const handleLiveReport = (type: 'presupuesto' | 'taller' | 'materiales' | 'barras' | 'vidrios' | 'costos') => {
-    const itemsToReport = activeTab === 'obras' ? currentWorkItems : (activeQuoteItem ? [activeQuoteItem] : []);
-    if (itemsToReport.length === 0) {
-        alert("No hay carpinterías cargadas para generar el reporte.");
-        return;
-    }
-    const tempQuote: Quote = {
-        id: 'REPORTE-' + Date.now().toString().substring(8),
-        clientName: 'INGENIERÍA ACTIVA',
-        date: new Date().toISOString(),
-        items: itemsToReport,
-        totalPrice: Math.round(itemsToReport.reduce((acc, i) => acc + (i.calculatedCost * i.quantity), 0) * (1 + config.taxRate/100))
-    };
-    try {
-        switch (type) {
-            case 'presupuesto': 
-              generateClientDetailedPDF(tempQuote, config, recipes, glasses, dvhInputs, treatments); 
-              break;
-            case 'taller': 
-              generateAssemblyOrderPDF(tempQuote, recipes, aluminum, glasses, dvhInputs); 
-              break;
-            case 'materiales': 
-              generateMaterialsOrderPDF(tempQuote, recipes, aluminum, accessories, glasses, dvhInputs, config); 
-              break;
-            case 'barras': 
-              generateBarOptimizationPDF(tempQuote, recipes, aluminum, config); 
-              break;
-            case 'vidrios': 
-              generateGlassOptimizationPDF(tempQuote, recipes, glasses, aluminum, dvhInputs); 
-              break;
-            case 'costos':
-              generateCostsPDF(tempQuote, config, recipes, aluminum);
-              break;
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Error al generar reporte técnico.");
     }
   };
 
