@@ -57,7 +57,10 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
         const modW = (item.width * colRatio) / sumCols;
         const modH = (item.height * rowRatio) / sumRows;
 
+        // Perfiles Estructurales (FILTRANDO TRAVESAÑOS ESTÁTICOS)
         recipe.profiles.forEach(rp => {
+            if (rp.role === 'Travesaño') return;
+
             const pDef = aluminum.find(a => a.id === rp.profileId);
             if (!pDef) return;
 
@@ -70,6 +73,24 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
             existing.totalWeight += weight;
             summary.set(pDef.id, existing);
         });
+
+        // Travesaños Dinámicos (LOS QUE EL USUARIO PIDIÓ)
+        if (mod.transoms && mod.transoms.length > 0) {
+          mod.transoms.forEach(t => {
+            const trProf = aluminum.find(p => p.id === t.profileId);
+            if (trProf) {
+              const f = t.formula || recipe.transomFormula || 'W';
+              const cutLen = evaluateFormula(f, modW, modH);
+              const totalCutLen = (cutLen + config.discWidth) * item.quantity;
+              const weight = (totalCutLen / 1000) * trProf.weightPerMeter;
+
+              const existing = summary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalLength: 0, totalWeight: 0 };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(trProf.id, existing);
+            }
+          });
+        }
       });
     });
 

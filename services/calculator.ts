@@ -123,8 +123,7 @@ export const calculateItemPrice = (
   let accCost = 0;
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
-    // REGLA DE NEGOCIO: Los travesaños de la receta SE IGNORAN. 
-    // Solo se sumarán si el usuario los añade manualmente a través de la interfaz (array 'transoms').
+    // FILTRO CRÍTICO: Ignorar Travesaños de la receta siempre.
     if (rp.role === 'Travesaño') return false;
 
     const p = profiles.find(x => x.id === rp.profileId);
@@ -148,7 +147,7 @@ export const calculateItemPrice = (
     }
   });
 
-  // Solo se suman travesaños si vienen en la lista dinámica de ingeniería solicitada por el usuario
+  // Solo se suman travesaños si el usuario los cargó dinámicamente
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
@@ -222,7 +221,7 @@ export const calculateItemPrice = (
     
     const lastTrProf = profiles.find(p => p.id === sorted[sorted.length-1].profileId);
     const lastTransomThickness = lastTrProf?.thickness || recipe.transomThickness || 40;
-    const finalPaneH = (height - lastY) - (lastTrProf?.thickness || 40) / 2 - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
+    const finalPaneH = (height - lastY) - (lastTransomThickness / 2) - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
     if (finalPaneH > 0) glassPanes.push({ w: gW, h: finalPaneH });
   }
 

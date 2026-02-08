@@ -111,9 +111,14 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
+            // Perfiles de la receta (FILTRANDO TRAVESAÑOS)
             recipe.profiles.forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId);
                 if (!pDef) return;
+
+                // REGLA: Ignorar travesaños estáticos
+                if (rp.role === 'Travesaño') return;
+
                 const isTJ = String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
                 
@@ -129,6 +134,24 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 }
                 cutsByProfile.set(rp.profileId, list);
             });
+
+            // Travesaños dinámicos (LOS QUE EL USUARIO PIDIÓ)
+            if (mod.transoms && mod.transoms.length > 0) {
+              mod.transoms.forEach(t => {
+                const trProf = aluminum.find(p => p.id === t.profileId);
+                if (trProf) {
+                  const f = t.formula || recipe.transomFormula || 'W';
+                  const cutLen = evaluateFormula(f, modW, modH);
+                  if (cutLen > 0) {
+                    const list = cutsByProfile.get(trProf.id) || [];
+                    for(let k=0; k < item.quantity; k++) {
+                      list.push({ len: cutLen, type: 'Travesaño', cutStart: '90', cutEnd: '90', label: itemCode });
+                    }
+                    cutsByProfile.set(trProf.id, list);
+                  }
+                }
+              });
+            }
         });
     });
 
@@ -400,6 +423,9 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const modH = (item.height * rowRatio) / sumRows;
 
             recipe.profiles.forEach(rp => {
+                // FILTRO: Ignorar travesaños de la receta
+                if (rp.role === 'Travesaño') return;
+
                 const p = aluminum.find(a => a.id === rp.profileId);
                 const isTJ = String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
@@ -416,6 +442,24 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                     `${rp.cutStart}° / ${rp.cutEnd}°`
                 ]);
             });
+
+            // Añadir travesaños dinámicos
+            if (mod.transoms && mod.transoms.length > 0) {
+              mod.transoms.forEach(t => {
+                const trProf = aluminum.find(p => p.id === t.profileId);
+                if (trProf) {
+                  const f = t.formula || recipe.transomFormula || 'W';
+                  const cutLen = evaluateFormula(f, modW, modH);
+                  profileCuts.push([
+                    trProf.code,
+                    trProf.detail,
+                    Math.round(cutLen),
+                    1,
+                    '90° / 90°'
+                  ]);
+                }
+              });
+            }
         });
 
         autoTable(doc, {
@@ -450,7 +494,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 }
             }
 
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4') ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1));
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
 
             panes.forEach((p, pIdx) => {
                 if (!p.isBlind) {
@@ -503,6 +547,9 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             recipe.profiles.forEach(rp => {
+                // FILTRO: Ignorar travesaños de la receta
+                if (rp.role === 'Travesaño') return;
+
                 const p = aluminum.find(a => a.id === rp.profileId);
                 if (!p) return;
 
@@ -518,6 +565,21 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 existing.totalMm += totalMm;
                 aluSummary.set(p.id, existing);
             });
+
+            // Incluir travesaños dinámicos
+            if (mod.transoms && mod.transoms.length > 0) {
+              mod.transoms.forEach(t => {
+                const trProf = aluminum.find(p => p.id === t.profileId);
+                if (trProf) {
+                  const f = t.formula || recipe.transomFormula || 'W';
+                  const len = evaluateFormula(f, item.width, item.height);
+                  const totalMm = (len + config.discWidth) * item.quantity;
+                  const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
+                  existing.totalMm += totalMm;
+                  aluSummary.set(trProf.id, existing);
+                }
+              });
+            }
         });
     });
 
@@ -551,7 +613,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4') ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1));
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
             
             panes.forEach(pane => {
                 if (pane.isBlind) return;
@@ -634,7 +696,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe || recipe.visualType === 'mosquitero') return;
 
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4') ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1));
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const gOuter = glasses.find(g => g.id === mod.glassOuterId);
             const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
