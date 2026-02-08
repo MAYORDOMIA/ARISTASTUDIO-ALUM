@@ -116,6 +116,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
               rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
             );
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+            const recipeTransomQty = transomTemplate?.quantity || 1;
 
             // Perfiles de la receta (FILTRANDO TRAVESAÑOS)
             recipe.profiles.forEach(rp => {
@@ -146,12 +147,12 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
               mod.transoms.forEach(t => {
                 const trProf = aluminum.find(p => p.id === t.profileId);
                 if (trProf) {
-                  // Se rige por la fórmula de la receta
+                  // Se rige por la fórmula Y LA CANTIDAD de la receta
                   const f = t.formula || recipeTransomFormula;
                   const cutLen = evaluateFormula(f, modW, modH);
                   if (cutLen > 0) {
                     const list = cutsByProfile.get(trProf.id) || [];
-                    for(let k=0; k < item.quantity; k++) {
+                    for(let k=0; k < recipeTransomQty * item.quantity; k++) {
                       list.push({ len: cutLen, type: 'Travesaño', cutStart: '90', cutEnd: '90', label: itemCode });
                     }
                     cutsByProfile.set(trProf.id, list);
@@ -434,6 +435,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
               rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
             );
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+            const recipeTransomQty = transomTemplate?.quantity || 1;
 
             recipe.profiles.forEach(rp => {
                 const role = rp.role?.toLowerCase() || '';
@@ -456,7 +458,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 ]);
             });
 
-            // Añadir travesaños dinámicos con fórmula de la receta
+            // Añadir travesaños dinámicos con fórmula Y CANTIDAD de la receta
             if (mod.transoms && mod.transoms.length > 0) {
               mod.transoms.forEach(t => {
                 const trProf = aluminum.find(p => p.id === t.profileId);
@@ -467,7 +469,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                     trProf.code,
                     trProf.detail,
                     Math.round(cutLen),
-                    1,
+                    recipeTransomQty, // Respetamos la cantidad por travesaño
                     '90° / 90°'
                   ]);
                 }
@@ -564,6 +566,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
               rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
             );
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+            const recipeTransomQty = transomTemplate?.quantity || 1;
 
             recipe.profiles.forEach(rp => {
                 const role = rp.role?.toLowerCase() || '';
@@ -592,7 +595,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (trProf) {
                   const f = t.formula || recipeTransomFormula;
                   const len = evaluateFormula(f, item.width, item.height);
-                  const totalMm = (len + config.discWidth) * item.quantity;
+                  const totalMm = (len + config.discWidth) * recipeTransomQty * item.quantity;
                   const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
                   existing.totalMm += totalMm;
                   aluSummary.set(trProf.id, existing);

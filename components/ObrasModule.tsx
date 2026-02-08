@@ -57,11 +57,12 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
         const modW = (item.width * colRatio) / sumCols;
         const modH = (item.height * rowRatio) / sumRows;
 
-        // Búsqueda de fórmula de travesaño en la receta para travesaños dinámicos
+        // Búsqueda de fórmula Y CANTIDAD de travesaño en la receta para travesaños dinámicos
         const transomTemplate = (recipe.profiles || []).find(rp => 
           rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
         );
         const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+        const recipeTransomQty = transomTemplate?.quantity || 1;
 
         // Perfiles Estructurales (FILTRANDO TRAVESAÑOS ESTÁTICOS)
         recipe.profiles.forEach(rp => {
@@ -86,10 +87,10 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
           mod.transoms.forEach(t => {
             const trProf = aluminum.find(p => p.id === t.profileId);
             if (trProf) {
-              // Aplicar fórmula de la receta
+              // Aplicar fórmula Y CANTIDAD de la receta
               const f = t.formula || recipeTransomFormula;
               const cutLen = evaluateFormula(f, modW, modH);
-              const totalCutLen = (cutLen + config.discWidth) * item.quantity;
+              const totalCutLen = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
               const weight = (totalCutLen / 1000) * trProf.weightPerMeter;
 
               const existing = summary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalLength: 0, totalWeight: 0 };

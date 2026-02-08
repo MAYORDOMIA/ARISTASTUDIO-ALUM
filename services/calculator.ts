@@ -123,11 +123,12 @@ export const calculateItemPrice = (
   let accCost = 0;
 
   // REGLA: Ignorar travesaños de la receta siempre.
-  // Buscamos la plantilla de travesaño para obtener la fórmula de la receta.
+  // Buscamos la plantilla de travesaño para obtener la fórmula y la CANTIDAD de la receta.
   const transomTemplate = (recipe.profiles || []).find(rp => 
       rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
   );
   const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+  const recipeTransomQty = transomTemplate?.quantity || 1;
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
     const role = rp.role?.toLowerCase() || '';
@@ -159,10 +160,10 @@ export const calculateItemPrice = (
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
-        // El travesaño se rige por la fórmula de la receta, no solo por el ancho total.
+        // Se rige por la fórmula Y LA CANTIDAD de la receta original
         const f = t.formula || recipeTransomFormula;
         const tCut = evaluateFormula(f, width, height);
-        totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
+        totalAluWeight += ((tCut + config.discWidth) / 1000) * recipeTransomQty * trProf.weightPerMeter;
       }
     });
   }
