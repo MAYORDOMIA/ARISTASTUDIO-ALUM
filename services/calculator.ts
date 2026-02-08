@@ -122,17 +122,24 @@ export const calculateItemPrice = (
   let glassCost = 0;
   let accCost = 0;
 
+  // REGLA: Ignorar travesaños de la receta siempre.
+  // Buscamos la plantilla de travesaño para obtener la fórmula de la receta.
+  const transomTemplate = (recipe.profiles || []).find(rp => 
+      rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
+  );
+  const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+
   const activeProfiles = (recipe.profiles || []).filter(rp => {
-    // FILTRO CRÍTICO: Ignorar Travesaños de la receta siempre.
-    if (rp.role === 'Travesaño') return false;
+    const role = rp.role?.toLowerCase() || '';
+    if (role.includes('trave')) return false;
 
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
-    const isTJ = rp.role === 'Tapajuntas' || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
+    const isTJ = role.includes('tapajuntas') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
     if (isTJ && !extras?.tapajuntas) return false;
 
-    const isMosq = rp.role === 'Mosquitero' || p.id === recipe.mosquiteroProfileId;
+    const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
     if (isMosq && !extras?.mosquitero) return false;
 
     return true;
@@ -147,12 +154,13 @@ export const calculateItemPrice = (
     }
   });
 
-  // Solo se suman travesaños si el usuario los cargó dinámicamente
+  // Solo se suman travesaños si el usuario los activó explícitamente en el módulo
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
-        const f = t.formula || recipe.transomFormula || 'W';
+        // El travesaño se rige por la fórmula de la receta, no solo por el ancho total.
+        const f = t.formula || recipeTransomFormula;
         const tCut = evaluateFormula(f, width, height);
         totalAluWeight += ((tCut + config.discWidth) / 1000) * trProf.weightPerMeter;
       }
@@ -258,7 +266,7 @@ export const calculateItemPrice = (
   });
 
   if (extras?.mosquitero && visualType !== 'mosquitero') {
-      const hasRoleMosq = recipe.profiles.some(rp => rp.role === 'Mosquitero');
+      const hasRoleMosq = recipe.profiles.some(rp => (rp.role || '').toLowerCase().includes('mosq'));
       if (!hasRoleMosq) {
           const mProfile = profiles.find(p => p.id === recipe.mosquiteroProfileId);
           if (mProfile) {
@@ -274,7 +282,7 @@ export const calculateItemPrice = (
   }
   
   if (extras?.tapajuntas && extras.tapajuntasSides) {
-    const hasRoleTJ = recipe.profiles.some(rp => rp.role === 'Tapajuntas');
+    const hasRoleTJ = recipe.profiles.some(rp => (rp.role || '').toLowerCase().includes('tapa'));
     if (!hasRoleTJ) {
         const tjProfile = profiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
         if (tjProfile) {

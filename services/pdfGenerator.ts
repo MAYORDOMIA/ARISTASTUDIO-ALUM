@@ -111,18 +111,24 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
+            // Plantilla de travesaño de la receta
+            const transomTemplate = (recipe.profiles || []).find(rp => 
+              rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
+            );
+            const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+
             // Perfiles de la receta (FILTRANDO TRAVESAÑOS)
             recipe.profiles.forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId);
                 if (!pDef) return;
 
-                // REGLA: Ignorar travesaños estáticos
-                if (rp.role === 'Travesaño') return;
+                const role = rp.role?.toLowerCase() || '';
+                if (role.includes('trave')) return;
 
-                const isTJ = String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
+                const isTJ = role.includes('tapajuntas') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
                 
-                const isMosq = rp.role === 'Mosquitero' || pDef.id === recipe.mosquiteroProfileId;
+                const isMosq = role.includes('mosquitero') || pDef.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
 
                 const cutLen = evaluateFormula(rp.formula, modW, modH);
@@ -140,7 +146,8 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
               mod.transoms.forEach(t => {
                 const trProf = aluminum.find(p => p.id === t.profileId);
                 if (trProf) {
-                  const f = t.formula || recipe.transomFormula || 'W';
+                  // Se rige por la fórmula de la receta
+                  const f = t.formula || recipeTransomFormula;
                   const cutLen = evaluateFormula(f, modW, modH);
                   if (cutLen > 0) {
                     const list = cutsByProfile.get(trProf.id) || [];
@@ -422,15 +429,21 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const modW = (item.width * colRatio) / sumCols;
             const modH = (item.height * rowRatio) / sumRows;
 
+            // Plantilla travesaño
+            const transomTemplate = (recipe.profiles || []).find(rp => 
+              rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
+            );
+            const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+
             recipe.profiles.forEach(rp => {
-                // FILTRO: Ignorar travesaños de la receta
-                if (rp.role === 'Travesaño') return;
+                const role = rp.role?.toLowerCase() || '';
+                if (role.includes('trave')) return;
 
                 const p = aluminum.find(a => a.id === rp.profileId);
-                const isTJ = String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
+                const isTJ = role.includes('tapajuntas') || String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
 
-                const isMosq = rp.role === 'Mosquitero' || p?.id === recipe.mosquiteroProfileId;
+                const isMosq = role.includes('mosquitero') || p?.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
                 
                 const cutLen = evaluateFormula(rp.formula, modW, modH);
@@ -443,12 +456,12 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 ]);
             });
 
-            // Añadir travesaños dinámicos
+            // Añadir travesaños dinámicos con fórmula de la receta
             if (mod.transoms && mod.transoms.length > 0) {
               mod.transoms.forEach(t => {
                 const trProf = aluminum.find(p => p.id === t.profileId);
                 if (trProf) {
-                  const f = t.formula || recipe.transomFormula || 'W';
+                  const f = t.formula || recipeTransomFormula;
                   const cutLen = evaluateFormula(f, modW, modH);
                   profileCuts.push([
                     trProf.code,
@@ -546,17 +559,23 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
+
+            const transomTemplate = (recipe.profiles || []).find(rp => 
+              rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
+            );
+            const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+
             recipe.profiles.forEach(rp => {
-                // FILTRO: Ignorar travesaños de la receta
-                if (rp.role === 'Travesaño') return;
+                const role = rp.role?.toLowerCase() || '';
+                if (role.includes('trave')) return;
 
                 const p = aluminum.find(a => a.id === rp.profileId);
                 if (!p) return;
 
-                const isTJ = String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
+                const isTJ = role.includes('tapajuntas') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && !item.extras.tapajuntas) return;
 
-                const isMosq = rp.role === 'Mosquitero' || p.id === recipe.mosquiteroProfileId;
+                const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
 
                 const len = evaluateFormula(rp.formula, item.width, item.height);
@@ -571,7 +590,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
               mod.transoms.forEach(t => {
                 const trProf = aluminum.find(p => p.id === t.profileId);
                 if (trProf) {
-                  const f = t.formula || recipe.transomFormula || 'W';
+                  const f = t.formula || recipeTransomFormula;
                   const len = evaluateFormula(f, item.width, item.height);
                   const totalMm = (len + config.discWidth) * item.quantity;
                   const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
