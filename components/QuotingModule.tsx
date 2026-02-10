@@ -99,7 +99,6 @@ const drawDetailedOpening = (
     ctx: CanvasRenderingContext2D,
     x: number, y: number, w: number, h: number,
     recipe: ProductRecipe,
-    // Fix: Added missing boolean type for isDVH
     isDVH: boolean,
     color: string,
     extras?: QuoteItem['extras'],
@@ -117,15 +116,20 @@ const drawDetailedOpening = (
     const visualType = recipe.visualType || 'fixed';
     const isDoor = visualType.includes('door') || recipe.type === 'Puerta';
     
-    const hasBottomFrame = !isDoor;
+    // Identificadores de nuevos tipos
+    const isMamparaFija = visualType === 'mampara_fija';
+    const isMamparaRebatir = visualType === 'mampara_rebatir';
+    const isVidrioSolo = visualType === 'vidrio_solo';
+    const isPuertaZocalon = visualType === 'puerta_zocalon';
+    const isPFZocalon = visualType === 'pf_zocalon';
+
+    const hasBottomFrame = !isDoor && !isMamparaRebatir && !isVidrioSolo && !isPFZocalon && !isPuertaZocalon;
     const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
-    const hasZocalo = visualType.includes('zocalo') || visualType.includes('high') || isDoor;
-    const isZocaloChico = visualType.includes('chico') || visualType.includes('low');
     
     const tjProf = allProfiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
     const frameT = 45 * pxPerMm;
     const leafT = (isDoor ? 75 : 45) * pxPerMm;
-    const zocaloT = (isDoor ? 120 : (isZocaloChico ? 65 : 115)) * pxPerMm;
+    const zocaloT = (isDoor || isPuertaZocalon || isPFZocalon ? 120 : 65) * pxPerMm;
     const tjSize = (Number(tjProf?.thickness || 40)) * pxPerMm; 
 
     const drawProfile = (points: {x:number, y:number}[]) => {
@@ -163,9 +167,7 @@ const drawDetailedOpening = (
             grad.addColorStop(1, 'rgba(0,0,0,0.18)');       
             ctx.fillStyle = grad;
             ctx.fill();
-        } catch(e) {
-            // Failsafe for gradient errors
-        }
+        } catch(e) {}
 
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -181,57 +183,6 @@ const drawDetailedOpening = (
         ctx.strokeStyle = 'rgba(0,0,0,0.25)';
         ctx.lineWidth = 0.6;
         ctx.stroke();
-        ctx.restore();
-    };
-
-    const drawOpeningSymbol = (sx: number, sy: number, sw: number, sh: number, leafType: string, isMesh: boolean = false) => {
-        if (!isFinite(sx) || !isFinite(sy) || !isFinite(sw) || !isFinite(sh)) return;
-        ctx.save();
-        if (isMesh) {
-            ctx.fillStyle = 'rgba(203, 213, 225, 0.5)';
-            ctx.fillRect(sx, sy, sw, sh);
-            ctx.strokeStyle = 'rgba(30, 41, 59, 0.25)';
-            ctx.lineWidth = 0.4;
-            const step = 4 * pxPerMm;
-            for(let i = 0; i <= sw; i += step) {
-                ctx.beginPath(); ctx.moveTo(sx + i, sy); ctx.lineTo(sx + i, sy + sh); ctx.stroke();
-            }
-            for(let j = 0; j <= sh; j += step) {
-                ctx.beginPath(); ctx.moveTo(sx, sy + j); ctx.lineTo(sx + sw, sy + j); ctx.stroke();
-            }
-            ctx.restore();
-            return;
-        }
-        ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = 'rgba(79, 70, 229, 0.6)';
-        ctx.lineWidth = 1.2;
-        if (leafType.includes('swing') || leafType.includes('door') || leafType.includes('right') || leafType.includes('left')) {
-            const isRight = leafType.includes('right');
-            ctx.beginPath();
-            if (isRight) {
-                ctx.moveTo(sx, sy); ctx.lineTo(sx + sw, sy + sh/2); ctx.lineTo(sx, sy + sh);
-            } else {
-                ctx.moveTo(sx + sw, sy); ctx.lineTo(sx, sy + sh/2); ctx.lineTo(sx, sy + sh);
-            }
-            ctx.stroke();
-        } else if (leafType.includes('sliding')) {
-            ctx.setLineDash([]);
-            ctx.fillStyle = 'rgba(79, 70, 229, 0.5)';
-            const midY = sy + sh/2;
-            const midX = sx + sw/2;
-            ctx.beginPath();
-            ctx.moveTo(midX - 18*pxPerMm, midY); ctx.lineTo(midX + 18*pxPerMm, midY); ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(midX + 10*pxPerMm, midY - 5*pxPerMm); ctx.lineTo(midX + 18*pxPerMm, midY); ctx.lineTo(midX + 10*pxPerMm, midY + 5*pxPerMm);
-            ctx.fill();
-        } else if (leafType.includes('projecting') || leafType.includes('ventiluz')) {
-            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sw/2, sy + sh); ctx.lineTo(sx + sw, sy); ctx.stroke();
-        } else if (leafType.includes('banderola')) {
-            ctx.beginPath(); ctx.moveTo(sx, sy + sh); ctx.lineTo(sx + sw/2, sy); ctx.lineTo(sx + sw, sy + sh); ctx.stroke();
-        } else if (leafType.includes('tilt_turn') || leafType.includes('oscilo')) {
-            ctx.beginPath(); ctx.moveTo(sx + sw, sy); ctx.lineTo(sx, sy + sh/2); ctx.lineTo(sx + sw, sy + sh); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(sx, sy + sh); ctx.lineTo(sx + sw/2, sy); ctx.lineTo(sx + sw, sy + sh); ctx.stroke();
-        }
         ctx.restore();
     };
 
@@ -312,6 +263,45 @@ const drawDetailedOpening = (
         }
     };
 
+    // LÓGICA DE DIBUJO CUSTOM SEGÚN TIPO
+    if (isVidrioSolo) {
+        drawGlassWithTransoms(x, y, w, h, y + h);
+        return;
+    }
+
+    if (isMamparaRebatir) {
+        // Fix invalid shorthand object literal {x, y + h}
+        drawProfile([{x, y}, {x: x + frameT, y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]);
+        drawGlassWithTransoms(x + frameT, y, w - frameT, h, y + h);
+        return;
+    }
+
+    if (isMamparaFija) {
+        // Fix invalid shorthand object literal {x, y + h}
+        drawProfile([{x, y}, {x: x + frameT, y}, {x: x + frameT, y: y + h - frameT}, {x: x, y: y + h}]); // Vertical L
+        drawProfile([{x: x + frameT, y: y + h - frameT}, {x: x + w, y: y + h - frameT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); // Horizontal B
+        drawGlassWithTransoms(x + frameT, y, w - frameT, h - frameT, y + h);
+        return;
+    }
+
+    if (isPFZocalon) {
+        // Fix invalid shorthand object literal {x, y + zocaloT} and {x, y + h}
+        drawProfile([{x, y}, {x: x + w, y}, {x: x + w, y: y + zocaloT}, {x: x, y: y + zocaloT}]); // Zocalo Top
+        drawProfile([{x, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); // Zocalo Bot
+        drawGlassWithTransoms(x, y + zocaloT, w, h - 2*zocaloT, y + h);
+        return;
+    }
+
+    if (isPuertaZocalon) {
+        // Fix invalid shorthand object literal {x, y + h} and {x + frameT, y + zocaloT}
+        drawProfile([{x, y}, {x: x + frameT, y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]); // Vertical L
+        drawProfile([{x: x + frameT, y}, {x: x + w, y}, {x: x + w, y: y + zocaloT}, {x: x + frameT, y: y + zocaloT}]); // Zocalo Top
+        drawProfile([{x: x + frameT, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x + frameT, y: y + h}]); // Zocalo Bot
+        drawGlassWithTransoms(x + frameT, y + zocaloT, w - frameT, h - 2*zocaloT, y + h);
+        return;
+    }
+
+    // Dibujo estándar para los demás tipos
     if (isSinglePreview && extras?.tapajuntas && edges) {
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
@@ -337,7 +327,6 @@ const drawDetailedOpening = (
         if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), absoluteBottomY);
-        drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
         if (force90) {
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
             drawProfile([{x:lx+lw-leafT, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}]);
@@ -347,7 +336,7 @@ const drawDetailedOpening = (
             drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}]);
             drawProfile([{x:lx, y:ly+lh}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+leafT, y:ly+lh-bT}]);
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}]);
-            drawProfile([{x:lx+lw, y:ly}, {x:lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}]);
+            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}]);
         }
     };
 
@@ -358,22 +347,21 @@ const drawDetailedOpening = (
             const leafW = (innerW / 3) + overlap;
             for(let i=0; i<3; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 2);
-                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
             }
         } else if (numLeaves === 4) {
             const leafW = (innerW / 4) + overlap;
             for(let i=0; i<4; i++) {
                 const lx = innerX + (i * (innerW - leafW) / 3);
-                drawLeaf(lx, innerY, innerH, leafW, true, hasZocalo, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
             }
         } else {
             const leafW = (innerW / 2) + overlap;
-            drawLeaf(innerX, innerY, innerH, leafW, true, hasZocalo, extras?.mosquitero || false, 'sliding', y + h);
-            drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, hasZocalo, false, 'sliding', y + h);
+            drawLeaf(innerX, innerY, innerH, leafW, true, isFrame90, extras?.mosquitero || false, 'sliding', y + h);
+            drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, isFrame90, false, 'sliding', y + h);
         }
-    // Fix: Changed 'leafType.includes' to 'visualType.includes' since leafType is not in scope here
     } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
-        drawLeaf(innerX, innerY, innerH, innerW, false, hasZocalo, extras?.mosquitero || false, visualType, y + h);
+        drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90, extras?.mosquitero || false, visualType, y + h);
     } else {
         drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
     }
@@ -694,7 +682,7 @@ const QuotingModule: React.FC<Props> = ({
         ...t,
         height: Math.round(step * (tidx + 1))
     }));
-    updateModule(editingModuleId!, { transoms: redistributed });
+    updateModule(editingModuleId, { transoms: redistributed });
   };
 
   const handleAccessorySubstitute = (index: number, newAccessoryId: string) => {
