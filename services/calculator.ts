@@ -35,7 +35,6 @@ export const calculateCompositePrice = (
   const { modules, colRatios, rowRatios, couplingDeduction: baseDeduction } = item.composition;
   
   const cProfile = item.couplingProfileId ? profiles.find(p => p.id === item.couplingProfileId) : null;
-  // PROTECCIÓN: Si el perfil no tiene espesor, usamos la deducción base o 0.
   const realDeduction = Number(cProfile?.thickness ?? baseDeduction ?? 0);
 
   const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
@@ -81,18 +80,37 @@ export const calculateCompositePrice = (
     totalAluWeight += result.totalAluWeight;
   });
 
+  const baseAluPrice = Number(config.aluminumPricePerKg || 0) + Number(treatment.pricePerKg || 0);
+
+  // CÁLCULO DE ACOPLES (INTERMEDIOS)
   if (cProfile && isSet) {
     const pWeight = Number(cProfile.weightPerMeter || 0);
-    const unitCostPerM = (Number(config.aluminumPricePerKg || 0) + Number(treatment.pricePerKg || 0)) * pWeight;
     let totalCouplingMm = 0;
     if (colRatios.length > 1) totalCouplingMm += (Number(item.height || 0) * (colRatios.length - 1));
     if (rowRatios.length > 1) totalCouplingMm += (Number(item.width || 0) * (rowRatios.length - 1));
     
-    const cCost = (totalCouplingMm / 1000) * unitCostPerM;
     const cWeight = (totalCouplingMm / 1000) * pWeight;
-    
-    totalAluCost += cCost;
+    totalAluCost += cWeight * baseAluPrice;
     totalAluWeight += cWeight;
+  }
+
+  // CÁLCULO DE TAPAJUNTAS PERIMETRAL (CONJUNTO COMPLETO)
+  if (item.extras?.tapajuntas) {
+    const firstRecipe = recipes.find(r => r.id === validModules[0]?.recipeId);
+    const tjProfile = profiles.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+    if (tjProfile) {
+        const tjThick = Number(tjProfile.thickness || 30);
+        const { top, bottom, left, right } = item.extras.tapajuntasSides;
+        let totalTJMm = 0;
+        if (top) totalTJMm += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+        if (bottom) totalTJMm += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+        if (left) totalTJMm += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+        if (right) totalTJMm += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+        
+        const tjWeight = (totalTJMm / 1000) * Number(tjProfile.weightPerMeter || 0);
+        totalAluCost += tjWeight * baseAluPrice;
+        totalAluWeight += tjWeight;
+    }
   }
 
   const materialCost = totalAluCost + totalGlassCost + totalAccCost;
@@ -138,8 +156,9 @@ export const calculateItemPrice = (
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
+    // Si es un conjunto, los tapajuntas se calculan afuera (calculateCompositePrice)
     const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
-    if (isTJ && !extras?.tapajuntas) return false;
+    if (isTJ && (isSet || !extras?.tapajuntas)) return false;
 
     const isMosq = role.includes('mosq') || p.id === recipe.mosquiteroProfileId;
     if (isMosq && !extras?.mosquitero) return false;
@@ -284,7 +303,8 @@ export const calculateItemPrice = (
       }
   }
   
-  if (extras?.tapajuntas && extras.tapajuntasSides) {
+  // TAPAJUNTAS INDIVIDUALES (SOLO SI NO ES CONJUNTO)
+  if (!isSet && extras?.tapajuntas && extras.tapajuntasSides) {
     const hasRoleTJ = recipe.profiles.some(rp => (rp.role || '').toLowerCase().includes('tapa'));
     if (!hasRoleTJ) {
         const tjProfile = profiles.find(p => p.id === recipe.defaultTapajuntasProfileId);

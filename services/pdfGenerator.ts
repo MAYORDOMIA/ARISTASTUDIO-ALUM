@@ -100,6 +100,8 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     
     quote.items.forEach((item, posIdx) => {
         const itemCode = item.itemCode || `POS#${posIdx+1}`;
+        const isSet = item.composition.modules.length > 1;
+
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
@@ -122,10 +124,14 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 if (!pDef) return;
                 const role = rp.role?.toLowerCase() || '';
                 if (role.includes('trave')) return;
+                
+                // Si es conjunto, ignorar TJs en el bucle de módulos para calcularlos por el conjunto completo abajo
                 const isTJ = role.includes('tapajuntas') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
-                if (isTJ && !item.extras.tapajuntas) return;
+                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
+
                 const isMosq = role.includes('mosquitero') || pDef.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
+
                 const cutLen = evaluateFormula(rp.formula, modW, modH);
                 if (cutLen <= 0) return;
                 const list = cutsByProfile.get(rp.profileId) || [];
@@ -152,6 +158,46 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
               });
             }
         });
+
+        // REGLA: SUMAR ACOPLES AL CONJUNTO
+        if (item.couplingProfileId && isSet) {
+            const list = cutsByProfile.get(item.couplingProfileId) || [];
+            // Cortes verticales (entre columnas)
+            if (item.composition.colRatios.length > 1) {
+                const qty = (item.composition.colRatios.length - 1) * item.quantity;
+                for(let k=0; k < qty; k++) {
+                    list.push({ len: item.height, type: 'Acople', cutStart: '90', cutEnd: '90', label: itemCode });
+                }
+            }
+            // Cortes horizontales (entre filas)
+            if (item.composition.rowRatios.length > 1) {
+                const qty = (item.composition.rowRatios.length - 1) * item.quantity;
+                for(let k=0; k < qty; k++) {
+                    list.push({ len: item.width, type: 'Acople', cutStart: '90', cutEnd: '90', label: itemCode });
+                }
+            }
+            cutsByProfile.set(item.couplingProfileId, list);
+        }
+
+        // REGLA: SUMAR TAPAJUNTAS POR CONJUNTO COMPLETO
+        if (item.extras.tapajuntas) {
+            const firstMod = item.composition.modules[0];
+            const recipe = recipes.find(r => r.id === firstMod.recipeId);
+            const tjProfile = aluminum.find(p => p.id === recipe?.defaultTapajuntasProfileId);
+            if (tjProfile) {
+                const tjThick = Number(tjProfile.thickness || 30);
+                const { top, bottom, left, right } = item.extras.tapajuntasSides;
+                const list = cutsByProfile.get(tjProfile.id) || [];
+                
+                for(let q=0; q < item.quantity; q++) {
+                    if (top) list.push({ len: item.width + (left ? tjThick : 0) + (right ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
+                    if (bottom) list.push({ len: item.width + (left ? tjThick : 0) + (right ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
+                    if (left) list.push({ len: item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
+                    if (right) list.push({ len: item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
+                }
+                cutsByProfile.set(tjProfile.id, list);
+            }
+        }
     });
 
     let y = 40;
@@ -238,7 +284,6 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     const tableData = quote.items.map((item, idx) => {
         const treatment = treatments.find(t => t.id === item.colorId);
         
-        // REGLA: Sumar aberturas adicionales si es un conjunto
         const moduleNames = item.composition.modules
             .map(m => recipes.find(r => r.id === m.recipeId)?.name)
             .filter(Boolean);
@@ -330,7 +375,8 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         
         const moduleNames = item.composition.modules.map(m => recipes.find(r => r.id === m.recipeId)?.name).filter(Boolean);
         const compositeName = moduleNames.length > 1 ? `CONJUNTO: ${moduleNames.join(' + ')}` : (moduleNames[0] || 'Abertura');
-        
+        const isSet = item.composition.modules.length > 1;
+
         doc.text(`${item.itemCode || `POS#${idx+1}`} - ${compositeName} - CANT: ${item.quantity} [${item.width} x ${item.height} mm]`, 15, currentY + 6.5);
         currentY += 15;
         if (item.previewImage) {
@@ -356,7 +402,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
                 const p = aluminum.find(a => a.id === rp.profileId);
                 const isTJ = role.includes('tapajuntas') || String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
-                if (isTJ && !item.extras.tapajuntas) return;
+                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
                 const isMosq = role.includes('mosquitero') || p?.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
                 const cutLen = evaluateFormula(rp.formula, modW, modH);
@@ -373,6 +419,30 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
               });
             }
         });
+
+        // Sumar acoples al taller
+        if (item.couplingProfileId && isSet) {
+            const trProf = aluminum.find(p => p.id === item.couplingProfileId);
+            if (trProf) {
+                if (item.composition.colRatios.length > 1) profileCuts.push([trProf.code, 'Acople Conjunto V', Math.round(item.height), item.composition.colRatios.length - 1, '90° / 90°']);
+                if (item.composition.rowRatios.length > 1) profileCuts.push([trProf.code, 'Acople Conjunto H', Math.round(item.width), item.composition.rowRatios.length - 1, '90° / 90°']);
+            }
+        }
+
+        // Sumar tapajuntas por conjunto al taller
+        if (item.extras.tapajuntas) {
+            const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
+            const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            if (tjProfile) {
+                const tjThick = Number(tjProfile.thickness || 30);
+                const { top, bottom, left, right } = item.extras.tapajuntasSides;
+                if (top) profileCuts.push([tjProfile.code, 'Tapajunta Superior', Math.round(item.width + (left ? tjThick : 0) + (right ? tjThick : 0)), 1, '45° / 45°']);
+                if (bottom) profileCuts.push([tjProfile.code, 'Tapajunta Inferior', Math.round(item.width + (left ? tjThick : 0) + (right ? tjThick : 0)), 1, '45° / 45°']);
+                if (left) profileCuts.push([tjProfile.code, 'Tapajunta Lateral L', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
+                if (right) profileCuts.push([tjProfile.code, 'Tapajunta Lateral R', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
+            }
+        }
+
         autoTable(doc, { startY: currentY, margin: { left: 80 }, head: [['CÓD.', 'PERFIL', 'LONG', 'CANT', 'CORTES']], body: profileCuts, theme: 'grid', styles: { fontSize: 7 }, headStyles: { fillColor: [71, 85, 105] }, columnStyles: { 2: { halign: 'center', fontStyle: 'bold' } } });
         currentY = (doc as any).lastAutoTable.finalY + 5;
         const glassPieces: any[] = [];
@@ -412,6 +482,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     doc.setTextColor(30, 41, 59); doc.setFontSize(11); doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY); currentY += 5;
     const aluSummary = new Map<string, { code: string, detail: string, totalMm: number, barLength: number }>();
     quote.items.forEach(item => {
+        const isSet = item.composition.modules.length > 1;
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
@@ -423,10 +494,18 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 const p = aluminum.find(a => a.id === rp.profileId);
                 if (!p) return;
                 const isTJ = role.includes('tapajuntas') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
-                if (isTJ && !item.extras.tapajuntas) return;
+                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
                 const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
-                const len = evaluateFormula(rp.formula, item.width, item.height);
+                
+                const sumCols = (item.composition.colRatios || []).reduce((a,b)=>a+b,0) || 1;
+                const sumRows = (item.composition.rowRatios || []).reduce((a,b)=>a+b,0) || 1;
+                const colRatio = item.composition.colRatios[mod.x] || 0;
+                const rowRatio = item.composition.rowRatios[mod.y] || 0;
+                const modW = (item.width * colRatio) / sumCols;
+                const modH = (item.height * rowRatio) / sumRows;
+
+                const len = evaluateFormula(rp.formula, modW, modH);
                 const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
                 const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
                 existing.totalMm += totalMm; aluSummary.set(p.id, existing);
@@ -436,14 +515,45 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 const trProf = aluminum.find(p => p.id === t.profileId);
                 if (trProf) {
                   const f = t.formula || recipeTransomFormula;
-                  const len = evaluateFormula(f, item.width, item.height);
-                  const totalMm = (len + config.discWidth) * recipeTransomQty * item.quantity;
+                  const cutLen = evaluateFormula(f, item.width, item.height);
+                  const totalMm = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
                   const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
                   existing.totalMm += totalMm; aluSummary.set(trProf.id, existing);
                 }
               });
             }
         });
+        
+        // Sumar acoples al pedido
+        if (item.couplingProfileId && isSet) {
+            const p = aluminum.find(a => a.id === item.couplingProfileId);
+            if (p) {
+                let totalC = 0;
+                if (item.composition.colRatios.length > 1) totalC += item.height * (item.composition.colRatios.length - 1);
+                if (item.composition.rowRatios.length > 1) totalC += item.width * (item.composition.rowRatios.length - 1);
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
+                existing.totalMm += totalC * item.quantity;
+                aluSummary.set(p.id, existing);
+            }
+        }
+
+        // Sumar tapajuntas por conjunto al pedido
+        if (item.extras.tapajuntas) {
+            const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
+            const p = aluminum.find(a => a.id === firstRecipe?.defaultTapajuntasProfileId);
+            if (p) {
+                const tjThick = Number(p.thickness || 30);
+                const { top, bottom, left, right } = item.extras.tapajuntasSides;
+                let totalT = 0;
+                if (top) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+                if (bottom) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+                if (left) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+                if (right) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
+                existing.totalMm += totalT * item.quantity;
+                aluSummary.set(p.id, existing);
+            }
+        }
     });
     const aluBody = Array.from(aluSummary.values()).map(s => {
         const barLenMm = s.barLength > 100 ? s.barLength : s.barLength * 1000;
