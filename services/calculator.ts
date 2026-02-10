@@ -6,9 +6,10 @@ import {
 
 export const evaluateFormula = (formula: string, W: number, H: number): number => {
   try {
-    const cleanFormula = (formula || '').toString().toUpperCase().replace(/W/g, W.toString()).replace(/H/g, H.toString());
+    const cleanFormula = (formula || '').toString().toUpperCase().replace(/W/g, (W || 0).toString()).replace(/H/g, (H || 0).toString());
     if (!cleanFormula) return 0;
-    return new Function(`return ${cleanFormula}`)();
+    const result = new Function(`return ${cleanFormula}`)();
+    return isFinite(result) ? result : 0;
   } catch (e) {
     console.error("Error parsing formula:", formula, e);
     return 0;
@@ -34,7 +35,8 @@ export const calculateCompositePrice = (
   const { modules, colRatios, rowRatios, couplingDeduction: baseDeduction } = item.composition;
   
   const cProfile = item.couplingProfileId ? profiles.find(p => p.id === item.couplingProfileId) : null;
-  const realDeduction = cProfile ? cProfile.thickness : baseDeduction;
+  // PROTECCIÓN: Si el perfil no tiene espesor, usamos la deducción base o 0.
+  const realDeduction = Number(cProfile?.thickness ?? baseDeduction ?? 0);
 
   const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
   
@@ -53,8 +55,8 @@ export const calculateCompositePrice = (
     const recipe = recipes.find(r => r.id === mod.recipeId);
     if (!recipe) return;
     
-    let modW = colRatios[mod.x - minX] || 0; 
-    let modH = rowRatios[mod.y - minY] || 0;
+    let modW = Number(colRatios[mod.x - minX] || 0); 
+    let modH = Number(rowRatios[mod.y - minY] || 0);
     
     if (colRatios.length > 1) {
        if (mod.x !== minX) modW -= (realDeduction / 2);
@@ -80,20 +82,21 @@ export const calculateCompositePrice = (
   });
 
   if (cProfile && isSet) {
-    const unitCostPerM = (config.aluminumPricePerKg + treatment.pricePerKg) * cProfile.weightPerMeter;
+    const pWeight = Number(cProfile.weightPerMeter || 0);
+    const unitCostPerM = (Number(config.aluminumPricePerKg || 0) + Number(treatment.pricePerKg || 0)) * pWeight;
     let totalCouplingMm = 0;
-    if (colRatios.length > 1) totalCouplingMm += item.height * (colRatios.length - 1);
-    if (rowRatios.length > 1) totalCouplingMm += item.width * (rowRatios.length - 1);
+    if (colRatios.length > 1) totalCouplingMm += (Number(item.height || 0) * (colRatios.length - 1));
+    if (rowRatios.length > 1) totalCouplingMm += (Number(item.width || 0) * (rowRatios.length - 1));
     
     const cCost = (totalCouplingMm / 1000) * unitCostPerM;
-    const cWeight = (totalCouplingMm / 1000) * cProfile.weightPerMeter;
+    const cWeight = (totalCouplingMm / 1000) * pWeight;
     
     totalAluCost += cCost;
     totalAluWeight += cWeight;
   }
 
   const materialCost = totalAluCost + totalGlassCost + totalAccCost;
-  const laborCost = materialCost * (config.laborPercentage / 100);
+  const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
   const finalPrice = materialCost + laborCost;
 
   const breakdown: QuoteItemBreakdown = {
@@ -122,53 +125,51 @@ export const calculateItemPrice = (
   let glassCost = 0;
   let accCost = 0;
 
-  // REGLA: Ignorar travesaños de la receta siempre.
-  // Buscamos la plantilla de travesaño para obtener la fórmula y la CANTIDAD de la receta.
   const transomTemplate = (recipe.profiles || []).find(rp => 
       rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
   );
   const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
-  const recipeTransomQty = transomTemplate?.quantity || 1;
+  const recipeTransomQty = Number(transomTemplate?.quantity || 1);
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
-    const role = rp.role?.toLowerCase() || '';
+    const role = (rp.role || '').toLowerCase();
     if (role.includes('trave')) return false;
 
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
-    const isTJ = role.includes('tapajuntas') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
+    const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
     if (isTJ && !extras?.tapajuntas) return false;
 
-    const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
+    const isMosq = role.includes('mosq') || p.id === recipe.mosquiteroProfileId;
     if (isMosq && !extras?.mosquitero) return false;
 
     return true;
   });
 
+  const baseAluPrice = Number(config.aluminumPricePerKg || 0) + Number(treatment.pricePerKg || 0);
+
   activeProfiles.forEach(rp => {
     const profile = profiles.find(p => p.id === rp.profileId);
     if (profile) {
       const cutMeasure = evaluateFormula(rp.formula, width, height);
-      const weight = ((cutMeasure + config.discWidth) / 1000) * rp.quantity * profile.weightPerMeter;
+      const weight = ((cutMeasure + Number(config.discWidth || 0)) / 1000) * Number(rp.quantity || 0) * Number(profile.weightPerMeter || 0);
       totalAluWeight += weight;
     }
   });
 
-  // Solo se suman travesaños si el usuario los activó explícitamente en el módulo
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
-        // Se rige por la fórmula Y LA CANTIDAD de la receta original
         const f = t.formula || recipeTransomFormula;
         const tCut = evaluateFormula(f, width, height);
-        totalAluWeight += ((tCut + config.discWidth) / 1000) * recipeTransomQty * trProf.weightPerMeter;
+        totalAluWeight += ((tCut + Number(config.discWidth || 0)) / 1000) * recipeTransomQty * Number(trProf.weightPerMeter || 0);
       }
     });
   }
 
-  aluCost = totalAluWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
+  aluCost = totalAluWeight * baseAluPrice;
 
   const activeAccessories = (overriddenAccessories && overriddenAccessories.length > 0) 
     ? overriddenAccessories 
@@ -177,18 +178,19 @@ export const calculateItemPrice = (
   activeAccessories.forEach(ra => {
     const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
     if (acc) {
+      const uPrice = Number(acc.unitPrice || 0);
       if (ra.isLinear && ra.formula) {
         const lengthMm = evaluateFormula(ra.formula, width, height);
-        const totalMeters = (lengthMm / 1000) * ra.quantity;
-        accCost += acc.unitPrice * totalMeters;
+        const totalMeters = (lengthMm / 1000) * Number(ra.quantity || 0);
+        accCost += uPrice * totalMeters;
       } else {
-        accCost += acc.unitPrice * ra.quantity;
+        accCost += uPrice * Number(ra.quantity || 0);
       }
     }
   });
 
-  const adjustedW = width - (recipe.glassDeductionW || 0); 
-  const adjustedH = height - (recipe.glassDeductionH || 0);
+  const adjustedW = width - Number(recipe.glassDeductionW || 0); 
+  const adjustedH = height - Number(recipe.glassDeductionH || 0);
   
   const visualType = recipe.visualType || '';
   let numLeaves = 1;
@@ -205,7 +207,7 @@ export const calculateItemPrice = (
   const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
   
   const glassPanes: { w: number, h: number }[] = [];
-  const transomGlassDeduction = recipe.transomGlassDeduction || 0; 
+  const transomGlassDeduction = Number(recipe.transomGlassDeduction || 0); 
 
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
@@ -215,22 +217,22 @@ export const calculateItemPrice = (
     
     sorted.forEach((t, idx) => {
       const trProf = profiles.find(p => p.id === t.profileId);
-      const transomThickness = trProf?.thickness || recipe.transomThickness || 40;
+      const transomThickness = Number(trProf?.thickness || recipe.transomThickness || 40);
       
       let paneH;
       if (idx === 0) {
-        paneH = (t.height - (transomThickness / 2)) - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
+        paneH = (Number(t.height) - (transomThickness / 2)) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction;
       } else {
-        paneH = (t.height - lastY) - transomThickness - transomGlassDeduction;
+        paneH = (Number(t.height) - lastY) - transomThickness - transomGlassDeduction;
       }
       
       if (paneH > 0) glassPanes.push({ w: gW, h: paneH });
-      lastY = t.height;
+      lastY = Number(t.height);
     });
     
     const lastTrProf = profiles.find(p => p.id === sorted[sorted.length-1].profileId);
-    const lastTransomThickness = lastTrProf?.thickness || recipe.transomThickness || 40;
-    const finalPaneH = (height - lastY) - (lastTransomThickness / 2) - (recipe.glassDeductionH || 0) / (transoms.length + 1) - transomGlassDeduction;
+    const lastTransomThickness = Number(lastTrProf?.thickness || recipe.transomThickness || 40);
+    const finalPaneH = (height - lastY) - (lastTransomThickness / 2) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction;
     if (finalPaneH > 0) glassPanes.push({ w: gW, h: finalPaneH });
   }
 
@@ -244,7 +246,7 @@ export const calculateItemPrice = (
     const totalBillingArea = billingAreaPerPiece * numLeaves;
 
     if (visualType === 'mosquitero') {
-      glassCost += (config.meshPricePerM2 || 25.0) * totalBillingArea;
+      glassCost += (Number(config.meshPricePerM2 || 25.0)) * totalBillingArea;
       return; 
     }
 
@@ -252,16 +254,16 @@ export const calculateItemPrice = (
       const specificBlind = blindPanels.find(bp => bp.id === blindPaneIds[index]);
       if (specificBlind) {
           const unitValue = specificBlind.unit === 'ml' ? (pane.w / 1000) : billingAreaPerPiece;
-          glassCost += specificBlind.price * unitValue * numLeaves;
+          glassCost += Number(specificBlind.price || 0) * unitValue * numLeaves;
       } else {
-          glassCost += (config.blindPanelPricePerM2 || 0) * totalBillingArea;
+          glassCost += (Number(config.blindPanelPricePerM2 || 0)) * totalBillingArea;
       }
     } else {
-      if (outerGlass) glassCost += outerGlass.pricePerM2 * totalBillingArea;
-      if (innerGlass) glassCost += innerGlass.pricePerM2 * totalBillingArea;
+      if (outerGlass) glassCost += Number(outerGlass.pricePerM2 || 0) * totalBillingArea;
+      if (innerGlass) glassCost += Number(innerGlass.pricePerM2 || 0) * totalBillingArea;
       if (isDVH) {
-        if (dvhCamera) glassCost += dvhCamera.cost * ((pane.w + pane.h) * 2 / 1000) * numLeaves;
-        dvhInputs.filter(i => i.type !== 'Cámara').forEach(input => glassCost += input.cost * areaM2 * numLeaves);
+        if (dvhCamera) glassCost += Number(dvhCamera.cost || 0) * ((pane.w + pane.h) * 2 / 1000) * numLeaves;
+        dvhInputs.filter(i => i.type !== 'Cámara').forEach(input => glassCost += Number(input.cost || 0) * areaM2 * numLeaves);
       }
     }
   });
@@ -274,9 +276,9 @@ export const calculateItemPrice = (
               const mW = evaluateFormula(recipe.mosquiteroFormulaW || 'W/2', width, height);
               const mH = evaluateFormula(recipe.mosquiteroFormulaH || 'H-45', width, height);
               const meshArea = Math.max((mW * mH) / 1000000, 0.5);
-              glassCost += meshArea * (config.meshPricePerM2 || 25.0);
-              const frameWeight = ((mW * 2) + (mH * 2)) / 1000 * mProfile.weightPerMeter;
-              aluCost += frameWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
+              glassCost += meshArea * (Number(config.meshPricePerM2 || 25.0));
+              const frameWeight = ((mW * 2) + (mH * 2)) / 1000 * Number(mProfile.weightPerMeter || 0);
+              aluCost += frameWeight * baseAluPrice;
               totalAluWeight += frameWeight;
           }
       }
@@ -287,22 +289,22 @@ export const calculateItemPrice = (
     if (!hasRoleTJ) {
         const tjProfile = profiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
         if (tjProfile) {
-            const tjThick = tjProfile.thickness || recipe.tapajuntasThickness || 30;
+            const tjThick = Number(tjProfile.thickness || recipe.tapajuntasThickness || 30);
             const { top, bottom, left, right } = extras.tapajuntasSides;
             let totalTJMm = 0;
             if (top) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
             if (bottom) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
             if (left) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
             if (right) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-            const tjWeight = (totalTJMm / 1000) * tjProfile.weightPerMeter;
-            aluCost += tjWeight * (config.aluminumPricePerKg + treatment.pricePerKg);
+            const tjWeight = (totalTJMm / 1000) * Number(tjProfile.weightPerMeter || 0);
+            aluCost += tjWeight * baseAluPrice;
             totalAluWeight += tjWeight;
         }
     }
   }
 
   const materialCost = aluCost + glassCost + accCost;
-  const laborCost = materialCost * (config.laborPercentage / 100);
+  const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
   const finalPrice = materialCost + laborCost;
 
   return { 

@@ -50,6 +50,7 @@ const drawGlobalTapajuntas = (
     color: string,
     sides: QuoteItem['extras']['tapajuntasSides']
 ) => {
+    if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || !isFinite(tjSize)) return;
     ctx.save();
     ctx.fillStyle = color;
     ctx.strokeStyle = 'rgba(0,0,0,0.15)';
@@ -98,7 +99,8 @@ const drawDetailedOpening = (
     ctx: CanvasRenderingContext2D,
     x: number, y: number, w: number, h: number,
     recipe: ProductRecipe,
-    isDVH,
+    // Fix: Added missing boolean type for isDVH
+    isDVH: boolean,
     color: string,
     extras?: QuoteItem['extras'],
     edges?: { top: boolean, bottom: boolean, left: boolean, right: boolean },
@@ -110,6 +112,8 @@ const drawDetailedOpening = (
     allProfiles: AluminumProfile[] = [],
     isSinglePreview: boolean = false
 ) => {
+    if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return;
+
     const visualType = recipe.visualType || 'fixed';
     const isDoor = visualType.includes('door') || recipe.type === 'Puerta';
     
@@ -122,32 +126,47 @@ const drawDetailedOpening = (
     const frameT = 45 * pxPerMm;
     const leafT = (isDoor ? 75 : 45) * pxPerMm;
     const zocaloT = (isDoor ? 120 : (isZocaloChico ? 65 : 115)) * pxPerMm;
-    const tjSize = (tjProf?.thickness || 40) * pxPerMm; 
+    const tjSize = (Number(tjProf?.thickness || 40)) * pxPerMm; 
 
     const drawProfile = (points: {x:number, y:number}[]) => {
         if (!points || points.length < 3) return;
-        const minX = Math.min(...points.map(p => p.x));
-        const maxX = Math.max(...points.map(p => p.x));
-        const minY = Math.min(...points.map(p => p.y));
-        const maxY = Math.max(...points.map(p => p.y));
+        const validPoints = points.filter(p => isFinite(p.x) && isFinite(p.y));
+        if (validPoints.length < 3) return;
+
+        const minX = Math.min(...validPoints.map(p => p.x));
+        const maxX = Math.max(...validPoints.map(p => p.x));
+        const minY = Math.min(...validPoints.map(p => p.y));
+        const maxY = Math.max(...validPoints.map(p => p.y));
         const isVert = (maxX - minX) < (maxY - minY);
+
         ctx.save();
         ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        points.forEach(p => p && ctx.lineTo(p.x, p.y));
+        ctx.moveTo(validPoints[0].x, validPoints[0].y);
+        validPoints.forEach(p => ctx.lineTo(p.x, p.y));
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
-        const grad = isVert 
-            ? ctx.createLinearGradient(minX, minY, maxX, minY)
-            : ctx.createLinearGradient(minX, minY, minX, maxY);
-        grad.addColorStop(0, 'rgba(0,0,0,0.15)');       
-        grad.addColorStop(0.2, 'rgba(255,255,255,0.2)'); 
-        grad.addColorStop(0.5, 'rgba(255,255,255,0.05)'); 
-        grad.addColorStop(0.8, 'rgba(255,255,255,0.15)'); 
-        grad.addColorStop(1, 'rgba(0,0,0,0.18)');       
-        ctx.fillStyle = grad;
-        ctx.fill();
+
+        try {
+            const gradX1 = isFinite(minX) ? minX : 0;
+            const gradY1 = isFinite(minY) ? minY : 0;
+            const gradX2 = isFinite(maxX) ? maxX : (isVert ? 10 : 0);
+            const gradY2 = isFinite(maxY) ? maxY : (!isVert ? 10 : 0);
+
+            const grad = isVert 
+                ? ctx.createLinearGradient(gradX1, gradY1, gradX2, gradY1)
+                : ctx.createLinearGradient(gradX1, gradY1, gradX1, gradY2);
+            grad.addColorStop(0, 'rgba(0,0,0,0.15)');       
+            grad.addColorStop(0.2, 'rgba(255,255,255,0.2)'); 
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.05)'); 
+            grad.addColorStop(0.8, 'rgba(255,255,255,0.15)'); 
+            grad.addColorStop(1, 'rgba(0,0,0,0.18)');       
+            ctx.fillStyle = grad;
+            ctx.fill();
+        } catch(e) {
+            // Failsafe for gradient errors
+        }
+
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.strokeStyle = 'rgba(0,0,0,0.1)';
@@ -166,6 +185,7 @@ const drawDetailedOpening = (
     };
 
     const drawOpeningSymbol = (sx: number, sy: number, sw: number, sh: number, leafType: string, isMesh: boolean = false) => {
+        if (!isFinite(sx) || !isFinite(sy) || !isFinite(sw) || !isFinite(sh)) return;
         ctx.save();
         if (isMesh) {
             ctx.fillStyle = 'rgba(203, 213, 225, 0.5)';
@@ -216,6 +236,7 @@ const drawDetailedOpening = (
     };
 
     const drawPane = (px: number, py: number, pw: number, ph: number, index: number) => {
+        if (!isFinite(px) || !isFinite(py) || !isFinite(pw) || !isFinite(ph)) return;
         const isBlind = blindPanes.includes(index);
         const isMosquiteroSystem = visualType === 'mosquitero';
         if (isBlind) {
@@ -242,21 +263,20 @@ const drawDetailedOpening = (
             for (let j = 0; j <= pw; j += meshStep) {
                 ctx.beginPath(); ctx.moveTo(px + j, py); ctx.lineTo(px + j, py + ph); ctx.stroke();
             }
-            const metalGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
-            metalGrad.addColorStop(0, 'rgba(255,255,255,0)');
-            metalGrad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
-            metalGrad.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = metalGrad;
-            ctx.fillRect(px, py, pw, ph);
             ctx.restore();
         } else {
-            const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
-            glassGrad.addColorStop(0, '#bae6fd');
-            glassGrad.addColorStop(0.35, '#e0f2fe');
-            glassGrad.addColorStop(0.5, '#f0f9ff');
-            glassGrad.addColorStop(1, '#bae6fd');
-            ctx.fillStyle = glassGrad;
-            ctx.fillRect(px, py, pw, ph);
+            try {
+                const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
+                glassGrad.addColorStop(0, '#bae6fd');
+                glassGrad.addColorStop(0.35, '#e0f2fe');
+                glassGrad.addColorStop(0.5, '#f0f9ff');
+                glassGrad.addColorStop(1, '#bae6fd');
+                ctx.fillStyle = glassGrad;
+                ctx.fillRect(px, py, pw, ph);
+            } catch(e) {
+                ctx.fillStyle = '#bae6fd';
+                ctx.fillRect(px, py, pw, ph);
+            }
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(255,255,255,0.6)';
             ctx.lineWidth = 1.8;
@@ -267,13 +287,14 @@ const drawDetailedOpening = (
     };
 
     const drawGlassWithTransoms = (gx: number, gy: number, gw: number, gh: number, absoluteBottomY: number) => {
+        if (!isFinite(gx) || !isFinite(gy) || !isFinite(gw) || !isFinite(gh)) return;
         if (transoms.length > 0) {
             const sorted = [...transoms].sort((a, b) => a.height - b.height);
             let currentTopY = gy;
             sorted.forEach((t, i) => {
                 const trProf = allProfiles.find(p => p.id === t.profileId);
-                const tThickness = (trProf?.thickness || 40) * pxPerMm;
-                const transomY = absoluteBottomY - (t.height * pxPerMm);
+                const tThickness = (Number(trProf?.thickness || 40)) * pxPerMm;
+                const transomY = absoluteBottomY - (Number(t.height || 0) * pxPerMm);
                 const paneH = (transomY - (tThickness/2)) - currentTopY;
                 if (paneH > 0) drawPane(gx, currentTopY, gw, paneH, i);
                 drawProfile([
@@ -313,6 +334,7 @@ const drawDetailedOpening = (
     const innerW = w - frameT * 2; const innerH = h - (hasBottomFrame ? frameT * 2 : frameT);
 
     const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string, absoluteBottomY: number) => {
+        if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), absoluteBottomY);
         drawOpeningSymbol(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), leafType, mesh);
@@ -325,7 +347,7 @@ const drawDetailedOpening = (
             drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}]);
             drawProfile([{x:lx, y:ly+lh}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+leafT, y:ly+lh-bT}]);
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}]);
-            drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}]);
+            drawProfile([{x:lx+lw, y:ly}, {x:lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}]);
         }
     };
 
@@ -349,6 +371,7 @@ const drawDetailedOpening = (
             drawLeaf(innerX, innerY, innerH, leafW, true, hasZocalo, extras?.mosquitero || false, 'sliding', y + h);
             drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, hasZocalo, false, 'sliding', y + h);
         }
+    // Fix: Changed 'leafType.includes' to 'visualType.includes' since leafType is not in scope here
     } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
         drawLeaf(innerX, innerY, innerH, innerW, false, hasZocalo, extras?.mosquitero || false, visualType, y + h);
     } else {
@@ -419,28 +442,32 @@ const QuotingModule: React.FC<Props> = ({
   }, [modules]);
 
   const couplingProfiles = useMemo(() => {
-    return aluminum.filter(p => 
-        p.code.toUpperCase().includes('ACOP') || 
-        p.detail.toUpperCase().includes('ACOP') ||
-        p.detail.toUpperCase().includes('INTERM')
-    );
+    return aluminum.filter(p => {
+        const code = (p.code || '').toUpperCase();
+        const detail = (p.detail || '').toUpperCase();
+        return code.includes('ACOP') || detail.includes('ACOP') || detail.includes('INTERM');
+    });
   }, [aluminum]);
 
   const uniqueLines = useMemo(() => {
-    const lines = recipes.map(r => r.line.toUpperCase());
+    const lines = recipes.map(r => (r.line || '').toUpperCase());
     return ['TODOS', ...Array.from(new Set(lines))];
   }, [recipes]);
 
   const liveBreakdown = useMemo(() => {
     const treatment = treatments.find(t => t.id === colorId);
     if (!treatment) return null;
-    const tempItem: QuoteItem = {
-      id: 'temp', itemCode: itemCode || 'POS#', width: totalWidth, height: totalHeight, colorId, quantity,
-      composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction },
-      couplingProfileId, extras: { ...extras }, calculatedCost: 0
-    };
-    const { breakdown } = calculateCompositePrice(tempItem, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
-    return breakdown;
+    try {
+        const tempItem: QuoteItem = {
+          id: 'temp', itemCode: itemCode || 'POS#', width: totalWidth, height: totalHeight, colorId, quantity,
+          composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction: Number(couplingDeduction || 0) },
+          couplingProfileId, extras: { ...extras }, calculatedCost: 0
+        };
+        const { breakdown } = calculateCompositePrice(tempItem, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
+        return breakdown;
+    } catch(e) {
+        return null;
+    }
   }, [totalWidth, totalHeight, itemCode, modules, colSizes, rowSizes, couplingDeduction, extras, colorId, couplingProfileId, recipes, aluminum, config, treatments, glasses, accessories, dvhInputs, blindPanels, quantity]);
 
   const updateModule = (id: string, data: Partial<MeasurementModule>) => {
@@ -467,7 +494,10 @@ const QuotingModule: React.FC<Props> = ({
     setModules((modules || []).filter(m => m && m.x !== lastX));
     setColSizes(newColSizes);
     setTotalWidth(newColSizes.reduce((a, b) => a + b, 0));
-    if (newColSizes.length <= 1 && rowSizes.length <= 1) setCouplingProfileId('');
+    if (newColSizes.length <= 1 && rowSizes.length <= 1) {
+        setCouplingProfileId('');
+        setCouplingDeduction(0);
+    }
   };
 
   const addRow = () => {
@@ -490,7 +520,10 @@ const QuotingModule: React.FC<Props> = ({
     setModules((modules || []).filter(m => m && m.y !== lastY));
     setRowSizes(newRowSizes);
     setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0));
-    if (colSizes.length <= 1 && newRowSizes.length <= 1) setCouplingProfileId('');
+    if (colSizes.length <= 1 && newRowSizes.length <= 1) {
+        setCouplingProfileId('');
+        setCouplingDeduction(0);
+    }
   };
 
   const handleBodySizeChange = (dim: 'width' | 'height', index: number, newValue: number) => {
@@ -553,12 +586,12 @@ const QuotingModule: React.FC<Props> = ({
     const previewImage = canvas ? canvas.toDataURL('image/jpeg', 0.8) : undefined;
     const { finalPrice, breakdown } = calculateCompositePrice({
       id: 'temp', itemCode: itemCode || 'S/C', width: totalWidth, height: totalHeight, colorId, quantity,
-      composition: { modules: (modules || []).filter(Boolean), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction },
+      composition: { modules: (modules || []).filter(Boolean), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction: Number(couplingDeduction || 0) },
       couplingProfileId, extras: { ...extras }, calculatedCost: 0
     }, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
     const tempItem: QuoteItem = {
       id: Date.now().toString(), itemCode: itemCode || `POS#${currentWorkItems.length + 1}`, width: totalWidth, height: totalHeight, colorId, quantity,
-      composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction },
+      composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction: Number(couplingDeduction || 0) },
       couplingProfileId, extras: { ...extras }, calculatedCost: Math.round(finalPrice), previewImage, breakdown
     };
     setCurrentWorkItems([...currentWorkItems, tempItem]);
@@ -579,11 +612,12 @@ const QuotingModule: React.FC<Props> = ({
     const aluColor = treatments.find(t => t.id === colorId)?.hexColor || '#334155';
     const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
     const cProfile = couplingProfileId ? aluminum.find(p => p.id === couplingProfileId) : null;
-    const currentDeduction = cProfile ? cProfile.thickness : couplingDeduction;
+    const currentDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
+    
     if (extras.tapajuntas) {
         const firstRecipe = recipes.find(r => r.id === validModules[0]?.recipeId);
         const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
-        const tjSizeMm = tjProfile?.thickness || 40;
+        const tjSizeMm = Number(tjProfile?.thickness || 40);
         drawGlobalTapajuntas(ctx, startX, startY, totalWidth * pxPerMm, totalHeight * pxPerMm, tjSizeMm * pxPerMm, aluColor, extras.tapajuntasSides);
     }
     validModules.forEach(mod => {
@@ -591,8 +625,8 @@ const QuotingModule: React.FC<Props> = ({
         if (!recipe) return;
         const modIdxX = mod.x - bounds.minX;
         const modIdxY = mod.y - bounds.minY;
-        let modW = colSizes[modIdxX] || 0; 
-        let modH = rowSizes[modIdxY] || 0;
+        let modW = Number(colSizes[modIdxX] || 0); 
+        let modH = Number(rowSizes[modIdxY] || 0);
         if (colSizes.length > 1) {
             if (mod.x > bounds.minX) modW -= (currentDeduction / 2);
             if (mod.x < bounds.maxX) modW -= (currentDeduction / 2);
@@ -601,8 +635,8 @@ const QuotingModule: React.FC<Props> = ({
             if (mod.y > bounds.minY) modH -= (currentDeduction / 2);
             if (mod.y < bounds.maxY) modH -= (currentDeduction / 2);
         }
-        let ox_mm = 0; for (let i = 0; i < modIdxX; i++) ox_mm += colSizes[i] || 0;
-        let oy_mm = 0; for (let j = 0; j < modIdxY; j++) oy_mm += rowSizes[j] || 0;
+        let ox_mm = 0; for (let i = 0; i < modIdxX; i++) ox_mm += Number(colSizes[i] || 0);
+        let oy_mm = 0; for (let j = 0; j < modIdxY; j++) oy_mm += Number(rowSizes[j] || 0);
         const xOffset = (mod.x > bounds.minX) ? (currentDeduction / 2) : 0;
         const yOffset = (mod.y > bounds.minY) ? (currentDeduction / 2) : 0;
         const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
@@ -623,7 +657,7 @@ const QuotingModule: React.FC<Props> = ({
     setModules(prev => prev.map(m => {
         if (m.id !== modId || !m.transoms || m.transoms.length === 0) return m;
         const modIdxY = m.y - bounds.minY;
-        const modH = rowSizes[modIdxY] || 0;
+        const modH = Number(rowSizes[modIdxY] || 0);
         const parts = m.transoms.length + 1;
         const step = modH / parts;
         const newTransoms = m.transoms.map((t, idx) => ({
@@ -637,7 +671,7 @@ const QuotingModule: React.FC<Props> = ({
   const addTransomToModule = () => {
     if (!currentModForEdit) return;
     const modIdxY = currentModForEdit.y - bounds.minY; 
-    const modH = rowSizes[modIdxY] || 0;
+    const modH = Number(rowSizes[modIdxY] || 0);
     const transomRecipe = recipes.find(r => r.id === currentModForEdit.recipeId);
     const updatedTransoms = [...(currentModForEdit.transoms || []), { height: 0, profileId: transomRecipe?.defaultTransomProfileId || aluminum[0]?.id || '' }];
     const parts = updatedTransoms.length + 1;
@@ -653,7 +687,7 @@ const QuotingModule: React.FC<Props> = ({
     if (!currentModForEdit) return;
     const filtered = currentModForEdit.transoms?.filter((_, i) => i !== idx) || [];
     const modIdxY = currentModForEdit.y - bounds.minY;
-    const modH = rowSizes[modIdxY] || 0;
+    const modH = Number(rowSizes[modIdxY] || 0);
     const parts = filtered.length + 1;
     const step = modH / parts;
     const redistributed = filtered.map((t, tidx) => ({
@@ -886,10 +920,16 @@ const QuotingModule: React.FC<Props> = ({
             </div>
             <div className="space-y-4">
                 <select className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500" value={couplingProfileId} onChange={e => {
-                    const prof = aluminum.find(p => p.id === e.target.value);
+                    const val = e.target.value;
+                    if (!val) {
+                        setCouplingProfileId('');
+                        setCouplingDeduction(0);
+                        return;
+                    }
+                    const prof = aluminum.find(p => p.id === val);
                     if (prof) {
                         setCouplingProfileId(prof.id);
-                        setCouplingDeduction(prof.thickness);
+                        setCouplingDeduction(Number(prof.thickness || 0));
                     }
                 }}>
                     <option value="">(SIN ACOPLE / UNIÓN DIRECTA)</option>
@@ -1026,7 +1066,7 @@ const QuotingModule: React.FC<Props> = ({
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Tipología</label>
                                     <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { const r = recipes.find(x => x.id === e.target.value); if (r) updateModule(editingModuleId, { recipeId: r.id, transoms: [], overriddenAccessories: r.accessories || [] }); }}>
                                         <option value="">(SELECCIONE)</option>
-                                        {recipes.filter(r => recipeFilter === 'TODOS' || r.line.toUpperCase() === recipeFilter).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                        {recipes.filter(r => recipeFilter === 'TODOS' || (r.line || '').toUpperCase() === recipeFilter).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>
                                 </div>
                             </div>
