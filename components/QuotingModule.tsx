@@ -61,7 +61,6 @@ const drawGlobalTapajuntas = (
         ctx.fillStyle = color;
         ctx.fill();
 
-        // EFECTO DE VOLUMEN (DEGRADADO INDUSTRIAL DARK-LIGHT-DARK)
         const minX = Math.min(...points.map(p => p.x));
         const maxX = Math.max(...points.map(p => p.x));
         const minY = Math.min(...points.map(p => p.y));
@@ -72,15 +71,14 @@ const drawGlobalTapajuntas = (
                 ? ctx.createLinearGradient(minX, minY, maxX, minY)
                 : ctx.createLinearGradient(minX, minY, minX, maxY);
             
-            grad.addColorStop(0, 'rgba(0,0,0,0.22)');       // Sombra inicial
-            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)'); // Brillo central
-            grad.addColorStop(1, 'rgba(0,0,0,0.22)');       // Sombra final
+            grad.addColorStop(0, 'rgba(0,0,0,0.22)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.22)');
             
             ctx.fillStyle = grad;
             ctx.fill();
         } catch(e) {}
 
-        // CONTORNO REMARCADO (Para que los perfiles blancos no se pierdan)
         ctx.strokeStyle = 'rgba(15, 23, 42, 0.55)';
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -149,7 +147,10 @@ const drawDetailedOpening = (
     const isPFZocalon = visualType === 'pf_zocalon';
 
     const hasBottomFrame = !isDoor && !isMamparaRebatir && !isVidrioSolo && !isPFZocalon && !isPuertaZocalon;
+    
+    // LÓGICA DE UNIÓN DE MARCO Y HOJA
     const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
+    const leafForce90 = visualType.includes('_90') || visualType.includes('zocalo');
     
     const tjProf = allProfiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
     const frameT = 45 * pxPerMm;
@@ -178,9 +179,9 @@ const drawDetailedOpening = (
                 ? ctx.createLinearGradient(minX, minY, maxX, minY)
                 : ctx.createLinearGradient(minX, minY, minX, maxY);
             
-            grad.addColorStop(0, 'rgba(0,0,0,0.2)');       
-            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)'); 
-            grad.addColorStop(1, 'rgba(0,0,0,0.2)');       
+            grad.addColorStop(0, 'rgba(0,0,0,0.2)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.2)');
             ctx.fillStyle = grad;
             ctx.fill();
         } catch(e) {}
@@ -276,20 +277,14 @@ const drawDetailedOpening = (
         if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
         
-        // DIBUJAR LLENADO (VIDRIO/TRANSEÑOS)
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), absoluteBottomY);
         
-        // CAPA VISUAL DE MOSQUITERO (Si está habilitado en los extras)
         if (hasMesh) {
             ctx.save();
             const mx = lx + leafT; const my = ly + leafT;
             const mw = lw - leafT * 2; const mh = lh - (leafT + bT);
-            
-            // Fondo de malla
             ctx.fillStyle = 'rgba(71, 85, 105, 0.25)';
             ctx.fillRect(mx, my, mw, mh);
-            
-            // Trama de hilos técnicos
             ctx.strokeStyle = 'rgba(15, 23, 42, 0.3)';
             ctx.lineWidth = 0.3;
             const step = 4 * pxPerMm;
@@ -362,18 +357,18 @@ const drawDetailedOpening = (
                 const leafW = (innerW / 3) + overlap;
                 for(let i=0; i<3; i++) {
                     const lx = innerX + (i * (innerW - leafW) / 2);
-                    drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                    drawLeaf(lx, innerY, innerH, leafW, leafForce90, leafForce90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
                 }
             } else if (numLeaves === 4) {
                 const leafW = (innerW / 4) + overlap;
                 for(let i=0; i<4; i++) {
                     const lx = innerX + (i * (innerW - leafW) / 3);
-                    drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                    drawLeaf(lx, innerY, innerH, leafW, leafForce90, leafForce90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
                 }
             } else {
                 const leafW = (innerW / 2) + overlap;
-                drawLeaf(innerX, innerY, innerH, leafW, true, isFrame90, extras?.mosquitero || false, 'sliding', y + h);
-                drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, isFrame90, false, 'sliding', y + h);
+                drawLeaf(innerX, innerY, innerH, leafW, leafForce90, leafForce90, extras?.mosquitero || false, 'sliding', y + h);
+                drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, leafForce90, leafForce90, false, 'sliding', y + h);
             }
         } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
             drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90, extras?.mosquitero || false, visualType, y + h);
@@ -382,7 +377,6 @@ const drawDetailedOpening = (
         }
     }
 
-    // TRAZO FINAL PERIMETRAL REMARCADO
     ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
     ctx.lineWidth = 1.2;
     ctx.strokeRect(x, y, w, h);
@@ -633,6 +627,7 @@ const QuotingModule: React.FC<Props> = ({
         const recipe = recipes.find(r => r.id === mod.recipeId);
         if (!recipe) return;
         const modIdxX = mod.x - bounds.minX;
+        // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
         const modIdxY = mod.y - bounds.minY;
         let modW = Number(colSizes[modIdxX] || 0); 
         let modH = Number(rowSizes[modIdxY] || 0);
@@ -641,18 +636,20 @@ const QuotingModule: React.FC<Props> = ({
             if (mod.x < bounds.maxX) modW -= (currentDeduction / 2);
         }
         if (rowSizes.length > 1) {
+            // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
             if (mod.y > bounds.minY) modH -= (currentDeduction / 2);
             if (mod.y < bounds.maxY) modH -= (currentDeduction / 2);
         }
         let ox_mm = 0; for (let i = 0; i < modIdxX; i++) ox_mm += Number(colSizes[i] || 0);
         let oy_mm = 0; for (let j = 0; j < modIdxY; j++) oy_mm += Number(rowSizes[j] || 0);
         const xOffset = (mod.x > bounds.minX) ? (currentDeduction / 2) : 0;
+        // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
         const yOffset = (mod.y > bounds.minY) ? (currentDeduction / 2) : 0;
+        // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
         const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
         drawDetailedOpening(ctx, startX + (ox_mm + xOffset) * pxPerMm, startY + (oy_mm + yOffset) * pxPerMm, modW * pxPerMm, modH * pxPerMm, recipe, mod.isDVH, aluColor, extras, edges, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
 
-    // TRAZO FINAL PERIMETRAL AL CONJUNTO (REMARCADO)
     ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
     ctx.lineWidth = 1.4;
     ctx.strokeRect(startX, startY, totalWidth * pxPerMm, totalHeight * pxPerMm);
