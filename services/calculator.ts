@@ -35,6 +35,7 @@ export const calculateCompositePrice = (
   const { modules, colRatios, rowRatios, couplingDeduction: baseDeduction } = item.composition;
   
   const cProfile = item.couplingProfileId ? profiles.find(p => p.id === item.couplingProfileId) : null;
+  // REGLA: El espesor del acople se toma de la tabla de aluminio si existe el perfil.
   const realDeduction = Number(cProfile?.thickness ?? baseDeduction ?? 0);
 
   const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
@@ -57,6 +58,7 @@ export const calculateCompositePrice = (
     let modW = Number(colRatios[mod.x - minX] || 0); 
     let modH = Number(rowRatios[mod.y - minY] || 0);
     
+    // RESTAR AL TOTAL DEL CONJUNTO EL ESPESOR DEL ACOPLE (Dividido entre los módulos adyacentes)
     if (colRatios.length > 1) {
        if (mod.x !== minX) modW -= (realDeduction / 2);
        if (mod.x !== maxX) modW -= (realDeduction / 2);
@@ -82,7 +84,6 @@ export const calculateCompositePrice = (
 
   const baseAluPrice = Number(config.aluminumPricePerKg || 0) + Number(treatment.pricePerKg || 0);
 
-  // CÁLCULO DE ACOPLES (INTERMEDIOS)
   if (cProfile && isSet) {
     const pWeight = Number(cProfile.weightPerMeter || 0);
     let totalCouplingMm = 0;
@@ -94,7 +95,6 @@ export const calculateCompositePrice = (
     totalAluWeight += cWeight;
   }
 
-  // CÁLCULO DE TAPAJUNTAS PERIMETRAL (CONJUNTO COMPLETO)
   if (item.extras?.tapajuntas) {
     const firstRecipe = recipes.find(r => r.id === validModules[0]?.recipeId);
     const tjProfile = profiles.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
@@ -156,7 +156,6 @@ export const calculateItemPrice = (
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
-    // Si es un conjunto, los tapajuntas se calculan afuera (calculateCompositePrice)
     const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
     if (isTJ && (isSet || !extras?.tapajuntas)) return false;
 
@@ -303,7 +302,6 @@ export const calculateItemPrice = (
       }
   }
   
-  // TAPAJUNTAS INDIVIDUALES (SOLO SI NO ES CONJUNTO)
   if (!isSet && extras?.tapajuntas && extras.tapajuntasSides) {
     const hasRoleTJ = recipe.profiles.some(rp => (rp.role || '').toLowerCase().includes('tapa'));
     if (!hasRoleTJ) {

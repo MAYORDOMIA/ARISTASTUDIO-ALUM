@@ -29,10 +29,25 @@ const getModuleGlassPanes = (
 ): { w: number, h: number, isBlind: boolean }[] => {
     const sumCols = (item.composition.colRatios || []).reduce((a, b) => a + b, 0) || 1;
     const sumRows = (item.composition.rowRatios || []).reduce((a, b) => a + b, 0) || 1;
+    
+    const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
+    const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+    
     const colRatio = item.composition.colRatios[mod.x] || 0;
     const rowRatio = item.composition.rowRatios[mod.y] || 0;
-    const modW = (item.width * colRatio) / sumCols;
-    const modH = (item.height * rowRatio) / sumRows;
+    
+    let modW = colRatio;
+    let modH = rowRatio;
+
+    // APLICAR RESTA DE ESPESOR DE ACOPLE PARA VIDRIOS
+    if (item.composition.colRatios.length > 1) {
+        if (mod.x !== 0) modW -= (realDeduction / 2);
+        if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+    }
+    if (item.composition.rowRatios.length > 1) {
+        if (mod.y !== 0) modH -= (realDeduction / 2);
+        if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+    }
 
     const adjustedW = modW - (recipe.glassDeductionW || 0); 
     const adjustedH = modH - (recipe.glassDeductionH || 0);
@@ -101,17 +116,29 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     quote.items.forEach((item, posIdx) => {
         const itemCode = item.itemCode || `POS#${posIdx+1}`;
         const isSet = item.composition.modules.length > 1;
+        
+        const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
+        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             
-            const sumCols = (item.composition.colRatios || []).reduce((a,b)=>a+b,0) || 1;
-            const sumRows = (item.composition.rowRatios || []).reduce((a,b)=>a+b,0) || 1;
             const colRatio = item.composition.colRatios[mod.x] || 0;
             const rowRatio = item.composition.rowRatios[mod.y] || 0;
-            const modW = (item.width * colRatio) / sumCols;
-            const modH = (item.height * rowRatio) / sumRows;
+            
+            let modW = colRatio;
+            let modH = rowRatio;
+
+            // RESTAR AL TOTAL DEL CONJUNTO EL ESPESOR DEL ACOPLE (Tomado de la tabla de perfiles)
+            if (item.composition.colRatios.length > 1) {
+                if (mod.x !== 0) modW -= (realDeduction / 2);
+                if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+            }
+            if (item.composition.rowRatios.length > 1) {
+                if (mod.y !== 0) modH -= (realDeduction / 2);
+                if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+            }
 
             const transomTemplate = (recipe.profiles || []).find(rp => 
               rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
@@ -125,7 +152,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 const role = rp.role?.toLowerCase() || '';
                 if (role.includes('trave')) return;
                 
-                // Si es conjunto, ignorar TJs en el bucle de módulos para calcularlos por el conjunto completo abajo
                 const isTJ = role.includes('tapajuntas') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && (isSet || !item.extras.tapajuntas)) return;
 
@@ -159,17 +185,14 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             }
         });
 
-        // REGLA: SUMAR ACOPLES AL CONJUNTO
         if (item.couplingProfileId && isSet) {
             const list = cutsByProfile.get(item.couplingProfileId) || [];
-            // Cortes verticales (entre columnas)
             if (item.composition.colRatios.length > 1) {
                 const qty = (item.composition.colRatios.length - 1) * item.quantity;
                 for(let k=0; k < qty; k++) {
                     list.push({ len: item.height, type: 'Acople', cutStart: '90', cutEnd: '90', label: itemCode });
                 }
             }
-            // Cortes horizontales (entre filas)
             if (item.composition.rowRatios.length > 1) {
                 const qty = (item.composition.rowRatios.length - 1) * item.quantity;
                 for(let k=0; k < qty; k++) {
@@ -179,7 +202,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             cutsByProfile.set(item.couplingProfileId, list);
         }
 
-        // REGLA: SUMAR TAPAJUNTAS POR CONJUNTO COMPLETO
         if (item.extras.tapajuntas) {
             const firstMod = item.composition.modules[0];
             const recipe = recipes.find(r => r.id === firstMod.recipeId);
@@ -376,6 +398,9 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         const moduleNames = item.composition.modules.map(m => recipes.find(r => r.id === m.recipeId)?.name).filter(Boolean);
         const compositeName = moduleNames.length > 1 ? `CONJUNTO: ${moduleNames.join(' + ')}` : (moduleNames[0] || 'Abertura');
         const isSet = item.composition.modules.length > 1;
+        
+        const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
+        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
         doc.text(`${item.itemCode || `POS#${idx+1}`} - ${compositeName} - CANT: ${item.quantity} [${item.width} x ${item.height} mm]`, 15, currentY + 6.5);
         currentY += 15;
@@ -390,11 +415,23 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-            const sumCols = (item.composition.colRatios || []).reduce((a,b)=>a+b,0) || 1;
-            const sumRows = (item.composition.rowRatios || []).reduce((a,b)=>a+b,0) || 1;
+            
             const colRatio = item.composition.colRatios[mod.x] || 0;
             const rowRatio = item.composition.rowRatios[mod.y] || 0;
-            const modW = (item.width * colRatio) / sumCols; const modH = (item.height * rowRatio) / sumRows;
+            
+            let modW = colRatio;
+            let modH = rowRatio;
+
+            // RESTAR ESPESOR DE ACOPLE EN TALLER
+            if (item.composition.colRatios.length > 1) {
+                if (mod.x !== 0) modW -= (realDeduction / 2);
+                if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+            }
+            if (item.composition.rowRatios.length > 1) {
+                if (mod.y !== 0) modH -= (realDeduction / 2);
+                if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+            }
+
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
             const recipeTransomQty = transomTemplate?.quantity || 1;
@@ -420,7 +457,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             }
         });
 
-        // Sumar acoples al taller
         if (item.couplingProfileId && isSet) {
             const trProf = aluminum.find(p => p.id === item.couplingProfileId);
             if (trProf) {
@@ -429,7 +465,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             }
         }
 
-        // Sumar tapajuntas por conjunto al taller
         if (item.extras.tapajuntas) {
             const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
             const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
@@ -483,9 +518,25 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     const aluSummary = new Map<string, { code: string, detail: string, totalMm: number, barLength: number }>();
     quote.items.forEach(item => {
         const isSet = item.composition.modules.length > 1;
+        const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
+        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
+            const colRatio = item.composition.colRatios[mod.x] || 0;
+            const rowRatio = item.composition.rowRatios[mod.y] || 0;
+            let modW = colRatio;
+            let modH = rowRatio;
+            if (item.composition.colRatios.length > 1) {
+                if (mod.x !== 0) modW -= (realDeduction / 2);
+                if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+            }
+            if (item.composition.rowRatios.length > 1) {
+                if (mod.y !== 0) modH -= (realDeduction / 2);
+                if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+            }
+
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
             const recipeTransomQty = transomTemplate?.quantity || 1;
@@ -498,13 +549,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
                 
-                const sumCols = (item.composition.colRatios || []).reduce((a,b)=>a+b,0) || 1;
-                const sumRows = (item.composition.rowRatios || []).reduce((a,b)=>a+b,0) || 1;
-                const colRatio = item.composition.colRatios[mod.x] || 0;
-                const rowRatio = item.composition.rowRatios[mod.y] || 0;
-                const modW = (item.width * colRatio) / sumCols;
-                const modH = (item.height * rowRatio) / sumRows;
-
                 const len = evaluateFormula(rp.formula, modW, modH);
                 const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
                 const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
@@ -515,7 +559,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 const trProf = aluminum.find(p => p.id === t.profileId);
                 if (trProf) {
                   const f = t.formula || recipeTransomFormula;
-                  const cutLen = evaluateFormula(f, item.width, item.height);
+                  const cutLen = evaluateFormula(f, modW, modH);
                   const totalMm = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
                   const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
                   existing.totalMm += totalMm; aluSummary.set(trProf.id, existing);
@@ -524,7 +568,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             }
         });
         
-        // Sumar acoples al pedido
         if (item.couplingProfileId && isSet) {
             const p = aluminum.find(a => a.id === item.couplingProfileId);
             if (p) {
@@ -537,7 +580,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             }
         }
 
-        // Sumar tapajuntas por conjunto al pedido
         if (item.extras.tapajuntas) {
             const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
             const p = aluminum.find(a => a.id === firstRecipe?.defaultTapajuntasProfileId);
