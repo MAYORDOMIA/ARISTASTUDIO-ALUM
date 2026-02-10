@@ -116,7 +116,6 @@ const drawDetailedOpening = (
     const visualType = recipe.visualType || 'fixed';
     const isDoor = visualType.includes('door') || recipe.type === 'Puerta';
     
-    // Identificadores de nuevos tipos
     const isMamparaFija = visualType === 'mampara_fija';
     const isMamparaRebatir = visualType === 'mampara_rebatir';
     const isVidrioSolo = visualType === 'vidrio_solo';
@@ -263,45 +262,39 @@ const drawDetailedOpening = (
         }
     };
 
-    // LÓGICA DE DIBUJO CUSTOM SEGÚN TIPO
     if (isVidrioSolo) {
         drawGlassWithTransoms(x, y, w, h, y + h);
         return;
     }
 
     if (isMamparaRebatir) {
-        // Fix invalid shorthand object literal {x, y + h}
-        drawProfile([{x, y}, {x: x + frameT, y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]);
+        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]);
         drawGlassWithTransoms(x + frameT, y, w - frameT, h, y + h);
         return;
     }
 
     if (isMamparaFija) {
-        // Fix invalid shorthand object literal {x, y + h}
-        drawProfile([{x, y}, {x: x + frameT, y}, {x: x + frameT, y: y + h - frameT}, {x: x, y: y + h}]); // Vertical L
+        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h - frameT}, {x: x, y: y + h - frameT}]); // Vertical L
         drawProfile([{x: x + frameT, y: y + h - frameT}, {x: x + w, y: y + h - frameT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); // Horizontal B
         drawGlassWithTransoms(x + frameT, y, w - frameT, h - frameT, y + h);
         return;
     }
 
     if (isPFZocalon) {
-        // Fix invalid shorthand object literal {x, y + zocaloT} and {x, y + h}
-        drawProfile([{x, y}, {x: x + w, y}, {x: x + w, y: y + zocaloT}, {x: x, y: y + zocaloT}]); // Zocalo Top
-        drawProfile([{x, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); // Zocalo Bot
+        drawProfile([{x: x, y: y}, {x: x + w, y: y}, {x: x + w, y: y + zocaloT}, {x: x, y: y + zocaloT}]); // Zocalo Top
+        drawProfile([{x: x, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); // Zocalo Bot
         drawGlassWithTransoms(x, y + zocaloT, w, h - 2*zocaloT, y + h);
         return;
     }
 
     if (isPuertaZocalon) {
-        // Fix invalid shorthand object literal {x, y + h} and {x + frameT, y + zocaloT}
-        drawProfile([{x, y}, {x: x + frameT, y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]); // Vertical L
-        drawProfile([{x: x + frameT, y}, {x: x + w, y}, {x: x + w, y: y + zocaloT}, {x: x + frameT, y: y + zocaloT}]); // Zocalo Top
+        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]); // Vertical L
+        drawProfile([{x: x + frameT, y: y}, {x: x + w, y: y}, {x: x + w, y: y + zocaloT}, {x: x + frameT, y: y + zocaloT}]); // Zocalo Top
         drawProfile([{x: x + frameT, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x + frameT, y: y + h}]); // Zocalo Bot
         drawGlassWithTransoms(x + frameT, y + zocaloT, w - frameT, h - 2*zocaloT, y + h);
         return;
     }
 
-    // Dibujo estándar para los demás tipos
     if (isSinglePreview && extras?.tapajuntas && edges) {
         drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
     }
@@ -777,22 +770,18 @@ const QuotingModule: React.FC<Props> = ({
             <div className="space-y-5 pt-5 border-t-2 border-indigo-100/50 dark:border-indigo-900/50 bg-indigo-50/20 dark:bg-indigo-950/20 p-5 -mx-7">
                 <h4 className="text-[10px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 px-1"><Settings size={14} /> Ingeniería de Extras</h4>
                 <div className="px-1 space-y-5">
-                    <div className="flex items-center justify-between group cursor-pointer" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
-                        <div className="flex items-center gap-3">
-                            <Bug size={16} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${extras.mosquitero ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
-                        </div>
-                        <button className={`w-11 h-6 rounded-full p-1 transition-all ${extras.mosquitero ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
+                        <Bug size={16} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${extras.mosquitero ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
+                        <button className={`w-11 h-6 ml-auto rounded-full p-1 transition-all ${extras.mosquitero ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
                             <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.mosquitero ? 'translate-x-5' : 'translate-x-0'}`} />
                         </button>
                     </div>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between group cursor-pointer" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
-                            <div className="flex items-center gap-3">
-                                <Frame size={16} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${extras.tapajuntas ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
-                            </div>
-                            <button className={`w-11 h-6 rounded-full p-1 transition-all ${extras.tapajuntas ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
+                            <Frame size={16} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${extras.tapajuntas ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
+                            <button className={`w-11 h-6 ml-auto rounded-full p-1 transition-all ${extras.tapajuntas ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
                                 <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.tapajuntas ? 'translate-x-5' : 'translate-x-0'}`} />
                             </button>
                         </div>

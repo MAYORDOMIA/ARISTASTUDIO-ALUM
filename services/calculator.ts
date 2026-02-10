@@ -35,7 +35,6 @@ export const calculateCompositePrice = (
   const { modules, colRatios, rowRatios, couplingDeduction: baseDeduction } = item.composition;
   
   const cProfile = item.couplingProfileId ? profiles.find(p => p.id === item.couplingProfileId) : null;
-  // REGLA: El espesor del acople se toma de la tabla de aluminio si existe el perfil.
   const realDeduction = Number(cProfile?.thickness ?? baseDeduction ?? 0);
 
   const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
@@ -58,7 +57,6 @@ export const calculateCompositePrice = (
     let modW = Number(colRatios[mod.x - minX] || 0); 
     let modH = Number(rowRatios[mod.y - minY] || 0);
     
-    // RESTAR AL TOTAL DEL CONJUNTO EL ESPESOR DEL ACOPLE (Dividido entre los módulos adyacentes)
     if (colRatios.length > 1) {
        if (mod.x !== minX) modW -= (realDeduction / 2);
        if (mod.x !== maxX) modW -= (realDeduction / 2);

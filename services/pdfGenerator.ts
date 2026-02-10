@@ -27,26 +27,28 @@ const getModuleGlassPanes = (
   recipe: ProductRecipe, 
   aluminum: AluminumProfile[]
 ): { w: number, h: number, isBlind: boolean }[] => {
-    const sumCols = (item.composition.colRatios || []).reduce((a, b) => a + b, 0) || 1;
-    const sumRows = (item.composition.rowRatios || []).reduce((a, b) => a + b, 0) || 1;
-    
+    const validModules = (item.composition.modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+    const minX = Math.min(...validModules.map(m => m.x));
+    const minY = Math.min(...validModules.map(m => m.y));
+    const maxX = Math.max(...validModules.map(m => m.x));
+    const maxY = Math.max(...validModules.map(m => m.y));
+
     const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
     const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
     
-    const colRatio = item.composition.colRatios[mod.x] || 0;
-    const rowRatio = item.composition.rowRatios[mod.y] || 0;
+    const modIdxX = mod.x - minX;
+    const modIdxY = mod.y - minY;
     
-    let modW = colRatio;
-    let modH = rowRatio;
+    let modW = Number(item.composition.colRatios[modIdxX] || 0);
+    let modH = Number(item.composition.rowRatios[modIdxY] || 0);
 
-    // APLICAR RESTA DE ESPESOR DE ACOPLE PARA VIDRIOS
     if (item.composition.colRatios.length > 1) {
-        if (mod.x !== 0) modW -= (realDeduction / 2);
-        if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+        if (mod.x !== minX) modW -= (realDeduction / 2);
+        if (mod.x !== maxX) modW -= (realDeduction / 2);
     }
     if (item.composition.rowRatios.length > 1) {
-        if (mod.y !== 0) modH -= (realDeduction / 2);
-        if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+        if (mod.y !== minY) modH -= (realDeduction / 2);
+        if (mod.y !== maxY) modH -= (realDeduction / 2);
     }
 
     const adjustedW = modW - (recipe.glassDeductionW || 0); 
@@ -120,24 +122,28 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
         const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
+        const minX = Math.min(...item.composition.modules.map(m => m.x));
+        const minY = Math.min(...item.composition.modules.map(m => m.y));
+        const maxX = Math.max(...item.composition.modules.map(m => m.x));
+        const maxY = Math.max(...item.composition.modules.map(m => m.y));
+
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             
-            const colRatio = item.composition.colRatios[mod.x] || 0;
-            const rowRatio = item.composition.rowRatios[mod.y] || 0;
+            const modIdxX = mod.x - minX;
+            const modIdxY = mod.y - minY;
             
-            let modW = colRatio;
-            let modH = rowRatio;
+            let modW = Number(item.composition.colRatios[modIdxX] || 0);
+            let modH = Number(item.composition.rowRatios[modIdxY] || 0);
 
-            // RESTAR AL TOTAL DEL CONJUNTO EL ESPESOR DEL ACOPLE (Tomado de la tabla de perfiles)
             if (item.composition.colRatios.length > 1) {
-                if (mod.x !== 0) modW -= (realDeduction / 2);
-                if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+                if (mod.x !== minX) modW -= (realDeduction / 2);
+                if (mod.x !== maxX) modW -= (realDeduction / 2);
             }
             if (item.composition.rowRatios.length > 1) {
-                if (mod.y !== 0) modH -= (realDeduction / 2);
-                if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+                if (mod.y !== minY) modH -= (realDeduction / 2);
+                if (mod.y !== maxY) modH -= (realDeduction / 2);
             }
 
             const transomTemplate = (recipe.profiles || []).find(rp => 
@@ -402,6 +408,11 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
         const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
+        const minX = Math.min(...item.composition.modules.map(m => m.x));
+        const minY = Math.min(...item.composition.modules.map(m => m.y));
+        const maxX = Math.max(...item.composition.modules.map(m => m.x));
+        const maxY = Math.max(...item.composition.modules.map(m => m.y));
+
         doc.text(`${item.itemCode || `POS#${idx+1}`} - ${compositeName} - CANT: ${item.quantity} [${item.width} x ${item.height} mm]`, 15, currentY + 6.5);
         currentY += 15;
         if (item.previewImage) {
@@ -416,20 +427,19 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             
-            const colRatio = item.composition.colRatios[mod.x] || 0;
-            const rowRatio = item.composition.rowRatios[mod.y] || 0;
+            const modIdxX = mod.x - minX;
+            const modIdxY = mod.y - minY;
             
-            let modW = colRatio;
-            let modH = rowRatio;
+            let modW = Number(item.composition.colRatios[modIdxX] || 0);
+            let modH = Number(item.composition.rowRatios[modIdxY] || 0);
 
-            // RESTAR ESPESOR DE ACOPLE EN TALLER
             if (item.composition.colRatios.length > 1) {
-                if (mod.x !== 0) modW -= (realDeduction / 2);
-                if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+                if (mod.x !== minX) modW -= (realDeduction / 2);
+                if (mod.x !== maxX) modW -= (realDeduction / 2);
             }
             if (item.composition.rowRatios.length > 1) {
-                if (mod.y !== 0) modH -= (realDeduction / 2);
-                if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+                if (mod.y !== minY) modH -= (realDeduction / 2);
+                if (mod.y !== maxY) modH -= (realDeduction / 2);
             }
 
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
@@ -521,20 +531,29 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
         const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
+        const validModules = (item.composition.modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        const minX = Math.min(...validModules.map(m => m.x));
+        const minY = Math.min(...validModules.map(m => m.y));
+        const maxX = Math.max(...validModules.map(m => m.x));
+        const maxY = Math.max(...validModules.map(m => m.y));
+
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-            const colRatio = item.composition.colRatios[mod.x] || 0;
-            const rowRatio = item.composition.rowRatios[mod.y] || 0;
-            let modW = colRatio;
-            let modH = rowRatio;
+            
+            const modIdxX = mod.x - minX;
+            const modIdxY = mod.y - minY;
+            
+            let modW = Number(item.composition.colRatios[modIdxX] || 0);
+            let modH = Number(item.composition.rowRatios[modIdxY] || 0);
+
             if (item.composition.colRatios.length > 1) {
-                if (mod.x !== 0) modW -= (realDeduction / 2);
-                if (mod.x !== item.composition.colRatios.length - 1) modW -= (realDeduction / 2);
+                if (mod.x !== minX) modW -= (realDeduction / 2);
+                if (mod.x !== maxX) modW -= (realDeduction / 2);
             }
             if (item.composition.rowRatios.length > 1) {
-                if (mod.y !== 0) modH -= (realDeduction / 2);
-                if (mod.y !== item.composition.rowRatios.length - 1) modH -= (realDeduction / 2);
+                if (mod.y !== minY) modH -= (realDeduction / 2);
+                if (mod.y !== maxY) modH -= (realDeduction / 2);
             }
 
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
@@ -602,7 +621,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         const totalBars = Math.ceil(s.totalMm / barLenMm);
         return [s.code, s.detail, `${(s.totalMm / 1000).toFixed(2)} m`, `${s.barLength} m`, totalBars];
     });
-    autoTable({ startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'METROS TOTALES', 'LARGO BARRA', 'BARRAS A COMPRAR']], body: aluBody, theme: 'grid', headStyles: { fillColor: [51, 65, 85] }, styles: { fontSize: 8 }, columnStyles: { 4: { halign: 'center', fontStyle: 'bold' } } });
+    autoTable(doc, { startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'METROS TOTALES', 'LARGO BARRA', 'BARRAS A COMPRAR']], body: aluBody, theme: 'grid', headStyles: { fillColor: [51, 65, 85] }, styles: { fontSize: 8 }, columnStyles: { 4: { halign: 'center', fontStyle: 'bold' } } });
     currentY = (doc as any).lastAutoTable.finalY + 15;
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11); doc.text('2. LISTADO DE CRISTALES, PANELES Y TELAS', 15, currentY); currentY += 5;
@@ -627,7 +646,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         });
     });
     const glassBody = Array.from(fillSummary.values()).map(g => [g.spec, `${g.w} x ${g.h}`, g.qty, `${((g.w * g.h / 1000000) * g.qty).toFixed(2)} m2`]);
-    autoTable({ startY: currentY, head: [['ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']], body: glassBody, theme: 'striped', headStyles: { fillColor: [71, 85, 105] } });
+    autoTable(doc, { startY: currentY, head: [['ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']], body: glassBody, theme: 'striped', headStyles: { fillColor: [71, 85, 105] } });
     currentY = (doc as any).lastAutoTable.finalY + 15;
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setFontSize(11); doc.text('3. LISTADO DE HERRAJES, GOMAS Y FELPAS', 15, currentY); currentY += 5;
@@ -650,7 +669,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         });
     });
     const accBody = Array.from(accSummary.values()).map(a => [a.code, a.detail, a.isLinear ? `${a.qty.toFixed(2)} m` : a.qty]);
-    autoTable({ startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'CANTIDAD TOTAL']], body: accBody, theme: 'grid', headStyles: { fillColor: [100, 116, 139] }, styles: { fontSize: 8 } });
+    autoTable(doc, { startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'CANTIDAD TOTAL']], body: accBody, theme: 'grid', headStyles: { fillColor: [100, 116, 139] }, styles: { fontSize: 8 } });
     doc.save(`Pedido_Consolidado_${quote.clientName}.pdf`);
 };
 
@@ -685,7 +704,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
     });
     if (allPieces.length === 0) return;
     doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 30, 'F'); doc.setTextColor(255); doc.setFontSize(18); doc.text('OPTIMIZADOR DE CORTE DE VIDRIOS', 15, 20);
-    autoTable({ startY: 40, head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT.']], body: listTableData, theme: 'striped' });
+    autoTable(doc, { startY: 40, head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT.']], body: listTableData, theme: 'striped' });
     const groupedBySpec = new Map<string, GlassPiece[]>();
     allPieces.forEach(p => { const list = groupedBySpec.get(p.spec) || []; list.push(p); groupedBySpec.set(p.spec, list); });
     groupedBySpec.forEach((pieces, specName) => {
@@ -732,7 +751,7 @@ export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: Pr
             `$${(item.calculatedCost * item.quantity).toLocaleString()}`
         ];
     });
-    autoTable({ startY: 35, head: [['CÓD.', 'SISTEMA', 'CANT.', 'ALUMINIO', 'VIDRIO', 'HERRAJES', 'M. OBRA', 'TOTAL']], body: tableData, theme: 'striped', headStyles: { fillColor: [51, 65, 85], fontSize: 8 }, styles: { fontSize: 7 } });
+    autoTable(doc, { startY: 35, head: [['CÓD.', 'SISTEMA', 'CANT.', 'ALUMINIO', 'VIDRIO', 'HERRAJES', 'M. OBRA', 'TOTAL']], body: tableData, theme: 'striped', headStyles: { fillColor: [51, 65, 85], fontSize: 8 }, styles: { fontSize: 7 } });
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     const totalAlu = quote.items.reduce((sum, i) => sum + (i.breakdown?.aluCost || 0) * i.quantity, 0);
     const totalGlass = quote.items.reduce((sum, i) => sum + (i.breakdown?.glassCost || 0) * i.quantity, 0);
