@@ -52,7 +52,7 @@ const drawGlobalTapajuntas = (
 ) => {
     if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || !isFinite(tjSize)) return;
     
-    const applyTJEffect = (points: {x:number, y:number}[], isVert: boolean) => {
+    const applyTJ3DEffect = (points: {x:number, y:number}[], isVert: boolean) => {
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
@@ -61,32 +61,34 @@ const drawGlobalTapajuntas = (
         ctx.fillStyle = color;
         ctx.fill();
 
-        // EFECTO 3D (DEGRADADO DARK-LIGHT-DARK)
+        // EFECTO DE VOLUMEN (DEGRADADO INDUSTRIAL DARK-LIGHT-DARK)
         const minX = Math.min(...points.map(p => p.x));
         const maxX = Math.max(...points.map(p => p.x));
         const minY = Math.min(...points.map(p => p.y));
         const maxY = Math.max(...points.map(p => p.y));
 
-        const grad = isVert 
-            ? ctx.createLinearGradient(minX, minY, maxX, minY)
-            : ctx.createLinearGradient(minX, minY, minX, maxY);
-        
-        grad.addColorStop(0, 'rgba(0,0,0,0.18)');
-        grad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.18)');
-        
-        ctx.fillStyle = grad;
-        ctx.fill();
+        try {
+            const grad = isVert 
+                ? ctx.createLinearGradient(minX, minY, maxX, minY)
+                : ctx.createLinearGradient(minX, minY, minX, maxY);
+            
+            grad.addColorStop(0, 'rgba(0,0,0,0.22)');       // Sombra inicial
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)'); // Brillo central
+            grad.addColorStop(1, 'rgba(0,0,0,0.22)');       // Sombra final
+            
+            ctx.fillStyle = grad;
+            ctx.fill();
+        } catch(e) {}
 
-        // CONTORNO REMARCADO
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
-        ctx.lineWidth = 0.8;
+        // CONTORNO REMARCADO (Para que los perfiles blancos no se pierdan)
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.55)';
+        ctx.lineWidth = 1;
         ctx.stroke();
         ctx.restore();
     };
 
     if (sides.top) {
-        applyTJEffect([
+        applyTJ3DEffect([
             {x: x - (sides.left ? tjSize : 0), y: y - tjSize},
             {x: x + w + (sides.right ? tjSize : 0), y: y - tjSize},
             {x: x + w, y: y},
@@ -94,7 +96,7 @@ const drawGlobalTapajuntas = (
         ], false);
     }
     if (sides.bottom) {
-        applyTJEffect([
+        applyTJ3DEffect([
             {x: x, y: y + h},
             {x: x + w, y: y + h},
             {x: x + w + (sides.right ? tjSize : 0), y: y + h + tjSize},
@@ -102,7 +104,7 @@ const drawGlobalTapajuntas = (
         ], false);
     }
     if (sides.left) {
-        applyTJEffect([
+        applyTJ3DEffect([
             {x: x - tjSize, y: y - (sides.top ? tjSize : 0)},
             {x: x, y: y},
             {x: x, y: y + h},
@@ -110,7 +112,7 @@ const drawGlobalTapajuntas = (
         ], true);
     }
     if (sides.right) {
-        applyTJEffect([
+        applyTJ3DEffect([
             {x: x + w, y: y},
             {x: x + w + tjSize, y: y - (sides.top ? tjSize : 0)},
             {x: x + w + tjSize, y: y + h + (sides.bottom ? tjSize : 0)},
@@ -206,7 +208,6 @@ const drawDetailedOpening = (
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else if (isMosquiteroSystem) {
-            // SISTEMA MOSQUITERO PURA
             ctx.fillStyle = '#94a3b8'; 
             ctx.fillRect(px, py, pw, ph);
             ctx.save();
@@ -221,7 +222,6 @@ const drawDetailedOpening = (
             }
             ctx.restore();
         } else {
-            // VIDRIO ESTÁNDAR
             try {
                 const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
                 glassGrad.addColorStop(0, '#bae6fd');
@@ -276,35 +276,32 @@ const drawDetailedOpening = (
         if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
         
-        // DIBUJAR VIDRIO BASE
+        // DIBUJAR LLENADO (VIDRIO/TRANSEÑOS)
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), absoluteBottomY);
         
-        // VISUALIZACIÓN DEL ADICIONAL MOSQUITERO
+        // CAPA VISUAL DE MOSQUITERO (Si está habilitado en los extras)
         if (hasMesh) {
             ctx.save();
-            const mx = lx + leafT;
-            const my = ly + leafT;
-            const mw = lw - leafT * 2;
-            const mh = lh - (leafT + bT);
+            const mx = lx + leafT; const my = ly + leafT;
+            const mw = lw - leafT * 2; const mh = lh - (leafT + bT);
             
-            // Tonalidad de malla
-            ctx.fillStyle = 'rgba(71, 85, 105, 0.2)';
+            // Fondo de malla
+            ctx.fillStyle = 'rgba(71, 85, 105, 0.25)';
             ctx.fillRect(mx, my, mw, mh);
             
-            // Trama técnica de hilos
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
+            // Trama de hilos técnicos
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.3)';
             ctx.lineWidth = 0.3;
-            const meshSpacing = 4 * pxPerMm;
-            for (let i = 0; i <= mw; i += meshSpacing) {
+            const step = 4 * pxPerMm;
+            for(let i = 0; i <= mw; i += step) {
                 ctx.beginPath(); ctx.moveTo(mx + i, my); ctx.lineTo(mx + i, my + mh); ctx.stroke();
             }
-            for (let j = 0; j <= mh; j += meshSpacing) {
+            for(let j = 0; j <= mh; j += step) {
                 ctx.beginPath(); ctx.moveTo(mx, my + j); ctx.lineTo(mx + mw, my + j); ctx.stroke();
             }
             ctx.restore();
         }
 
-        // PERFILES DE LA HOJA
         if (force90) {
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
             drawProfile([{x:lx+lw-leafT, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}]);

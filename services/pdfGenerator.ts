@@ -21,6 +21,22 @@ interface GlassPiece {
     rotated?: boolean;
 }
 
+// FIX: Added missing drawGeometricPiece function for bar optimization rendering
+const drawGeometricPiece = (doc: jsPDF, x: number, y: number, w: number, h: number, start: string, end: string) => {
+    const sOffset = start === '45' ? h * 0.5 : 0;
+    const eOffset = end === '45' ? h * 0.5 : 0;
+    
+    const points = [
+        [x + sOffset, y],
+        [x + w - eOffset, y],
+        [x + w, y + h],
+        [x, y + h]
+    ];
+    
+    // @ts-ignore - polygon exists in jsPDF but might not be in all type definitions
+    doc.polygon(points, 'F');
+};
+
 const getModuleGlassPanes = (
   item: QuoteItem, 
   mod: any, 
@@ -285,15 +301,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     doc.save(`Cortes_Barras_${quote.clientName}.pdf`);
 };
 
-function drawGeometricPiece(doc: jsPDF, x: number, y: number, w: number, h: number, start: string, end: string) {
-    const slant = h * 0.75; const x1 = x; const x2 = x + w; const yTop = y; const yBottom = y + h;
-    let p1 = {x: x1, y: yTop}, p2 = {x: x2, y: yTop}, p3 = {x: x2, y: yBottom}, p4 = {x: x1, y: yBottom};
-    if (start === '45') p1.x += slant;
-    if (end === '45') p2.x -= slant;
-    doc.triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, 'FD');
-    doc.triangle(p1.x, p1.y, p3.x, p3.y, p4.x, p4.y, 'FD');
-}
-
 export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], glasses: Glass[], dvhInputs: DVHInput[], treatments: Treatment[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -313,13 +320,17 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
     const tableData = quote.items.map((item, idx) => {
         const treatment = treatments.find(t => t.id === item.colorId);
         
-        const moduleNames = item.composition.modules
-            .map(m => recipes.find(r => r.id === m.recipeId)?.name)
+        const moduleRecipes = item.composition.modules
+            .map(m => recipes.find(r => r.id === m.recipeId))
             .filter(Boolean);
         
+        const moduleNames = moduleRecipes.map(r => r?.name);
         const compositeName = moduleNames.length > 1 
             ? `CONJUNTO: ${moduleNames.join(' + ')}`
             : (moduleNames[0] || 'Abertura');
+
+        // OBTENER LA LÍNEA (SI ES CONJUNTO, TOMAMOS LA DE LA PRIMERA RECETA)
+        const recipeLine = moduleRecipes[0]?.line || '-';
 
         let glassDetailStr = 'No definido';
         const firstMod = item.composition.modules?.[0];
@@ -339,7 +350,8 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
             }
         }
 
-        let desc = `${item.itemCode || `POS#${idx+1}`}: ${compositeName}\nAcabado: ${treatment?.name || '-'}\nLlenado: ${glassDetailStr}`;
+        // SE INCLUYE LA LÍNEA EN EL DETALLE TÉCNICO
+        let desc = `${item.itemCode || `POS#${idx+1}`}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || '-'}\nLlenado: ${glassDetailStr}`;
         if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
 
         return [
@@ -363,7 +375,6 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
                         const drawW = imgProps.width * ratio; const drawH = imgProps.height * ratio;
                         const offsetX = (cellW - drawW) / 2; const offsetY = (cellH - drawH) / 2;
                         
-                        // RESALTAR CONTORNO DEL DIBUJO EN EL PDF PARA QUE NO SE PIERDA
                         doc.setDrawColor(200); 
                         doc.rect(data.cell.x + 2 + offsetX, data.cell.y + 2 + offsetY, drawW, drawH, 'D');
                         doc.addImage(item.previewImage, 'JPEG', data.cell.x + 2 + offsetX, data.cell.y + 2 + offsetY, drawW, drawH);
