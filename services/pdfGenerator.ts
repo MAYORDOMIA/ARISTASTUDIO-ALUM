@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem, Treatment } from '../types';
@@ -21,20 +20,25 @@ interface GlassPiece {
     rotated?: boolean;
 }
 
-// FIX: Added missing drawGeometricPiece function for bar optimization rendering
+/**
+ * Función robusta para dibujar piezas de optimización.
+ * Utiliza triángulos para evitar errores de compatibilidad con polygon() en jsPDF.
+ */
 const drawGeometricPiece = (doc: jsPDF, x: number, y: number, w: number, h: number, start: string, end: string) => {
     const sOffset = start === '45' ? h * 0.5 : 0;
     const eOffset = end === '45' ? h * 0.5 : 0;
     
-    const points = [
-        [x + sOffset, y],
-        [x + w - eOffset, y],
-        [x + w, y + h],
-        [x, y + h]
-    ];
-    
-    // @ts-ignore - polygon exists in jsPDF but might not be in all type definitions
-    doc.polygon(points, 'F');
+    // Dibujamos la pieza mediante dos triángulos que forman un trapecio/rectángulo
+    // Punto superior izquierdo (A), superior derecho (B), inferior izquierdo (C), inferior derecho (D)
+    const ax = x + sOffset, ay = y;
+    const bx = x + w - eOffset, by = y;
+    const cx = x, cy = y + h;
+    const dx = x + w, dy = y + h;
+
+    // Primer triángulo (ABC)
+    doc.triangle(ax, ay, bx, by, cx, cy, 'F');
+    // Segundo triángulo (BCD)
+    doc.triangle(bx, by, cx, cy, dx, dy, 'F');
 };
 
 const getModuleGlassPanes = (
@@ -44,6 +48,8 @@ const getModuleGlassPanes = (
   aluminum: AluminumProfile[]
 ): { w: number, h: number, isBlind: boolean }[] => {
     const validModules = (item.composition.modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+    if (validModules.length === 0) return [];
+
     const minX = Math.min(...validModules.map(m => m.x));
     const minY = Math.min(...validModules.map(m => m.y));
     const maxX = Math.max(...validModules.map(m => m.x));
@@ -52,7 +58,6 @@ const getModuleGlassPanes = (
     const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
     const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
     
-    // CORRECCIÓN DE INDEXACIÓN PARA PDF
     const modIdxX = mod.x - minX;
     const modIdxY = mod.y - minY;
     
@@ -139,12 +144,15 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
         const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
-        const minX = Math.min(...item.composition.modules.map(m => m.x));
-        const minY = Math.min(...item.composition.modules.map(m => m.y));
-        const maxX = Math.max(...item.composition.modules.map(m => m.x));
-        const maxY = Math.max(...item.composition.modules.map(m => m.y));
+        const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        if (validModules.length === 0) return;
 
-        item.composition.modules.forEach(mod => {
+        const minX = Math.min(...validModules.map(m => m.x));
+        const minY = Math.min(...validModules.map(m => m.y));
+        const maxX = Math.max(...validModules.map(m => m.x));
+        const maxY = Math.max(...validModules.map(m => m.y));
+
+        validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             
@@ -329,8 +337,8 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
             ? `CONJUNTO: ${moduleNames.join(' + ')}`
             : (moduleNames[0] || 'Abertura');
 
-        // OBTENER LA LÍNEA (SI ES CONJUNTO, TOMAMOS LA DE LA PRIMERA RECETA)
-        const recipeLine = moduleRecipes[0]?.line || '-';
+        // Línea técnica (prioritaria)
+        const recipeLine = moduleRecipes[0]?.line || 'No especificada';
 
         let glassDetailStr = 'No definido';
         const firstMod = item.composition.modules?.[0];
@@ -350,7 +358,6 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
             }
         }
 
-        // SE INCLUYE LA LÍNEA EN EL DETALLE TÉCNICO
         let desc = `${item.itemCode || `POS#${idx+1}`}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || '-'}\nLlenado: ${glassDetailStr}`;
         if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
 
@@ -417,20 +424,24 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         doc.setFillColor(241, 245, 249); doc.rect(10, currentY, pageWidth - 20, 10, 'F');
         doc.setTextColor(30, 41, 59); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
         
-        const moduleNames = item.composition.modules.map(m => recipes.find(r => r.id === m.recipeId)?.name).filter(Boolean);
+        const moduleRecipes = item.composition.modules.map(m => recipes.find(r => r.id === m.recipeId)).filter(Boolean);
+        const moduleNames = moduleRecipes.map(r => r?.name);
         const compositeName = moduleNames.length > 1 ? `CONJUNTO: ${moduleNames.join(' + ')}` : (moduleNames[0] || 'Abertura');
+        const recipeLine = moduleRecipes[0]?.line || '-';
         const isSet = item.composition.modules.length > 1;
         
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
         const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
-        const validModules = (item.composition.modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        if (validModules.length === 0) return;
+
         const minX = Math.min(...validModules.map(m => m.x));
         const minY = Math.min(...validModules.map(m => m.y));
         const maxX = Math.max(...validModules.map(m => m.x));
         const maxY = Math.max(...validModules.map(m => m.y));
 
-        doc.text(`${item.itemCode || `POS#${idx+1}`} - ${compositeName} - CANT: ${item.quantity} [${item.width} x ${item.height} mm]`, 15, currentY + 6.5);
+        doc.text(`${item.itemCode || `POS#${idx+1}`} - ${compositeName} (Línea: ${recipeLine}) - CANT: ${item.quantity}`, 15, currentY + 6.5);
         currentY += 15;
         if (item.previewImage) {
             try { 
@@ -440,7 +451,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             } catch(e){}
         }
         const profileCuts: any[] = [];
-        item.composition.modules.forEach(mod => {
+        validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             
@@ -508,7 +519,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         autoTable(doc, { startY: currentY, margin: { left: 80 }, head: [['CÓD.', 'PERFIL', 'LONG', 'CANT', 'CORTES']], body: profileCuts, theme: 'grid', styles: { fontSize: 7 }, headStyles: { fillColor: [71, 85, 105] }, columnStyles: { 2: { halign: 'center', fontStyle: 'bold' } } });
         currentY = (doc as any).lastAutoTable.finalY + 5;
         const glassPieces: any[] = [];
-        item.composition.modules.forEach(mod => {
+        validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
@@ -548,13 +559,15 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
         const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
-        const validModules = (item.composition.modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        if (validModules.length === 0) return;
+
         const minX = Math.min(...validModules.map(m => m.x));
         const minY = Math.min(...validModules.map(m => m.y));
         const maxX = Math.max(...validModules.map(m => m.x));
         const maxY = Math.max(...validModules.map(m => m.y));
 
-        item.composition.modules.forEach(mod => {
+        validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             
