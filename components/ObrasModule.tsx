@@ -57,14 +57,12 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
         const modW = (item.width * colRatio) / sumCols;
         const modH = (item.height * rowRatio) / sumRows;
 
-        // Búsqueda de fórmula Y CANTIDAD de travesaño en la receta para travesaños dinámicos
         const transomTemplate = (recipe.profiles || []).find(rp => 
           rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
         );
         const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
         const recipeTransomQty = transomTemplate?.quantity || 1;
 
-        // Perfiles Estructurales (FILTRANDO TRAVESAÑOS ESTÁTICOS)
         recipe.profiles.forEach(rp => {
             const role = rp.role?.toLowerCase() || '';
             if (role.includes('trave')) return;
@@ -82,12 +80,10 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
             summary.set(pDef.id, existing);
         });
 
-        // Travesaños Dinámicos (LOS QUE EL USUARIO PIDIÓ)
         if (mod.transoms && mod.transoms.length > 0) {
           mod.transoms.forEach(t => {
             const trProf = aluminum.find(p => p.id === t.profileId);
             if (trProf) {
-              // Aplicar fórmula Y CANTIDAD de la receta
               const f = t.formula || recipeTransomFormula;
               const cutLen = evaluateFormula(f, modW, modH);
               const totalCutLen = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
@@ -136,7 +132,14 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
 
         <div className="space-y-3">
             {items.map((item, idx) => {
-              const mainRecipe = recipes.find(r => r.id === item?.composition?.modules?.[0]?.recipeId);
+              const moduleNames = item.composition.modules
+                  .map(m => recipes.find(r => r.id === m.recipeId)?.name)
+                  .filter(Boolean);
+              
+              const compositeName = moduleNames.length > 1 
+                  ? `${moduleNames.join(' + ')}` 
+                  : (moduleNames[0] || 'Producto Desconocido');
+
               return (
                 <div key={item.id} className="bg-white border-b border-slate-100 p-4 flex items-center gap-6 hover:bg-slate-50 transition-all group">
                   <div className="w-16 h-12 bg-indigo-50 rounded-lg flex flex-col items-center justify-center border border-indigo-100">
@@ -144,10 +147,10 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                     <span className="text-[10px] font-black text-indigo-600 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{mainRecipe?.name || 'Producto Desconocido'}</h3>
+                    <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{compositeName}</h3>
                     <div className="flex gap-4 mt-1">
                       <span className="text-[9px] font-mono text-slate-500">{item.width} x {item.height} mm</span>
-                      <span className="text-[9px] font-black text-indigo-500 uppercase">{mainRecipe?.line || '-'}</span>
+                      <span className="text-[9px] font-black text-indigo-500 uppercase">{moduleNames.length > 1 ? 'CONJUNTO' : recipes.find(r => r.id === item.composition.modules[0].recipeId)?.line || '-'}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">

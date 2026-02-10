@@ -232,21 +232,30 @@ const QuotesHistory: React.FC<Props> = ({
 
               <div className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 overflow-y-auto custom-scrollbar space-y-3 shadow-inner">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Desglose de Ítems ({selectedQuote.items.length})</h4>
-                {selectedQuote.items.map((item, idx) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-200 shadow-sm transition-all hover:border-indigo-600/30">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-10 bg-slate-50 rounded-lg flex flex-col items-center justify-center border border-slate-100">
-                        <span className="text-[6px] font-black text-slate-400 uppercase">ABER.</span>
-                        <span className="text-[9px] font-black text-indigo-600 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
+                {selectedQuote.items.map((item, idx) => {
+                  const moduleNames = item.composition.modules
+                      .map(m => recipes.find(r => r.id === m.recipeId)?.name)
+                      .filter(Boolean);
+                  const compositeName = moduleNames.length > 1 
+                      ? `CONJUNTO: ${moduleNames.join(' + ')}` 
+                      : (moduleNames[0] || 'Producto');
+                      
+                  return (
+                    <div key={item.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-200 shadow-sm transition-all hover:border-indigo-600/30">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-10 bg-slate-50 rounded-lg flex flex-col items-center justify-center border border-slate-100">
+                          <span className="text-[6px] font-black text-slate-400 uppercase">ABER.</span>
+                          <span className="text-[9px] font-black text-indigo-600 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-black text-slate-800 uppercase">{compositeName}</div>
+                          <div className="text-[9px] text-slate-500 font-mono font-bold">{item.width} x {item.height} mm | {item.quantity} UNID.</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-[10px] font-black text-slate-800 uppercase">{recipes.find(r => r.id === (item.composition.modules?.[0]?.recipeId))?.name || 'Producto'}</div>
-                        <div className="text-[9px] text-slate-500 font-mono font-bold">{item.width} x {item.height} mm | {item.quantity} UNID.</div>
-                      </div>
+                      <div className="text-xs font-black text-slate-900 font-mono">${(item.calculatedCost * item.quantity).toLocaleString()}</div>
                     </div>
-                    <div className="text-xs font-black text-slate-900 font-mono">${(item.calculatedCost * item.quantity).toLocaleString()}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="pt-6 border-t-2 border-slate-100 flex items-center justify-between">
