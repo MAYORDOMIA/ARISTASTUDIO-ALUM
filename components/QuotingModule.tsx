@@ -51,48 +51,72 @@ const drawGlobalTapajuntas = (
     sides: QuoteItem['extras']['tapajuntasSides']
 ) => {
     if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || !isFinite(tjSize)) return;
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctx.lineWidth = 0.5;
+    
+    const applyTJEffect = (points: {x:number, y:number}[], isVert: boolean) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        points.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // EFECTO 3D (DEGRADADO DARK-LIGHT-DARK)
+        const minX = Math.min(...points.map(p => p.x));
+        const maxX = Math.max(...points.map(p => p.x));
+        const minY = Math.min(...points.map(p => p.y));
+        const maxY = Math.max(...points.map(p => p.y));
+
+        const grad = isVert 
+            ? ctx.createLinearGradient(minX, minY, maxX, minY)
+            : ctx.createLinearGradient(minX, minY, minX, maxY);
+        
+        grad.addColorStop(0, 'rgba(0,0,0,0.18)');
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.18)');
+        
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // CONTORNO REMARCADO
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        ctx.restore();
+    };
 
     if (sides.top) {
-        ctx.beginPath();
-        ctx.moveTo(x - (sides.left ? tjSize : 0), y - tjSize);
-        ctx.lineTo(x + w + (sides.right ? tjSize : 0), y - tjSize);
-        ctx.lineTo(x + w, y);
-        ctx.lineTo(x, y);
-        ctx.closePath();
-        ctx.fill(); ctx.stroke();
+        applyTJEffect([
+            {x: x - (sides.left ? tjSize : 0), y: y - tjSize},
+            {x: x + w + (sides.right ? tjSize : 0), y: y - tjSize},
+            {x: x + w, y: y},
+            {x: x, y: y}
+        ], false);
     }
     if (sides.bottom) {
-        ctx.beginPath();
-        ctx.moveTo(x, y + h);
-        ctx.lineTo(x + w, y + h);
-        ctx.lineTo(x + w + (sides.right ? tjSize : 0), y + h + tjSize);
-        ctx.lineTo(x - (sides.left ? tjSize : 0), y + h + tjSize);
-        ctx.closePath();
-        ctx.fill(); ctx.stroke();
+        applyTJEffect([
+            {x: x, y: y + h},
+            {x: x + w, y: y + h},
+            {x: x + w + (sides.right ? tjSize : 0), y: y + h + tjSize},
+            {x: x - (sides.left ? tjSize : 0), y: y + h + tjSize}
+        ], false);
     }
     if (sides.left) {
-        ctx.beginPath();
-        ctx.moveTo(x - tjSize, y - (sides.top ? tjSize : 0));
-        ctx.lineTo(x, y);
-        ctx.lineTo(x, y + h);
-        ctx.lineTo(x - tjSize, y + h + (sides.bottom ? tjSize : 0));
-        ctx.closePath();
-        ctx.fill(); ctx.stroke();
+        applyTJEffect([
+            {x: x - tjSize, y: y - (sides.top ? tjSize : 0)},
+            {x: x, y: y},
+            {x: x, y: y + h},
+            {x: x - tjSize, y: y + h + (sides.bottom ? tjSize : 0)}
+        ], true);
     }
     if (sides.right) {
-        ctx.beginPath();
-        ctx.moveTo(x + w, y);
-        ctx.lineTo(x + w + tjSize, y - (sides.top ? tjSize : 0));
-        ctx.lineTo(x + w + tjSize, y + h + (sides.bottom ? tjSize : 0));
-        ctx.lineTo(x + w, y + h);
-        ctx.closePath();
-        ctx.fill(); ctx.stroke();
+        applyTJEffect([
+            {x: x + w, y: y},
+            {x: x + w + tjSize, y: y - (sides.top ? tjSize : 0)},
+            {x: x + w + tjSize, y: y + h + (sides.bottom ? tjSize : 0)},
+            {x: x + w, y: y + h}
+        ], true);
     }
-    ctx.restore();
 };
 
 const drawDetailedOpening = (
@@ -133,54 +157,34 @@ const drawDetailedOpening = (
 
     const drawProfile = (points: {x:number, y:number}[]) => {
         if (!points || points.length < 3) return;
-        const validPoints = points.filter(p => isFinite(p.x) && isFinite(p.y));
-        if (validPoints.length < 3) return;
-
-        const minX = Math.min(...validPoints.map(p => p.x));
-        const maxX = Math.max(...validPoints.map(p => p.x));
-        const minY = Math.min(...validPoints.map(p => p.y));
-        const maxY = Math.max(...validPoints.map(p => p.y));
-        const isVert = (maxX - minX) < (maxY - minY);
-
         ctx.save();
         ctx.beginPath();
-        ctx.moveTo(validPoints[0].x, validPoints[0].y);
-        validPoints.forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.moveTo(points[0].x, points[0].y);
+        points.forEach(p => ctx.lineTo(p.x, p.y));
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
 
         try {
-            const gradX1 = isFinite(minX) ? minX : 0;
-            const gradY1 = isFinite(minY) ? minY : 0;
-            const gradX2 = isFinite(maxX) ? maxX : (isVert ? 10 : 0);
-            const gradY2 = isFinite(maxY) ? maxY : (!isVert ? 10 : 0);
-
+            const minX = Math.min(...points.map(p => p.x));
+            const maxX = Math.max(...points.map(p => p.x));
+            const minY = Math.min(...points.map(p => p.y));
+            const maxY = Math.max(...points.map(p => p.y));
+            const isVert = (maxX - minX) < (maxY - minY);
+            
             const grad = isVert 
-                ? ctx.createLinearGradient(gradX1, gradY1, gradX2, gradY1)
-                : ctx.createLinearGradient(gradX1, gradY1, gradX1, gradY2);
-            grad.addColorStop(0, 'rgba(0,0,0,0.15)');       
-            grad.addColorStop(0.2, 'rgba(255,255,255,0.2)'); 
-            grad.addColorStop(0.5, 'rgba(255,255,255,0.05)'); 
-            grad.addColorStop(0.8, 'rgba(255,255,255,0.15)'); 
-            grad.addColorStop(1, 'rgba(0,0,0,0.18)');       
+                ? ctx.createLinearGradient(minX, minY, maxX, minY)
+                : ctx.createLinearGradient(minX, minY, minX, maxY);
+            
+            grad.addColorStop(0, 'rgba(0,0,0,0.2)');       
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)'); 
+            grad.addColorStop(1, 'rgba(0,0,0,0.2)');       
             ctx.fillStyle = grad;
             ctx.fill();
         } catch(e) {}
 
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-        if (isVert) {
-            const midX = minX + (maxX - minX) / 2;
-            ctx.moveTo(midX, minY); ctx.lineTo(midX, maxY);
-        } else {
-            const midY = minY + (maxY - minY) / 2;
-            ctx.moveTo(minX, midY); ctx.lineTo(maxX, midY);
-        }
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)'; 
         ctx.stroke();
         ctx.restore();
     };
@@ -189,24 +193,26 @@ const drawDetailedOpening = (
         if (!isFinite(px) || !isFinite(py) || !isFinite(pw) || !isFinite(ph)) return;
         const isBlind = blindPanes.includes(index);
         const isMosquiteroSystem = visualType === 'mosquitero';
+        
         if (isBlind) {
             const specificBlindId = blindPaneIds[index];
             const specificBlind = allBlindPanels.find(bp => bp.id === specificBlindId);
             const isML = specificBlind?.unit === 'ml';
             ctx.fillStyle = isML ? color : '#334155';
             ctx.fillRect(px, py, pw, ph);
-            ctx.strokeStyle = isML ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.05)';
+            ctx.strokeStyle = isML ? 'rgba(15, 23, 42, 0.3)' : 'rgba(255,255,255,0.1)';
             const step = 12 * pxPerMm;
             for (let i = 0; i < ph; i += step) { 
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
             }
         } else if (isMosquiteroSystem) {
+            // SISTEMA MOSQUITERO PURA
             ctx.fillStyle = '#94a3b8'; 
             ctx.fillRect(px, py, pw, ph);
             ctx.save();
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)'; 
-            ctx.lineWidth = 0.3;
-            const meshStep = 2.5 * pxPerMm;
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)'; 
+            ctx.lineWidth = 0.4;
+            const meshStep = 3.5 * pxPerMm;
             for (let i = 0; i <= ph; i += meshStep) {
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke();
             }
@@ -215,10 +221,10 @@ const drawDetailedOpening = (
             }
             ctx.restore();
         } else {
+            // VIDRIO ESTÁNDAR
             try {
                 const glassGrad = ctx.createLinearGradient(px, py, px + pw, py + ph);
                 glassGrad.addColorStop(0, '#bae6fd');
-                glassGrad.addColorStop(0.35, '#e0f2fe');
                 glassGrad.addColorStop(0.5, '#f0f9ff');
                 glassGrad.addColorStop(1, '#bae6fd');
                 ctx.fillStyle = glassGrad;
@@ -227,11 +233,15 @@ const drawDetailedOpening = (
                 ctx.fillStyle = '#bae6fd';
                 ctx.fillRect(px, py, pw, ph);
             }
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.15)';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(px, py, pw, ph);
+
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(255,255,255,0.6)';
             ctx.lineWidth = 1.8;
-            ctx.moveTo(px + pw * 0.15, py + 12*pxPerMm);
-            ctx.lineTo(px + pw * 0.85, py + ph - 12*pxPerMm);
+            ctx.moveTo(px + pw * 0.2, py + 12*pxPerMm);
+            ctx.lineTo(px + pw * 0.8, py + ph - 12*pxPerMm);
             ctx.stroke();
         }
     };
@@ -262,64 +272,39 @@ const drawDetailedOpening = (
         }
     };
 
-    if (isVidrioSolo) {
-        drawGlassWithTransoms(x, y, w, h, y + h);
-        return;
-    }
-
-    if (isMamparaRebatir) {
-        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]);
-        drawGlassWithTransoms(x + frameT, y, w - frameT, h, y + h);
-        return;
-    }
-
-    if (isMamparaFija) {
-        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h - frameT}, {x: x, y: y + h - frameT}]); // Vertical L
-        drawProfile([{x: x + frameT, y: y + h - frameT}, {x: x + w, y: y + h - frameT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); // Horizontal B
-        drawGlassWithTransoms(x + frameT, y, w - frameT, h - frameT, y + h);
-        return;
-    }
-
-    if (isPFZocalon) {
-        drawProfile([{x: x, y: y}, {x: x + w, y: y}, {x: x + w, y: y + zocaloT}, {x: x, y: y + zocaloT}]); // Zocalo Top
-        drawProfile([{x: x, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); // Zocalo Bot
-        drawGlassWithTransoms(x, y + zocaloT, w, h - 2*zocaloT, y + h);
-        return;
-    }
-
-    if (isPuertaZocalon) {
-        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]); // Vertical L
-        drawProfile([{x: x + frameT, y: y}, {x: x + w, y: y}, {x: x + w, y: y + zocaloT}, {x: x + frameT, y: y + zocaloT}]); // Zocalo Top
-        drawProfile([{x: x + frameT, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x + frameT, y: y + h}]); // Zocalo Bot
-        drawGlassWithTransoms(x + frameT, y + zocaloT, w - frameT, h - 2*zocaloT, y + h);
-        return;
-    }
-
-    if (isSinglePreview && extras?.tapajuntas && edges) {
-        drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
-    }
-
-    if (isFrame90) {
-        drawProfile([{x:x, y:y}, {x:x+frameT, y:y}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]);
-        drawProfile([{x:x+w-frameT, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h}]);
-        drawProfile([{x:x+frameT, y:y}, {x:x+w-frameT, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]);
-        if (hasBottomFrame) {
-            drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}]);
-        }
-    } else {
-        drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); 
-        if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}]); 
-        drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}]); 
-        drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}]); 
-    }
-
-    const innerX = x + frameT; const innerY = y + frameT;
-    const innerW = w - frameT * 2; const innerH = h - (hasBottomFrame ? frameT * 2 : frameT);
-
-    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, mesh:boolean, leafType:string, absoluteBottomY: number) => {
+    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, hasMesh:boolean, leafType:string, absoluteBottomY: number) => {
         if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
+        
+        // DIBUJAR VIDRIO BASE
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), absoluteBottomY);
+        
+        // VISUALIZACIÓN DEL ADICIONAL MOSQUITERO
+        if (hasMesh) {
+            ctx.save();
+            const mx = lx + leafT;
+            const my = ly + leafT;
+            const mw = lw - leafT * 2;
+            const mh = lh - (leafT + bT);
+            
+            // Tonalidad de malla
+            ctx.fillStyle = 'rgba(71, 85, 105, 0.2)';
+            ctx.fillRect(mx, my, mw, mh);
+            
+            // Trama técnica de hilos
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
+            ctx.lineWidth = 0.3;
+            const meshSpacing = 4 * pxPerMm;
+            for (let i = 0; i <= mw; i += meshSpacing) {
+                ctx.beginPath(); ctx.moveTo(mx + i, my); ctx.lineTo(mx + i, my + mh); ctx.stroke();
+            }
+            for (let j = 0; j <= mh; j += meshSpacing) {
+                ctx.beginPath(); ctx.moveTo(mx, my + j); ctx.lineTo(mx + mw, my + j); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // PERFILES DE LA HOJA
         if (force90) {
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
             drawProfile([{x:lx+lw-leafT, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}]);
@@ -333,31 +318,77 @@ const drawDetailedOpening = (
         }
     };
 
-    if (visualType.includes('sliding')) {
-        const numLeaves = visualType.includes('sliding_3') ? 3 : (visualType.includes('sliding_4') ? 4 : 2);
-        const overlap = 40 * pxPerMm;
-        if (numLeaves === 3) {
-            const leafW = (innerW / 3) + overlap;
-            for(let i=0; i<3; i++) {
-                const lx = innerX + (i * (innerW - leafW) / 2);
-                drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
-            }
-        } else if (numLeaves === 4) {
-            const leafW = (innerW / 4) + overlap;
-            for(let i=0; i<4; i++) {
-                const lx = innerX + (i * (innerW - leafW) / 3);
-                drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+    if (isSinglePreview && extras?.tapajuntas && edges) {
+        drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
+    }
+
+    if (isVidrioSolo) {
+        drawGlassWithTransoms(x, y, w, h, y + h);
+    } else if (isMamparaRebatir) {
+        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]);
+        drawGlassWithTransoms(x + frameT, y, w - frameT, h, y + h);
+    } else if (isMamparaFija) {
+        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h - frameT}, {x: x, y: y + h - frameT}]); 
+        drawProfile([{x: x + frameT, y: y + h - frameT}, {x: x + w, y: y + h - frameT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); 
+        drawGlassWithTransoms(x + frameT, y, w - frameT, h - frameT, y + h);
+    } else if (isPFZocalon) {
+        drawProfile([{x: x, y: y}, {x: x + w, y: y}, {x: x + w, y: y + zocaloT}, {x: x, y: y + zocaloT}]); 
+        drawProfile([{x: x, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x, y: y + h}]); 
+        drawGlassWithTransoms(x, y + zocaloT, w, h - 2*zocaloT, y + h);
+    } else if (isPuertaZocalon) {
+        drawProfile([{x: x, y: y}, {x: x + frameT, y: y}, {x: x + frameT, y: y + h}, {x: x, y: y + h}]); 
+        drawProfile([{x: x + frameT, y: y}, {x: x + w, y: y}, {x: x + w, y: y + zocaloT}, {x: x + frameT, y: y + zocaloT}]); 
+        drawProfile([{x: x + frameT, y: y + h - zocaloT}, {x: x + w, y: y + h - zocaloT}, {x: x + w, y: y + h}, {x: x + frameT, y: y + h}]); 
+        drawGlassWithTransoms(x + frameT, y + zocaloT, w - frameT, h - 2*zocaloT, y + h);
+    } else {
+        if (isFrame90) {
+            drawProfile([{x:x, y:y}, {x:x+frameT, y:y}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]);
+            drawProfile([{x:x+w-frameT, y:y}, {x:x+w, y:y}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h}]);
+            drawProfile([{x:x+frameT, y:y}, {x:x+w-frameT, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]);
+            if (hasBottomFrame) {
+                drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}]);
             }
         } else {
-            const leafW = (innerW / 2) + overlap;
-            drawLeaf(innerX, innerY, innerH, leafW, true, isFrame90, extras?.mosquitero || false, 'sliding', y + h);
-            drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, isFrame90, false, 'sliding', y + h);
+            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); 
+            if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}]); 
+            drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}]); 
+            drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}]); 
         }
-    } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
-        drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90, extras?.mosquitero || false, visualType, y + h);
-    } else {
-        drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
+
+        const innerX = x + frameT; const innerY = y + frameT;
+        const innerW = w - frameT * 2; const innerH = h - (hasBottomFrame ? frameT * 2 : frameT);
+
+        if (visualType.includes('sliding')) {
+            const numLeaves = visualType.includes('sliding_3') ? 3 : (visualType.includes('sliding_4') ? 4 : 2);
+            const overlap = 40 * pxPerMm;
+            if (numLeaves === 3) {
+                const leafW = (innerW / 3) + overlap;
+                for(let i=0; i<3; i++) {
+                    const lx = innerX + (i * (innerW - leafW) / 2);
+                    drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                }
+            } else if (numLeaves === 4) {
+                const leafW = (innerW / 4) + overlap;
+                for(let i=0; i<4; i++) {
+                    const lx = innerX + (i * (innerW - leafW) / 3);
+                    drawLeaf(lx, innerY, innerH, leafW, true, isFrame90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                }
+            } else {
+                const leafW = (innerW / 2) + overlap;
+                drawLeaf(innerX, innerY, innerH, leafW, true, isFrame90, extras?.mosquitero || false, 'sliding', y + h);
+                drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, true, isFrame90, false, 'sliding', y + h);
+            }
+        } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
+            drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90, extras?.mosquitero || false, visualType, y + h);
+        } else {
+            drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
+        }
     }
+
+    // TRAZO FINAL PERIMETRAL REMARCADO
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(x, y, w, h);
 };
 
 interface Props {
@@ -623,6 +654,12 @@ const QuotingModule: React.FC<Props> = ({
         const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
         drawDetailedOpening(ctx, startX + (ox_mm + xOffset) * pxPerMm, startY + (oy_mm + yOffset) * pxPerMm, modW * pxPerMm, modH * pxPerMm, recipe, mod.isDVH, aluColor, extras, edges, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
+
+    // TRAZO FINAL PERIMETRAL AL CONJUNTO (REMARCADO)
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(startX, startY, totalWidth * pxPerMm, totalHeight * pxPerMm);
+
   }, [totalWidth, totalHeight, modules, colSizes, rowSizes, bounds, extras, colorId, treatments, recipes, couplingDeduction, couplingProfileId, blindPanels, aluminum]);
 
   const currentModForEdit = (modules || []).find(m => m && m.id === editingModuleId);

@@ -174,12 +174,14 @@ export const calculateItemPrice = (
     }
   });
 
+  // SUMAR PESO DE TRAVESAÑOS AL MÓDULO
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
         const f = t.formula || recipeTransomFormula;
         const tCut = evaluateFormula(f, width, height);
+        // Se suma a totalAluWeight para que impacte en aluCost final
         totalAluWeight += ((tCut + Number(config.discWidth || 0)) / 1000) * recipeTransomQty * Number(trProf.weightPerMeter || 0);
       }
     });

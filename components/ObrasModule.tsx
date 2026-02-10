@@ -48,14 +48,12 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
         const recipe = recipes.find(r => r.id === mod.recipeId);
         if (!recipe) return;
 
-        const sumCols = (item.composition.colRatios || []).reduce((a, b) => a + b, 0) || 1;
-        const sumRows = (item.composition.rowRatios || []).reduce((a, b) => a + b, 0) || 1;
-
         const colRatio = item.composition.colRatios[mod.x - minX] || 0;
         const rowRatio = item.composition.rowRatios[mod.y - minY] || 0;
-
-        const modW = (item.width * colRatio) / sumCols;
-        const modH = (item.height * rowRatio) / sumRows;
+        
+        // CORRECCIÓN: USAR LAS MEDIDAS REALES DEL MÓDULO PARA EL CONSOLIDADO
+        const modW = Number(colRatio);
+        const modH = Number(rowRatio);
 
         const transomTemplate = (recipe.profiles || []).find(rp => 
           rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))
@@ -80,6 +78,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
             summary.set(pDef.id, existing);
         });
 
+        // SUMAR TRAVESAÑOS AL CONSOLIDADO TÉCNICO
         if (mod.transoms && mod.transoms.length > 0) {
           mod.transoms.forEach(t => {
             const trProf = aluminum.find(p => p.id === t.profileId);

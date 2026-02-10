@@ -36,6 +36,7 @@ const getModuleGlassPanes = (
     const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
     const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
     
+    // CORRECCIÓN DE INDEXACIÓN PARA PDF
     const modIdxX = mod.x - minX;
     const modIdxY = mod.y - minY;
     
@@ -361,6 +362,10 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
                         const ratio = Math.min(cellW / imgProps.width, cellH / imgProps.height);
                         const drawW = imgProps.width * ratio; const drawH = imgProps.height * ratio;
                         const offsetX = (cellW - drawW) / 2; const offsetY = (cellH - drawH) / 2;
+                        
+                        // RESALTAR CONTORNO DEL DIBUJO EN EL PDF PARA QUE NO SE PIERDA
+                        doc.setDrawColor(200); 
+                        doc.rect(data.cell.x + 2 + offsetX, data.cell.y + 2 + offsetY, drawW, drawH, 'D');
                         doc.addImage(item.previewImage, 'JPEG', data.cell.x + 2 + offsetX, data.cell.y + 2 + offsetY, drawW, drawH);
                     } catch(e){}
                 }
@@ -408,10 +413,11 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
         const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
 
-        const minX = Math.min(...item.composition.modules.map(m => m.x));
-        const minY = Math.min(...item.composition.modules.map(m => m.y));
-        const maxX = Math.max(...item.composition.modules.map(m => m.x));
-        const maxY = Math.max(...item.composition.modules.map(m => m.y));
+        const validModules = (item.composition.modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        const minX = Math.min(...validModules.map(m => m.x));
+        const minY = Math.min(...validModules.map(m => m.y));
+        const maxX = Math.max(...validModules.map(m => m.x));
+        const maxY = Math.max(...validModules.map(m => m.y));
 
         doc.text(`${item.itemCode || `POS#${idx+1}`} - ${compositeName} - CANT: ${item.quantity} [${item.width} x ${item.height} mm]`, 15, currentY + 6.5);
         currentY += 15;
