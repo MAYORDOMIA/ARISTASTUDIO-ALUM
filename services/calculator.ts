@@ -1,7 +1,7 @@
 
 import { 
   ProductRecipe, AluminumProfile, GlobalConfig, Treatment, Glass, 
-  Accessory, DVHInput, RecipeAccessory, BlindPanel, QuoteItem, QuoteItemBreakdown
+  Accessory, DVHInput, RecipeAccessory, BlindPanel, QuoteItem, QuoteItemBreakdown, MeasurementModule
 } from '../types';
 
 export const evaluateFormula = (formula: string, W: number, H: number): number => {
@@ -71,7 +71,8 @@ export const calculateCompositePrice = (
       mod.glassOuterId, mod.glassInnerId, mod.dvhCameraId, item.extras, undefined, mod.transoms, 
       mod.overriddenAccessories,
       mod.blindPanes, mod.blindPaneIds, blindPanels,
-      isSet 
+      isSet,
+      mod.slatProfileIds // Pasar slatProfileIds
     );
     
     totalAluCost += result.aluCost;
@@ -134,7 +135,8 @@ export const calculateItemPrice = (
   dvhCameraId?: string, extras?: { mosquitero: boolean, tapajuntas: boolean, tapajuntasSides: { top: boolean, bottom: boolean, left: boolean, right: boolean } },
   coupling?: { profileId?: string, position: string }, transoms?: { height: number; profileId: string; formula?: string }[],
   overriddenAccessories?: RecipeAccessory[], blindPanes: number[] = [], blindPaneIds: Record<number, string> = {}, blindPanels: BlindPanel[] = [],
-  isSet: boolean = false
+  isSet: boolean = false,
+  slatProfileIds: Record<number, string> = {} // Recibir slatProfileIds
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -174,18 +176,64 @@ export const calculateItemPrice = (
     }
   });
 
-  // SUMAR PESO DE TRAVESAÑOS AL MÓDULO
   if (transoms && transoms.length > 0) {
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
         const f = t.formula || recipeTransomFormula;
         const tCut = evaluateFormula(f, width, height);
-        // Se suma a totalAluWeight para que impacte en aluCost final
         totalAluWeight += ((tCut + Number(config.discWidth || 0)) / 1000) * recipeTransomQty * Number(trProf.weightPerMeter || 0);
       }
     });
   }
+
+  // --- NUEVA LÓGICA DE TABLILLAS ---
+  const adjustedW = width - Number(recipe.glassDeductionW || 0); 
+  const adjustedH = height - Number(recipe.glassDeductionH || 0);
+  const visualType = recipe.visualType || '';
+  let numLeaves = 1;
+  if (visualType.includes('sliding_3')) numLeaves = 3;
+  else if (visualType.includes('sliding_4')) numLeaves = 4;
+  else if (visualType.includes('sliding')) numLeaves = 2;
+  let leafBaseW = adjustedW;
+  if (visualType.includes('sliding')) leafBaseW = adjustedW / numLeaves;
+  const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
+  
+  const transomGlassDeduction = Number(recipe.transomGlassDeduction || 0); 
+  const panesHeights: number[] = [];
+  if (!transoms || transoms.length === 0) {
+    panesHeights.push(evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH));
+  } else {
+    const sorted = [...transoms].sort((a, b) => a.height - b.height);
+    let lastY = 0;
+    sorted.forEach((t, idx) => {
+      const trProf = profiles.find(p => p.id === t.profileId);
+      const transomThickness = Number(trProf?.thickness || recipe.transomThickness || 40);
+      let ph = (idx === 0) 
+        ? (Number(t.height) - (transomThickness / 2)) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction
+        : (Number(t.height) - lastY) - transomThickness - transomGlassDeduction;
+      panesHeights.push(ph);
+      lastY = Number(t.height);
+    });
+    const lastTrProf = profiles.find(p => p.id === sorted[sorted.length-1].profileId);
+    const lastTransomThickness = Number(lastTrProf?.thickness || recipe.transomThickness || 40);
+    panesHeights.push((height - lastY) - (lastTransomThickness / 2) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction);
+  }
+
+  blindPanes.forEach(paneIdx => {
+    const slatId = slatProfileIds[paneIdx];
+    if (slatId) {
+      const slatProfile = profiles.find(p => p.id === slatId);
+      const pH = panesHeights[paneIdx];
+      if (slatProfile && slatProfile.thickness > 0 && pH > 0) {
+        const numSlats = Math.ceil(pH / slatProfile.thickness);
+        const totalLinealMm = (gW + Number(config.discWidth || 0)) * numSlats * numLeaves;
+        const slatWeight = (totalLinealMm / 1000) * slatProfile.weightPerMeter;
+        totalAluWeight += slatWeight;
+      }
+    }
+  });
+  // --- FIN LÓGICA TABLILLAS ---
 
   aluCost = totalAluWeight * baseAluPrice;
 
@@ -207,51 +255,12 @@ export const calculateItemPrice = (
     }
   });
 
-  const adjustedW = width - Number(recipe.glassDeductionW || 0); 
-  const adjustedH = height - Number(recipe.glassDeductionH || 0);
-  
-  const visualType = recipe.visualType || '';
-  let numLeaves = 1;
-  if (visualType.includes('sliding_3')) numLeaves = 3;
-  else if (visualType.includes('sliding_4')) numLeaves = 4;
-  else if (visualType.includes('sliding')) numLeaves = 2;
-
-  let leafBaseW = adjustedW;
-  if (visualType.includes('sliding')) {
-      leafBaseW = adjustedW / numLeaves;
-  }
-  
-  const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
   const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
-  
   const glassPanes: { w: number, h: number }[] = [];
-  const transomGlassDeduction = Number(recipe.transomGlassDeduction || 0); 
-
   if (!transoms || transoms.length === 0) { 
     glassPanes.push({ w: gW, h: gH }); 
   } else {
-    const sorted = [...transoms].sort((a, b) => a.height - b.height);
-    let lastY = 0;
-    
-    sorted.forEach((t, idx) => {
-      const trProf = profiles.find(p => p.id === t.profileId);
-      const transomThickness = Number(trProf?.thickness || recipe.transomThickness || 40);
-      
-      let paneH;
-      if (idx === 0) {
-        paneH = (Number(t.height) - (transomThickness / 2)) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction;
-      } else {
-        paneH = (Number(t.height) - lastY) - transomThickness - transomGlassDeduction;
-      }
-      
-      if (paneH > 0) glassPanes.push({ w: gW, h: paneH });
-      lastY = Number(t.height);
-    });
-    
-    const lastTrProf = profiles.find(p => p.id === sorted[sorted.length-1].profileId);
-    const lastTransomThickness = Number(lastTrProf?.thickness || recipe.transomThickness || 40);
-    const finalPaneH = (height - lastY) - (lastTransomThickness / 2) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction;
-    if (finalPaneH > 0) glassPanes.push({ w: gW, h: finalPaneH });
+    panesHeights.forEach(ph => glassPanes.push({ w: gW, h: ph }));
   }
 
   const outerGlass = glasses.find(g => g.id === glassOuterId);

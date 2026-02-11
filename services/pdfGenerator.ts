@@ -157,7 +157,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
               });
             }
             
-            // AGREGAR CIEGOS LINEALES (ML) A LA OPTIMIZACIÓN DE BARRAS
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
             panes.forEach((p, pIdx) => {
@@ -170,6 +169,20 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                             list.push({ len: p.w, type: 'Panel Lineal', cutStart: '90', cutEnd: '90', label: itemCode });
                         }
                         cutsByProfile.set(bp.id, list);
+                    }
+                    
+                    // --- INTEGRACIÓN TABLILLAS EN OPTIMIZACIÓN ---
+                    const slatId = mod.slatProfileIds?.[pIdx];
+                    if (slatId) {
+                      const slatProf = aluminum.find(a => a.id === slatId);
+                      if (slatProf && slatProf.thickness > 0) {
+                        const numSlats = Math.ceil(p.h / slatProf.thickness);
+                        const list = cutsByProfile.get(slatProf.id) || [];
+                        for(let k=0; k < numSlats * numLeaves * item.quantity; k++) {
+                            list.push({ len: p.w, type: 'Tablilla', cutStart: '90', cutEnd: '90', label: itemCode });
+                        }
+                        cutsByProfile.set(slatProf.id, list);
+                      }
                     }
                 }
             });
@@ -250,6 +263,167 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         y += 10;
     });
     doc.save(`Cortes_Barras_${quote.clientName}.pdf`);
+};
+
+export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], accessories: Accessory[], glasses: Glass[], dvhInputs: DVHInput[], config: GlobalConfig, blindPanels: BlindPanel[]) => {
+    const doc = new jsPDF(); const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255); doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('PEDIDO DE MATERIALES CONSOLIDADO', 15, 12);
+    doc.setFontSize(8); doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
+    let currentY = 35; doc.setTextColor(30, 41, 59); doc.setFontSize(11); doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY); currentY += 5;
+    const aluSummary = new Map<string, { code: string, detail: string, totalMm: number, barLength: number }>();
+    quote.items.forEach(item => {
+        const isSet = item.composition.modules.length > 1; const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
+        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+        const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+        if (validModules.length === 0) return;
+        const minX = Math.min(...validModules.map(m => m.x)); const minY = Math.min(...validModules.map(m => m.y));
+        const maxX = Math.max(...validModules.map(m => m.x)); const maxY = Math.max(...validModules.map(m => m.y));
+        validModules.forEach(mod => {
+            const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
+            const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
+            let modW = Number(item.composition.colRatios[modIdxX] || 0); let modH = Number(item.composition.rowRatios[modIdxY] || 0);
+            if (item.composition.colRatios.length > 1) {
+                if (mod.x !== minX) modW -= (realDeduction / 2); if (mod.x !== maxX) modW -= (realDeduction / 2);
+            }
+            if (item.composition.rowRatios.length > 1) {
+                if (mod.y !== minY) modH -= (realDeduction / 2); if (mod.y !== maxY) modH -= (realDeduction / 2);
+            }
+            const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
+            const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
+            const recipeTransomQty = transomTemplate?.quantity || 1;
+            recipe.profiles.forEach(rp => {
+                const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
+                const p = aluminum.find(a => a.id === rp.profileId); if (!p) return;
+                const isTJ = role.includes('tapajuntas') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
+                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
+                const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
+                if (isMosq && !item.extras.mosquitero) return;
+                const len = evaluateFormula(rp.formula, modW, modH); const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
+                existing.totalMm += totalMm; aluSummary.set(p.id, existing);
+            });
+            if (mod.transoms && mod.transoms.length > 0) {
+              mod.transoms.forEach(t => {
+                const trProf = aluminum.find(p => p.id === t.profileId);
+                if (trProf) {
+                  const f = t.formula || recipeTransomFormula; const cutLen = evaluateFormula(f, modW, modH);
+                  const totalMm = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
+                  const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
+                  existing.totalMm += totalMm; aluSummary.set(trProf.id, existing);
+                }
+              });
+            }
+            
+            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            panes.forEach((p, pIdx) => {
+                if (p.isBlind) {
+                    const bpId = mod.blindPaneIds?.[pIdx];
+                    const bp = blindPanels.find(x => x.id === bpId);
+                    if (bp && bp.unit === 'ml') {
+                        const existing = aluSummary.get(bp.id) || { code: bp.code, detail: bp.detail, totalMm: 0, barLength: 6 };
+                        existing.totalMm += p.w * numLeaves * item.quantity;
+                        aluSummary.set(bp.id, existing);
+                    }
+                    
+                    // --- TABLILLAS EN PEDIDO DE MATERIALES ---
+                    const slatId = mod.slatProfileIds?.[pIdx];
+                    if (slatId) {
+                      const slatProf = aluminum.find(a => a.id === slatId);
+                      if (slatProf && slatProf.thickness > 0) {
+                        const numSlats = Math.ceil(p.h / slatProf.thickness);
+                        const totalMm = (p.w + config.discWidth) * numSlats * numLeaves * item.quantity;
+                        const existing = aluSummary.get(slatProf.id) || { code: slatProf.code, detail: slatProf.detail, totalMm: 0, barLength: slatProf.barLength };
+                        existing.totalMm += totalMm; aluSummary.set(slatId, existing);
+                      }
+                    }
+                }
+            });
+        });
+        if (item.couplingProfileId && isSet) {
+            const p = aluminum.find(a => a.id === item.couplingProfileId);
+            if (p) {
+                let totalC = 0;
+                if (item.composition.colRatios.length > 1) totalC += item.height * (item.composition.colRatios.length - 1);
+                if (item.composition.rowRatios.length > 1) totalC += item.width * (item.composition.rowRatios.length - 1);
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
+                existing.totalMm += totalC * item.quantity; aluSummary.set(p.id, existing);
+            }
+        }
+        if (item.extras.tapajuntas) {
+            const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
+            const p = aluminum.find(a => a.id === firstRecipe?.defaultTapajuntasProfileId);
+            if (p) {
+                const tjThick = Number(p.thickness || 30); const { top, bottom, left, right } = item.extras.tapajuntasSides;
+                let totalT = 0;
+                if (top) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+                if (bottom) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+                if (left) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+                if (right) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
+                existing.totalMm += totalT * item.quantity; aluSummary.set(p.id, existing);
+            }
+        }
+    });
+    const aluBody = Array.from(aluSummary.values()).map(s => {
+        const barLenMm = s.barLength > 100 ? s.barLength : s.barLength * 1000; const totalBars = Math.ceil(s.totalMm / barLenMm);
+        return [s.code, s.detail, `${(s.totalMm / 1000).toFixed(2)} m`, `${s.barLength} m`, totalBars];
+    });
+    autoTable(doc, { startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'METROS TOTALES', 'LARGO BARRA', 'BARRAS A COMPRAR']], body: aluBody, theme: 'grid', headStyles: { fillColor: [51, 65, 85] }, styles: { fontSize: 8 }, columnStyles: { 4: { halign: 'center', fontStyle: 'bold' } } });
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+    if (currentY > 250) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(11); doc.text('2. LISTADO DE CRISTALES, PANELES Y TELAS', 15, currentY); currentY += 5;
+    const fillSummary = new Map<string, { spec: string, w: number, h: number, qty: number }>();
+    quote.items.forEach(item => {
+        item.composition.modules.forEach(mod => {
+            const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
+            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            panes.forEach((pane, paneIdx) => {
+                if (pane.isBlind) {
+                    const bpId = mod.blindPaneIds?.[paneIdx];
+                    const bp = blindPanels.find(x => x.id === bpId);
+                    if (bp && bp.unit === 'm2') {
+                        const key = `CIEGO-${bp.code}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                        const existing = fillSummary.get(key) || { spec: `PANEL CIEGO: ${bp.detail}`, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                        existing.qty += (item.quantity * numLeaves); fillSummary.set(key, existing);
+                    }
+                    return;
+                }
+                let spec = (recipe.visualType === 'mosquitero') ? 'TELA MOSQUITERA' : 'Vidrio';
+                if (recipe.visualType !== 'mosquitero') {
+                    const gOuter = glasses.find(g => g.id === mod.glassOuterId); spec = mod.isDVH ? `${gOuter?.detail || '?'} / DVH` : (gOuter?.detail || 'VS');
+                }
+                const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                existing.qty += (item.quantity * numLeaves); fillSummary.set(key, existing);
+            });
+        });
+    });
+    const glassBody = Array.from(fillSummary.values()).map(g => [g.spec, `${g.w} x ${g.h}`, g.qty, `${((g.w * g.h / 1000000) * g.qty).toFixed(2)} m2`]);
+    autoTable(doc, { startY: currentY, head: [['ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']], body: glassBody, theme: 'striped', headStyles: { fillColor: [71, 85, 105] } });
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+    if (currentY > 250) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(11); doc.text('3. LISTADO DE HERRAJES, GOMAS Y FELPAS', 15, currentY); currentY += 5;
+    const accSummary = new Map<string, { code: string, detail: string, qty: number, isLinear: boolean }>();
+    quote.items.forEach(item => {
+        item.composition.modules.forEach(mod => {
+            const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
+            const activeAccs = mod.overriddenAccessories || recipe.accessories;
+            activeAccs.forEach(ra => {
+                const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId); if (!acc) return;
+                const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
+                if (ra.isLinear && ra.formula) {
+                    const lengthMm = evaluateFormula(ra.formula, item.width, item.height); existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+                } else { existing.qty += (ra.quantity * item.quantity); }
+                accSummary.set(acc.id, existing);
+            });
+        });
+    });
+    const accBody = Array.from(accSummary.values()).map(a => [a.code, a.detail, a.isLinear ? `${a.qty.toFixed(2)} m` : a.qty]);
+    autoTable(doc, { startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'CANTIDAD TOTAL']], body: accBody, theme: 'grid', headStyles: { fillColor: [100, 116, 139] }, styles: { fontSize: 8 } });
+    doc.save(`Pedido_Consolidado_${quote.clientName}.pdf`);
 };
 
 export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], glasses: Glass[], dvhInputs: DVHInput[], treatments: Treatment[]) => {
@@ -396,6 +570,22 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 }
               });
             }
+            
+            // --- TABLILLAS EN HOJA DE RUTA ---
+            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            panes.forEach((p, pIdx) => {
+                if (p.isBlind) {
+                    const slatId = mod.slatProfileIds?.[pIdx];
+                    if (slatId) {
+                        const slatProf = aluminum.find(a => a.id === slatId);
+                        if (slatProf && slatProf.thickness > 0) {
+                            const numSlats = Math.ceil(p.h / slatProf.thickness);
+                            profileCuts.push([slatProf.code, `Tablilla (${pIdx+1})`, Math.round(p.w), numSlats * numLeaves, '90° / 90°']);
+                        }
+                    }
+                }
+            });
         });
         if (item.couplingProfileId && isSet) {
             const trProf = aluminum.find(p => p.id === item.couplingProfileId);
@@ -431,7 +621,12 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
             panes.forEach((p, pIdx) => {
                 if (!p.isBlind) { glassPieces.push([`Paño ${pIdx + 1}`, spec, `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]); }
-                else { glassPieces.push([`Paño ${pIdx + 1}`, 'PANEL CIEGO', `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]); }
+                else { 
+                    const slatId = mod.slatProfileIds?.[pIdx];
+                    const slatProf = aluminum.find(a => a.id === slatId);
+                    const blindText = slatProf ? `CIEGO (TABLILLAS ${slatProf.code})` : 'PANEL CIEGO';
+                    glassPieces.push([`Paño ${pIdx + 1}`, blindText, `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]); 
+                }
             });
         });
         autoTable(doc, { startY: currentY, head: [['UBICACIÓN', 'ESPECIFICACIÓN DE LLENADO', 'MEDIDAS (mm)', 'CANT POR UNID.']], body: glassPieces, theme: 'striped', styles: { fontSize: 7 }, headStyles: { fillColor: [51, 65, 85] } });
@@ -440,154 +635,32 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
     doc.save(`Taller_${quote.clientName}.pdf`);
 };
 
-export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], accessories: Accessory[], glasses: Glass[], dvhInputs: DVHInput[], config: GlobalConfig, blindPanels: BlindPanel[]) => {
+export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
     const doc = new jsPDF(); const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F');
-    doc.setTextColor(255); doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('PEDIDO DE MATERIALES CONSOLIDADO', 15, 12);
-    doc.setFontSize(8); doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
-    let currentY = 35; doc.setTextColor(30, 41, 59); doc.setFontSize(11); doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY); currentY += 5;
-    const aluSummary = new Map<string, { code: string, detail: string, totalMm: number, barLength: number }>();
-    quote.items.forEach(item => {
-        const isSet = item.composition.modules.length > 1; const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
-        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
-        const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
-        if (validModules.length === 0) return;
-        const minX = Math.min(...validModules.map(m => m.x)); const minY = Math.min(...validModules.map(m => m.y));
-        const maxX = Math.max(...validModules.map(m => m.x)); const maxY = Math.max(...validModules.map(m => m.y));
-        validModules.forEach(mod => {
-            const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
-            const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
-            let modW = Number(item.composition.colRatios[modIdxX] || 0); let modH = Number(item.composition.rowRatios[modIdxY] || 0);
-            if (item.composition.colRatios.length > 1) {
-                if (mod.x !== minX) modW -= (realDeduction / 2); if (mod.x !== maxX) modW -= (realDeduction / 2);
-            }
-            if (item.composition.rowRatios.length > 1) {
-                if (mod.y !== minY) modH -= (realDeduction / 2); if (mod.y !== maxY) modH -= (realDeduction / 2);
-            }
-            const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
-            const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
-            const recipeTransomQty = transomTemplate?.quantity || 1;
-            recipe.profiles.forEach(rp => {
-                const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
-                const p = aluminum.find(a => a.id === rp.profileId); if (!p) return;
-                const isTJ = role.includes('tapajuntas') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
-                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
-                const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
-                if (isMosq && !item.extras.mosquitero) return;
-                const len = evaluateFormula(rp.formula, modW, modH); const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
-                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
-                existing.totalMm += totalMm; aluSummary.set(p.id, existing);
-            });
-            if (mod.transoms && mod.transoms.length > 0) {
-              mod.transoms.forEach(t => {
-                const trProf = aluminum.find(p => p.id === t.profileId);
-                if (trProf) {
-                  const f = t.formula || recipeTransomFormula; const cutLen = evaluateFormula(f, modW, modH);
-                  const totalMm = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
-                  const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
-                  existing.totalMm += totalMm; aluSummary.set(trProf.id, existing);
-                }
-              });
-            }
-            
-            // AGREGAR CIEGOS LINEALES (ML) AL RESUMEN DE ALUMINIO/BARRAS
-            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
-            panes.forEach((p, pIdx) => {
-                if (p.isBlind) {
-                    const bpId = mod.blindPaneIds?.[pIdx];
-                    const bp = blindPanels.find(x => x.id === bpId);
-                    if (bp && bp.unit === 'ml') {
-                        const existing = aluSummary.get(bp.id) || { code: bp.code, detail: bp.detail, totalMm: 0, barLength: 6 };
-                        existing.totalMm += p.w * numLeaves * item.quantity;
-                        aluSummary.set(bp.id, existing);
-                    }
-                }
-            });
-        });
-        if (item.couplingProfileId && isSet) {
-            const p = aluminum.find(a => a.id === item.couplingProfileId);
-            if (p) {
-                let totalC = 0;
-                if (item.composition.colRatios.length > 1) totalC += item.height * (item.composition.colRatios.length - 1);
-                if (item.composition.rowRatios.length > 1) totalC += item.width * (item.composition.rowRatios.length - 1);
-                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
-                existing.totalMm += totalC * item.quantity; aluSummary.set(p.id, existing);
-            }
-        }
-        if (item.extras.tapajuntas) {
-            const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
-            const p = aluminum.find(a => a.id === firstRecipe?.defaultTapajuntasProfileId);
-            if (p) {
-                const tjThick = Number(p.thickness || 30); const { top, bottom, left, right } = item.extras.tapajuntasSides;
-                let totalT = 0;
-                if (top) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-                if (bottom) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-                if (left) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-                if (right) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
-                existing.totalMm += totalT * item.quantity; aluSummary.set(p.id, existing);
-            }
-        }
+    doc.setFillColor(15, 23, 42); doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255); doc.setFontSize(14); doc.text('AUDITORÍA DE COSTOS INTERNOS', 15, 15);
+    const tableData = quote.items.map((item, idx) => {
+        const b = item.breakdown;
+        const moduleNames = item.composition.modules.map(m => recipes.find(r => r.id === m.recipeId)?.name).filter(Boolean);
+        const compositeName = moduleNames.length > 1 ? `CONJUNTO: ${moduleNames.join(' + ')}` : (moduleNames[0] || '-');
+        return [ item.itemCode || `POS#${idx+1}`, compositeName, item.quantity, `$${((b?.aluCost || 0) * item.quantity).toLocaleString()}`, `$${((b?.glassCost || 0) * item.quantity).toLocaleString()}`, `$${((b?.accCost || 0) * item.quantity).toLocaleString()}`, `$${((b?.laborCost || 0) * item.quantity).toLocaleString()}`, `$${(item.calculatedCost * item.quantity).toLocaleString()}` ];
     });
-    const aluBody = Array.from(aluSummary.values()).map(s => {
-        const barLenMm = s.barLength > 100 ? s.barLength : s.barLength * 1000; const totalBars = Math.ceil(s.totalMm / barLenMm);
-        return [s.code, s.detail, `${(s.totalMm / 1000).toFixed(2)} m`, `${s.barLength} m`, totalBars];
-    });
-    autoTable(doc, { startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'METROS TOTALES', 'LARGO BARRA', 'BARRAS A COMPRAR']], body: aluBody, theme: 'grid', headStyles: { fillColor: [51, 65, 85] }, styles: { fontSize: 8 }, columnStyles: { 4: { halign: 'center', fontStyle: 'bold' } } });
-    currentY = (doc as any).lastAutoTable.finalY + 15;
-    if (currentY > 250) { doc.addPage(); currentY = 20; }
-    doc.setFontSize(11); doc.text('2. LISTADO DE CRISTALES, PANELES Y TELAS', 15, currentY); currentY += 5;
-    const fillSummary = new Map<string, { spec: string, w: number, h: number, qty: number }>();
-    quote.items.forEach(item => {
-        item.composition.modules.forEach(mod => {
-            const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
-            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
-            panes.forEach((pane, paneIdx) => {
-                if (pane.isBlind) {
-                    const bpId = mod.blindPaneIds?.[paneIdx];
-                    const bp = blindPanels.find(x => x.id === bpId);
-                    if (bp && bp.unit === 'm2') {
-                        const key = `CIEGO-${bp.code}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
-                        const existing = fillSummary.get(key) || { spec: `PANEL CIEGO: ${bp.detail}`, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                        existing.qty += (item.quantity * numLeaves); fillSummary.set(key, existing);
-                    }
-                    return;
-                }
-                let spec = (recipe.visualType === 'mosquitero') ? 'TELA MOSQUITERA' : 'Vidrio';
-                if (recipe.visualType !== 'mosquitero') {
-                    const gOuter = glasses.find(g => g.id === mod.glassOuterId); spec = mod.isDVH ? `${gOuter?.detail || '?'} / DVH` : (gOuter?.detail || 'VS');
-                }
-                const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
-                const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                existing.qty += (item.quantity * numLeaves); fillSummary.set(key, existing);
-            });
-        });
-    });
-    const glassBody = Array.from(fillSummary.values()).map(g => [g.spec, `${g.w} x ${g.h}`, g.qty, `${((g.w * g.h / 1000000) * g.qty).toFixed(2)} m2`]);
-    autoTable(doc, { startY: currentY, head: [['ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANTIDAD', 'TOTAL M2']], body: glassBody, theme: 'striped', headStyles: { fillColor: [71, 85, 105] } });
-    currentY = (doc as any).lastAutoTable.finalY + 15;
-    if (currentY > 250) { doc.addPage(); currentY = 20; }
-    doc.setFontSize(11); doc.text('3. LISTADO DE HERRAJES, GOMAS Y FELPAS', 15, currentY); currentY += 5;
-    const accSummary = new Map<string, { code: string, detail: string, qty: number, isLinear: boolean }>();
-    quote.items.forEach(item => {
-        item.composition.modules.forEach(mod => {
-            const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
-            const activeAccs = mod.overriddenAccessories || recipe.accessories;
-            activeAccs.forEach(ra => {
-                const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId); if (!acc) return;
-                const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
-                if (ra.isLinear && ra.formula) {
-                    const lengthMm = evaluateFormula(ra.formula, item.width, item.height); existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
-                } else { existing.qty += (ra.quantity * item.quantity); }
-                accSummary.set(acc.id, existing);
-            });
-        });
-    });
-    const accBody = Array.from(accSummary.values()).map(a => [a.code, a.detail, a.isLinear ? `${a.qty.toFixed(2)} m` : a.qty]);
-    autoTable(doc, { startY: currentY, head: [['CÓDIGO', 'DESCRIPCIÓN', 'CANTIDAD TOTAL']], body: accBody, theme: 'grid', headStyles: { fillColor: [100, 116, 139] }, styles: { fontSize: 8 } });
-    doc.save(`Pedido_Consolidado_${quote.clientName}.pdf`);
+    autoTable(doc, { startY: 35, head: [['CÓD.', 'SISTEMA', 'CANT.', 'ALUMINIO', 'VIDRIO', 'HERRAJES', 'M. OBRA', 'TOTAL']], body: tableData, theme: 'striped', headStyles: { fillColor: [51, 65, 85], fontSize: 8 }, styles: { fontSize: 7 } });
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    const totalAlu = quote.items.reduce((sum, i) => sum + (i.breakdown?.aluCost || 0) * i.quantity, 0);
+    const totalGlass = quote.items.reduce((sum, i) => sum + (i.breakdown?.glassCost || 0) * i.quantity, 0);
+    const totalAcc = quote.items.reduce((sum, i) => sum + (i.breakdown?.accCost || 0) * i.quantity, 0);
+    const totalLabor = quote.items.reduce((sum, i) => sum + (i.breakdown?.laborCost || 0) * i.quantity, 0);
+    const finalTotal = totalAlu + totalGlass + totalAcc + totalLabor;
+    doc.setFillColor(248, 250, 252); doc.rect(15, finalY, pageWidth - 30, 45, 'F'); doc.setDrawColor(226, 232, 240); doc.rect(15, finalY, pageWidth - 30, 45, 'D');
+    doc.setTextColor(100); doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('RESUMEN DE COSTOS CONSOLIDADO DE OBRA', 20, finalY + 10);
+    doc.setFont('helvetica', 'normal'); doc.text(`TOTAL COSTO ALUMINIO:`, 20, finalY + 20); doc.text(`$${totalAlu.toLocaleString()}`, pageWidth - 20, finalY + 20, { align: 'right' });
+    doc.text(`TOTAL COSTO VIDRIOS/PANELES:`, 20, finalY + 25); doc.text(`$${totalGlass.toLocaleString()}`, pageWidth - 20, finalY + 25, { align: 'right' });
+    doc.text(`TOTAL COSTO ACCESORIOS/GOMAS:`, 20, finalY + 30); doc.text(`$${totalAcc.toLocaleString()}`, pageWidth - 20, finalY + 30, { align: 'right' });
+    doc.text(`MANO DE OBRA Y CARGA OPERATIVA (${config.laborPercentage}%):`, 20, finalY + 35); doc.text(`$${totalLabor.toLocaleString()}`, pageWidth - 20, finalY + 35, { align: 'right' });
+    doc.setLineWidth(0.5); doc.line(20, finalY + 38, pageWidth - 20, finalY + 38);
+    doc.setTextColor(30, 41, 59); doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text(`VALOR TOTAL FINAL DE OBRA:`, 20, finalY + 43); doc.text(`$${finalTotal.toLocaleString()}`, pageWidth - 20, finalY + 43, { align: 'right' });
+    doc.save(`Auditoria_Costos_${quote.clientName}.pdf`);
 };
 
 export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[], dvhInputs: DVHInput[], blindPanels: BlindPanel[]) => {
@@ -614,7 +687,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                         }
                     }
                 } else {
-                    // AGREGAR CIEGOS DE M2 A LA OPTIMIZACIÓN DE PLANCHAS
                     const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
                     if (bp && bp.unit === 'm2') {
@@ -643,8 +715,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         } else {
             const refBlind = blindPanels.find(b => b.id === pieces[0].glassId);
             if (refBlind) {
-                // Si es panel ciego m2, asumimos plancha de 2x1 o similar si no está definido, 
-                // pero usaremos el estándar 2400x1800 por defecto.
                 sheetW = 2400; sheetH = 1800;
             }
         }
@@ -675,32 +745,4 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         });
     });
     doc.save(`Corte_Vidrios_${quote.clientName}.pdf`);
-};
-
-export const generateCostsPDF = (quote: Quote, config: GlobalConfig, recipes: ProductRecipe[], aluminum: AluminumProfile[]) => {
-    const doc = new jsPDF(); const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFillColor(15, 23, 42); doc.rect(0, 0, pageWidth, 25, 'F');
-    doc.setTextColor(255); doc.setFontSize(14); doc.text('AUDITORÍA DE COSTOS INTERNOS', 15, 15);
-    const tableData = quote.items.map((item, idx) => {
-        const b = item.breakdown;
-        const moduleNames = item.composition.modules.map(m => recipes.find(r => r.id === m.recipeId)?.name).filter(Boolean);
-        const compositeName = moduleNames.length > 1 ? `CONJUNTO: ${moduleNames.join(' + ')}` : (moduleNames[0] || '-');
-        return [ item.itemCode || `POS#${idx+1}`, compositeName, item.quantity, `$${((b?.aluCost || 0) * item.quantity).toLocaleString()}`, `$${((b?.glassCost || 0) * item.quantity).toLocaleString()}`, `$${((b?.accCost || 0) * item.quantity).toLocaleString()}`, `$${((b?.laborCost || 0) * item.quantity).toLocaleString()}`, `$${(item.calculatedCost * item.quantity).toLocaleString()}` ];
-    });
-    autoTable(doc, { startY: 35, head: [['CÓD.', 'SISTEMA', 'CANT.', 'ALUMINIO', 'VIDRIO', 'HERRAJES', 'M. OBRA', 'TOTAL']], body: tableData, theme: 'striped', headStyles: { fillColor: [51, 65, 85], fontSize: 8 }, styles: { fontSize: 7 } });
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    const totalAlu = quote.items.reduce((sum, i) => sum + (i.breakdown?.aluCost || 0) * i.quantity, 0);
-    const totalGlass = quote.items.reduce((sum, i) => sum + (i.breakdown?.glassCost || 0) * i.quantity, 0);
-    const totalAcc = quote.items.reduce((sum, i) => sum + (i.breakdown?.accCost || 0) * i.quantity, 0);
-    const totalLabor = quote.items.reduce((sum, i) => sum + (i.breakdown?.laborCost || 0) * i.quantity, 0);
-    const finalTotal = totalAlu + totalGlass + totalAcc + totalLabor;
-    doc.setFillColor(248, 250, 252); doc.rect(15, finalY, pageWidth - 30, 45, 'F'); doc.setDrawColor(226, 232, 240); doc.rect(15, finalY, pageWidth - 30, 45, 'D');
-    doc.setTextColor(100); doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('RESUMEN DE COSTOS CONSOLIDADO DE OBRA', 20, finalY + 10);
-    doc.setFont('helvetica', 'normal'); doc.text(`TOTAL COSTO ALUMINIO:`, 20, finalY + 20); doc.text(`$${totalAlu.toLocaleString()}`, pageWidth - 20, finalY + 20, { align: 'right' });
-    doc.text(`TOTAL COSTO VIDRIOS/PANELES:`, 20, finalY + 25); doc.text(`$${totalGlass.toLocaleString()}`, pageWidth - 20, finalY + 25, { align: 'right' });
-    doc.text(`TOTAL COSTO ACCESORIOS/GOMAS:`, 20, finalY + 30); doc.text(`$${totalAcc.toLocaleString()}`, pageWidth - 20, finalY + 30, { align: 'right' });
-    doc.text(`MANO DE OBRA Y CARGA OPERATIVA (${config.laborPercentage}%):`, 20, finalY + 35); doc.text(`$${totalLabor.toLocaleString()}`, pageWidth - 20, finalY + 35, { align: 'right' });
-    doc.setLineWidth(0.5); doc.line(20, finalY + 38, pageWidth - 20, finalY + 38);
-    doc.setTextColor(30, 41, 59); doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text(`VALOR TOTAL FINAL DE OBRA:`, 20, finalY + 43); doc.text(`$${finalTotal.toLocaleString()}`, pageWidth - 20, finalY + 43, { align: 'right' });
-    doc.save(`Auditoria_Costos_${quote.clientName}.pdf`);
 };

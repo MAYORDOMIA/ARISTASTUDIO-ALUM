@@ -126,6 +126,7 @@ export interface MeasurementModule {
   dvhCameraId?: string;
   blindPanes?: number[];
   blindPaneIds?: Record<number, string>;
+  slatProfileIds?: Record<number, string>; // Nuevo: Perfil de tablilla por paño
   transoms?: { height: number; profileId: string; formula?: string }[];
   overriddenAccessories?: RecipeAccessory[];
 }

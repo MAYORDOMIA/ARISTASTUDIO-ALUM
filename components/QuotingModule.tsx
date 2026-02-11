@@ -39,7 +39,8 @@ import {
   Hammer,
   Package,
   ChevronDown,
-  Link2
+  Link2,
+  Box
 } from 'lucide-react';
 import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
 
@@ -150,7 +151,6 @@ const drawDetailedOpening = (
 
     const hasBottomFrame = !isDoor && !isMamparaRebatir && !isVidrioSolo && !isPFZocalon && !isPuertaZocalon && !isNoUmbral;
     
-    // LÓGICA DE UNIÓN DE MARCO Y HOJA
     const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
     const leafForce90 = visualType.includes('_90') || visualType.includes('zocalo');
     
@@ -301,13 +301,9 @@ const drawDetailedOpening = (
         }
 
         if (isHybrid45_90) {
-            // Hoja técnica: 45 arriba, 90 abajo con Zócalo
-            // Verticales: 45 arriba, 90 abajo
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
             drawProfile([{x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}]);
-            // Cabezal Hoja (45°)
             drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}]);
-            // Zócalo Hoja (90°)
             drawProfile([{x:lx+leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+leafT, y:ly+lh}]);
         } else if (force90) {
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
@@ -353,17 +349,14 @@ const drawDetailedOpening = (
                 drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}]);
             }
         } else if (isNoDintel) {
-            // Marco "Sin Cabezal": Solo laterales
             drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]); 
             drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h}, {x:x+w, y:y+h}]);
         } else if (isNoUmbral) {
-            // Marco 45 sin perfil inferior
-            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); // Dintel 45
-            drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]); // Lateral L
-            drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h}, {x:x+w, y:y+h}]); // Lateral R
+            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); 
+            drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]); 
+            drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h}, {x:x+w, y:y+h}]); 
         } else {
-            // Marco Estándar con dintel sólido
-            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); // Dintel
+            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); 
             if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}]); 
             drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}]); 
             drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}]); 
@@ -452,6 +445,11 @@ const QuotingModule: React.FC<Props> = ({
   const [showBreakdownModal, setShowBreakdownModal] = useState(false);
   const [showCouplingModal, setShowCouplingModal] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState<string>('TODOS');
+
+  // --- NUEVO: ESTADO PARA TABLILLAS ---
+  const [showSlatSelector, setShowSlatSelector] = useState(false);
+  const [slatPaneIdx, setSlatPaneIdx] = useState<number | null>(null);
+  const [slatSearch, setSlatSearch] = useState('');
 
   const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -774,6 +772,13 @@ const QuotingModule: React.FC<Props> = ({
     };
   }, [isDragging, isDraggingBreakdown]);
 
+  const filteredSlats = useMemo(() => {
+    return aluminum.filter(a => 
+      a.code.toLowerCase().includes(slatSearch.toLowerCase()) || 
+      a.detail.toLowerCase().includes(slatSearch.toLowerCase())
+    );
+  }, [aluminum, slatSearch]);
+
   return (
     <div className="grid grid-cols-12 gap-6 h-full">
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
@@ -1061,7 +1066,7 @@ const QuotingModule: React.FC<Props> = ({
                     transform: `translate(${modalPos.x}px, ${modalPos.y}px)`,
                     transition: isDragging ? 'none' : 'transform 0.1s ease-out'
                 }}
-                className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl space-y-6 overflow-hidden max-h-[92vh] border-2 border-white dark:border-slate-800 flex flex-col transition-colors pointer-events-auto ring-1 ring-black/5"
+                className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl space-y-6 overflow-hidden max-h-[92vh] border-2 border-white dark:border-slate-800 flex flex-col transition-colors pointer-events-auto relative ring-1 ring-black/5"
             >
                 <div 
                     onMouseDown={(e) => startDragging(e, 'inge')}
@@ -1180,10 +1185,26 @@ const QuotingModule: React.FC<Props> = ({
                                             </div>
                                             <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                                                 {infillType === 'ciego' ? (
-                                                    <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.blindPaneIds?.[paneIdx] || ''} onChange={e => updateModule(editingModuleId, { blindPaneIds: { ...currentModForEdit.blindPaneIds, [paneIdx]: e.target.value } })}>
-                                                        <option value="">(SELECCIONE PANEL)</option>
-                                                        {blindPanels.map(p => <option key={p.id} value={p.id}>{p.code} - {p.detail}</option>)}
-                                                    </select>
+                                                    <div className="space-y-3">
+                                                        <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.blindPaneIds?.[paneIdx] || ''} onChange={e => updateModule(editingModuleId, { blindPaneIds: { ...currentModForEdit.blindPaneIds, [paneIdx]: e.target.value } })}>
+                                                            <option value="">(SELECCIONE PANEL)</option>
+                                                            {blindPanels.map(p => <option key={p.id} value={p.id}>{p.code} - {p.detail}</option>)}
+                                                        </select>
+                                                        
+                                                        {/* BOTÓN CONFIGURAR TABLILLAS */}
+                                                        <button 
+                                                            onClick={() => {
+                                                                setSlatPaneIdx(paneIdx);
+                                                                setShowSlatSelector(true);
+                                                            }}
+                                                            className="w-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 p-2 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 hover:text-white transition-all"
+                                                        >
+                                                            <Box size={14} /> 
+                                                            {currentModForEdit.slatProfileIds?.[paneIdx] 
+                                                                ? `Tablilla: ${aluminum.find(a => a.id === currentModForEdit.slatProfileIds?.[paneIdx])?.code || 'S/D'}` 
+                                                                : 'Configurar Tablillas'}
+                                                        </button>
+                                                    </div>
                                                 ) : infillType === 'dvh' ? (
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="col-span-2">
@@ -1241,6 +1262,85 @@ const QuotingModule: React.FC<Props> = ({
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                     <button onClick={() => setEditingModuleId(null)} className="w-full bg-slate-900 dark:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-3">
                         <CheckCircle size={18} /> Validar Ingeniería de Módulo
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* VENTANA EMERGENTE: SELECTOR DE TABLILLAS */}
+      {showSlatSelector && slatPaneIdx !== null && currentModForEdit && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-indigo-100 dark:border-slate-800 flex flex-col max-h-[85vh] transition-colors relative">
+                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-5 mb-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><Box size={24} /></div>
+                        <div>
+                            <h3 className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tighter leading-none italic">Selector de Tablillas</h3>
+                            <p className="text-[10px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Paño #{slatPaneIdx + 1} • Cálculo Dinámico</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setShowSlatSelector(false)} className="text-slate-300 hover:text-red-500 transition-all p-2 bg-slate-50 dark:bg-slate-800 rounded-xl"><X size={24} /></button>
+                </div>
+
+                <div className="relative mb-6">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar perfil tablilla por código o detalle..." 
+                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-12 pr-6 py-4 rounded-2xl text-[11px] font-black uppercase dark:text-white focus:outline-none focus:border-indigo-600 transition-all shadow-inner"
+                        value={slatSearch}
+                        onChange={(e) => setSlatSearch(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                    {filteredSlats.length > 0 ? filteredSlats.map(p => (
+                        <button 
+                            key={p.id}
+                            onClick={() => {
+                                updateModule(editingModuleId!, { 
+                                    slatProfileIds: { 
+                                        ...(currentModForEdit.slatProfileIds || {}), 
+                                        [slatPaneIdx]: p.id 
+                                    } 
+                                });
+                                setShowSlatSelector(false);
+                            }}
+                            className={`w-full text-left p-5 rounded-[1.5rem] border-2 transition-all group flex items-center justify-between ${
+                                currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id 
+                                ? 'bg-indigo-600 border-indigo-700 text-white shadow-xl scale-[1.01]' 
+                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-indigo-200'
+                            }`}
+                        >
+                            <div className="flex flex-col gap-1">
+                                <span className={`text-sm font-black uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-white' : 'text-slate-800 dark:text-white group-hover:text-indigo-600'}`}>{p.code}</span>
+                                <span className={`text-[10px] font-bold uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-indigo-200' : 'text-slate-400'}`}>{p.detail}</span>
+                            </div>
+                            <div className="text-right">
+                                <div className={`text-[9px] font-black uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-white' : 'text-slate-400'}`}>Espesor: {p.thickness}mm</div>
+                                <div className={`text-[8px] font-bold uppercase mt-1 ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-indigo-200' : 'text-indigo-500'}`}>{p.weightPerMeter} kg/m</div>
+                            </div>
+                        </button>
+                    )) : (
+                        <div className="py-12 text-center text-slate-300 opacity-20 flex flex-col items-center">
+                            <Box size={60} className="mb-4" />
+                            <p className="text-[10px] font-black uppercase tracking-widest">No hay perfiles disponibles</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <button 
+                        onClick={() => {
+                            const newIds = { ...(currentModForEdit.slatProfileIds || {}) };
+                            delete newIds[slatPaneIdx];
+                            updateModule(editingModuleId!, { slatProfileIds: newIds });
+                            setShowSlatSelector(false);
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-800 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-all border border-slate-200 dark:border-slate-700"
+                    >
+                        Limpiar Selección
                     </button>
                 </div>
             </div>
