@@ -29,7 +29,12 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'banderola', label: 'BANDEROLA', description: 'Abre arriba (interior). Marco + Hoja.' },
   { id: 'ventiluz', label: 'VENTILUZ', description: 'Abre abajo (exterior). Marco + Hoja.' },
   { id: 'tilt_turn', label: 'OSCILOBATIENTE', description: 'Doble apertura. Marco + Hoja.' },
-  { id: 'swing_door', label: 'PUERTA DE REBATIR', description: 'Hojas 45°/90°. Sin umbral. Perfil ancho.' },
+  { id: 'swing_door', label: 'PUERTA DE REBATIR 1H', description: 'Marco completo con dintel. Hoja rebatible.' },
+  { id: 'double_swing_door', label: 'PUERTA DE REBATIR 2H', description: 'Marco completo con dintel. 2 Hojas rebatibles.' },
+  { id: 'swing_door_45_no_umbral', label: 'PUERTA 1H 45° S/UMBRAL', description: 'Marco 45° sin umbral. Hoja 45° arriba / 90° abajo con Zócalo.' },
+  { id: 'double_swing_door_45_no_umbral', label: 'PUERTA 2H 45° S/UMBRAL', description: 'Marco 45° sin umbral. 2 Hojas 45° arriba / 90° abajo con Zócalo.' },
+  { id: 'swing_door_45_no_dintel', label: 'PUERTA 1H 45° SIN DINTEL', description: 'Marco lateral 45°. Hoja 45° arriba / 90° abajo con Zócalo.' },
+  { id: 'double_swing_door_45_no_dintel', label: 'PUERTA 2H 45° SIN DINTEL', description: 'Marco lateral 45°. 2 Hojas 45° arriba / 90° abajo con Zócalo.' },
   { id: 'swing_v', label: 'V. DE REBATIR', description: 'Ventana de abrir tradicional.' },
   { id: 'projecting', label: 'DESPLAZABLE', description: 'Apertura proyectante exterior.' },
   { id: 'fixed', label: 'PAÑO FIJO', description: 'Marco perimetral fijo.' },
@@ -203,7 +208,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                     </div>
                     <div className="flex flex-wrap gap-4 items-center">
                         <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-indigo-600 outline-none" value={recipe.type} onChange={e => updateRecipe(recipe.id, { type: e.target.value as any })}>
-                            {['Ventana', 'Puerta', 'Mampara', 'Paño Fijo'].map(v => <option key={v} value={v}>{v}</option>)}
+                            {['Ventana', 'Puerta', 'Mampara', 'Paño Fijo', 'Banderola', 'Baranda', 'Vidriera'].map(v => <option key={v} value={v}>{v}</option>)}
                         </select>
                         <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none" value={recipe.visualType} onChange={e => updateRecipe(recipe.id, { visualType: e.target.value })}>
                             {DEFAULT_VISUAL_TYPES.map(vt => <option key={vt.id} value={vt.id}>{vt.label}</option>)}

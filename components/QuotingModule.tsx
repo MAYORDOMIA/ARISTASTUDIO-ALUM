@@ -139,6 +139,8 @@ const drawDetailedOpening = (
 
     const visualType = recipe.visualType || 'fixed';
     const isDoor = visualType.includes('door') || recipe.type === 'Puerta';
+    const isNoDintel = visualType.includes('no_dintel');
+    const isNoUmbral = visualType.includes('no_umbral');
     
     const isMamparaFija = visualType === 'mampara_fija';
     const isMamparaRebatir = visualType === 'mampara_rebatir';
@@ -146,7 +148,7 @@ const drawDetailedOpening = (
     const isPuertaZocalon = visualType === 'puerta_zocalon';
     const isPFZocalon = visualType === 'pf_zocalon';
 
-    const hasBottomFrame = !isDoor && !isMamparaRebatir && !isVidrioSolo && !isPFZocalon && !isPuertaZocalon;
+    const hasBottomFrame = !isDoor && !isMamparaRebatir && !isVidrioSolo && !isPFZocalon && !isPuertaZocalon && !isNoUmbral;
     
     // LÓGICA DE UNIÓN DE MARCO Y HOJA
     const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
@@ -155,7 +157,7 @@ const drawDetailedOpening = (
     const tjProf = allProfiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
     const frameT = 45 * pxPerMm;
     const leafT = (isDoor ? 75 : 45) * pxPerMm;
-    const zocaloT = (isDoor || isPuertaZocalon || isPFZocalon ? 120 : 65) * pxPerMm;
+    const zocaloT = (isDoor || isPuertaZocalon || isPFZocalon || isNoDintel || isNoUmbral ? 120 : 65) * pxPerMm;
     const tjSize = (Number(tjProf?.thickness || 40)) * pxPerMm; 
 
     const drawProfile = (points: {x:number, y:number}[]) => {
@@ -276,6 +278,7 @@ const drawDetailedOpening = (
     const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, hasMesh:boolean, leafType:string, absoluteBottomY: number) => {
         if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
+        const isHybrid45_90 = leafType.includes('no_dintel') || leafType.includes('no_umbral');
         
         drawGlassWithTransoms(lx + leafT, ly + leafT, lw - leafT * 2, lh - (leafT + bT), absoluteBottomY);
         
@@ -297,7 +300,16 @@ const drawDetailedOpening = (
             ctx.restore();
         }
 
-        if (force90) {
+        if (isHybrid45_90) {
+            // Hoja técnica: 45 arriba, 90 abajo con Zócalo
+            // Verticales: 45 arriba, 90 abajo
+            drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
+            drawProfile([{x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}]);
+            // Cabezal Hoja (45°)
+            drawProfile([{x:lx, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}]);
+            // Zócalo Hoja (90°)
+            drawProfile([{x:lx+leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw-leafT, y:ly+lh}, {x:lx+leafT, y:ly+lh}]);
+        } else if (force90) {
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly}, {x:lx+leafT, y:ly+lh}, {x:lx, y:ly+lh}]);
             drawProfile([{x:lx+lw-leafT, y:ly}, {x:lx+lw, y:ly}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh}]);
             drawProfile([{x:lx+leafT, y:ly}, {x:lx+lw-leafT, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+leafT, y:ly+leafT}]);
@@ -340,15 +352,27 @@ const drawDetailedOpening = (
             if (hasBottomFrame) {
                 drawProfile([{x:x+frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h-frameT}, {x:x+w-frameT, y:y+h}, {x:x+frameT, y:y+h}]);
             }
+        } else if (isNoDintel) {
+            // Marco "Sin Cabezal": Solo laterales
+            drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]); 
+            drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h}, {x:x+w, y:y+h}]);
+        } else if (isNoUmbral) {
+            // Marco 45 sin perfil inferior
+            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); // Dintel 45
+            drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h}, {x:x, y:y+h}]); // Lateral L
+            drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h}, {x:x+w, y:y+h}]); // Lateral R
         } else {
-            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); 
+            // Marco Estándar con dintel sólido
+            drawProfile([{x:x, y:y}, {x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+frameT, y:y+frameT}]); // Dintel
             if (hasBottomFrame) drawProfile([{x:x, y:y+h}, {x:x+w, y:y+h}, {x:x+w-frameT, y:y+h-frameT}, {x:x+frameT, y:y+h-frameT}]); 
             drawProfile([{x:x, y:y}, {x:x+frameT, y:y+frameT}, {x:x+frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x, y:y+h}]); 
             drawProfile([{x:x+w, y:y}, {x:x+w-frameT, y:y+frameT}, {x:x+w-frameT, y:y+h-(hasBottomFrame?frameT:0)}, {x:x+w, y:y+h}]); 
         }
 
-        const innerX = x + frameT; const innerY = y + frameT;
-        const innerW = w - frameT * 2; const innerH = h - (hasBottomFrame ? frameT * 2 : frameT);
+        const innerX = x + frameT; 
+        const innerY = y + (isNoDintel ? 0 : frameT);
+        const innerW = w - frameT * 2; 
+        const innerH = h - (isNoDintel ? 0 : (hasBottomFrame ? frameT * 2 : frameT));
 
         if (visualType.includes('sliding')) {
             const numLeaves = visualType.includes('sliding_3') ? 3 : (visualType.includes('sliding_4') ? 4 : 2);
@@ -371,7 +395,13 @@ const drawDetailedOpening = (
                 drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, leafForce90, leafForce90, false, 'sliding', y + h);
             }
         } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
-            drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90, extras?.mosquitero || false, visualType, y + h);
+            if (visualType.includes('double')) {
+                const leafW = innerW / 2;
+                drawLeaf(innerX, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h);
+                drawLeaf(innerX + leafW, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, false, visualType, y + h);
+            } else {
+                drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h);
+            }
         } else {
             drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
         }
@@ -627,7 +657,6 @@ const QuotingModule: React.FC<Props> = ({
         const recipe = recipes.find(r => r.id === mod.recipeId);
         if (!recipe) return;
         const modIdxX = mod.x - bounds.minX;
-        // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
         const modIdxY = mod.y - bounds.minY;
         let modW = Number(colSizes[modIdxX] || 0); 
         let modH = Number(rowSizes[modIdxY] || 0);
@@ -636,16 +665,13 @@ const QuotingModule: React.FC<Props> = ({
             if (mod.x < bounds.maxX) modW -= (currentDeduction / 2);
         }
         if (rowSizes.length > 1) {
-            // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
             if (mod.y > bounds.minY) modH -= (currentDeduction / 2);
             if (mod.y < bounds.maxY) modH -= (currentDeduction / 2);
         }
         let ox_mm = 0; for (let i = 0; i < modIdxX; i++) ox_mm += Number(colSizes[i] || 0);
         let oy_mm = 0; for (let j = 0; j < modIdxY; j++) oy_mm += Number(rowSizes[j] || 0);
         const xOffset = (mod.x > bounds.minX) ? (currentDeduction / 2) : 0;
-        // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
         const yOffset = (mod.y > bounds.minY) ? (currentDeduction / 2) : 0;
-        // Fix undeclared 'minY' by correctly referencing 'bounds.minY'
         const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
         drawDetailedOpening(ctx, startX + (ox_mm + xOffset) * pxPerMm, startY + (oy_mm + yOffset) * pxPerMm, modW * pxPerMm, modH * pxPerMm, recipe, mod.isDVH, aluColor, extras, edges, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
