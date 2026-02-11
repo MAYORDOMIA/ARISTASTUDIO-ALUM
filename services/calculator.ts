@@ -72,7 +72,7 @@ export const calculateCompositePrice = (
       mod.overriddenAccessories,
       mod.blindPanes, mod.blindPaneIds, blindPanels,
       isSet,
-      mod.slatProfileIds // Pasar slatProfileIds
+      mod.slatProfileIds
     );
     
     totalAluCost += result.aluCost;
@@ -136,7 +136,7 @@ export const calculateItemPrice = (
   coupling?: { profileId?: string, position: string }, transoms?: { height: number; profileId: string; formula?: string }[],
   overriddenAccessories?: RecipeAccessory[], blindPanes: number[] = [], blindPaneIds: Record<number, string> = {}, blindPanels: BlindPanel[] = [],
   isSet: boolean = false,
-  slatProfileIds: Record<number, string> = {} // Recibir slatProfileIds
+  slatProfileIds: Record<number, string> = {}
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -187,7 +187,6 @@ export const calculateItemPrice = (
     });
   }
 
-  // --- NUEVA LÓGICA DE TABLILLAS ---
   const adjustedW = width - Number(recipe.glassDeductionW || 0); 
   const adjustedH = height - Number(recipe.glassDeductionH || 0);
   const visualType = recipe.visualType || '';
@@ -233,7 +232,6 @@ export const calculateItemPrice = (
       }
     }
   });
-  // --- FIN LÓGICA TABLILLAS ---
 
   aluCost = totalAluWeight * baseAluPrice;
 
@@ -278,6 +276,10 @@ export const calculateItemPrice = (
     }
 
     if (blindPanes.includes(index)) {
+      // SI HAY TABLILLAS CONFIGURADAS (slatProfileIds), NO CALCULAMOS COSTO DEL PANEL ML/M2 BASE
+      if (slatProfileIds[index]) {
+          return;
+      }
       const specificBlind = blindPanels.find(bp => bp.id === blindPaneIds[index]);
       if (specificBlind) {
           const unitValue = specificBlind.unit === 'ml' ? (pane.w / 1000) : billingAreaPerPiece;

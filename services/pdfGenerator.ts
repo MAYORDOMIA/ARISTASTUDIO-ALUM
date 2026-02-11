@@ -163,7 +163,10 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 if (p.isBlind) {
                     const bpId = mod.blindPaneIds?.[pIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
-                    if (bp && bp.unit === 'ml') {
+                    const slatId = mod.slatProfileIds?.[pIdx];
+
+                    // SI NO HAY TABLILLAS, PROCESAMOS EL PANEL ML GENÉRICO
+                    if (bp && bp.unit === 'ml' && !slatId) {
                         const list = cutsByProfile.get(bp.id) || [];
                         for(let k=0; k < numLeaves * item.quantity; k++) {
                             list.push({ len: p.w, type: 'Panel Lineal', cutStart: '90', cutEnd: '90', label: itemCode });
@@ -171,8 +174,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                         cutsByProfile.set(bp.id, list);
                     }
                     
-                    // --- INTEGRACIÓN TABLILLAS EN OPTIMIZACIÓN ---
-                    const slatId = mod.slatProfileIds?.[pIdx];
+                    // SI HAY TABLILLAS, PROCESAMOS EL PERFIL ESPECÍFICO (ELIMINA EL "TABLILLAS" GENÉRICO)
                     if (slatId) {
                       const slatProf = aluminum.find(a => a.id === slatId);
                       if (slatProf && slatProf.thickness > 0) {
@@ -321,14 +323,16 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (p.isBlind) {
                     const bpId = mod.blindPaneIds?.[pIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
-                    if (bp && bp.unit === 'ml') {
+                    const slatId = mod.slatProfileIds?.[pIdx];
+
+                    // SI NO HAY TABLILLAS, PROCESAMOS EL PANEL ML GENÉRICO
+                    if (bp && bp.unit === 'ml' && !slatId) {
                         const existing = aluSummary.get(bp.id) || { code: bp.code, detail: bp.detail, totalMm: 0, barLength: 6 };
                         existing.totalMm += p.w * numLeaves * item.quantity;
                         aluSummary.set(bp.id, existing);
                     }
                     
-                    // --- TABLILLAS EN PEDIDO DE MATERIALES ---
-                    const slatId = mod.slatProfileIds?.[pIdx];
+                    // SI HAY TABLILLAS, PROCESAMOS EL PERFIL ESPECÍFICO (ELIMINA EL "TABLILLAS" GENÉRICO)
                     if (slatId) {
                       const slatProf = aluminum.find(a => a.id === slatId);
                       if (slatProf && slatProf.thickness > 0) {
@@ -384,6 +388,12 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (pane.isBlind) {
                     const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
+                    const slatId = mod.slatProfileIds?.[paneIdx];
+
+                    // SI HAY TABLILLAS, EL PANEL YA SE CONTABILIZÓ COMO ALUMINIO EN LA SECCIÓN 1. 
+                    // NO LO AGREGAMOS AQUÍ PARA EVITAR TRIPLICIDAD.
+                    if (slatId) return;
+
                     if (bp && bp.unit === 'm2') {
                         const key = `CIEGO-${bp.code}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                         const existing = fillSummary.get(key) || { spec: `PANEL CIEGO: ${bp.detail}`, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
@@ -571,7 +581,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
               });
             }
             
-            // --- TABLILLAS EN HOJA DE RUTA ---
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
             panes.forEach((p, pIdx) => {
