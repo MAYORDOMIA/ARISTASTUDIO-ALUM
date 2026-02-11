@@ -1,7 +1,7 @@
 
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem, Treatment } from '../types';
+import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem, Treatment, BlindPanel } from '../types';
 import { evaluateFormula } from './calculator';
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
@@ -96,7 +96,7 @@ const getModuleGlassPanes = (
     return panes;
 };
 
-export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], config: GlobalConfig) => {
+export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], config: GlobalConfig, blindPanels: BlindPanel[]) => {
     const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F');
@@ -156,6 +156,23 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 }
               });
             }
+            
+            // AGREGAR CIEGOS LINEALES (ML) A LA OPTIMIZACIÓN DE BARRAS
+            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            panes.forEach((p, pIdx) => {
+                if (p.isBlind) {
+                    const bpId = mod.blindPaneIds?.[pIdx];
+                    const bp = blindPanels.find(x => x.id === bpId);
+                    if (bp && bp.unit === 'ml') {
+                        const list = cutsByProfile.get(bp.id) || [];
+                        for(let k=0; k < numLeaves * item.quantity; k++) {
+                            list.push({ len: p.w, type: 'Panel Lineal', cutStart: '90', cutEnd: '90', label: itemCode });
+                        }
+                        cutsByProfile.set(bp.id, list);
+                    }
+                }
+            });
         });
         if (item.couplingProfileId && isSet) {
             const list = cutsByProfile.get(item.couplingProfileId) || [];
@@ -187,7 +204,12 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     });
     let y = 40;
     cutsByProfile.forEach((cuts, profileId) => {
-        const profile = aluminum.find(p => p.id === profileId); if (!profile || cuts.length === 0) return;
+        let profile = aluminum.find(p => p.id === profileId) as any;
+        if (!profile) {
+            const bp = blindPanels.find(x => x.id === profileId);
+            if (bp) profile = { id: bp.id, code: bp.code, detail: bp.detail, barLength: 6 };
+        }
+        if (!profile || cuts.length === 0) return;
         const barLenMm = profile.barLength > 100 ? profile.barLength : profile.barLength * 1000;
         cuts.sort((a, b) => b.len - a.len); const bins: typeof cuts[] = [[]];
         cuts.forEach(cut => {
@@ -418,7 +440,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
     doc.save(`Taller_${quote.clientName}.pdf`);
 };
 
-export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], accessories: Accessory[], glasses: Glass[], dvhInputs: DVHInput[], config: GlobalConfig) => {
+export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], accessories: Accessory[], glasses: Glass[], dvhInputs: DVHInput[], config: GlobalConfig, blindPanels: BlindPanel[]) => {
     const doc = new jsPDF(); const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F');
     doc.setTextColor(255); doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.text('PEDIDO DE MATERIALES CONSOLIDADO', 15, 12);
@@ -467,6 +489,21 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 }
               });
             }
+            
+            // AGREGAR CIEGOS LINEALES (ML) AL RESUMEN DE ALUMINIO/BARRAS
+            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            panes.forEach((p, pIdx) => {
+                if (p.isBlind) {
+                    const bpId = mod.blindPaneIds?.[pIdx];
+                    const bp = blindPanels.find(x => x.id === bpId);
+                    if (bp && bp.unit === 'ml') {
+                        const existing = aluSummary.get(bp.id) || { code: bp.code, detail: bp.detail, totalMm: 0, barLength: 6 };
+                        existing.totalMm += p.w * numLeaves * item.quantity;
+                        aluSummary.set(bp.id, existing);
+                    }
+                }
+            });
         });
         if (item.couplingProfileId && isSet) {
             const p = aluminum.find(a => a.id === item.couplingProfileId);
@@ -507,8 +544,17 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
-            panes.forEach(pane => {
-                if (pane.isBlind) return;
+            panes.forEach((pane, paneIdx) => {
+                if (pane.isBlind) {
+                    const bpId = mod.blindPaneIds?.[paneIdx];
+                    const bp = blindPanels.find(x => x.id === bpId);
+                    if (bp && bp.unit === 'm2') {
+                        const key = `CIEGO-${bp.code}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                        const existing = fillSummary.get(key) || { spec: `PANEL CIEGO: ${bp.detail}`, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                        existing.qty += (item.quantity * numLeaves); fillSummary.set(key, existing);
+                    }
+                    return;
+                }
                 let spec = (recipe.visualType === 'mosquitero') ? 'TELA MOSQUITERA' : 'Vidrio';
                 if (recipe.visualType !== 'mosquitero') {
                     const gOuter = glasses.find(g => g.id === mod.glassOuterId); spec = mod.isDVH ? `${gOuter?.detail || '?'} / DVH` : (gOuter?.detail || 'VS');
@@ -544,7 +590,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     doc.save(`Pedido_Consolidado_${quote.clientName}.pdf`);
 };
 
-export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[], dvhInputs: DVHInput[]) => {
+export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], glasses: Glass[], aluminum: AluminumProfile[], dvhInputs: DVHInput[], blindPanels: BlindPanel[]) => {
     const doc = new jsPDF({ orientation: 'landscape' }); const pageWidth = doc.internal.pageSize.getWidth(); const pageHeight = doc.internal.pageSize.getHeight();
     const allPieces: GlassPiece[] = []; const listTableData: any[] = [];
     quote.items.forEach((item, itemIdx) => {
@@ -553,7 +599,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const gOuter = glasses.find(g => g.id === mod.glassOuterId); const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
-            glassPanes.forEach(pane => {
+            glassPanes.forEach((pane, paneIdx) => {
                 if (!pane.isBlind) {
                     const qtyPerSheet = item.quantity * numLeaves; const outerSpec = gOuter?.detail || 'Vidrio Ext';
                     listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, outerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
@@ -567,17 +613,43 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                             allPieces.push({ id: `${item.id}-int-${i}-${Math.random()}`, itemCode: item.itemCode || `POS#${itemIdx+1}`, spec: innerSpec, w: Math.round(pane.w), h: Math.round(pane.h), glassId: mod.glassInnerId! });
                         }
                     }
+                } else {
+                    // AGREGAR CIEGOS DE M2 A LA OPTIMIZACIÓN DE PLANCHAS
+                    const bpId = mod.blindPaneIds?.[paneIdx];
+                    const bp = blindPanels.find(x => x.id === bpId);
+                    if (bp && bp.unit === 'm2') {
+                        const qtyPerSheet = item.quantity * numLeaves;
+                        const panelSpec = `PANEL CIEGO: ${bp.detail}`;
+                        listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, panelSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
+                        for (let i = 0; i < qtyPerSheet; i++) {
+                            allPieces.push({ id: `${item.id}-blind-${i}-${Math.random()}`, itemCode: item.itemCode || `POS#${itemIdx+1}`, spec: panelSpec, w: Math.round(pane.w), h: Math.round(pane.h), glassId: bp.id });
+                        }
+                    }
                 }
             });
         });
     });
     if (allPieces.length === 0) return;
-    doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 30, 'F'); doc.setTextColor(255); doc.setFontSize(18); doc.text('OPTIMIZADOR DE CORTE DE VIDRIOS', 15, 20);
+    doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 30, 'F'); doc.setTextColor(255); doc.setFontSize(18); doc.text('OPTIMIZADOR DE CORTE DE VIDRIOS / PANELES', 15, 20);
     autoTable(doc, { startY: 40, head: [['ABERTURA', 'ESPECIFICACIÓN', 'MEDIDA (mm)', 'CANT.']], body: listTableData, theme: 'striped' });
     const groupedBySpec = new Map<string, GlassPiece[]>();
     allPieces.forEach(p => { const list = groupedBySpec.get(p.spec) || []; list.push(p); groupedBySpec.set(p.spec, list); });
     groupedBySpec.forEach((pieces, specName) => {
-        const refGlass = glasses.find(g => g.id === pieces[0].glassId); const sheetW = refGlass?.width || 2400; const sheetH = refGlass?.height || 1800; const margin = 12; 
+        let sheetW = 2400, sheetH = 1800;
+        const refGlass = glasses.find(g => g.id === pieces[0].glassId);
+        if (refGlass) {
+            sheetW = refGlass.width || 2400;
+            sheetH = refGlass.height || 1800;
+        } else {
+            const refBlind = blindPanels.find(b => b.id === pieces[0].glassId);
+            if (refBlind) {
+                // Si es panel ciego m2, asumimos plancha de 2x1 o similar si no está definido, 
+                // pero usaremos el estándar 2400x1800 por defecto.
+                sheetW = 2400; sheetH = 1800;
+            }
+        }
+        
+        const margin = 12; 
         pieces.sort((a, b) => (b.w * b.h) - (a.w * a.h)); 
         let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
         let curSheetIdx = 0, curY = 0, curShelfH = 0, curX = 0;

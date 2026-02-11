@@ -271,7 +271,7 @@ const App: React.FC = () => {
               aluminum={aluminum}
             />
           )}
-          {activeTab === 'history' && <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} />}
+          {activeTab === 'history' && <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} blindPanels={blindPanels} />}
           {activeTab === 'config' && (
               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
