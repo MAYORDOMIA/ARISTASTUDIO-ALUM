@@ -462,6 +462,26 @@ const QuotingModule: React.FC<Props> = ({
   const breakdownDragOffset = useRef({ x: 0, y: 0 });
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // HELPER: Asegurar que al menos una alternativa por label esté activa por defecto
+  const ensureOneActivePerLabel = (accs: RecipeAccessory[]) => {
+    if (!accs) return [];
+    const result = accs.map(a => ({ ...a }));
+    const processedLabels = new Set<string>();
+    
+    result.forEach((acc, idx) => {
+      if (acc.label && !processedLabels.has(acc.label)) {
+        const groupIndices = result.map((a, i) => a.label === acc.label ? i : -1).filter(i => i !== -1);
+        const hasActive = groupIndices.some(i => !result[i].isAlternative);
+        if (!hasActive && groupIndices.length > 0) {
+          // Si ninguno está activo, activar el primero del grupo
+          result[groupIndices[0]].isAlternative = false;
+        }
+        processedLabels.add(acc.label);
+      }
+    });
+    return result;
+  };
   
   const bounds = useMemo(() => {
     const validMods = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
@@ -753,9 +773,21 @@ const QuotingModule: React.FC<Props> = ({
         ? [...currentModForEdit.overriddenAccessories] 
         : [...modRecipe.accessories];
     
+    const target = activeAccs[index];
+    const willBeActive = target.isAlternative; // Si estaba marcado como alt (true), ahora será activo (false)
+
+    // Si vamos a activar este accesorio y tiene etiqueta (label), desactivamos otros del mismo grupo
+    if (willBeActive && target.label) {
+      activeAccs.forEach((acc, i) => {
+        if (acc.label === target.label && i !== index) {
+          activeAccs[i] = { ...acc, isAlternative: true };
+        }
+      });
+    }
+
     activeAccs[index] = { 
-      ...activeAccs[index], 
-      isAlternative: !activeAccs[index].isAlternative 
+      ...target, 
+      isAlternative: !target.isAlternative 
     };
     updateModule(currentModForEdit.id, { overriddenAccessories: activeAccs });
   };
@@ -1119,7 +1151,17 @@ const QuotingModule: React.FC<Props> = ({
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Tipología</label>
-                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { const r = recipes.find(x => x.id === e.target.value); if (r) updateModule(editingModuleId, { recipeId: r.id, transoms: [], overriddenAccessories: r.accessories || [] }); }}>
+                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { 
+                                        const r = recipes.find(x => x.id === e.target.value); 
+                                        if (r) {
+                                          const processedAccs = ensureOneActivePerLabel(r.accessories || []);
+                                          updateModule(editingModuleId, { 
+                                            recipeId: r.id, 
+                                            transoms: [], 
+                                            overriddenAccessories: processedAccs 
+                                          }); 
+                                        }
+                                    }}>
                                         <option value="">(SELECCIONE)</option>
                                         {recipes.filter(r => recipeFilter === 'TODOS' || (r.line || '').toUpperCase() === recipeFilter).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>

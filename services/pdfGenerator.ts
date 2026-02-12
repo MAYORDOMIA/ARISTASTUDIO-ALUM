@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem, Treatment, BlindPanel } from '../types';
@@ -179,11 +178,13 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                       const slatProf = aluminum.find(a => a.id === slatId);
                       if (slatProf && slatProf.thickness > 0) {
                         const numSlats = Math.ceil(p.h / slatProf.thickness);
-                        const list = cutsByProfile.get(slatProf.id) || [];
+                        const totalLinealMm = (p.w + config.discWidth) * numSlats * numLeaves;
+                        const slatWeight = (totalLinealMm / 1000) * slatProf.weightPerMeter * item.quantity;
+                        const existing = cutsByProfile.get(slatProf.id) || [];
                         for(let k=0; k < numSlats * numLeaves * item.quantity; k++) {
-                            list.push({ len: p.w, type: 'Tablilla', cutStart: '90', cutEnd: '90', label: itemCode });
+                            existing.push({ len: p.w, type: 'Tablilla', cutStart: '90', cutEnd: '90', label: itemCode });
                         }
-                        cutsByProfile.set(slatProf.id, list);
+                        cutsByProfile.set(slatProf.id, existing);
                       }
                     }
                 }
@@ -388,6 +389,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (pane.isBlind) {
                     const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
+                    // FIX: Variable 'pIdx' was not defined in this scope, changed to loop variable 'paneIdx'
                     const slatId = mod.slatProfileIds?.[paneIdx];
 
                     // SI HAY TABLILLAS, EL PANEL YA SE CONTABILIZÓ COMO ALUMINIO EN LA SECCIÓN 1. 
@@ -422,6 +424,9 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const activeAccs = mod.overriddenAccessories || recipe.accessories;
             activeAccs.forEach(ra => {
+                // FILTRADO: Solo sumar accesorios que están activos
+                if (ra.isAlternative) return;
+                
                 const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId); if (!acc) return;
                 const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
                 if (ra.isLinear && ra.formula) {
