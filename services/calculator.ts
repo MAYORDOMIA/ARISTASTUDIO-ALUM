@@ -93,24 +93,6 @@ export const calculateCompositePrice = (
     totalAluWeight += cWeight;
   }
 
-  if (item.extras?.tapajuntas) {
-    const firstRecipe = recipes.find(r => r.id === validModules[0]?.recipeId);
-    const tjProfile = profiles.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
-    if (tjProfile) {
-        const tjThick = Number(tjProfile.thickness || 30);
-        const { top, bottom, left, right } = item.extras.tapajuntasSides;
-        let totalTJMm = 0;
-        if (top) totalTJMm += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-        if (bottom) totalTJMm += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-        if (left) totalTJMm += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-        if (right) totalTJMm += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-        
-        const tjWeight = (totalTJMm / 1000) * Number(tjProfile.weightPerMeter || 0);
-        totalAluCost += tjWeight * baseAluPrice;
-        totalAluWeight += tjWeight;
-    }
-  }
-
   const materialCost = totalAluCost + totalGlassCost + totalAccCost;
   const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
   const finalPrice = materialCost + laborCost;
@@ -155,6 +137,7 @@ export const calculateItemPrice = (
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
+    // FILTRADO ESTRICTO: Solo si están en la receta y el usuario los activa
     const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
     if (isTJ && (isSet || !extras?.tapajuntas)) return false;
 
@@ -297,41 +280,6 @@ export const calculateItemPrice = (
       }
     }
   });
-
-  if (extras?.mosquitero && visualType !== 'mosquitero') {
-      const hasRoleMosq = recipe.profiles.some(rp => (rp.role || '').toLowerCase().includes('mosq'));
-      if (!hasRoleMosq) {
-          const mProfile = profiles.find(p => p.id === recipe.mosquiteroProfileId);
-          if (mProfile) {
-              const mW = evaluateFormula(recipe.mosquiteroFormulaW || 'W/2', width, height);
-              const mH = evaluateFormula(recipe.mosquiteroFormulaH || 'H-45', width, height);
-              const meshArea = Math.max((mW * mH) / 1000000, 0.5);
-              glassCost += meshArea * (Number(config.meshPricePerM2 || 25.0));
-              const frameWeight = ((mW * 2) + (mH * 2)) / 1000 * Number(mProfile.weightPerMeter || 0);
-              aluCost += frameWeight * baseAluPrice;
-              totalAluWeight += frameWeight;
-          }
-      }
-  }
-  
-  if (!isSet && extras?.tapajuntas && extras.tapajuntasSides) {
-    const hasRoleTJ = recipe.profiles.some(rp => (rp.role || '').toLowerCase().includes('tapa'));
-    if (!hasRoleTJ) {
-        const tjProfile = profiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
-        if (tjProfile) {
-            const tjThick = Number(tjProfile.thickness || recipe.tapajuntasThickness || 30);
-            const { top, bottom, left, right } = extras.tapajuntasSides;
-            let totalTJMm = 0;
-            if (top) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
-            if (bottom) totalTJMm += width + (left ? tjThick : 0) + (right ? tjThick : 0);
-            if (left) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-            if (right) totalTJMm += height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-            const tjWeight = (totalTJMm / 1000) * Number(tjProfile.weightPerMeter || 0);
-            aluCost += tjWeight * baseAluPrice;
-            totalAluWeight += tjWeight;
-        }
-    }
-  }
 
   const materialCost = aluCost + glassCost + accCost;
   const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);

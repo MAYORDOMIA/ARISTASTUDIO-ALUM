@@ -200,21 +200,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             }
             cutsByProfile.set(item.couplingProfileId, list);
         }
-        if (item.extras.tapajuntas) {
-            const firstMod = item.composition.modules[0]; const recipe = recipes.find(r => r.id === firstMod.recipeId);
-            const tjProfile = aluminum.find(p => p.id === recipe?.defaultTapajuntasProfileId);
-            if (tjProfile) {
-                const tjThick = Number(tjProfile.thickness || 30); const { top, bottom, left, right } = item.extras.tapajuntasSides;
-                const list = cutsByProfile.get(tjProfile.id) || [];
-                for(let q=0; q < item.quantity; q++) {
-                    if (top) list.push({ len: item.width + (left ? tjThick : 0) + (right ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
-                    if (bottom) list.push({ len: item.width + (left ? tjThick : 0) + (right ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
-                    if (left) list.push({ len: item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
-                    if (right) list.push({ len: item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0), type: 'Tapajuntas', cutStart: '45', cutEnd: '45', label: itemCode });
-                }
-                cutsByProfile.set(tjProfile.id, list);
-            }
-        }
+        // SE ELIMINA BLOQUE AUTOMÁTICO DE TAPAJUNTAS: Solo se toman de la receta ahora.
     });
     let y = 40;
     cutsByProfile.forEach((cuts, profileId) => {
@@ -354,20 +340,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 existing.totalMm += totalC * item.quantity; aluSummary.set(p.id, existing);
             }
         }
-        if (item.extras.tapajuntas) {
-            const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
-            const p = aluminum.find(a => a.id === firstRecipe?.defaultTapajuntasProfileId);
-            if (p) {
-                const tjThick = Number(p.thickness || 30); const { top, bottom, left, right } = item.extras.tapajuntasSides;
-                let totalT = 0;
-                if (top) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-                if (bottom) totalT += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-                if (left) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-                if (right) totalT += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
-                existing.totalMm += totalT * item.quantity; aluSummary.set(p.id, existing);
-            }
-        }
+        // SE ELIMINA BLOQUE AUTOMÁTICO DE TAPAJUNTAS: Solo se toman de la receta ahora.
     });
     const aluBody = Array.from(aluSummary.values()).map(s => {
         const barLenMm = s.barLength > 100 ? s.barLength : s.barLength * 1000; const totalBars = Math.ceil(s.totalMm / barLenMm);
@@ -389,7 +362,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     const bp = blindPanels.find(x => x.id === bpId);
                     const slatId = mod.slatProfileIds?.[paneIdx];
 
-                    // SI HAY TABLILLAS, EL PANEL YA SE CONTABILIZÓ COMO ALUMINIO EN LA SECCIÓN 1. 
+                    // SI NO HAY TABLILLAS, EL PANEL YA SE CONTABILIZÓ COMO ALUMINIO EN LA SECCIÓN 1. 
                     // NO LO AGREGAMOS AQUÍ PARA EVITAR TRIPLICIDAD.
                     if (slatId) return;
 
