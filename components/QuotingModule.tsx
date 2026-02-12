@@ -40,7 +40,9 @@ import {
   Package,
   ChevronDown,
   Link2,
-  Box
+  Box,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
 
@@ -446,7 +448,6 @@ const QuotingModule: React.FC<Props> = ({
   const [showCouplingModal, setShowCouplingModal] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState<string>('TODOS');
 
-  // --- NUEVO: ESTADO PARA TABLILLAS ---
   const [showSlatSelector, setShowSlatSelector] = useState(false);
   const [slatPaneIdx, setSlatPaneIdx] = useState<number | null>(null);
   const [slatSearch, setSlatSearch] = useState('');
@@ -741,6 +742,21 @@ const QuotingModule: React.FC<Props> = ({
         ? [...currentModForEdit.overriddenAccessories] 
         : [...modRecipe.accessories];
     activeAccs[index] = { ...activeAccs[index], accessoryId: newAccessoryId };
+    updateModule(currentModForEdit.id, { overriddenAccessories: activeAccs });
+  };
+
+  const toggleAccessoryActive = (index: number) => {
+    if (!currentModForEdit) return;
+    const modRecipe = recipes.find(r => r.id === currentModForEdit.recipeId);
+    if (!modRecipe) return;
+    const activeAccs = (currentModForEdit.overriddenAccessories && currentModForEdit.overriddenAccessories.length > 0) 
+        ? [...currentModForEdit.overriddenAccessories] 
+        : [...modRecipe.accessories];
+    
+    activeAccs[index] = { 
+      ...activeAccs[index], 
+      isAlternative: !activeAccs[index].isAlternative 
+    };
     updateModule(currentModForEdit.id, { overriddenAccessories: activeAccs });
   };
 
@@ -1191,7 +1207,6 @@ const QuotingModule: React.FC<Props> = ({
                                                             {blindPanels.map(p => <option key={p.id} value={p.id}>{p.code} - {p.detail}</option>)}
                                                         </select>
                                                         
-                                                        {/* BOTÓN CONFIGURAR TABLILLAS */}
                                                         <button 
                                                             onClick={() => {
                                                                 setSlatPaneIdx(paneIdx);
@@ -1227,7 +1242,7 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
                         <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-slate-800">
                             <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 border-l-4 border-indigo-600 pl-3"><Wind size={14} /> Herrajes del Módulo</h4>
-                            <p className="text-[8px] text-slate-400 font-bold uppercase px-3 italic">Nota: Cambiar aquí un accesorio solo afecta a este ítem, no a la receta base.</p>
+                            <p className="text-[8px] text-slate-400 font-bold uppercase px-3 italic">Active o desactive las opciones de herraje según el tamaño.</p>
                             <div className="grid grid-cols-1 gap-2">
                                 {(() => {
                                     const modAccs = (currentModForEdit.overriddenAccessories && currentModForEdit.overriddenAccessories.length > 0) 
@@ -1236,21 +1251,31 @@ const QuotingModule: React.FC<Props> = ({
                                     return modAccs.map((ra, idx) => {
                                         const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
                                         return (
-                                            <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 rounded-xl group/acc">
-                                                <div className="flex-1 space-y-1">
-                                                    <div className="flex justify-between items-center px-1">
-                                                        <span className="text-[8px] font-black text-indigo-600 uppercase tracking-tighter">Posición #{idx+1}</span>
-                                                        <span className="text-[9px] font-black text-slate-400 uppercase">x{ra.quantity} {ra.isLinear ? 'ML' : 'UN'}</span>
+                                            <div key={idx} className={`flex flex-col gap-2 p-3 border-2 rounded-xl transition-all ${ra.isAlternative ? 'bg-slate-50/40 border-slate-100 opacity-60' : 'bg-white dark:bg-slate-800/60 border-indigo-600/20 shadow-sm'}`}>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        {ra.label ? (
+                                                          <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[8px] font-black rounded-md uppercase">{ra.label}</span>
+                                                        ) : (
+                                                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Posición #{idx+1}</span>
+                                                        )}
+                                                        <span className="text-[9px] font-black text-slate-500 uppercase">x{ra.quantity} {ra.isLinear ? 'ML' : 'UN'}</span>
                                                     </div>
-                                                    <select 
-                                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-slate-800 dark:text-white outline-none focus:border-indigo-500 shadow-sm"
-                                                        value={ra.accessoryId}
-                                                        onChange={(e) => handleAccessorySubstitute(idx, e.target.value)}
+                                                    <button 
+                                                        onClick={() => toggleAccessoryActive(idx)}
+                                                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black transition-all ${ra.isAlternative ? 'text-slate-400 hover:text-indigo-600' : 'bg-indigo-600 text-white shadow-md'}`}
                                                     >
-                                                        <option value="">(SIN ACCESORIO)</option>
-                                                        {accessories.map(a => <option key={a.id} value={a.id}>{a.code} - {a.detail}</option>)}
-                                                    </select>
+                                                        {ra.isAlternative ? <><ToggleLeft size={14} /> DESACTIVADO</> : <><ToggleRight size={14} /> ACTIVO</>}
+                                                    </button>
                                                 </div>
+                                                <select 
+                                                    className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black outline-none focus:border-indigo-500 shadow-sm ${ra.isAlternative ? 'text-slate-400' : 'text-slate-800 dark:text-white'}`}
+                                                    value={ra.accessoryId}
+                                                    onChange={(e) => handleAccessorySubstitute(idx, e.target.value)}
+                                                >
+                                                    <option value="">(SIN ACCESORIO)</option>
+                                                    {accessories.map(a => <option key={a.id} value={a.id}>{a.code} - {a.detail}</option>)}
+                                                </select>
                                             </div>
                                         );
                                     });
@@ -1268,7 +1293,6 @@ const QuotingModule: React.FC<Props> = ({
         </div>
       )}
 
-      {/* VENTANA EMERGENTE: SELECTOR DE TABLILLAS */}
       {showSlatSelector && slatPaneIdx !== null && currentModForEdit && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
             <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-indigo-100 dark:border-slate-800 flex flex-col max-h-[85vh] transition-colors relative">

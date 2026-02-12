@@ -159,7 +159,7 @@ export const calculateItemPrice = (
     const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
     if (isTJ && (isSet || !extras?.tapajuntas)) return false;
 
-    const isMosq = role.includes('mosq') || p.id === recipe.mosquiteroProfileId;
+    const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
     if (isMosq && !extras?.mosquitero) return false;
 
     return true;
@@ -240,6 +240,9 @@ export const calculateItemPrice = (
     : (recipe.accessories || []);
 
   activeAccessories.forEach(ra => {
+    // NUEVO: Ignorar accesorios marcados como alternativa si no están sobreescritos para activarse
+    if (ra.isAlternative) return;
+
     const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
     if (acc) {
       const uPrice = Number(acc.unitPrice || 0);

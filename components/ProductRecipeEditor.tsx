@@ -2,7 +2,7 @@
 import { 
   Plus, Trash2, Lock, Unlock, Shapes, Ruler, Box, Wind, 
   Search, Download, Upload, FileText, Ruler as RulerIcon,
-  ChevronDown, Save, AlertTriangle, Check, Link2, Split
+  ChevronDown, Save, AlertTriangle, Check, Link2, Split, Tag
 } from 'lucide-react';
 import { 
   ProductRecipe, AluminumProfile, Accessory, RecipeProfile, 
@@ -102,7 +102,6 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
 
   const recipe = recipes.find(r => r.id === editingId);
 
-  // Se añade ordenamiento descendente por ID para que las más nuevas queden arriba
   const filteredRecipes = useMemo(() => {
     return [...recipes]
       .filter(r => 
@@ -295,9 +294,24 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                         <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${!ra.isLinear ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-400'}`}>U</button>
                                         <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = true; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isLinear ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>ML</button>
                                     </div>
+                                    <button 
+                                        onClick={() => { const updated = [...recipe.accessories]; updated[idx].isAlternative = !updated[idx].isAlternative; updateRecipe(recipe.id, { accessories: updated }); }}
+                                        className={`px-2 py-1 rounded text-[7px] font-black border transition-all ${ra.isAlternative ? 'bg-amber-600 border-amber-700 text-white' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                                    >
+                                        ALT
+                                    </button>
                                     <button onClick={() => updateRecipe(recipe.id, { accessories: recipe.accessories.filter((_, i) => i !== idx) })} className="text-slate-300 hover:text-red-500 p-1"><Trash2 size={14} /></button>
                                 </div>
                                 <div className="flex gap-2 items-center">
+                                    <div className="relative flex-1">
+                                        <Tag size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300" />
+                                        <input 
+                                          placeholder="Etiqueta (ej: RUEDAS)" 
+                                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 pl-6 pr-2 rounded text-[9px] font-black uppercase text-indigo-600 outline-none" 
+                                          value={ra.label || ''} 
+                                          onChange={e => { const updated = [...recipe.accessories]; updated[idx].label = e.target.value.toUpperCase(); updateRecipe(recipe.id, { accessories: updated }); }}
+                                        />
+                                    </div>
                                     <input type="number" className="w-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 rounded text-center font-black text-[10px] dark:text-white" value={ra.quantity} onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
                                     <span className="text-[8px] font-black text-slate-400 uppercase">{ra.isLinear ? 'ML' : 'UNID'}</span>
                                     {ra.isLinear && (
