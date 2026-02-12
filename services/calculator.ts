@@ -1,4 +1,3 @@
-
 import { 
   ProductRecipe, AluminumProfile, GlobalConfig, Treatment, Glass, 
   Accessory, DVHInput, RecipeAccessory, BlindPanel, QuoteItem, QuoteItemBreakdown, MeasurementModule
@@ -216,7 +215,7 @@ export const calculateItemPrice = (
     });
     const lastTrProf = profiles.find(p => p.id === sorted[sorted.length-1].profileId);
     const lastTransomThickness = Number(lastTrProf?.thickness || recipe.transomThickness || 40);
-    panesHeights.push((height - lastY) - (lastTransomThickness / 2) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction);
+    panesHeights.push((height - lastY) - (lastTrProf ? (lastTransomThickness / 2) : 0) - (Number(recipe.glassDeductionH || 0) / (transoms.length + 1)) - transomGlassDeduction);
   }
 
   blindPanes.forEach(paneIdx => {
@@ -240,7 +239,7 @@ export const calculateItemPrice = (
     : (recipe.accessories || []);
 
   activeAccessories.forEach(ra => {
-    // NUEVO: Ignorar accesorios marcados como alternativa si no están sobreescritos para activarse
+    // FILTRADO: Solo sumar accesorios que están activos (!isAlternative)
     if (ra.isAlternative) return;
 
     const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
@@ -279,7 +278,6 @@ export const calculateItemPrice = (
     }
 
     if (blindPanes.includes(index)) {
-      // SI HAY TABLILLAS CONFIGURADAS (slatProfileIds), NO CALCULAMOS COSTO DEL PANEL ML/M2 BASE
       if (slatProfileIds[index]) {
           return;
       }

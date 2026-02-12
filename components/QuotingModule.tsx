@@ -1,4 +1,3 @@
-
 import { 
     ProductRecipe, AluminumProfile, Glass, BlindPanel,
     Accessory,
@@ -776,7 +775,7 @@ const QuotingModule: React.FC<Props> = ({
     const target = activeAccs[index];
     const willBeActive = target.isAlternative; // Si estaba marcado como alt (true), ahora será activo (false)
 
-    // Si vamos a activar este accesorio y tiene etiqueta (label), desactivamos otros del mismo grupo
+    // EXCLUSIÓN MUTUA: Si activamos uno con label, desactivamos los otros del mismo label
     if (willBeActive && target.label) {
       activeAccs.forEach((acc, i) => {
         if (acc.label === target.label && i !== index) {
@@ -949,7 +948,7 @@ const QuotingModule: React.FC<Props> = ({
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{rowSizes.length}</span>
-                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
                             </div>
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">

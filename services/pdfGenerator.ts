@@ -132,7 +132,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             recipe.profiles.forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId); if (!pDef) return;
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
-                const isTJ = role.includes('tapajuntas') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
+                const isTJ = role.includes('tapa') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && (isSet || !item.extras.tapajuntas)) return;
                 const isMosq = role.includes('mosquitero') || pDef.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
@@ -178,13 +178,11 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                       const slatProf = aluminum.find(a => a.id === slatId);
                       if (slatProf && slatProf.thickness > 0) {
                         const numSlats = Math.ceil(p.h / slatProf.thickness);
-                        const totalLinealMm = (p.w + config.discWidth) * numSlats * numLeaves;
-                        const slatWeight = (totalLinealMm / 1000) * slatProf.weightPerMeter * item.quantity;
-                        const existing = cutsByProfile.get(slatProf.id) || [];
+                        const list = cutsByProfile.get(slatProf.id) || [];
                         for(let k=0; k < numSlats * numLeaves * item.quantity; k++) {
-                            existing.push({ len: p.w, type: 'Tablilla', cutStart: '90', cutEnd: '90', label: itemCode });
+                            list.push({ len: p.w, type: 'Tablilla', cutStart: '90', cutEnd: '90', label: itemCode });
                         }
-                        cutsByProfile.set(slatProf.id, existing);
+                        cutsByProfile.set(slatProf.id, list);
                       }
                     }
                 }
@@ -298,7 +296,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             recipe.profiles.forEach(rp => {
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
                 const p = aluminum.find(a => a.id === rp.profileId); if (!p) return;
-                const isTJ = role.includes('tapajuntas') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
+                const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && (isSet || !item.extras.tapajuntas)) return;
                 const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
@@ -320,11 +318,11 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
-            panes.forEach((p, pIdx) => {
+            panes.forEach((p, paneIdx) => {
                 if (p.isBlind) {
-                    const bpId = mod.blindPaneIds?.[pIdx];
+                    const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
-                    const slatId = mod.slatProfileIds?.[pIdx];
+                    const slatId = mod.slatProfileIds?.[paneIdx];
 
                     // SI NO HAY TABLILLAS, PROCESAMOS EL PANEL ML GENÉRICO
                     if (bp && bp.unit === 'ml' && !slatId) {
@@ -389,7 +387,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (pane.isBlind) {
                     const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
-                    // FIX: Variable 'pIdx' was not defined in this scope, changed to loop variable 'paneIdx'
                     const slatId = mod.slatProfileIds?.[paneIdx];
 
                     // SI HAY TABLILLAS, EL PANEL YA SE CONTABILIZÓ COMO ALUMINIO EN LA SECCIÓN 1. 
@@ -424,7 +421,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const activeAccs = mod.overriddenAccessories || recipe.accessories;
             activeAccs.forEach(ra => {
-                // FILTRADO: Solo sumar accesorios que están activos
+                // FILTRADO: Solo sumar accesorios que están activos (!isAlternative)
                 if (ra.isAlternative) return;
                 
                 const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId); if (!acc) return;
@@ -568,7 +565,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             recipe.profiles.forEach(rp => {
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
                 const p = aluminum.find(a => a.id === rp.profileId);
-                const isTJ = role.includes('tapajuntas') || String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
+                const isTJ = role.includes('tapa') || String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
                 if (isTJ && (isSet || !item.extras.tapajuntas)) return;
                 const isMosq = role.includes('mosquitero') || p?.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
