@@ -102,10 +102,15 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
 
   const recipe = recipes.find(r => r.id === editingId);
 
-  const filteredRecipes = recipes.filter(r => 
-    r.name.toLowerCase().includes(searchFilter.toLowerCase()) || 
-    r.line.toLowerCase().includes(searchFilter.toLowerCase())
-  );
+  // Se añade ordenamiento descendente por ID para que las más nuevas queden arriba
+  const filteredRecipes = useMemo(() => {
+    return [...recipes]
+      .filter(r => 
+        r.name.toLowerCase().includes(searchFilter.toLowerCase()) || 
+        r.line.toLowerCase().includes(searchFilter.toLowerCase())
+      )
+      .sort((a, b) => b.id.localeCompare(a.id));
+  }, [recipes, searchFilter]);
 
   const handleExportRecipes = () => {
     const dataStr = JSON.stringify(recipes, null, 2);
