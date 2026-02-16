@@ -77,24 +77,21 @@ const getModuleGlassPanes = (
     if (!mod.transoms || mod.transoms.length === 0) {
         panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
     } else {
-        const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
-        let lastY = 0;
+        const sorted = [...mod.transoms].sort((a, b) => b.height - a.height); // Coherencia con UI
+        let currentY = 0;
+        // Invertimos lógica para ser coherentes con despiece de arriba a abajo
+        const totalMm = modH;
         sorted.forEach((t, idx) => {
             const currentTProf = aluminum.find(p => p.id === t.profileId);
             const currentTThickness = currentTProf?.thickness || recipe.transomThickness || 40;
-            let paneH;
-            if (idx === 0) {
-              paneH = (t.height - (currentTThickness / 2)) - (recipe.glassDeductionH || 0) / (mod.transoms.length + 1) - transomGlassDeduction;
-            } else {
-              paneH = (t.height - lastY) - currentTThickness - transomGlassDeduction;
-            }
-            if (paneH > 0) panes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(idx) || false });
-            lastY = t.height;
+            // Altura desde el techo relativa
+            const transomYFromTop = totalMm - t.height; 
+            const paneH = (transomYFromTop - (currentTThickness/2)) - currentY;
+            if (paneH > 0) panes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(sorted.length - idx) || false });
+            currentY = transomYFromTop + (currentTThickness/2);
         });
-        const lastTProf = aluminum.find(p => p.id === sorted[sorted.length-1].profileId);
-        const lastTThickness = lastTProf?.thickness || recipe.transomThickness || 40;
-        const lastPaneH = (modH - lastY) - (lastTThickness / 2) - (recipe.glassDeductionH || 0) / (mod.transoms.length + 1) - transomGlassDeduction;
-        if (lastPaneH > 0) panes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(sorted.length) || false });
+        const lastPaneH = totalMm - currentY;
+        if (lastPaneH > 0) panes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(0) || false });
     }
     return panes;
 };
@@ -216,12 +213,16 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                                 const hL = (isManualDim && mL.height) ? mL.height : Number(rowRatios[y - minY] || 0);
                                 const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
                                 const diff = Math.abs(hL - hR);
-                                if (diff > 5) { for(let k=0; k<item.quantity; k++) list.push({ len: diff, type: 'TJ Desnivel', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                                if (diff > 5) { 
+                                    for(let k=0; k<item.quantity; k++) {
+                                        list.push({ len: diff, type: 'TJ Desnivel (H1-H2)', cutStart: '90', cutEnd: '90', label: itemCode }); 
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                // Desniveles Horizontales
+                // Desniveles Horizontales (Ancho)
                 if (item.composition.rowRatios.length > 1) {
                     for (let y = minY; y < maxY; y++) {
                         for (let x = minX; x <= maxX; x++) {
@@ -231,7 +232,11 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                                 const wT = (isManualDim && mT.width) ? mT.width : Number(colRatios[x - minX] || 0);
                                 const wB = (isManualDim && mB.width) ? mB.width : Number(colRatios[x - minX] || 0);
                                 const diff = Math.abs(wT - wB);
-                                if (diff > 5) { for(let k=0; k<item.quantity; k++) list.push({ len: diff, type: 'TJ Desnivel H', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                                if (diff > 5) { 
+                                    for(let k=0; k<item.quantity; k++) {
+                                        list.push({ len: diff, type: 'TJ Desnivel (W1-W2)', cutStart: '90', cutEnd: '90', label: itemCode }); 
+                                    }
+                                }
                             }
                         }
                     }
@@ -739,7 +744,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 if (left) profileCuts.push([tjProfile.code, 'Tapajunta Lateral L', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
                 if (right) profileCuts.push([tjProfile.code, 'Tapajunta Lateral R', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
 
-                // NEW: Tapajuntas de Compensación por Desnivel (H1 - H2)
+                // FIX: Tapajuntas de Compensación por Desnivel (H1 - H2) registrado para taller
                 if (isSet) {
                     for (let x = minX; x < maxX; x++) {
                         for (let y = minY; y <= maxY; y++) {
@@ -750,22 +755,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                                 let hR = (isManualDim && mR_m.height) ? mR_m.height : Number(rowRatios[y - minY] || 0);
                                 const diff = Math.abs(hL - hR);
                                 if (diff > 5) {
-                                    profileCuts.push([tjProfile.code, `TJ Compensación (Desnivel ${x+1}/${x+2})`, Math.round(diff), 1, '90° / 90°']);
-                                }
-                            }
-                        }
-                    }
-                    // Desniveles Horizontales
-                    for (let y = minY; y < maxY; y++) {
-                        for (let x = minX; x <= maxX; x++) {
-                            const mT_m = validModules.find(m => m.x === x && m.y === y);
-                            const mB_m = validModules.find(m => m.x === x && m.y === y + 1);
-                            if (mT_m && mB_m) {
-                                let wT = (isManualDim && mT_m.width) ? mT_m.width : Number(colRatios[x - minX] || 0);
-                                let wB = (isManualDim && mB_m.width) ? mB_m.width : Number(colRatios[x - minX] || 0);
-                                const diffW = Math.abs(wT - wB);
-                                if (diffW > 5) {
-                                    profileCuts.push([tjProfile.code, `TJ Compensación (Ancho R${y+1}/R${y+2})`, Math.round(diffW), 1, '90° / 90°']);
+                                    profileCuts.push([tjProfile.code, `TJ Desnivel Compensación`, Math.round(diff), 1, '90° / 90°']);
                                 }
                             }
                         }

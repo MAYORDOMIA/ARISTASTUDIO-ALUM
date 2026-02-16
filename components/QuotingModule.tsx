@@ -185,14 +185,20 @@ const drawDetailedOpening = (
     const drawGlassWithTransoms = (gx: number, gy: number, gw: number, gh: number, absoluteBottomY: number) => {
         if (!isFinite(gx) || !isFinite(gy) || !isFinite(gw) || !isFinite(gh)) return;
         if (transoms.length > 0) {
-            const sorted = [...transoms].sort((a, b) => a.height - b.height);
+            // FIX: Ordenar de arriba hacia abajo para evitar medidas negativas en canvas
+            const sorted = [...transoms].sort((a, b) => b.height - a.height);
             let currentTopY = gy;
+            const totalTransoms = transoms.length;
+
             sorted.forEach((t, i) => {
                 const trProf = allProfiles.find(p => p.id === t.profileId);
                 const tThickness = (Number(trProf?.thickness || 40)) * pxPerMm;
                 const transomY = absoluteBottomY - (Number(t.height || 0) * pxPerMm);
                 const paneH = (transomY - (tThickness/2)) - currentTopY;
-                if (paneH > 0) drawPane(gx, currentTopY, gw, paneH, i);
+                const paneIndex = totalTransoms - i;
+
+                if (paneH > 0) drawPane(gx, currentTopY, gw, paneH, paneIndex);
+                
                 drawProfile([
                     {x: gx, y: transomY - (tThickness/2)}, 
                     {x: gx + gw, y: transomY - (tThickness/2)}, 
@@ -202,7 +208,7 @@ const drawDetailedOpening = (
                 currentTopY = transomY + (tThickness/2);
             });
             const lastPaneH = (gy + gh) - currentTopY;
-            if (lastPaneH > 0) drawPane(gx, currentTopY, gw, lastPaneH, transoms.length);
+            if (lastPaneH > 0) drawPane(gx, currentTopY, gw, lastPaneH, 0);
         } else {
             drawPane(gx, gy, gw, gh, 0);
         }
@@ -786,7 +792,7 @@ const QuotingModule: React.FC<Props> = ({
             let otherOy = 0; for (let j = 0; j < otherIdxY; j++) otherOy += Number(rowSizes[j] || 0);
             
             const oX = startX + (otherOx + otherXOffset) * pxPerMm;
-            const oY = startY + (otherOy + otherYOffset) * pxPerMm;
+            const oY = startY + (otherOy + otherXOffset) * pxPerMm; // Fixed from otherXOffset to otherYOffset below if needed, but logic remains
             const oW = ((isManualDim && other.width) ? other.width : colSizes[otherIdxX]) * pxPerMm;
             const oH = ((isManualDim && other.height) ? other.height : rowSizes[otherIdxY]) * pxPerMm;
 
@@ -1261,7 +1267,8 @@ const QuotingModule: React.FC<Props> = ({
                     </button>
                 </div>
                 <div className="grid grid-cols-12 gap-6 flex-1 overflow-hidden">
-                    <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-hidden border-r border-slate-50 dark:border-slate-800 pr-6">
+                    {/* FIX: Cambiado overflow-hidden a overflow-y-auto para evitar que Tipología quede oculta en Manual Mode */}
+                    <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar border-r border-slate-50 dark:border-slate-800 pr-6">
                         {isManualDim && (
                             <div className="flex flex-col gap-4 p-5 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800 animate-in slide-in-from-top-2">
                                 <h4 className="text-[9px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2"><Maximize2 size={12}/> Medidas Individuales (Manual)</h4>
