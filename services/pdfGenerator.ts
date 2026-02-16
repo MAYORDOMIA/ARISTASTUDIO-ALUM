@@ -1,3 +1,4 @@
+
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem, Treatment, BlindPanel } from '../types';
@@ -37,6 +38,7 @@ const getModuleGlassPanes = (
   recipe: ProductRecipe, 
   aluminum: AluminumProfile[]
 ): { w: number, h: number, isBlind: boolean }[] => {
+    const { isManualDim, colRatios, rowRatios, couplingDeduction } = item.composition;
     const validModules = (item.composition.modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
     if (validModules.length === 0) return [];
     const minX = Math.min(...validModules.map(m => m.x));
@@ -44,11 +46,13 @@ const getModuleGlassPanes = (
     const maxX = Math.max(...validModules.map(m => m.x));
     const maxY = Math.max(...validModules.map(m => m.y));
     const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
-    const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+    const realDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
     const modIdxX = mod.x - minX;
     const modIdxY = mod.y - minY;
-    let modW = Number(item.composition.colRatios[modIdxX] || 0);
-    let modH = Number(item.composition.rowRatios[modIdxY] || 0);
+    
+    let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
+    let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+
     if (item.composition.colRatios.length > 1) {
         if (mod.x !== minX) modW -= (realDeduction / 2);
         if (mod.x !== maxX) modW -= (realDeduction / 2);
@@ -103,10 +107,11 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
     doc.setFontSize(8); doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
     const cutsByProfile = new Map<string, {len:number, type:string, cutStart:string, cutEnd:string, label:string}[]>();
     quote.items.forEach((item, posIdx) => {
+        const { isManualDim, colRatios, rowRatios, couplingDeduction } = item.composition;
         const itemCode = item.itemCode || `POS#${posIdx+1}`;
         const isSet = item.composition.modules.length > 1;
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
-        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+        const realDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
         const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
         if (validModules.length === 0) return;
         const minX = Math.min(...validModules.map(m => m.x));
@@ -117,7 +122,10 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
-            let modW = Number(item.composition.colRatios[modIdxX] || 0); let modH = Number(item.composition.rowRatios[modIdxY] || 0);
+            
+            let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
+            let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+
             if (item.composition.colRatios.length > 1) {
                 if (mod.x !== minX) modW -= (realDeduction / 2);
                 if (mod.x !== maxX) modW -= (realDeduction / 2);
@@ -163,8 +171,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                     const bpId = mod.blindPaneIds?.[pIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
                     const slatId = mod.slatProfileIds?.[pIdx];
-
-                    // SI NO HAY TABLILLAS, PROCESAMOS EL PANEL ML GENÉRICO
                     if (bp && bp.unit === 'ml' && !slatId) {
                         const list = cutsByProfile.get(bp.id) || [];
                         for(let k=0; k < numLeaves * item.quantity; k++) {
@@ -172,8 +178,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                         }
                         cutsByProfile.set(bp.id, list);
                     }
-                    
-                    // SI HAY TABLILLAS, PROCESAMOS EL PERFIL ESPECÍFICO (ELIMINA EL "TABLILLAS" GENÉRICO)
                     if (slatId) {
                       const slatProf = aluminum.find(a => a.id === slatId);
                       if (slatProf && slatProf.thickness > 0) {
@@ -188,19 +192,86 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 }
             });
         });
+
+        // TJs para Conjuntos (Perímetro + Desniveles)
+        if (item.extras.tapajuntas && isSet) {
+            const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
+            const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            if (tjProfile) {
+                const list = cutsByProfile.get(tjProfile.id) || [];
+                const tjThick = Number(tjProfile.thickness || 30);
+                const { top, bottom, left, right } = item.extras.tapajuntasSides;
+                if (top) { for(let k=0; k<item.quantity; k++) list.push({ len: item.width + (left?tjThick:0) + (right?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
+                if (bottom) { for(let k=0; k<item.quantity; k++) list.push({ len: item.width + (left?tjThick:0) + (right?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
+                if (left) { for(let k=0; k<item.quantity; k++) list.push({ len: item.height + (top?tjThick:0) + (bottom?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
+                if (right) { for(let k=0; k<item.quantity; k++) list.push({ len: item.height + (top?tjThick:0) + (bottom?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
+                
+                // Desniveles (H1 - H2)
+                if (item.composition.colRatios.length > 1) {
+                    for (let x = minX; x < maxX; x++) {
+                        for (let y = minY; y <= maxY; y++) {
+                            const mL = validModules.find(m => m.x === x && m.y === y);
+                            const mR = validModules.find(m => m.x === x + 1 && m.y === y);
+                            if (mL && mR) {
+                                const hL = (isManualDim && mL.height) ? mL.height : Number(rowRatios[y - minY] || 0);
+                                const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
+                                const diff = Math.abs(hL - hR);
+                                if (diff > 5) { for(let k=0; k<item.quantity; k++) list.push({ len: diff, type: 'TJ Desnivel', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                            }
+                        }
+                    }
+                }
+                // Desniveles Horizontales
+                if (item.composition.rowRatios.length > 1) {
+                    for (let y = minY; y < maxY; y++) {
+                        for (let x = minX; x <= maxX; x++) {
+                            const mT = validModules.find(m => m.x === x && m.y === y);
+                            const mB = validModules.find(m => m.x === x && m.y === y + 1);
+                            if (mT && mB) {
+                                const wT = (isManualDim && mT.width) ? mT.width : Number(colRatios[x - minX] || 0);
+                                const wB = (isManualDim && mB.width) ? mB.width : Number(colRatios[x - minX] || 0);
+                                const diff = Math.abs(wT - wB);
+                                if (diff > 5) { for(let k=0; k<item.quantity; k++) list.push({ len: diff, type: 'TJ Desnivel H', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                            }
+                        }
+                    }
+                }
+                cutsByProfile.set(tjProfile.id, list);
+            }
+        }
+
         if (item.couplingProfileId && isSet) {
             const list = cutsByProfile.get(item.couplingProfileId) || [];
             if (item.composition.colRatios.length > 1) {
-                const qty = (item.composition.colRatios.length - 1) * item.quantity;
-                for(let k=0; k < qty; k++) { list.push({ len: item.height, type: 'Acople', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                for (let x = minX; x < maxX; x++) {
+                    for (let y = minY; y <= maxY; y++) {
+                        const mL = validModules.find(m => m.x === x && m.y === y);
+                        const mR = validModules.find(m => m.x === x + 1 && m.y === y);
+                        if (mL && mR) {
+                            const hL = (isManualDim && mL.height) ? mL.height : Number(rowRatios[y - minY] || 0);
+                            const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
+                            const cutLen = Math.min(hL, hR);
+                            for(let k=0; k < item.quantity; k++) { list.push({ len: cutLen, type: 'Acople V', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                        }
+                    }
+                }
             }
             if (item.composition.rowRatios.length > 1) {
-                const qty = (item.composition.rowRatios.length - 1) * item.quantity;
-                for(let k=0; k < qty; k++) { list.push({ len: item.width, type: 'Acople', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                for (let y = minY; y < maxY; y++) {
+                    for (let x = minX; x <= maxX; x++) {
+                        const mT = validModules.find(m => m.x === x && m.y === y);
+                        const mB = validModules.find(m => m.x === x && m.y === y + 1);
+                        if (mT && mB) {
+                            const wT = (isManualDim && mT.width) ? mT.width : Number(colRatios[x - minX] || 0);
+                            const wB = (isManualDim && mB.width) ? mB.width : Number(colRatios[x - minX] || 0);
+                            const cutLen = Math.min(wT, wB);
+                            for(let k=0; k < item.quantity; k++) { list.push({ len: cutLen, type: 'Acople H', cutStart: '90', cutEnd: '90', label: itemCode }); }
+                        }
+                    }
+                }
             }
             cutsByProfile.set(item.couplingProfileId, list);
         }
-        // SE ELIMINA BLOQUE AUTOMÁTICO DE TAPAJUNTAS: Solo se toman de la receta ahora.
     });
     let y = 40;
     cutsByProfile.forEach((cuts, profileId) => {
@@ -260,8 +331,9 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     let currentY = 35; doc.setTextColor(30, 41, 59); doc.setFontSize(11); doc.text('1. PERFILERÍA DE ALUMINIO (BARRAS COMPLETAS)', 15, currentY); currentY += 5;
     const aluSummary = new Map<string, { code: string, detail: string, totalMm: number, barLength: number }>();
     quote.items.forEach(item => {
+        const { isManualDim, colRatios, rowRatios, couplingDeduction } = item.composition;
         const isSet = item.composition.modules.length > 1; const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
-        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+        const realDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
         const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
         if (validModules.length === 0) return;
         const minX = Math.min(...validModules.map(m => m.x)); const minY = Math.min(...validModules.map(m => m.y));
@@ -269,7 +341,10 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
-            let modW = Number(item.composition.colRatios[modIdxX] || 0); let modH = Number(item.composition.rowRatios[modIdxY] || 0);
+            
+            let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
+            let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+
             if (item.composition.colRatios.length > 1) {
                 if (mod.x !== minX) modW -= (realDeduction / 2); if (mod.x !== maxX) modW -= (realDeduction / 2);
             }
@@ -309,15 +384,11 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
                     const slatId = mod.slatProfileIds?.[paneIdx];
-
-                    // SI NO HAY TABLILLAS, PROCESAMOS EL PANEL ML GENÉRICO
                     if (bp && bp.unit === 'ml' && !slatId) {
                         const existing = aluSummary.get(bp.id) || { code: bp.code, detail: bp.detail, totalMm: 0, barLength: 6 };
                         existing.totalMm += p.w * numLeaves * item.quantity;
                         aluSummary.set(bp.id, existing);
                     }
-                    
-                    // SI HAY TABLILLAS, PROCESAMOS EL PERFIL ESPECÍFICO (ELIMINA EL "TABLILLAS" GENÉRICO)
                     if (slatId) {
                       const slatProf = aluminum.find(a => a.id === slatId);
                       if (slatProf && slatProf.thickness > 0) {
@@ -330,17 +401,73 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 }
             });
         });
+
+        // Tapajuntas de Conjunto (Perímetro + Desniveles)
+        if (item.extras.tapajuntas && isSet && validModules.length > 0) {
+            const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
+            const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            if (tjProfile) {
+                const tjThick = Number(tjProfile.thickness || 30);
+                const { top, bottom, left, right } = item.extras.tapajuntasSides;
+                let tjLenTotal = 0;
+                if (top) tjLenTotal += (item.width + (left?tjThick:0) + (right?tjThick:0));
+                if (bottom) tjLenTotal += (item.width + (left?tjThick:0) + (right?tjThick:0));
+                if (left) tjLenTotal += (item.height + (top?tjThick:0) + (bottom?tjThick:0));
+                if (right) tjLenTotal += (item.height + (top?tjThick:0) + (bottom?tjThick:0));
+                
+                // Desniveles Verticales
+                if (item.composition.colRatios.length > 1) {
+                    for (let x = minX; x < maxX; x++) {
+                        for (let y = minY; y <= maxY; y++) {
+                            const mL = validModules.find(m => m.x === x && m.y === y);
+                            const mR = validModules.find(m => m.x === x + 1 && m.y === y);
+                            if (mL && mR) {
+                                const hL = (isManualDim && mL.height) ? mL.height : Number(rowRatios[y - minY] || 0);
+                                const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
+                                tjLenTotal += Math.abs(hL - hR);
+                            }
+                        }
+                    }
+                }
+                const existing = aluSummary.get(tjProfile.id) || { code: tjProfile.code, detail: tjProfile.detail, totalMm: 0, barLength: tjProfile.barLength };
+                existing.totalMm += (tjLenTotal + config.discWidth) * item.quantity; aluSummary.set(tjProfile.id, existing);
+            }
+        }
+
         if (item.couplingProfileId && isSet) {
             const p = aluminum.find(a => a.id === item.couplingProfileId);
             if (p) {
                 let totalC = 0;
-                if (item.composition.colRatios.length > 1) totalC += item.height * (item.composition.colRatios.length - 1);
-                if (item.composition.rowRatios.length > 1) totalC += item.width * (item.composition.rowRatios.length - 1);
+                if (item.composition.colRatios.length > 1) {
+                    for (let x = minX; x < maxX; x++) {
+                        for (let y = minY; y <= maxY; y++) {
+                            const mL = validModules.find(m => m.x === x && m.y === y);
+                            const mR = validModules.find(m => m.x === x + 1 && m.y === y);
+                            if (mL && mR) {
+                                const hL = (isManualDim && mL.height) ? mL.height : Number(rowRatios[y - minY] || 0);
+                                const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
+                                totalC += Math.min(hL, hR);
+                            }
+                        }
+                    }
+                }
+                if (item.composition.rowRatios.length > 1) {
+                    for (let y = minY; y < maxY; y++) {
+                        for (let x = minX; x <= maxX; x++) {
+                            const mT = validModules.find(m => m.x === x && m.y === y);
+                            const mB = validModules.find(m => m.x === x && m.y === y + 1);
+                            if (mT && mB) {
+                                const wT = (isManualDim && mT.width) ? mT.width : Number(colRatios[x - minX] || 0);
+                                const wB = (isManualDim && mB.width) ? mB.width : Number(colRatios[x - minX] || 0);
+                                totalC += Math.min(wT, wB);
+                            }
+                        }
+                    }
+                }
                 const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
-                existing.totalMm += totalC * item.quantity; aluSummary.set(p.id, existing);
+                existing.totalMm += (totalC + config.discWidth) * item.quantity; aluSummary.set(p.id, existing);
             }
         }
-        // SE ELIMINA BLOQUE AUTOMÁTICO DE TAPAJUNTAS: Solo se toman de la receta ahora.
     });
     const aluBody = Array.from(aluSummary.values()).map(s => {
         const barLenMm = s.barLength > 100 ? s.barLength : s.barLength * 1000; const totalBars = Math.ceil(s.totalMm / barLenMm);
@@ -361,11 +488,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
                     const slatId = mod.slatProfileIds?.[paneIdx];
-
-                    // SI NO HAY TABLILLAS, EL PANEL YA SE CONTABILIZÓ COMO ALUMINIO EN LA SECCIÓN 1. 
-                    // NO LO AGREGAMOS AQUÍ PARA EVITAR TRIPLICIDAD.
                     if (slatId) return;
-
                     if (bp && bp.unit === 'm2') {
                         const key = `CIEGO-${bp.code}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                         const existing = fillSummary.get(key) || { spec: `PANEL CIEGO: ${bp.detail}`, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
@@ -394,13 +517,13 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const activeAccs = mod.overriddenAccessories || recipe.accessories;
             activeAccs.forEach(ra => {
-                // FILTRADO: Solo sumar accesorios que están activos (!isAlternative)
                 if (ra.isAlternative) return;
-                
                 const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId); if (!acc) return;
                 const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
                 if (ra.isLinear && ra.formula) {
-                    const lengthMm = evaluateFormula(ra.formula, item.width, item.height); existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+                    const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+                    const lengthMm = evaluateFormula(ra.formula, panes[0]?.w || 1000, panes[0]?.h || 1000); 
+                    existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
                 } else { existing.qty += (ra.quantity * item.quantity); }
                 accSummary.set(acc.id, existing);
             });
@@ -499,6 +622,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
     doc.setFontSize(9); doc.text(`OBRA: ${quote.clientName.toUpperCase()} | FECHA: ${new Date().toLocaleDateString()}`, 15, 18);
     let currentY = 35;
     quote.items.forEach((item, idx) => {
+        const { isManualDim, colRatios, rowRatios, couplingDeduction } = item.composition;
         if (currentY > 220) { doc.addPage(); currentY = 20; }
         doc.setFillColor(241, 245, 249); doc.rect(10, currentY, pageWidth - 20, 10, 'F');
         doc.setTextColor(30, 41, 59); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
@@ -507,7 +631,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         const compositeName = moduleNames.length > 1 ? `CONJUNTO: ${moduleNames.join(' + ')}` : (moduleNames[0] || 'Abertura');
         const recipeLine = moduleRecipes[0]?.line || '-'; const isSet = item.composition.modules.length > 1;
         const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
-        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+        const realDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
         const validModules = item.composition.modules.filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
         if (validModules.length === 0) return;
         const minX = Math.min(...validModules.map(m => m.x)); const minY = Math.min(...validModules.map(m => m.y));
@@ -525,7 +649,10 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
-            let modW = Number(item.composition.colRatios[modIdxX] || 0); let modH = Number(item.composition.rowRatios[modIdxY] || 0);
+            
+            let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
+            let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+
             if (item.composition.colRatios.length > 1) {
                 if (mod.x !== minX) modW -= (realDeduction / 2); if (mod.x !== maxX) modW -= (realDeduction / 2);
             }
@@ -574,8 +701,32 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         if (item.couplingProfileId && isSet) {
             const trProf = aluminum.find(p => p.id === item.couplingProfileId);
             if (trProf) {
-                if (item.composition.colRatios.length > 1) profileCuts.push([trProf.code, 'Acople Conjunto V', Math.round(item.height), item.composition.colRatios.length - 1, '90° / 90°']);
-                if (item.composition.rowRatios.length > 1) profileCuts.push([trProf.code, 'Acople Conjunto H', Math.round(item.width), item.composition.rowRatios.length - 1, '90° / 90°']);
+                if (item.composition.colRatios.length > 1) {
+                    for (let x = minX; x < maxX; x++) {
+                        for (let y = minY; y <= maxY; y++) {
+                            const mL = validModules.find(m => m.x === x && m.y === y);
+                            const mR = validModules.find(m => m.x === x + 1 && m.y === y);
+                            if (mL && mR) {
+                                const hL = (isManualDim && mL.height) ? mL.height : Number(rowRatios[y - minY] || 0);
+                                const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
+                                profileCuts.push([trProf.code, 'Acople Conjunto V', Math.round(Math.min(hL, hR)), 1, '90° / 90°']);
+                            }
+                        }
+                    }
+                }
+                if (item.composition.rowRatios.length > 1) {
+                    for (let y = minY; y < maxY; y++) {
+                        for (let x = minX; x <= maxX; x++) {
+                            const mT = validModules.find(m => m.x === x && m.y === y);
+                            const mB = validModules.find(m => m.x === x && m.y === y + 1);
+                            if (mT && mB) {
+                                const wT = (isManualDim && mT.width) ? mT.width : Number(colRatios[x - minX] || 0);
+                                const wB = (isManualDim && mB.width) ? mB.width : Number(colRatios[x - minX] || 0);
+                                profileCuts.push([trProf.code, 'Acople Conjunto H', Math.round(Math.min(wT, wB)), 1, '90° / 90°']);
+                            }
+                        }
+                    }
+                }
             }
         }
         if (item.extras.tapajuntas) {
@@ -587,6 +738,39 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 if (bottom) profileCuts.push([tjProfile.code, 'Tapajunta Inferior', Math.round(item.width + (left ? tjThick : 0) + (right ? tjThick : 0)), 1, '45° / 45°']);
                 if (left) profileCuts.push([tjProfile.code, 'Tapajunta Lateral L', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
                 if (right) profileCuts.push([tjProfile.code, 'Tapajunta Lateral R', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
+
+                // NEW: Tapajuntas de Compensación por Desnivel (H1 - H2)
+                if (isSet) {
+                    for (let x = minX; x < maxX; x++) {
+                        for (let y = minY; y <= maxY; y++) {
+                            const mL_m = validModules.find(m => m.x === x && m.y === y);
+                            const mR_m = validModules.find(m => m.x === x + 1 && m.y === y);
+                            if (mL_m && mR_m) {
+                                let hL = (isManualDim && mL_m.height) ? mL_m.height : Number(rowRatios[y - minY] || 0);
+                                let hR = (isManualDim && mR_m.height) ? mR_m.height : Number(rowRatios[y - minY] || 0);
+                                const diff = Math.abs(hL - hR);
+                                if (diff > 5) {
+                                    profileCuts.push([tjProfile.code, `TJ Compensación (Desnivel ${x+1}/${x+2})`, Math.round(diff), 1, '90° / 90°']);
+                                }
+                            }
+                        }
+                    }
+                    // Desniveles Horizontales
+                    for (let y = minY; y < maxY; y++) {
+                        for (let x = minX; x <= maxX; x++) {
+                            const mT_m = validModules.find(m => m.x === x && m.y === y);
+                            const mB_m = validModules.find(m => m.x === x && m.y === y + 1);
+                            if (mT_m && mB_m) {
+                                let wT = (isManualDim && mT_m.width) ? mT_m.width : Number(colRatios[x - minX] || 0);
+                                let wB = (isManualDim && mB_m.width) ? mB_m.width : Number(colRatios[x - minX] || 0);
+                                const diffW = Math.abs(wT - wB);
+                                if (diffW > 5) {
+                                    profileCuts.push([tjProfile.code, `TJ Compensación (Ancho R${y+1}/R${y+2})`, Math.round(diffW), 1, '90° / 90°']);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         autoTable(doc, { startY: currentY, margin: { left: 80 }, head: [['CÓD.', 'PERFIL', 'LONG', 'CANT', 'CORTES']], body: profileCuts, theme: 'grid', styles: { fontSize: 7 }, headStyles: { fillColor: [71, 85, 105] }, columnStyles: { 2: { halign: 'center', fontStyle: 'bold' } } });

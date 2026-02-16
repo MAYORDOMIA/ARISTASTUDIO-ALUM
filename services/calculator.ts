@@ -1,3 +1,4 @@
+
 import { 
   ProductRecipe, AluminumProfile, GlobalConfig, Treatment, Glass, 
   Accessory, DVHInput, RecipeAccessory, BlindPanel, QuoteItem, QuoteItemBreakdown, MeasurementModule
@@ -31,7 +32,7 @@ export const calculateCompositePrice = (
   let totalAccCost = 0;
   let totalAluWeight = 0;
 
-  const { modules, colRatios, rowRatios, couplingDeduction: baseDeduction } = item.composition;
+  const { modules, colRatios, rowRatios, couplingDeduction: baseDeduction, isManualDim } = item.composition;
   
   const cProfile = item.couplingProfileId ? profiles.find(p => p.id === item.couplingProfileId) : null;
   const realDeduction = Number(cProfile?.thickness ?? baseDeduction ?? 0);
@@ -53,8 +54,8 @@ export const calculateCompositePrice = (
     const recipe = recipes.find(r => r.id === mod.recipeId);
     if (!recipe) return;
     
-    let modW = Number(colRatios[mod.x - minX] || 0); 
-    let modH = Number(rowRatios[mod.y - minY] || 0);
+    let modW = (isManualDim && mod.width && mod.width > 0) ? mod.width : Number(colRatios[mod.x - minX] || 0); 
+    let modH = (isManualDim && mod.height && mod.height > 0) ? mod.height : Number(rowRatios[mod.y - minY] || 0);
     
     if (colRatios.length > 1) {
        if (mod.x !== minX) modW -= (realDeduction / 2);
@@ -82,15 +83,90 @@ export const calculateCompositePrice = (
 
   const baseAluPrice = Number(config.aluminumPricePerKg || 0) + Number(treatment.pricePerKg || 0);
 
+  // Cálculo de Acoples
   if (cProfile && isSet) {
     const pWeight = Number(cProfile.weightPerMeter || 0);
     let totalCouplingMm = 0;
-    if (colRatios.length > 1) totalCouplingMm += (Number(item.height || 0) * (colRatios.length - 1));
-    if (rowRatios.length > 1) totalCouplingMm += (Number(item.width || 0) * (rowRatios.length - 1));
-    
+    if (colRatios.length > 1) {
+        for (let x = minX; x < maxX; x++) {
+            for (let y = minY; y <= maxY; y++) {
+                const modL = validModules.find(m => m.x === x && m.y === y);
+                const modR = validModules.find(m => m.x === x + 1 && m.y === y);
+                if (modL && modR) {
+                    const hL = (isManualDim && modL.height) ? modL.height : Number(rowRatios[y - minY] || 0);
+                    const hR = (isManualDim && modR.height) ? modR.height : Number(rowRatios[y - minY] || 0);
+                    totalCouplingMm += Math.min(hL, hR);
+                }
+            }
+        }
+    }
+    if (rowRatios.length > 1) {
+        for (let y = minY; y < maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                const modT = validModules.find(m => m.x === x && m.y === y);
+                const modB = validModules.find(m => m.x === x && m.y === y + 1);
+                if (modT && modB) {
+                    const wT = (isManualDim && modT.width) ? modT.width : Number(colRatios[x - minX] || 0);
+                    const wB = (isManualDim && modB.width) ? modB.width : Number(colRatios[x - minX] || 0);
+                    totalCouplingMm += Math.min(wT, wB);
+                }
+            }
+        }
+    }
     const cWeight = (totalCouplingMm / 1000) * pWeight;
     totalAluCost += cWeight * baseAluPrice;
     totalAluWeight += cWeight;
+  }
+
+  // Cálculo de Tapajuntas para Conjuntos (Perímetro + Desniveles)
+  if (item.extras.tapajuntas && isSet && validModules.length > 0) {
+    const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
+    const tjProfile = profiles.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+    if (tjProfile) {
+      const tjThick = Number(tjProfile.thickness || 30);
+      const { top, bottom, left, right } = item.extras.tapajuntasSides;
+      let totalTjMm = 0;
+      
+      // 1. Perímetro Exterior
+      if (top) totalTjMm += (item.width + (left ? tjThick : 0) + (right ? tjThick : 0));
+      if (bottom) totalTjMm += (item.width + (left ? tjThick : 0) + (right ? tjThick : 0));
+      if (left) totalTjMm += (item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0));
+      if (right) totalTjMm += (item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0));
+      
+      // 2. Desniveles Verticales (H1 - H2)
+      if (colRatios.length > 1) {
+        for (let x = minX; x < maxX; x++) {
+          for (let y = minY; y <= maxY; y++) {
+            const mL = validModules.find(m => m.x === x && m.y === y);
+            const mR = validModules.find(m => m.x === x + 1 && m.y === y);
+            if (mL && mR) {
+              const hL = (isManualDim && mL.height) ? mL.height : Number(rowRatios[y - minY] || 0);
+              const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
+              totalTjMm += Math.abs(hL - hR);
+            }
+          }
+        }
+      }
+      
+      // 3. Desniveles Horizontales (W1 - W2)
+      if (rowRatios.length > 1) {
+        for (let y = minY; y < maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            const mT = validModules.find(m => m.x === x && m.y === y);
+            const mB = validModules.find(m => m.x === x && m.y === y + 1);
+            if (mT && mB) {
+              const wT = (isManualDim && mT.width) ? mT.width : Number(colRatios[x - minX] || 0);
+              const wB = (isManualDim && mB.width) ? mB.width : Number(colRatios[x - minX] || 0);
+              totalTjMm += Math.abs(wT - wB);
+            }
+          }
+        }
+      }
+
+      const tjWeight = (totalTjMm / 1000) * tjProfile.weightPerMeter;
+      totalAluCost += tjWeight * baseAluPrice;
+      totalAluWeight += tjWeight;
+    }
   }
 
   const materialCost = totalAluCost + totalGlassCost + totalAccCost;
@@ -137,7 +213,6 @@ export const calculateItemPrice = (
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
-    // FILTRADO ESTRICTO: Solo si están en la receta y el usuario los activa
     const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
     if (isTJ && (isSet || !extras?.tapajuntas)) return false;
 
@@ -222,7 +297,6 @@ export const calculateItemPrice = (
     : (recipe.accessories || []);
 
   activeAccessories.forEach(ra => {
-    // FILTRADO: Solo sumar accesorios que están activos (!isAlternative)
     if (ra.isAlternative) return;
 
     const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);

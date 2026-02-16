@@ -1,3 +1,4 @@
+
 import { 
     ProductRecipe, AluminumProfile, Glass, BlindPanel,
     Accessory,
@@ -41,85 +42,20 @@ import {
   Link2,
   Box,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Unlock,
+  Link as LinkIcon,
+  Maximize2
 } from 'lucide-react';
 import { calculateCompositePrice, evaluateFormula } from '../services/calculator';
 
-const drawGlobalTapajuntas = (
-    ctx: CanvasRenderingContext2D,
-    x: number, y: number, w: number, h: number,
-    tjSize: number,
-    color: string,
-    sides: QuoteItem['extras']['tapajuntasSides']
-) => {
-    if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || !isFinite(tjSize)) return;
-    
-    const applyTJ3DEffect = (points: {x:number, y:number}[], isVert: boolean) => {
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        points.forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.closePath();
-        ctx.fillStyle = color;
-        ctx.fill();
+// CONSTANTES TÉCNICAS PARA RENDERIZADO
+const TJ_LINE_COLOR = 'rgba(15, 23, 42, 0.6)';
 
-        const minX = Math.min(...points.map(p => p.x));
-        const maxX = Math.max(...points.map(p => p.x));
-        const minY = Math.min(...points.map(p => p.y));
-        const maxY = Math.max(...points.map(p => p.y));
-
-        try {
-            const grad = isVert 
-                ? ctx.createLinearGradient(minX, minY, maxX, minY)
-                : ctx.createLinearGradient(minX, minY, minX, maxY);
-            
-            grad.addColorStop(0, 'rgba(0,0,0,0.22)');
-            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)');
-            grad.addColorStop(1, 'rgba(0,0,0,0.22)');
-            
-            ctx.fillStyle = grad;
-            ctx.fill();
-        } catch(e) {}
-
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.55)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.restore();
-    };
-
-    if (sides.top) {
-        applyTJ3DEffect([
-            {x: x - (sides.left ? tjSize : 0), y: y - tjSize},
-            {x: x + w + (sides.right ? tjSize : 0), y: y - tjSize},
-            {x: x + w, y: y},
-            {x: x, y: y}
-        ], false);
-    }
-    if (sides.bottom) {
-        applyTJ3DEffect([
-            {x: x, y: y + h},
-            {x: x + w, y: y + h},
-            {x: x + w + (sides.right ? tjSize : 0), y: y + h + tjSize},
-            {x: x - (sides.left ? tjSize : 0), y: y + h + tjSize}
-        ], false);
-    }
-    if (sides.left) {
-        applyTJ3DEffect([
-            {x: x - tjSize, y: y - (sides.top ? tjSize : 0)},
-            {x: x, y: y},
-            {x: x, y: y + h},
-            {x: x - tjSize, y: y + h + (sides.bottom ? tjSize : 0)}
-        ], true);
-    }
-    if (sides.right) {
-        applyTJ3DEffect([
-            {x: x + w, y: y},
-            {x: x + w + tjSize, y: y - (sides.top ? tjSize : 0)},
-            {x: x + w + tjSize, y: y + h + (sides.bottom ? tjSize : 0)},
-            {x: x + w, y: y + h}
-        ], true);
-    }
-};
+interface Segment {
+    x1: number; y1: number; x2: number; y2: number;
+    side: 'top' | 'bottom' | 'left' | 'right';
+}
 
 const drawDetailedOpening = (
     ctx: CanvasRenderingContext2D,
@@ -128,7 +64,6 @@ const drawDetailedOpening = (
     isDVH: boolean,
     color: string,
     extras?: QuoteItem['extras'],
-    edges?: { top: boolean, bottom: boolean, left: boolean, right: boolean },
     pxPerMm: number = 0.5,
     transoms: { height: number; profileId: string }[] = [],
     blindPanes: number[] = [],
@@ -151,15 +86,12 @@ const drawDetailedOpening = (
     const isPFZocalon = visualType === 'pf_zocalon';
 
     const hasBottomFrame = !isDoor && !isMamparaRebatir && !isVidrioSolo && !isPFZocalon && !isPuertaZocalon && !isNoUmbral;
-    
     const isFrame90 = (visualType.includes('_90') || visualType.includes('zocalo')) && !visualType.includes('45_90');
     const leafForce90 = visualType.includes('_90') || visualType.includes('zocalo');
     
-    const tjProf = allProfiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
     const frameT = 45 * pxPerMm;
     const leafT = (isDoor ? 75 : 45) * pxPerMm;
     const zocaloT = (isDoor || isPuertaZocalon || isPFZocalon || isNoDintel || isNoUmbral ? 120 : 65) * pxPerMm;
-    const tjSize = (Number(tjProf?.thickness || 40)) * pxPerMm; 
 
     const drawProfile = (points: {x:number, y:number}[]) => {
         if (!points || points.length < 3) return;
@@ -182,15 +114,15 @@ const drawDetailedOpening = (
                 ? ctx.createLinearGradient(minX, minY, maxX, minY)
                 : ctx.createLinearGradient(minX, minY, minX, maxY);
             
-            grad.addColorStop(0, 'rgba(0,0,0,0.2)');
-            grad.addColorStop(0.5, 'rgba(255,255,255,0.3)');
-            grad.addColorStop(1, 'rgba(0,0,0,0.2)');
+            grad.addColorStop(0, 'rgba(0,0,0,0.15)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.15)');
             ctx.fillStyle = grad;
             ctx.fill();
         } catch(e) {}
 
         ctx.lineWidth = 0.8;
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)'; 
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)'; 
         ctx.stroke();
         ctx.restore();
     };
@@ -206,7 +138,7 @@ const drawDetailedOpening = (
             const isML = specificBlind?.unit === 'ml';
             ctx.fillStyle = isML ? color : '#334155';
             ctx.fillRect(px, py, pw, ph);
-            ctx.strokeStyle = isML ? 'rgba(15, 23, 42, 0.3)' : 'rgba(255,255,255,0.1)';
+            ctx.strokeStyle = isML ? 'rgba(15, 23, 42, 0.2)' : 'rgba(255,255,255,0.05)';
             const step = 12 * pxPerMm;
             for (let i = 0; i < ph; i += step) { 
                 ctx.beginPath(); ctx.moveTo(px, py + i); ctx.lineTo(px + pw, py + i); ctx.stroke(); 
@@ -215,7 +147,7 @@ const drawDetailedOpening = (
             ctx.fillStyle = '#94a3b8'; 
             ctx.fillRect(px, py, pw, ph);
             ctx.save();
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)'; 
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)'; 
             ctx.lineWidth = 0.4;
             const meshStep = 3.5 * pxPerMm;
             for (let i = 0; i <= ph; i += meshStep) {
@@ -237,7 +169,7 @@ const drawDetailedOpening = (
                 ctx.fillStyle = '#bae6fd';
                 ctx.fillRect(px, py, pw, ph);
             }
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.15)';
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.1)';
             ctx.lineWidth = 0.5;
             ctx.strokeRect(px, py, pw, ph);
 
@@ -287,9 +219,9 @@ const drawDetailedOpening = (
             ctx.save();
             const mx = lx + leafT; const my = ly + leafT;
             const mw = lw - leafT * 2; const mh = lh - (leafT + bT);
-            ctx.fillStyle = 'rgba(71, 85, 105, 0.25)';
+            ctx.fillStyle = 'rgba(71, 85, 105, 0.2)';
             ctx.fillRect(mx, my, mw, mh);
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.3)';
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.2)';
             ctx.lineWidth = 0.3;
             const step = 4 * pxPerMm;
             for(let i = 0; i <= mw; i += step) {
@@ -318,10 +250,6 @@ const drawDetailedOpening = (
             drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}]);
         }
     };
-
-    if (isSinglePreview && extras?.tapajuntas && edges) {
-        drawGlobalTapajuntas(ctx, x, y, w, h, tjSize, color, extras.tapajuntasSides);
-    }
 
     if (isVidrioSolo) {
         drawGlassWithTransoms(x, y, w, h, y + h);
@@ -400,10 +328,126 @@ const drawDetailedOpening = (
             drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
         }
     }
+};
 
-    ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(x, y, w, h);
+const renderAdaptiveTJ = (
+    ctx: CanvasRenderingContext2D,
+    segments: Segment[],
+    tjSize: number,
+    color: string
+) => {
+    if (segments.length === 0) return;
+
+    // Fusión de segmentos colineales que se tocan
+    const mergeSegments = (list: Segment[]) => {
+        const result: Segment[] = [];
+        const sorted = [...list];
+        
+        // Procesar por orientación
+        ['top', 'bottom', 'left', 'right'].forEach(side => {
+            const sideSegments = sorted.filter(s => s.side === side);
+            if (sideSegments.length === 0) return;
+
+            if (side === 'top' || side === 'bottom') {
+                sideSegments.sort((a, b) => a.y1 - b.y1 || a.x1 - b.x1);
+                let current = sideSegments[0];
+                for(let i=1; i < sideSegments.length; i++) {
+                    const next = sideSegments[i];
+                    if (Math.abs(next.y1 - current.y1) < 2 && Math.abs(next.x1 - current.x2) < 2) {
+                        current.x2 = Math.max(current.x2, next.x2);
+                    } else {
+                        result.push(current);
+                        current = next;
+                    }
+                }
+                result.push(current);
+            } else {
+                sideSegments.sort((a, b) => a.x1 - b.x1 || a.y1 - b.y1);
+                let current = sideSegments[0];
+                for(let i=1; i < sideSegments.length; i++) {
+                    const next = sideSegments[i];
+                    if (Math.abs(next.x1 - current.x1) < 2 && Math.abs(next.y1 - current.y2) < 2) {
+                        current.y2 = Math.max(current.y2, next.y2);
+                    } else {
+                        result.push(current);
+                        current = next;
+                    }
+                }
+                result.push(current);
+            }
+        });
+        return result;
+    };
+
+    const finalSegments = mergeSegments(segments);
+
+    // Dibujar barras finales con mitras inteligentes
+    finalSegments.forEach(seg => {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        
+        // Detección de continuidad en los extremos (para ingletes)
+        const hasStartCorner = finalSegments.some(other => 
+            other !== seg && 
+            ((Math.abs(other.x1 - seg.x1) < 5 && Math.abs(other.y1 - seg.y1) < 5) || 
+             (Math.abs(other.x2 - seg.x1) < 5 && Math.abs(other.y2 - seg.y1) < 5))
+        );
+        const hasEndCorner = finalSegments.some(other => 
+            other !== seg && 
+            ((Math.abs(other.x1 - seg.x2) < 5 && Math.abs(other.y1 - seg.y2) < 5) || 
+             (Math.abs(other.x2 - seg.x2) < 5 && Math.abs(other.y2 - seg.y2) < 5))
+        );
+
+        let p1, p2, p3, p4;
+
+        if (seg.side === 'top') {
+            p1 = { x: seg.x1 - (hasStartCorner ? tjSize : 0), y: seg.y1 - tjSize };
+            p2 = { x: seg.x2 + (hasEndCorner ? tjSize : 0), y: seg.y2 - tjSize };
+            p3 = { x: seg.x2, y: seg.y2 };
+            p4 = { x: seg.x1, y: seg.y1 };
+        } else if (seg.side === 'bottom') {
+            p1 = { x: seg.x1, y: seg.y1 };
+            p2 = { x: seg.x2, y: seg.y2 };
+            p3 = { x: seg.x2 + (hasEndCorner ? tjSize : 0), y: seg.y2 + tjSize };
+            p4 = { x: seg.x1 - (hasStartCorner ? tjSize : 0), y: seg.y1 + tjSize };
+        } else if (seg.side === 'left') {
+            p1 = { x: seg.x1 - tjSize, y: seg.y1 - (hasStartCorner ? tjSize : 0) };
+            p2 = { x: seg.x1, y: seg.y1 };
+            p3 = { x: seg.x2, y: seg.y2 };
+            p4 = { x: seg.x2 - tjSize, y: seg.y2 + (hasEndCorner ? tjSize : 0) };
+        } else { // right
+            p1 = { x: seg.x1, y: seg.y1 };
+            p2 = { x: seg.x1 + tjSize, y: seg.y1 - (hasStartCorner ? tjSize : 0) };
+            p3 = { x: seg.x2 + tjSize, y: seg.y2 + (hasEndCorner ? tjSize : 0) };
+            p4 = { x: seg.x2, y: seg.y2 };
+        }
+
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.lineTo(p3.x, p3.y);
+        ctx.lineTo(p4.x, p4.y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Efecto 3D
+        try {
+            const grad = (seg.side === 'left' || seg.side === 'right')
+                ? ctx.createLinearGradient(Math.min(p1.x, p2.x, p3.x, p4.x), 0, Math.max(p1.x, p2.x, p3.x, p4.x), 0)
+                : ctx.createLinearGradient(0, Math.min(p1.y, p2.y, p3.y, p4.y), 0, Math.max(p1.y, p2.y, p3.y, p4.y));
+            grad.addColorStop(0, 'rgba(0,0,0,0.15)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.15)');
+            ctx.fillStyle = grad;
+            ctx.fill();
+        } catch(e){}
+
+        // Contorno
+        ctx.strokeStyle = TJ_LINE_COLOR;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+    });
 };
 
 interface Props {
@@ -446,6 +490,7 @@ const QuotingModule: React.FC<Props> = ({
   const [showBreakdownModal, setShowBreakdownModal] = useState(false);
   const [showCouplingModal, setShowCouplingModal] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState<string>('TODOS');
+  const [isManualDim, setIsManualDim] = useState(false);
 
   const [showSlatSelector, setShowSlatSelector] = useState(false);
   const [slatPaneIdx, setSlatPaneIdx] = useState<number | null>(null);
@@ -462,7 +507,6 @@ const QuotingModule: React.FC<Props> = ({
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // HELPER: Asegurar que al menos una alternativa por label esté activa por defecto
   const ensureOneActivePerLabel = (accs: RecipeAccessory[]) => {
     if (!accs) return [];
     const result = accs.map(a => ({ ...a }));
@@ -473,7 +517,6 @@ const QuotingModule: React.FC<Props> = ({
         const groupIndices = result.map((a, i) => a.label === acc.label ? i : -1).filter(i => i !== -1);
         const hasActive = groupIndices.some(i => !result[i].isAlternative);
         if (!hasActive && groupIndices.length > 0) {
-          // Si ninguno está activo, activar el primero del grupo
           result[groupIndices[0]].isAlternative = false;
         }
         processedLabels.add(acc.label);
@@ -511,7 +554,13 @@ const QuotingModule: React.FC<Props> = ({
     try {
         const tempItem: QuoteItem = {
           id: 'temp', itemCode: itemCode || 'POS#', width: totalWidth, height: totalHeight, colorId, quantity,
-          composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction: Number(couplingDeduction || 0) },
+          composition: { 
+              modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), 
+              colRatios: [...colSizes], 
+              rowRatios: [...rowSizes], 
+              couplingDeduction: Number(couplingDeduction || 0),
+              isManualDim: isManualDim
+          },
           couplingProfileId, extras: { ...extras }, calculatedCost: 0
         };
         const { breakdown } = calculateCompositePrice(tempItem, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
@@ -519,7 +568,7 @@ const QuotingModule: React.FC<Props> = ({
     } catch(e) {
         return null;
     }
-  }, [totalWidth, totalHeight, itemCode, modules, colSizes, rowSizes, couplingDeduction, extras, colorId, couplingProfileId, recipes, aluminum, config, treatments, glasses, accessories, dvhInputs, blindPanels, quantity]);
+  }, [totalWidth, totalHeight, itemCode, modules, colSizes, rowSizes, couplingDeduction, extras, colorId, couplingProfileId, recipes, aluminum, config, treatments, glasses, accessories, dvhInputs, blindPanels, quantity, isManualDim]);
 
   const updateModule = (id: string, data: Partial<MeasurementModule>) => {
     setModules(prev => (prev || []).map(m => (m && m.id === id ? { ...m, ...data } : m)));
@@ -581,28 +630,41 @@ const QuotingModule: React.FC<Props> = ({
     const sizes = dim === 'width' ? [...colSizes] : [...rowSizes];
     const total = dim === 'width' ? totalWidth : totalHeight;
     const oldValue = sizes[index];
-    const diff = newValue - oldValue;
-    sizes[index] = newValue;
-    const otherIndices = sizes.map((_, i) => i).filter(i => i !== index);
-    if (otherIndices.length > 0) {
-        const othersSum = otherIndices.reduce((acc, i) => acc + sizes[i], 0);
-        if (othersSum > 0) {
-            otherIndices.forEach(i => {
-                const proportion = sizes[i] / othersSum;
-                sizes[i] = Math.max(100, sizes[i] - (diff * proportion));
-            });
-        } else {
-            const sharedDiff = diff / otherIndices.length;
-            otherIndices.forEach(i => {
-                sizes[i] = Math.max(100, sizes[i] - sharedDiff);
-            });
-        }
+    
+    if (isManualDim) {
+      sizes[index] = newValue;
+      const newTotal = sizes.reduce((a, b) => a + b, 0);
+      if (dim === 'width') {
+        setColSizes(sizes);
+        setTotalWidth(newTotal);
+      } else {
+        setRowSizes(sizes);
+        setTotalHeight(newTotal);
+      }
+    } else {
+      const diff = newValue - oldValue;
+      sizes[index] = newValue;
+      const otherIndices = sizes.map((_, i) => i).filter(i => i !== index);
+      if (otherIndices.length > 0) {
+          const othersSum = otherIndices.reduce((acc, i) => acc + sizes[i], 0);
+          if (othersSum > 0) {
+              otherIndices.forEach(i => {
+                  const proportion = sizes[i] / othersSum;
+                  sizes[i] = Math.max(100, sizes[i] - (diff * proportion));
+              });
+          } else {
+              const sharedDiff = diff / otherIndices.length;
+              otherIndices.forEach(i => {
+                  sizes[i] = Math.max(100, sizes[i] - sharedDiff);
+              });
+          }
+      }
+      const currentSum = sizes.reduce((a, b) => a + b, 0);
+      const scale = total / currentSum;
+      const finalSizes = sizes.map(s => Math.round(s * scale));
+      if (dim === 'width') setColSizes(finalSizes);
+      else setRowSizes(finalSizes);
     }
-    const currentSum = sizes.reduce((a, b) => a + b, 0);
-    const scale = total / currentSum;
-    const finalSizes = sizes.map(s => Math.round(s * scale));
-    if (dim === 'width') setColSizes(finalSizes);
-    else setRowSizes(finalSizes);
   };
 
   const handleTotalChange = (dim: 'width' | 'height', newValue: number) => {
@@ -637,12 +699,24 @@ const QuotingModule: React.FC<Props> = ({
     const previewImage = canvas ? canvas.toDataURL('image/jpeg', 0.8) : undefined;
     const { finalPrice, breakdown } = calculateCompositePrice({
       id: 'temp', itemCode: itemCode || 'S/C', width: totalWidth, height: totalHeight, colorId, quantity,
-      composition: { modules: (modules || []).filter(Boolean), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction: Number(couplingDeduction || 0) },
+      composition: { 
+          modules: (modules || []).filter(Boolean), 
+          colRatios: [...colSizes], 
+          rowRatios: [...rowSizes], 
+          couplingDeduction: Number(couplingDeduction || 0),
+          isManualDim: isManualDim
+      },
       couplingProfileId, extras: { ...extras }, calculatedCost: 0
     }, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
     const tempItem: QuoteItem = {
       id: Date.now().toString(), itemCode: itemCode || `POS#${currentWorkItems.length + 1}`, width: totalWidth, height: totalHeight, colorId, quantity,
-      composition: { modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), colRatios: [...colSizes], rowRatios: [...rowSizes], couplingDeduction: Number(couplingDeduction || 0) },
+      composition: { 
+          modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), 
+          colRatios: [...colSizes], 
+          rowRatios: [...rowSizes], 
+          couplingDeduction: Number(couplingDeduction || 0),
+          isManualDim: isManualDim
+      },
       couplingProfileId, extras: { ...extras }, calculatedCost: Math.round(finalPrice), previewImage, breakdown
     };
     setCurrentWorkItems([...currentWorkItems, tempItem]);
@@ -656,7 +730,8 @@ const QuotingModule: React.FC<Props> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const padding = 120;
+    
+    const padding = 140;
     const pxPerMm = Math.min((canvas.width - padding * 2) / (totalWidth || 1), (canvas.height - padding * 2) / (totalHeight || 1));
     const startX = (canvas.width - totalWidth * pxPerMm) / 2;
     const startY = (canvas.height - totalHeight * pxPerMm) / 2;
@@ -665,19 +740,22 @@ const QuotingModule: React.FC<Props> = ({
     const cProfile = couplingProfileId ? aluminum.find(p => p.id === couplingProfileId) : null;
     const currentDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
     
-    if (extras.tapajuntas) {
-        const firstRecipe = recipes.find(r => r.id === validModules[0]?.recipeId);
-        const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
-        const tjSizeMm = Number(tjProfile?.thickness || 40);
-        drawGlobalTapajuntas(ctx, startX, startY, totalWidth * pxPerMm, totalHeight * pxPerMm, tjSizeMm * pxPerMm, aluColor, extras.tapajuntasSides);
-    }
+    const firstRecipe = recipes.find(r => r.id === validModules[0]?.recipeId);
+    const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+    const tjSizePx = (Number(tjProfile?.thickness || 40)) * pxPerMm;
+
+    // 1. Recolección de segmentos de contorno real
+    const perimeterSegments: Segment[] = [];
+    
     validModules.forEach(mod => {
         const recipe = recipes.find(r => r.id === mod.recipeId);
         if (!recipe) return;
         const modIdxX = mod.x - bounds.minX;
         const modIdxY = mod.y - bounds.minY;
-        let modW = Number(colSizes[modIdxX] || 0); 
-        let modH = Number(rowSizes[modIdxY] || 0);
+        
+        let modW = (isManualDim && mod.width && mod.width > 0) ? mod.width : Number(colSizes[modIdxX] || 0); 
+        let modH = (isManualDim && mod.height && mod.height > 0) ? mod.height : Number(rowSizes[modIdxY] || 0);
+        
         if (colSizes.length > 1) {
             if (mod.x > bounds.minX) modW -= (currentDeduction / 2);
             if (mod.x < bounds.maxX) modW -= (currentDeduction / 2);
@@ -686,19 +764,55 @@ const QuotingModule: React.FC<Props> = ({
             if (mod.y > bounds.minY) modH -= (currentDeduction / 2);
             if (mod.y < bounds.maxY) modH -= (currentDeduction / 2);
         }
+
         let ox_mm = 0; for (let i = 0; i < modIdxX; i++) ox_mm += Number(colSizes[i] || 0);
         let oy_mm = 0; for (let j = 0; j < modIdxY; j++) oy_mm += Number(rowSizes[j] || 0);
         const xOffset = (mod.x > bounds.minX) ? (currentDeduction / 2) : 0;
         const yOffset = (mod.y > bounds.minY) ? (currentDeduction / 2) : 0;
-        const edges = { top: mod.y === bounds.minY, bottom: mod.y === bounds.maxY, left: mod.x === bounds.minX, right: mod.x === bounds.maxX };
-        drawDetailedOpening(ctx, startX + (ox_mm + xOffset) * pxPerMm, startY + (oy_mm + yOffset) * pxPerMm, modW * pxPerMm, modH * pxPerMm, recipe, mod.isDVH, aluColor, extras, edges, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
+        
+        const mX = startX + (ox_mm + xOffset) * pxPerMm;
+        const mY = startY + (oy_mm + yOffset) * pxPerMm;
+        const mW = modW * pxPerMm;
+        const mH = modH * pxPerMm;
+
+        // Detección de exposición
+        const hasNeighbor = (dx: number, dy: number) => validModules.some(other => {
+            if (other === mod) return false;
+            const otherIdxX = other.x - bounds.minX;
+            const otherIdxY = other.y - bounds.minY;
+            const otherXOffset = (other.x > bounds.minX) ? (currentDeduction / 2) : 0;
+            const otherYOffset = (other.y > bounds.minY) ? (currentDeduction / 2) : 0;
+            let otherOx = 0; for (let i = 0; i < otherIdxX; i++) otherOx += Number(colSizes[i] || 0);
+            let otherOy = 0; for (let j = 0; j < otherIdxY; j++) otherOy += Number(rowSizes[j] || 0);
+            
+            const oX = startX + (otherOx + otherXOffset) * pxPerMm;
+            const oY = startY + (otherOy + otherYOffset) * pxPerMm;
+            const oW = ((isManualDim && other.width) ? other.width : colSizes[otherIdxX]) * pxPerMm;
+            const oH = ((isManualDim && other.height) ? other.height : rowSizes[otherIdxY]) * pxPerMm;
+
+            const tol = 5;
+            // Verificar si el rectángulo "other" toca la arista en cuestión
+            if (dx === 0 && dy === -1) return Math.abs(oY + oH - mY) < tol && oX < mX + mW - tol && oX + oW > mX + tol; // TOP
+            if (dx === 0 && dy === 1) return Math.abs(oY - (mY + mH)) < tol && oX < mX + mW - tol && oX + oW > mX + tol; // BOTTOM
+            if (dx === -1 && dy === 0) return Math.abs(oX + oW - mX) < tol && oY < mY + mH - tol && oY + oH > mY + tol; // LEFT
+            if (dx === 1 && dy === 0) return Math.abs(oX - (mX + mW)) < tol && oY < mY + mH - tol && oY + oH > mY + tol; // RIGHT
+            return false;
+        });
+
+        if (!hasNeighbor(0, -1) && extras.tapajuntasSides.top) perimeterSegments.push({ x1: mX, y1: mY, x2: mX + mW, y2: mY, side: 'top' });
+        if (!hasNeighbor(0, 1) && extras.tapajuntasSides.bottom) perimeterSegments.push({ x1: mX, y1: mY + mH, x2: mX + mW, y2: mY + mH, side: 'bottom' });
+        if (!hasNeighbor(-1, 0) && extras.tapajuntasSides.left) perimeterSegments.push({ x1: mX, y1: mY, x2: mX, y2: mY + mH, side: 'left' });
+        if (!hasNeighbor(1, 0) && extras.tapajuntasSides.right) perimeterSegments.push({ x1: mX + mW, y1: mY, x2: mX + mW, y2: mY + mH, side: 'right' });
+
+        drawDetailedOpening(ctx, mX, mY, mW, mH, recipe, mod.isDVH, aluColor, extras, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
 
-    ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
-    ctx.lineWidth = 1.4;
-    ctx.strokeRect(startX, startY, totalWidth * pxPerMm, totalHeight * pxPerMm);
+    // 2. Dibujar Tapajuntas Adaptativo
+    if (extras.tapajuntas) {
+        renderAdaptiveTJ(ctx, perimeterSegments, tjSizePx, aluColor);
+    }
 
-  }, [totalWidth, totalHeight, modules, colSizes, rowSizes, bounds, extras, colorId, treatments, recipes, couplingDeduction, couplingProfileId, blindPanels, aluminum]);
+  }, [totalWidth, totalHeight, modules, colSizes, rowSizes, bounds, extras, colorId, treatments, recipes, couplingDeduction, couplingProfileId, blindPanels, aluminum, isManualDim]);
 
   const currentModForEdit = (modules || []).find(m => m && m.id === editingModuleId);
 
@@ -713,7 +827,7 @@ const QuotingModule: React.FC<Props> = ({
     setModules(prev => prev.map(m => {
         if (m.id !== modId || !m.transoms || m.transoms.length === 0) return m;
         const modIdxY = m.y - bounds.minY;
-        const modH = Number(rowSizes[modIdxY] || 0);
+        const modH = (isManualDim && m.height) ? m.height : Number(rowSizes[modIdxY] || 0);
         const parts = m.transoms.length + 1;
         const step = modH / parts;
         const newTransoms = m.transoms.map((t, idx) => ({
@@ -727,7 +841,7 @@ const QuotingModule: React.FC<Props> = ({
   const addTransomToModule = () => {
     if (!currentModForEdit) return;
     const modIdxY = currentModForEdit.y - bounds.minY; 
-    const modH = Number(rowSizes[modIdxY] || 0);
+    const modH = (isManualDim && currentModForEdit.height) ? currentModForEdit.height : Number(rowSizes[modIdxY] || 0);
     const transomRecipe = recipes.find(r => r.id === currentModForEdit.recipeId);
     const updatedTransoms = [...(currentModForEdit.transoms || []), { height: 0, profileId: transomRecipe?.defaultTransomProfileId || aluminum[0]?.id || '' }];
     const parts = updatedTransoms.length + 1;
@@ -743,7 +857,7 @@ const QuotingModule: React.FC<Props> = ({
     if (!currentModForEdit) return;
     const filtered = currentModForEdit.transoms?.filter((_, i) => i !== idx) || [];
     const modIdxY = currentModForEdit.y - bounds.minY;
-    const modH = Number(rowSizes[modIdxY] || 0);
+    const modH = (isManualDim && currentModForEdit.height) ? currentModForEdit.height : Number(rowSizes[modIdxY] || 0);
     const parts = filtered.length + 1;
     const step = modH / parts;
     const redistributed = filtered.map((t, tidx) => ({
@@ -773,9 +887,8 @@ const QuotingModule: React.FC<Props> = ({
         : [...modRecipe.accessories];
     
     const target = activeAccs[index];
-    const willBeActive = target.isAlternative; // Si estaba marcado como alt (true), ahora será activo (false)
+    const willBeActive = target.isAlternative; 
 
-    // EXCLUSIÓN MUTUA: Si activamos uno con label, desactivamos los otros del mismo label
     if (willBeActive && target.label) {
       activeAccs.forEach((acc, i) => {
         if (acc.label === target.label && i !== index) {
@@ -807,7 +920,7 @@ const QuotingModule: React.FC<Props> = ({
             setModalPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
         }
         if (isDraggingBreakdown) {
-            setBreakdownModalPos({ x: e.clientX - breakdownDragOffset.current.x, y: e.clientY - breakdownDragOffset.current.y });
+            setBreakdownModalPos({ x: e.clientX - breakdownDragOffset.current.x, y: e.clientY - breakdownModalPos.y });
         }
     };
     const handleMouseUp = () => { setIsDragging(false); setIsDraggingBreakdown(false); };
@@ -910,13 +1023,23 @@ const QuotingModule: React.FC<Props> = ({
                 </div>
             </div>
             <div className="space-y-6 pt-5 border-t-2 border-slate-50 dark:border-slate-800">
-                <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2 px-1"><Grid3X3 size={14} /> Estructura del Conjunto</h4>
+                <div className="flex items-center justify-between px-1">
+                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Grid3X3 size={14} /> Estructura del Conjunto</h4>
+                    <button 
+                      onClick={() => setIsManualDim(!isManualDim)}
+                      className={`flex items-center gap-2 p-1.5 rounded-lg border-2 transition-all ${isManualDim ? 'bg-amber-600 border-amber-700 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'}`}
+                      title={isManualDim ? "Modo Manual: Las partes definen el total" : "Modo Proporcional: El total define las partes"}
+                    >
+                      {isManualDim ? <Unlock size={12} /> : <LinkIcon size={12} />}
+                      <span className="text-[8px] font-black uppercase">{isManualDim ? 'Manual' : 'Propor.'}</span>
+                    </button>
+                </div>
                 <div className="px-1 space-y-6">
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Columns size={16} className="text-indigo-600" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Columnas</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Medidas de Ancho</span>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
@@ -926,14 +1049,14 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
                             {colSizes.map((size, idx) => (
-                                <div key={idx} className="flex items-center justify-between group bg-slate-50/50 dark:bg-slate-800/50 p-2 rounded-xl border border-transparent hover:border-indigo-200 transition-all">
+                                <div key={idx} className={`flex items-center justify-between group p-3 rounded-2xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
                                     <div className="flex flex-col">
-                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter italic">Cuerpo C{idx+1}</span>
-                                        <span className="text-[7px] text-indigo-500 font-bold uppercase">Dim. Dinámica</span>
+                                        <span className={`text-[8px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Ancho C{idx+1}</span>
+                                        <span className={`text-[7px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" className="w-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl font-mono font-black text-right text-[10px] text-indigo-600 dark:text-indigo-400 focus:border-indigo-500 outline-none shadow-sm transition-all" value={size} onChange={e => handleBodySizeChange('width', idx, parseInt(e.target.value) || 0)} />
-                                        <span className="text-[8px] font-black text-slate-300 dark:text-slate-600">mm</span>
+                                        <input type="number" className={`w-24 bg-white dark:bg-slate-900 border px-3 py-2 rounded-xl font-mono font-black text-right text-[11px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('width', idx, parseInt(e.target.value) || 0)} />
+                                        <span className={`text-[8px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
                                     </div>
                                 </div>
                             ))}
@@ -943,24 +1066,24 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Rows size={16} className="text-indigo-600" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Filas</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Medidas de Alto</span>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{rowSizes.length}</span>
-                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
                             </div>
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
                             {rowSizes.map((size, idx) => (
-                                <div key={idx} className="flex items-center justify-between group bg-slate-50/50 dark:bg-slate-800/50 p-2 rounded-xl border border-transparent hover:border-indigo-200 transition-all">
+                                <div key={idx} className={`flex items-center justify-between group p-3 rounded-2xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
                                     <div className="flex flex-col">
-                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter italic">Cuerpo R{idx+1}</span>
-                                        <span className="text-[7px] text-indigo-500 font-bold uppercase">Dim. Dinámica</span>
+                                        <span className={`text-[8px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Alto R{idx+1}</span>
+                                        <span className={`text-[7px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" className="w-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl font-mono font-black text-right text-[10px] text-indigo-600 dark:text-indigo-400 focus:border-indigo-500 outline-none shadow-sm transition-all" value={size} onChange={e => handleBodySizeChange('height', idx, parseInt(e.target.value) || 0)} />
-                                        <span className="text-[8px] font-black text-slate-300 dark:text-slate-600">mm</span>
+                                        <input type="number" className={`w-24 bg-white dark:bg-slate-900 border px-3 py-2 rounded-xl font-mono font-black text-right text-[11px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('height', idx, parseInt(e.target.value) || 0)} />
+                                        <span className={`text-[8px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
                                     </div>
                                 </div>
                             ))}
@@ -1139,6 +1262,21 @@ const QuotingModule: React.FC<Props> = ({
                 </div>
                 <div className="grid grid-cols-12 gap-6 flex-1 overflow-hidden">
                     <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-hidden border-r border-slate-50 dark:border-slate-800 pr-6">
+                        {isManualDim && (
+                            <div className="flex flex-col gap-4 p-5 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800 animate-in slide-in-from-top-2">
+                                <h4 className="text-[9px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2"><Maximize2 size={12}/> Medidas Individuales (Manual)</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Ancho Módulo (mm)</label>
+                                        <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-amber-500 shadow-sm" value={currentModForEdit.width || colSizes[currentModForEdit.x - bounds.minX]} onChange={e => updateModule(editingModuleId, { width: parseInt(e.target.value) || 0 })} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Alto Módulo (mm)</label>
+                                        <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-amber-500 shadow-sm" value={currentModForEdit.height || rowSizes[currentModForEdit.y - bounds.minY]} onChange={e => updateModule(editingModuleId, { height: parseInt(e.target.value) || 0 })} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         <div className="flex flex-col gap-4 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700">
                             <h4 className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2"><Tag size={12}/> Sistema y Tipología</h4>
                             <div className="space-y-4">
@@ -1282,7 +1420,7 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                         </div>
                         <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-slate-800">
-                            <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 border-l-4 border-indigo-600 pl-3"><Wind size={14} /> Herrajes del Módulo</h4>
+                            <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest border-l-4 border-indigo-600 pl-3"><Wind size={14} /> Herrajes del Módulo</h4>
                             <p className="text-[8px] text-slate-400 font-bold uppercase px-3 italic">Active o desactive las opciones de herraje según el tamaño.</p>
                             <div className="grid grid-cols-1 gap-2">
                                 {(() => {
@@ -1345,7 +1483,7 @@ const QuotingModule: React.FC<Props> = ({
                             <p className="text-[10px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Paño #{slatPaneIdx + 1} • Cálculo Dinámico</p>
                         </div>
                     </div>
-                    <button onClick={() => setShowSlatSelector(false)} className="text-slate-300 hover:text-red-500 transition-all p-2 bg-slate-50 dark:bg-slate-800 rounded-xl"><X size={24} /></button>
+                    <button onClick={() => setShowSlatSelector(false)} className="text-slate-300 hover:text-red-500 transition-all p-2 bg-slate-50 bg-slate-800 rounded-xl"><X size={24} /></button>
                 </div>
 
                 <div className="relative mb-6">

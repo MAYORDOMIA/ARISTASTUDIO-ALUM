@@ -122,6 +122,8 @@ export interface MeasurementModule {
   recipeId: string;
   x: number;
   y: number;
+  width?: number; // Medida individual para Modo Manual
+  height?: number; // Medida individual para Modo Manual
   isDVH: boolean;
   glassOuterId: string;
   glassInnerId?: string;
@@ -159,6 +161,7 @@ export interface QuoteItem {
     colRatios: number[];
     rowRatios: number[];
     couplingDeduction: number;
+    isManualDim?: boolean; // Indica si se deben priorizar medidas individuales
   };
   
   extras: {
