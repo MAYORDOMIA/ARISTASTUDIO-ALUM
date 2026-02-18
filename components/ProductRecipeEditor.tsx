@@ -59,6 +59,9 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'sliding_3_45_90_high', label: 'V.CORREDIZA 3H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
   { id: 'sliding_4_45_90_low', label: 'V.CORREDIZA 4H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
   { id: 'sliding_4_45_90_high', label: 'V.CORREDIZA 4H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
+  { id: 'mampara_vidrio_corrediza', label: 'MAMPARA VIDRIO CORREDIZA', description: 'Riel superior con hojas de vidrio solapadas sin marco inferior.' },
+  { id: 'tubo_h', label: 'TUBO HORIZONTAL', description: 'Perfil único dispuesto de forma horizontal.' },
+  { id: 'tubo_v', label: 'TUBO VERTICAL', description: 'Perfil único dispuesto de forma vertical.' },
 ];
 
 const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config }) => {
@@ -79,7 +82,8 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
       accessories: [], 
       glassFormulaW: 'W - 50', 
       glassFormulaH: 'H - 50',
-      isLocked: false
+      isLocked: false,
+      transomThickness: 100 // Default para tubos
     };
     setRecipes([...recipes, newRecipe]); 
     setEditingId(newRecipe.id);
@@ -132,6 +136,8 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
     };
     reader.readAsText(file);
   };
+
+  const isTubeType = recipe?.visualType === 'tubo_h' || recipe?.visualType === 'tubo_v';
 
   return (
     <div className="flex h-full gap-6 animate-in fade-in duration-500">
@@ -221,6 +227,17 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                           <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Línea:</span>
                           <input className="bg-transparent border-none text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 outline-none w-24" value={recipe.line} onChange={e => updateRecipe(recipe.id, { line: e.target.value.toUpperCase() })} />
                         </div>
+                        {isTubeType && (
+                          <div className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 rounded-xl border border-amber-200`}>
+                            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Espesor Tubo (mm):</span>
+                            <input 
+                              type="number"
+                              className="bg-transparent border-none text-[10px] font-black text-amber-700 dark:text-amber-400 outline-none w-16 text-center" 
+                              value={recipe.transomThickness || 100} 
+                              onChange={e => updateRecipe(recipe.id, { transomThickness: parseInt(e.target.value) || 0 })} 
+                            />
+                          </div>
+                        )}
                     </div>
                 </div>
                 <button onClick={() => { if(confirm('¿Eliminar sistema?')) { setRecipes(recipes.filter(r => r.id !== recipe.id)); setEditingId(null); } }} className="shrink-0 p-4 bg-slate-50 dark:bg-slate-800 text-slate-300 rounded-2xl hover:text-red-500 border border-slate-100 dark:border-slate-700 transition-colors"><Trash2 size={20} /></button>

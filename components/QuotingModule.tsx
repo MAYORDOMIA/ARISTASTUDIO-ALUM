@@ -75,6 +75,61 @@ const drawDetailedOpening = (
     if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return;
 
     const visualType = recipe.visualType || 'fixed';
+
+    // NUEVAS TIPOLOGÍAS INDUSTRIALES
+    if (visualType === 'tubo_h') {
+        const tubeDim = (recipe.transomThickness || 100) * pxPerMm;
+        const tubeY = y + (h / 2) - (tubeDim / 2);
+        ctx.fillStyle = color;
+        ctx.fillRect(x, tubeY, w, tubeDim);
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, tubeY, w, tubeDim);
+        return;
+    }
+
+    if (visualType === 'tubo_v') {
+        const tubeDim = (recipe.transomThickness || 100) * pxPerMm;
+        const tubeX = x + (w / 2) - (tubeDim / 2);
+        ctx.fillStyle = color;
+        ctx.fillRect(tubeX, y, tubeDim, h);
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tubeX, y, tubeDim, h);
+        return;
+    }
+
+    if (visualType === 'mampara_vidrio_corrediza') {
+        const rielH = 60 * pxPerMm;
+        // Dibujar riel superior
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, w, rielH);
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+        ctx.strokeRect(x, y, w, rielH);
+        
+        // Dibujar vidrios solapados (corredizos)
+        const overlap = 40 * pxPerMm;
+        const leafW = (w / 2) + overlap;
+        
+        const drawSingleGlass = (gx: number, gy: number, gw: number, gh: number, alpha: number) => {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            const glassGrad = ctx.createLinearGradient(gx, gy, gx + gw, gy + gh);
+            glassGrad.addColorStop(0, '#bae6fd');
+            glassGrad.addColorStop(0.5, '#f0f9ff');
+            glassGrad.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = glassGrad;
+            ctx.fillRect(gx, gy, gw, gh);
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.2)';
+            ctx.strokeRect(gx, gy, gw, gh);
+            ctx.restore();
+        };
+
+        drawSingleGlass(x, y + rielH, leafW, h - rielH, 1.0);
+        drawSingleGlass(x + w - leafW, y + rielH, leafW, h - rielH, 0.85);
+        return;
+    }
+
     const isDoor = visualType.includes('door') || recipe.type === 'Puerta';
     const isNoDintel = visualType.includes('no_dintel');
     const isNoUmbral = visualType.includes('no_umbral');
@@ -185,7 +240,6 @@ const drawDetailedOpening = (
     const drawGlassWithTransoms = (gx: number, gy: number, gw: number, gh: number, absoluteBottomY: number) => {
         if (!isFinite(gx) || !isFinite(gy) || !isFinite(gw) || !isFinite(gh)) return;
         if (transoms.length > 0) {
-            // FIX: Ordenar de arriba hacia abajo para evitar medidas negativas en canvas
             const sorted = [...transoms].sort((a, b) => b.height - a.height);
             let currentTopY = gy;
             const totalTransoms = transoms.length;
@@ -344,12 +398,10 @@ const renderAdaptiveTJ = (
 ) => {
     if (segments.length === 0) return;
 
-    // Fusión de segmentos colineales que se tocan
     const mergeSegments = (list: Segment[]) => {
         const result: Segment[] = [];
         const sorted = [...list];
         
-        // Procesar por orientación
         ['top', 'bottom', 'left', 'right'].forEach(side => {
             const sideSegments = sorted.filter(s => s.side === side);
             if (sideSegments.length === 0) return;
@@ -387,13 +439,11 @@ const renderAdaptiveTJ = (
 
     const finalSegments = mergeSegments(segments);
 
-    // Dibujar barras finales con mitras inteligentes
     finalSegments.forEach(seg => {
         ctx.save();
         ctx.fillStyle = color;
         ctx.beginPath();
         
-        // Detección de continuidad en los extremos (para ingletes)
         const hasStartCorner = finalSegments.some(other => 
             other !== seg && 
             ((Math.abs(other.x1 - seg.x1) < 5 && Math.abs(other.y1 - seg.y1) < 5) || 
@@ -436,7 +486,6 @@ const renderAdaptiveTJ = (
         ctx.closePath();
         ctx.fill();
 
-        // Efecto 3D
         try {
             const grad = (seg.side === 'left' || seg.side === 'right')
                 ? ctx.createLinearGradient(Math.min(p1.x, p2.x, p3.x, p4.x), 0, Math.max(p1.x, p2.x, p3.x, p4.x), 0)
@@ -448,7 +497,6 @@ const renderAdaptiveTJ = (
             ctx.fill();
         } catch(e){}
 
-        // Contorno
         ctx.strokeStyle = TJ_LINE_COLOR;
         ctx.lineWidth = 1;
         ctx.stroke();
@@ -781,7 +829,6 @@ const QuotingModule: React.FC<Props> = ({
         const mW = modW * pxPerMm;
         const mH = modH * pxPerMm;
 
-        // Detección de exposición
         const hasNeighbor = (dx: number, dy: number) => validModules.some(other => {
             if (other === mod) return false;
             const otherIdxX = other.x - bounds.minX;
@@ -792,16 +839,15 @@ const QuotingModule: React.FC<Props> = ({
             let otherOy = 0; for (let j = 0; j < otherIdxY; j++) otherOy += Number(rowSizes[j] || 0);
             
             const oX = startX + (otherOx + otherXOffset) * pxPerMm;
-            const oY = startY + (otherOy + otherXOffset) * pxPerMm; // Fixed from otherXOffset to otherYOffset below if needed, but logic remains
+            const oY = startY + (otherOy + otherYOffset) * pxPerMm; 
             const oW = ((isManualDim && other.width) ? other.width : colSizes[otherIdxX]) * pxPerMm;
             const oH = ((isManualDim && other.height) ? other.height : rowSizes[otherIdxY]) * pxPerMm;
 
             const tol = 5;
-            // Verificar si el rectángulo "other" toca la arista en cuestión
-            if (dx === 0 && dy === -1) return Math.abs(oY + oH - mY) < tol && oX < mX + mW - tol && oX + oW > mX + tol; // TOP
-            if (dx === 0 && dy === 1) return Math.abs(oY - (mY + mH)) < tol && oX < mX + mW - tol && oX + oW > mX + tol; // BOTTOM
-            if (dx === -1 && dy === 0) return Math.abs(oX + oW - mX) < tol && oY < mY + mH - tol && oY + oH > mY + tol; // LEFT
-            if (dx === 1 && dy === 0) return Math.abs(oX - (mX + mW)) < tol && oY < mY + mH - tol && oY + oH > mY + tol; // RIGHT
+            if (dx === 0 && dy === -1) return Math.abs(oY + oH - mY) < tol && oX < mX + mW - tol && oX + oW > mX + tol; 
+            if (dx === 0 && dy === 1) return Math.abs(oY - (mY + mH)) < tol && oX < mX + mW - tol && oX + oW > mX + tol; 
+            if (dx === -1 && dy === 0) return Math.abs(oX + oW - mX) < tol && oY < mY + mH - tol && oY + oH > mY + tol; 
+            if (dx === 1 && dy === 0) return Math.abs(oX - (mX + mW)) < tol && oY < mY + mH - tol && oY + oH > mY + tol; 
             return false;
         });
 
@@ -813,7 +859,6 @@ const QuotingModule: React.FC<Props> = ({
         drawDetailedOpening(ctx, mX, mY, mW, mH, recipe, mod.isDVH, aluColor, extras, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
 
-    // 2. Dibujar Tapajuntas Adaptativo
     if (extras.tapajuntas) {
         renderAdaptiveTJ(ctx, perimeterSegments, tjSizePx, aluColor);
     }
@@ -1077,7 +1122,7 @@ const QuotingModule: React.FC<Props> = ({
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{rowSizes.length}</span>
-                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
                             </div>
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
@@ -1267,10 +1312,9 @@ const QuotingModule: React.FC<Props> = ({
                     </button>
                 </div>
                 <div className="grid grid-cols-12 gap-6 flex-1 overflow-hidden">
-                    {/* FIX: Cambiado overflow-hidden a overflow-y-auto para evitar que Tipología quede oculta en Manual Mode */}
-                    <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar border-r border-slate-50 dark:border-slate-800 pr-6">
+                    <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar border-r border-slate-50 dark:border-slate-800 pr-6 pb-4">
                         {isManualDim && (
-                            <div className="flex flex-col gap-4 p-5 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800 animate-in slide-in-from-top-2">
+                            <div className="flex flex-col gap-4 p-5 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800 shrink-0 animate-in slide-in-from-top-2">
                                 <h4 className="text-[9px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2"><Maximize2 size={12}/> Medidas Individuales (Manual)</h4>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
@@ -1284,7 +1328,7 @@ const QuotingModule: React.FC<Props> = ({
                                 </div>
                             </div>
                         )}
-                        <div className="flex flex-col gap-4 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700">
+                        <div className="flex flex-col gap-4 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700 shrink-0">
                             <h4 className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2"><Tag size={12}/> Sistema y Tipología</h4>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
@@ -1312,7 +1356,7 @@ const QuotingModule: React.FC<Props> = ({
                                 </div>
                             </div>
                         </div>
-                        <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center">
+                        <div className="min-h-[160px] bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center shrink-0">
                             {currentModForEdit.recipeId ? (
                                 <>
                                     <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl animate-in zoom-in"><Check size={32} /></div>

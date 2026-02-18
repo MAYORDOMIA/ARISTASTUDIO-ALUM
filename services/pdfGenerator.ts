@@ -77,14 +77,12 @@ const getModuleGlassPanes = (
     if (!mod.transoms || mod.transoms.length === 0) {
         panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
     } else {
-        const sorted = [...mod.transoms].sort((a, b) => b.height - a.height); // Coherencia con UI
+        const sorted = [...mod.transoms].sort((a, b) => b.height - a.height); 
         let currentY = 0;
-        // Invertimos lógica para ser coherentes con despiece de arriba a abajo
         const totalMm = modH;
         sorted.forEach((t, idx) => {
             const currentTProf = aluminum.find(p => p.id === t.profileId);
             const currentTThickness = currentTProf?.thickness || recipe.transomThickness || 40;
-            // Altura desde el techo relativa
             const transomYFromTop = totalMm - t.height; 
             const paneH = (transomYFromTop - (currentTThickness/2)) - currentY;
             if (paneH > 0) panes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(sorted.length - idx) || false });
@@ -115,6 +113,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         const minY = Math.min(...validModules.map(m => m.y));
         const maxX = Math.max(...validModules.map(m => m.x));
         const maxY = Math.max(...validModules.map(m => m.y));
+        
         validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
@@ -190,20 +189,23 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             });
         });
 
-        // TJs para Conjuntos (Perímetro + Desniveles)
+        // Lógica Tapajuntas de Conjunto: Registro Industrial de Piezas "Sobrantes"
         if (item.extras.tapajuntas && isSet) {
-            const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
+            const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
             const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            
             if (tjProfile) {
                 const list = cutsByProfile.get(tjProfile.id) || [];
                 const tjThick = Number(tjProfile.thickness || 30);
                 const { top, bottom, left, right } = item.extras.tapajuntasSides;
+                
+                // 1. Perímetro Exterior ÚNICAMENTE
                 if (top) { for(let k=0; k<item.quantity; k++) list.push({ len: item.width + (left?tjThick:0) + (right?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 if (bottom) { for(let k=0; k<item.quantity; k++) list.push({ len: item.width + (left?tjThick:0) + (right?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 if (left) { for(let k=0; k<item.quantity; k++) list.push({ len: item.height + (top?tjThick:0) + (bottom?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 if (right) { for(let k=0; k<item.quantity; k++) list.push({ len: item.height + (top?tjThick:0) + (bottom?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 
-                // Desniveles (H1 - H2)
+                // 2. Compensación por Desnivel (Diferencia expuesta donde NO hay acople)
                 if (item.composition.colRatios.length > 1) {
                     for (let x = minX; x < maxX; x++) {
                         for (let y = minY; y <= maxY; y++) {
@@ -214,15 +216,15 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                                 const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
                                 const diff = Math.abs(hL - hR);
                                 if (diff > 5) { 
+                                    // La pieza de compensación se corta a 90° ya que va contra el perfil del módulo vecino
                                     for(let k=0; k<item.quantity; k++) {
-                                        list.push({ len: diff, type: 'TJ Desnivel (H1-H2)', cutStart: '90', cutEnd: '90', label: itemCode }); 
+                                        list.push({ len: diff, type: 'TJ Sobrante Desnivel', cutStart: '90', cutEnd: '90', label: itemCode }); 
                                     }
                                 }
                             }
                         }
                     }
                 }
-                // Desniveles Horizontales (Ancho)
                 if (item.composition.rowRatios.length > 1) {
                     for (let y = minY; y < maxY; y++) {
                         for (let x = minX; x <= maxX; x++) {
@@ -234,7 +236,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                                 const diff = Math.abs(wT - wB);
                                 if (diff > 5) { 
                                     for(let k=0; k<item.quantity; k++) {
-                                        list.push({ len: diff, type: 'TJ Desnivel (W1-W2)', cutStart: '90', cutEnd: '90', label: itemCode }); 
+                                        list.push({ len: diff, type: 'TJ Sobrante Ancho', cutStart: '90', cutEnd: '90', label: itemCode }); 
                                     }
                                 }
                             }
@@ -407,7 +409,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             });
         });
 
-        // Tapajuntas de Conjunto (Perímetro + Desniveles)
         if (item.extras.tapajuntas && isSet && validModules.length > 0) {
             const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
             const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
@@ -420,7 +421,6 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (left) tjLenTotal += (item.height + (top?tjThick:0) + (bottom?tjThick:0));
                 if (right) tjLenTotal += (item.height + (top?tjThick:0) + (bottom?tjThick:0));
                 
-                // Desniveles Verticales
                 if (item.composition.colRatios.length > 1) {
                     for (let x = minX; x < maxX; x++) {
                         for (let y = minY; y <= maxY; y++) {
@@ -744,7 +744,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 if (left) profileCuts.push([tjProfile.code, 'Tapajunta Lateral L', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
                 if (right) profileCuts.push([tjProfile.code, 'Tapajunta Lateral R', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
 
-                // FIX: Tapajuntas de Compensación por Desnivel (H1 - H2) registrado para taller
+                // REGISTRO DE TJ COMPENSACIÓN EN HOJA DE TALLER
                 if (isSet) {
                     for (let x = minX; x < maxX; x++) {
                         for (let y = minY; y <= maxY; y++) {
@@ -755,7 +755,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                                 let hR = (isManualDim && mR_m.height) ? mR_m.height : Number(rowRatios[y - minY] || 0);
                                 const diff = Math.abs(hL - hR);
                                 if (diff > 5) {
-                                    profileCuts.push([tjProfile.code, `TJ Desnivel Compensación`, Math.round(diff), 1, '90° / 90°']);
+                                    profileCuts.push([tjProfile.code, `TJ Sobrante Desnivel`, Math.round(diff), 1, '90° / 90°']);
                                 }
                             }
                         }
@@ -870,11 +870,6 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         if (refGlass) {
             sheetW = refGlass.width || 2400;
             sheetH = refGlass.height || 1800;
-        } else {
-            const refBlind = blindPanels.find(b => b.id === pieces[0].glassId);
-            if (refBlind) {
-                sheetW = 2400; sheetH = 1800;
-            }
         }
         
         const margin = 12; 
@@ -882,12 +877,12 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
         let curSheetIdx = 0, curY = 0, curShelfH = 0, curX = 0;
         pieces.forEach(p => {
-            let pw = p.w, ph = p.h; let fitsNormal = (curX + pw + margin <= sheetW) && (curY + ph + margin <= sheetH);
+            let fitsNormal = (curX + p.w + margin <= sheetW) && (curY + p.h + margin <= sheetH);
             if (fitsNormal) { p.rotated = false; } else {
                 curX = 0; curY += curShelfH + margin; curShelfH = 0; fitsNormal = (curX + p.w + margin <= sheetW) && (curY + p.h + margin <= sheetH);
-                if (fitsNormal) { p.rotated = false; pw = p.w; ph = p.h; } else { curX = 0; curY = 0; curShelfH = 0; curSheetIdx++; sheets[curSheetIdx] = []; p.rotated = false; pw = p.w; ph = p.h; }
+                if (fitsNormal) { p.rotated = false; } else { curX = 0; curY = 0; curShelfH = 0; curSheetIdx++; sheets[curSheetIdx] = []; p.rotated = false; }
             }
-            sheets[curSheetIdx].push({ p, x: curX, y: curY, rw: pw, rh: ph }); curX += pw + margin; if (ph > curShelfH) curShelfH = ph;
+            sheets[curSheetIdx].push({ p, x: curX, y: curY, rw: p.w, rh: p.h }); curX += p.w + margin; if (p.h > curShelfH) curShelfH = p.h;
         });
         sheets.forEach((sheetPieces, sIdx) => {
             doc.addPage(); doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F'); doc.setTextColor(255); doc.setFontSize(10);
