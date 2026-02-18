@@ -76,57 +76,70 @@ const drawDetailedOpening = (
 
     const visualType = recipe.visualType || 'fixed';
 
-    // NUEVAS TIPOLOGÍAS INDUSTRIALES
-    if (visualType === 'tubo_h') {
-        const tubeDim = (recipe.transomThickness || 100) * pxPerMm;
-        const tubeY = y + (h / 2) - (tubeDim / 2);
+    const applyPaintEffect = (px: number, py: number, pw: number, ph: number, isVertical: boolean) => {
+        ctx.save();
         ctx.fillStyle = color;
-        ctx.fillRect(x, tubeY, w, tubeDim);
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
+        ctx.fillRect(px, py, pw, ph);
+
+        try {
+            const grad = isVertical 
+                ? ctx.createLinearGradient(px, py, px + pw, py)
+                : ctx.createLinearGradient(px, py, px, py + ph);
+            
+            grad.addColorStop(0, 'rgba(0,0,0,0.15)');
+            grad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.15)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(px, py, pw, ph);
+        } catch(e) {}
+
         ctx.lineWidth = 1;
-        ctx.strokeRect(x, tubeY, w, tubeDim);
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)'; 
+        ctx.strokeRect(px, py, pw, ph);
+        ctx.restore();
+    };
+
+    // NUEVAS TIPOLOGÍAS INDUSTRIALES CON EFECTO DE PINTURA
+    if (visualType === 'tubo_h') {
+        const tubeThickness = (recipe.transomThickness || 100) * pxPerMm;
+        const tubeY = y + (h / 2) - (tubeThickness / 2);
+        applyPaintEffect(x, tubeY, w, tubeThickness, false);
         return;
     }
 
     if (visualType === 'tubo_v') {
-        const tubeDim = (recipe.transomThickness || 100) * pxPerMm;
-        const tubeX = x + (w / 2) - (tubeDim / 2);
-        ctx.fillStyle = color;
-        ctx.fillRect(tubeX, y, tubeDim, h);
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(tubeX, y, tubeDim, h);
+        const tubeThickness = (recipe.transomThickness || 100) * pxPerMm;
+        const tubeX = x + (w / 2) - (tubeThickness / 2);
+        applyPaintEffect(tubeX, y, tubeThickness, h, true);
         return;
     }
 
     if (visualType === 'mampara_vidrio_corrediza') {
         const rielH = 60 * pxPerMm;
-        // Dibujar riel superior
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y, w, rielH);
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.4)';
-        ctx.strokeRect(x, y, w, rielH);
+        // Dibujar riel superior con efecto de pintura
+        applyPaintEffect(x, y, w, rielH, false);
         
-        // Dibujar vidrios solapados (corredizos)
+        // Dibujar vidrios solapados
         const overlap = 40 * pxPerMm;
         const leafW = (w / 2) + overlap;
         
-        const drawSingleGlass = (gx: number, gy: number, gw: number, gh: number, alpha: number) => {
+        const drawLeafGlass = (lx: number, ly: number, lw: number, lh: number, alpha: number) => {
             ctx.save();
             ctx.globalAlpha = alpha;
-            const glassGrad = ctx.createLinearGradient(gx, gy, gx + gw, gy + gh);
+            const glassGrad = ctx.createLinearGradient(lx, ly, lx + lw, ly + lh);
             glassGrad.addColorStop(0, '#bae6fd');
             glassGrad.addColorStop(0.5, '#f0f9ff');
             glassGrad.addColorStop(1, '#bae6fd');
             ctx.fillStyle = glassGrad;
-            ctx.fillRect(gx, gy, gw, gh);
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.2)';
-            ctx.strokeRect(gx, gy, gw, gh);
+            ctx.fillRect(lx, ly, lw, lh);
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.1)';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(lx, ly, lw, lh);
             ctx.restore();
         };
 
-        drawSingleGlass(x, y + rielH, leafW, h - rielH, 1.0);
-        drawSingleGlass(x + w - leafW, y + rielH, leafW, h - rielH, 0.85);
+        drawLeafGlass(x, y + rielH, leafW, h - rielH, 1.0);
+        drawLeafGlass(x + w - leafW, y + rielH, leafW, h - rielH, 0.8);
         return;
     }
 
@@ -839,7 +852,7 @@ const QuotingModule: React.FC<Props> = ({
             let otherOy = 0; for (let j = 0; j < otherIdxY; j++) otherOy += Number(rowSizes[j] || 0);
             
             const oX = startX + (otherOx + otherXOffset) * pxPerMm;
-            const oY = startY + (otherOy + otherYOffset) * pxPerMm; 
+            const oY = startY + (otherOy + otherXOffset) * pxPerMm; 
             const oW = ((isManualDim && other.width) ? other.width : colSizes[otherIdxX]) * pxPerMm;
             const oH = ((isManualDim && other.height) ? other.height : rowSizes[otherIdxY]) * pxPerMm;
 
@@ -1122,7 +1135,7 @@ const QuotingModule: React.FC<Props> = ({
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
                                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{rowSizes.length}</span>
-                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
                             </div>
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
@@ -1198,7 +1211,7 @@ const QuotingModule: React.FC<Props> = ({
             </div>
             <button 
               onClick={() => setShowCouplingModal(false)}
-              className="w-full bg-slate-900 dark:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all"
+              className="w-full bg-slate-900 dark:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all"
             >
               Aplicar y Continuar
             </button>
@@ -1312,6 +1325,7 @@ const QuotingModule: React.FC<Props> = ({
                     </button>
                 </div>
                 <div className="grid grid-cols-12 gap-6 flex-1 overflow-hidden">
+                    {/* PANEL IZQUIERDO CON SCROLL MEJORADO PARA MODO MANUAL */}
                     <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar border-r border-slate-50 dark:border-slate-800 pr-6 pb-4">
                         {isManualDim && (
                             <div className="flex flex-col gap-4 p-5 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800 shrink-0 animate-in slide-in-from-top-2">

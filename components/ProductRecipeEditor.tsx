@@ -83,7 +83,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
       glassFormulaW: 'W - 50', 
       glassFormulaH: 'H - 50',
       isLocked: false,
-      transomThickness: 100 // Default para tubos
+      transomThickness: 100
     };
     setRecipes([...recipes, newRecipe]); 
     setEditingId(newRecipe.id);
@@ -228,8 +228,8 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                           <input className="bg-transparent border-none text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 outline-none w-24" value={recipe.line} onChange={e => updateRecipe(recipe.id, { line: e.target.value.toUpperCase() })} />
                         </div>
                         {isTubeType && (
-                          <div className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 rounded-xl border border-amber-200`}>
-                            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Espesor Tubo (mm):</span>
+                          <div className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 rounded-xl border border-amber-200 animate-in zoom-in`}>
+                            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Espesor (mm):</span>
                             <input 
                               type="number"
                               className="bg-transparent border-none text-[10px] font-black text-amber-700 dark:text-amber-400 outline-none w-16 text-center" 
