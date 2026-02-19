@@ -136,10 +136,14 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             recipe.profiles.forEach(rp => {
                 const pDef = aluminum.find(a => a.id === rp.profileId); if (!pDef) return;
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
+                
+                // Exclusión centralizada de Tapajuntas en el despiece de receta
                 const isTJ = role.includes('tapa') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
-                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
+                if (isTJ) return;
+
                 const isMosq = role.includes('mosquitero') || pDef.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
+                
                 const cutLen = evaluateFormula(rp.formula, modW, modH); if (cutLen <= 0) return;
                 const list = cutsByProfile.get(rp.profileId) || [];
                 for(let k=0; k < rp.quantity * item.quantity; k++) { list.push({ len: cutLen, type: recipe.type, cutStart: rp.cutStart || '90', cutEnd: rp.cutEnd || '90', label: itemCode }); }
@@ -189,8 +193,8 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             });
         });
 
-        // Lógica Tapajuntas de Conjunto: Registro Industrial de Piezas "Sobrantes"
-        if (item.extras.tapajuntas && isSet) {
+        // Lógica Tapajuntas Unificada: Solo si está activado
+        if (item.extras.tapajuntas) {
             const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
             const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
             
@@ -199,14 +203,13 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 const tjThick = Number(tjProfile.thickness || 30);
                 const { top, bottom, left, right } = item.extras.tapajuntasSides;
                 
-                // 1. Perímetro Exterior ÚNICAMENTE
                 if (top) { for(let k=0; k<item.quantity; k++) list.push({ len: item.width + (left?tjThick:0) + (right?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 if (bottom) { for(let k=0; k<item.quantity; k++) list.push({ len: item.width + (left?tjThick:0) + (right?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 if (left) { for(let k=0; k<item.quantity; k++) list.push({ len: item.height + (top?tjThick:0) + (bottom?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 if (right) { for(let k=0; k<item.quantity; k++) list.push({ len: item.height + (top?tjThick:0) + (bottom?tjThick:0), type: 'TJ Perímetro', cutStart: '45', cutEnd: '45', label: itemCode }); }
                 
-                // 2. Compensación por Desnivel (Diferencia expuesta donde NO hay acople)
-                if (item.composition.colRatios.length > 1) {
+                // Sobrantes por desnivel solo en conjuntos activos
+                if (isSet && item.composition.colRatios.length > 1) {
                     for (let x = minX; x < maxX; x++) {
                         for (let y = minY; y <= maxY; y++) {
                             const mL = validModules.find(m => m.x === x && m.y === y);
@@ -216,7 +219,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                                 const hR = (isManualDim && mR.height) ? mR.height : Number(rowRatios[y - minY] || 0);
                                 const diff = Math.abs(hL - hR);
                                 if (diff > 5) { 
-                                    // La pieza de compensación se corta a 90° ya que va contra el perfil del módulo vecino
                                     for(let k=0; k<item.quantity; k++) {
                                         list.push({ len: diff, type: 'TJ Sobrante Desnivel', cutStart: '90', cutEnd: '90', label: itemCode }); 
                                     }
@@ -225,7 +227,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                         }
                     }
                 }
-                if (item.composition.rowRatios.length > 1) {
+                if (isSet && item.composition.rowRatios.length > 1) {
                     for (let y = minY; y < maxY; y++) {
                         for (let x = minX; x <= maxX; x++) {
                             const mT = validModules.find(m => m.x === x && m.y === y);
@@ -364,8 +366,11 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             recipe.profiles.forEach(rp => {
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
                 const p = aluminum.find(a => a.id === rp.profileId); if (!p) return;
+                
+                // Exclusión centralizada de Tapajuntas en materiales individuales
                 const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
-                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
+                if (isTJ) return;
+
                 const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
                 const len = evaluateFormula(rp.formula, modW, modH); const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
@@ -409,7 +414,8 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             });
         });
 
-        if (item.extras.tapajuntas && isSet && validModules.length > 0) {
+        // Sumatoria Unificada de Tapajuntas en el pedido de materiales
+        if (item.extras.tapajuntas && validModules.length > 0) {
             const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
             const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
             if (tjProfile) {
@@ -421,7 +427,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (left) tjLenTotal += (item.height + (top?tjThick:0) + (bottom?tjThick:0));
                 if (right) tjLenTotal += (item.height + (top?tjThick:0) + (bottom?tjThick:0));
                 
-                if (item.composition.colRatios.length > 1) {
+                if (isSet && item.composition.colRatios.length > 1) {
                     for (let x = minX; x < maxX; x++) {
                         for (let y = minY; y <= maxY; y++) {
                             const mL = validModules.find(m => m.x === x && m.y === y);
@@ -670,8 +676,11 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             recipe.profiles.forEach(rp => {
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
                 const p = aluminum.find(a => a.id === rp.profileId);
+                
+                // Exclusión centralizada de Tapajuntas en hoja de taller
                 const isTJ = role.includes('tapa') || String(p?.code || '').toUpperCase().includes('TJ') || p?.id === recipe.defaultTapajuntasProfileId;
-                if (isTJ && (isSet || !item.extras.tapajuntas)) return;
+                if (isTJ) return;
+
                 const isMosq = role.includes('mosquitero') || p?.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
                 const cutLen = evaluateFormula(rp.formula, modW, modH);
@@ -734,6 +743,8 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 }
             }
         }
+        
+        // Sumatoria Unificada de Tapajuntas en la Hoja de Taller
         if (item.extras.tapajuntas) {
             const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
             const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
@@ -744,7 +755,6 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 if (left) profileCuts.push([tjProfile.code, 'Tapajunta Lateral L', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
                 if (right) profileCuts.push([tjProfile.code, 'Tapajunta Lateral R', Math.round(item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0)), 1, '45° / 45°']);
 
-                // REGISTRO DE TJ COMPENSACIÓN EN HOJA DE TALLER
                 if (isSet) {
                     for (let x = minX; x < maxX; x++) {
                         for (let y = minY; y <= maxY; y++) {

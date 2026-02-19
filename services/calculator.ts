@@ -118,8 +118,8 @@ export const calculateCompositePrice = (
     totalAluWeight += cWeight;
   }
 
-  // Cálculo de Tapajuntas para Conjuntos (Perímetro + Desniveles)
-  if (item.extras.tapajuntas && isSet && validModules.length > 0) {
+  // Cálculo de Tapajuntas Unificado (Para Individuales y Conjuntos)
+  if (item.extras.tapajuntas && validModules.length > 0) {
     const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
     const tjProfile = profiles.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
     if (tjProfile) {
@@ -133,8 +133,8 @@ export const calculateCompositePrice = (
       if (left) totalTjMm += (item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0));
       if (right) totalTjMm += (item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0));
       
-      // 2. Desniveles Verticales (H1 - H2)
-      if (colRatios.length > 1) {
+      // 2. Desniveles Verticales (Solo aplica en conjuntos)
+      if (isSet && colRatios.length > 1) {
         for (let x = minX; x < maxX; x++) {
           for (let y = minY; y <= maxY; y++) {
             const mL = validModules.find(m => m.x === x && m.y === y);
@@ -148,8 +148,8 @@ export const calculateCompositePrice = (
         }
       }
       
-      // 3. Desniveles Horizontales (W1 - W2)
-      if (rowRatios.length > 1) {
+      // 3. Desniveles Horizontales (Solo aplica en conjuntos)
+      if (isSet && rowRatios.length > 1) {
         for (let y = minY; y < maxY; y++) {
           for (let x = minX; x <= maxX; x++) {
             const mT = validModules.find(m => m.x === x && m.y === y);
@@ -208,13 +208,13 @@ export const calculateItemPrice = (
 
   const activeProfiles = (recipe.profiles || []).filter(rp => {
     const role = (rp.role || '').toLowerCase();
-    if (role.includes('trave')) return false;
-
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
+    // Filtro estricto de Tapajuntas: Siempre se excluyen de la receta base 
+    // para ser manejados por el cálculo centralizado de perímetro/lados activos.
     const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
-    if (isTJ && (isSet || !extras?.tapajuntas)) return false;
+    if (isTJ) return false;
 
     const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
     if (isMosq && !extras?.mosquitero) return false;
