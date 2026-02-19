@@ -63,6 +63,12 @@ const DatabaseCRUD: React.FC<Props> = ({
     if (['unidad', 'unit', 'medida', 'tipo'].includes(k)) return 'unit';
     if (['hex', 'color', 'hexcolor', 'html', 'codigo_color'].includes(k)) return 'hexColor';
     if (['espejo', 'mirror', 'is_mirror', 'reflectante'].includes(k)) return 'isMirror';
+    
+    // Contravidrios
+    if (['contravidrio', 'es_contravidrio', 'is_glazing_bead', 'bead'].includes(k)) return 'isGlazingBead';
+    if (['estilo', 'style', 'bead_style', 'tipo_contravidrio'].includes(k)) return 'glazingBeadStyle';
+    if (['min_vidrio', 'min_glass', 'vidrio_min', 'glass_min'].includes(k)) return 'minGlassThickness';
+    if (['max_vidrio', 'max_glass', 'vidrio_max', 'glass_max'].includes(k)) return 'maxGlassThickness';
 
     return k;
   };
@@ -71,7 +77,18 @@ const DatabaseCRUD: React.FC<Props> = ({
     const wb = XLSX.utils.book_new();
     
     // Generar datos con nombres de columna exactos pedidos por el usuario
-    const exportAlu = aluminum.map(p => ({ "Código": p.code, "Descripción": p.detail, "Peso_KG_M": p.weightPerMeter, "Largo_M": p.barLength, "Espesor_MM": p.thickness, "Costo_Extra": p.treatmentCost }));
+    const exportAlu = aluminum.map(p => ({ 
+      "Código": p.code, 
+      "Descripción": p.detail, 
+      "Peso_KG_M": p.weightPerMeter, 
+      "Largo_M": p.barLength, 
+      "Espesor_MM": p.thickness, 
+      "Costo_Extra": p.treatmentCost,
+      "Es_Contravidrio": p.isGlazingBead ? 'SI' : 'NO',
+      "Estilo_Contravidrio": p.glazingBeadStyle || '',
+      "Min_Vidrio": p.minGlassThickness || 0,
+      "Max_Vidrio": p.maxGlassThickness || 0
+    }));
     const exportGlass = glasses.map(g => ({ "Código": g.code, "Descripción": g.detail, "Ancho_MM": g.width, "Alto_MM": g.height, "Precio_M2": g.pricePerM2, "Es_Espejo": g.isMirror ? 'SI' : 'NO' }));
     const exportAcc = accessories.map(a => ({ "Código": a.code, "Descripción": a.detail, "Costo": a.unitPrice }));
     const exportBlind = blindPanels.map(b => ({ "Código": b.code, "Descripción": b.detail, "Costo": b.price, "Unidad": b.unit }));
@@ -124,6 +141,12 @@ const DatabaseCRUD: React.FC<Props> = ({
                     if (normKey === 'isMirror') {
                         val = String(val).toUpperCase().includes('SI') || val === true || val === 1;
                     }
+                    if (normKey === 'isGlazingBead') {
+                        val = String(val).toUpperCase().includes('SI') || val === true || val === 1;
+                    }
+                    if (normKey === 'minGlassThickness' || normKey === 'maxGlassThickness') {
+                        val = parseFloat(String(val).replace(',', '.')) || 0;
+                    }
                     normalizedRow[normKey] = val;
                 });
                 return normalizedRow;
@@ -157,7 +180,7 @@ const DatabaseCRUD: React.FC<Props> = ({
     switch (activeSubTab) {
       case 'aluminum':
         return (
-          <TableWrapper headers={['Cód. Perfil', 'Descripción', 'Peso (KG/M)', 'Largo (M)', 'Espesor DB', 'Costo Extra', 'Acciones']} onAdd={() => setAluminum([...aluminum, { id: Date.now().toString(), code: 'NUEVO', detail: 'Nuevo Perfil', weightPerMeter: 0, barLength: 6, treatmentCost: 0, thickness: 0 }])}>
+          <TableWrapper headers={['Cód. Perfil', 'Descripción', 'Peso (KG/M)', 'Largo (M)', 'Espesor DB', 'Costo Extra', 'Contravidrio?', 'Estilo', 'Rango Vidrio', 'Acciones']} onAdd={() => setAluminum([...aluminum, { id: Date.now().toString(), code: 'NUEVO', detail: 'Nuevo Perfil', weightPerMeter: 0, barLength: 6, treatmentCost: 0, thickness: 0, isGlazingBead: false, minGlassThickness: 0, maxGlassThickness: 0 }])}>
             {aluminum.filter(p => filter(p.code) || filter(p.detail)).map((item) => (
               <tr key={item.id} className="row-style group">
                 <td className="cell-style"><input className="input-technical font-black text-indigo-800 uppercase" value={item.code} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
@@ -166,6 +189,50 @@ const DatabaseCRUD: React.FC<Props> = ({
                 <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-slate-900" value={item.barLength} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, barLength: parseFloat(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-indigo-600 bg-indigo-50/50 rounded-lg px-2" value={item.thickness} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><div className="flex items-center text-slate-400 font-mono font-bold">$<input type="number" className="bg-transparent w-16 outline-none" value={item.treatmentCost} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, treatmentCost: parseFloat(e.target.value) || 0} : x))} /></div></td>
+                
+                {/* Nuevas columnas para Contravidrios */}
+                <td className="cell-style text-center">
+                    <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded cursor-pointer accent-indigo-600" 
+                        checked={item.isGlazingBead || false} 
+                        onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, isGlazingBead: e.target.checked} : x))} 
+                    />
+                </td>
+                <td className="cell-style">
+                    {item.isGlazingBead && (
+                        <select 
+                            className="bg-transparent text-[10px] font-black uppercase outline-none text-indigo-600"
+                            value={item.glazingBeadStyle || 'Recto'}
+                            onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, glazingBeadStyle: e.target.value as any} : x))}
+                        >
+                            <option value="Recto">Recto</option>
+                            <option value="Curvo">Curvo</option>
+                        </select>
+                    )}
+                </td>
+                <td className="cell-style">
+                    {item.isGlazingBead && (
+                        <div className="flex items-center gap-1">
+                            <input 
+                                type="number" 
+                                className="w-8 bg-slate-100 dark:bg-slate-800 rounded px-1 text-[9px] font-mono text-center" 
+                                placeholder="Min"
+                                value={item.minGlassThickness || 0}
+                                onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, minGlassThickness: parseFloat(e.target.value) || 0} : x))}
+                            />
+                            <span className="text-[8px] text-slate-400">-</span>
+                            <input 
+                                type="number" 
+                                className="w-8 bg-slate-100 dark:bg-slate-800 rounded px-1 text-[9px] font-mono text-center" 
+                                placeholder="Max"
+                                value={item.maxGlassThickness || 0}
+                                onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, maxGlassThickness: parseFloat(e.target.value) || 0} : x))}
+                            />
+                        </div>
+                    )}
+                </td>
+
                 <td className="cell-style text-right"><button onClick={() => setAluminum(aluminum.filter(x => x.id !== item.id))} className="btn-delete"><Trash2 size={14} /></button></td>
               </tr>
             ))}

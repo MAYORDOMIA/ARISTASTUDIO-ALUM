@@ -253,7 +253,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                         <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-slate-50/50 dark:bg-slate-800/30 p-2 rounded-xl border border-slate-100 dark:border-slate-700 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100">
                             <div className="col-span-2">
                                 <select className="w-full bg-transparent text-[9px] font-black uppercase outline-none dark:text-white" value={rp.role || 'Marco'} onChange={e => { const updated = [...recipe.profiles]; updated[idx].role = e.target.value as any; updateRecipe(recipe.id, { profiles: updated }); }}>
-                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Tapajuntas', 'Mosquitero', 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
+                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Tapajuntas', 'Mosquitero', 'Contravidrio', 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
                             </div>
                             <div className="col-span-2">
@@ -278,6 +278,65 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                         <button key={deg} onClick={() => { const updated = [...recipe.profiles]; updated[idx].cutEnd = deg as any; updateRecipe(recipe.id, { profiles: updated }); }} className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutEnd === deg ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>{deg}°</button>
                                     ))}
                                 </div>
+                                {rp.role === 'Contravidrio' && (
+                                    <div className="relative group/bead">
+                                        <button 
+                                            onClick={() => {
+                                                const currentOptions = rp.glazingBeadOptions || [];
+                                                // Lógica simple: si no tiene opciones, inicializar con el perfil actual
+                                                if (currentOptions.length === 0) {
+                                                    const updated = [...recipe.profiles];
+                                                    updated[idx].glazingBeadOptions = [rp.profileId];
+                                                    updateRecipe(recipe.id, { profiles: updated });
+                                                }
+                                                // Aquí idealmente abriríamos un modal, pero por simplicidad usaremos un prompt o expandiremos la UI
+                                                // Para mantener la UI limpia, usaremos un selector múltiple en línea si se hace clic
+                                                const newOptions = prompt("Ingrese IDs de perfiles compatibles separados por coma (o use el botón de abajo para gestionar mejor):", currentOptions.join(','));
+                                                if (newOptions !== null) {
+                                                    const updated = [...recipe.profiles];
+                                                    updated[idx].glazingBeadOptions = newOptions.split(',').map(s => s.trim()).filter(Boolean);
+                                                    updateRecipe(recipe.id, { profiles: updated });
+                                                }
+                                            }}
+                                            className={`w-full text-[7px] font-black uppercase py-1 rounded border ${rp.glazingBeadOptions?.length ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                                        >
+                                            {rp.glazingBeadOptions?.length ? `${rp.glazingBeadOptions.length} OPCIONES` : 'DINÁMICO'}
+                                        </button>
+                                        
+                                        {/* Selector de Opciones de Contravidrio (Dropdown) */}
+                                        <div className="hidden group-hover/bead:block absolute top-full right-0 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-xl p-2 z-50 mt-1">
+                                            <p className="text-[8px] font-black uppercase text-slate-400 mb-2">Seleccionar Compatibles:</p>
+                                            <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                                                {aluminum.filter(a => a.isGlazingBead).map(bead => (
+                                                    <label key={bead.id} className="flex items-center gap-2 p-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded cursor-pointer">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="rounded accent-indigo-600"
+                                                            checked={(rp.glazingBeadOptions || []).includes(bead.id)}
+                                                            onChange={(e) => {
+                                                                const updated = [...recipe.profiles];
+                                                                const current = updated[idx].glazingBeadOptions || [];
+                                                                if (e.target.checked) {
+                                                                    updated[idx].glazingBeadOptions = [...current, bead.id];
+                                                                } else {
+                                                                    updated[idx].glazingBeadOptions = current.filter(id => id !== bead.id);
+                                                                }
+                                                                updateRecipe(recipe.id, { profiles: updated });
+                                                            }}
+                                                        />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[9px] font-bold dark:text-white">{bead.code}</span>
+                                                            <span className="text-[7px] text-slate-400">{bead.glazingBeadStyle} | {bead.minGlassThickness}-{bead.maxGlassThickness}mm</span>
+                                                        </div>
+                                                    </label>
+                                                ))}
+                                                {aluminum.filter(a => a.isGlazingBead).length === 0 && (
+                                                    <p className="text-[8px] text-red-400">No hay perfiles marcados como contravidrio en la base de datos.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="col-span-1 text-right">
                                 <button onClick={() => updateRecipe(recipe.id, { profiles: recipe.profiles.filter((_, i) => i !== idx) })} className="text-slate-300 hover:text-red-500 p-1"><Trash2 size={14} /></button>

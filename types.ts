@@ -20,6 +20,12 @@ export interface AluminumProfile {
   barLength: number;
   treatmentCost: number; 
   thickness: number; 
+  
+  // Propiedades para Contravidrios Dinámicos
+  isGlazingBead?: boolean;
+  glazingBeadStyle?: 'Recto' | 'Curvo';
+  minGlassThickness?: number;
+  maxGlassThickness?: number;
 }
 
 export interface Glass {
@@ -67,7 +73,10 @@ export interface RecipeProfile {
   formula: string; 
   cutStart: '45' | '90';
   cutEnd: '45' | '90';
-  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Tapajuntas' | 'Mosquitero' | 'Otro';
+  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Tapajuntas' | 'Mosquitero' | 'Contravidrio' | 'Otro';
+  
+  // Para contravidrios dinámicos: lista de IDs de perfiles compatibles
+  glazingBeadOptions?: string[]; 
 }
 
 export interface RecipeAccessory {

@@ -164,8 +164,8 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-slate-950 text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
-      <aside className={`transition-all duration-300 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
+    <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#1c1c1c] text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
+      <aside className={`transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
         <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
           {isSidebarOpen && (
             <div className="flex items-center gap-2">
@@ -217,7 +217,7 @@ const App: React.FC = () => {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shadow-sm z-10 transition-colors">
+        <header className="h-16 bg-white dark:bg-[#252525] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shadow-sm z-10 transition-colors">
           <div className="flex items-center gap-4">
             <h1 className="text-sm font-black uppercase tracking-[0.2em] text-[#0f172a] dark:text-white">
               {MENU_ITEMS.find(m => m.id === activeTab)?.label || activeTab}
@@ -240,7 +240,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <section className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-[#f8fafc] dark:bg-slate-950 transition-colors">
+        <section className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-[#f8fafc] dark:bg-[#1c1c1c] transition-colors">
           {activeTab === 'database' && <DatabaseCRUD aluminum={aluminum} setAluminum={setAluminum} glasses={glasses} setGlasses={setGlasses} blindPanels={blindPanels} setBlindPanels={setBlindPanels} accessories={accessories} setAccessories={setAccessories} dvhInputs={dvhInputs} setDvhInputs={setDvhInputs} treatments={treatments} setTreatments={setTreatments} config={config} setConfig={setConfig} />}
           {activeTab === 'recipes' && <ProductRecipeEditor recipes={recipes} setRecipes={setRecipes} aluminum={aluminum} accessories={accessories} customVisualTypes={customVisualTypes} setCustomVisualTypes={setCustomVisualTypes} glasses={glasses} treatments={treatments} dvhInputs={dvhInputs} config={config} />}
           {activeTab === 'quoter' && (
@@ -275,7 +275,7 @@ const App: React.FC = () => {
           {activeTab === 'config' && (
               <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+                    <div className="bg-white dark:bg-[#252525] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
                         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-4"><Zap size={14} /> Económicos y Técnicos</h2>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
@@ -304,7 +304,7 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="bg-white dark:bg-[#252525] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
                         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-4"><Building2 size={14} /> Identidad Corporativa</h2>
                         <div className="space-y-3">
                             <div className="space-y-1">

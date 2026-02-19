@@ -562,6 +562,7 @@ const QuotingModule: React.FC<Props> = ({
   const [showSlatSelector, setShowSlatSelector] = useState(false);
   const [slatPaneIdx, setSlatPaneIdx] = useState<number | null>(null);
   const [slatSearch, setSlatSearch] = useState('');
+  const [glazingBeadStyle, setGlazingBeadStyle] = useState<'Recto' | 'Curvo'>('Recto');
 
   const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -630,12 +631,12 @@ const QuotingModule: React.FC<Props> = ({
           },
           couplingProfileId, extras: { ...extras }, calculatedCost: 0
         };
-        const { breakdown } = calculateCompositePrice(tempItem, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
+        const { breakdown } = calculateCompositePrice(tempItem, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels, glazingBeadStyle);
         return breakdown;
     } catch(e) {
         return null;
     }
-  }, [totalWidth, totalHeight, itemCode, modules, colSizes, rowSizes, couplingDeduction, extras, colorId, couplingProfileId, recipes, aluminum, config, treatments, glasses, accessories, dvhInputs, blindPanels, quantity, isManualDim]);
+  }, [totalWidth, totalHeight, itemCode, modules, colSizes, rowSizes, couplingDeduction, extras, colorId, couplingProfileId, recipes, aluminum, config, treatments, glasses, accessories, dvhInputs, blindPanels, quantity, isManualDim, glazingBeadStyle]);
 
   const updateModule = (id: string, data: Partial<MeasurementModule>) => {
     setModules(prev => (prev || []).map(m => (m && m.id === id ? { ...m, ...data } : m)));
@@ -774,7 +775,7 @@ const QuotingModule: React.FC<Props> = ({
           isManualDim: isManualDim
       },
       couplingProfileId, extras: { ...extras }, calculatedCost: 0
-    }, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels);
+    }, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels, glazingBeadStyle);
     const tempItem: QuoteItem = {
       id: Date.now().toString(), itemCode: itemCode || `POS#${currentWorkItems.length + 1}`, width: totalWidth, height: totalHeight, colorId, quantity,
       composition: { 
@@ -996,6 +997,13 @@ const QuotingModule: React.FC<Props> = ({
     };
   }, [isDragging, isDraggingBreakdown]);
 
+  const hasDynamicBeads = useMemo(() => {
+      const rId = modules[0]?.recipeId;
+      if (!rId) return false;
+      const r = recipes.find(x => x.id === rId);
+      return r?.profiles.some(p => p.glazingBeadOptions && p.glazingBeadOptions.length > 0);
+  }, [modules, recipes]);
+
   const filteredSlats = useMemo(() => {
     return aluminum.filter(a => 
       a.code.toLowerCase().includes(slatSearch.toLowerCase()) || 
@@ -1012,6 +1020,28 @@ const QuotingModule: React.FC<Props> = ({
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
                 <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-12 px-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-sm focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
             </div>
+
+            {/* Selector de Estilo de Contravidrio (Solo si aplica) */}
+            {hasDynamicBeads && (
+                <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 animate-in slide-in-from-top-2 space-y-2">
+                    <label className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-widest flex items-center gap-2"><Settings size={12}/> Estilo de Contravidrio</label>
+                    <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <button 
+                            onClick={() => setGlazingBeadStyle('Recto')}
+                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Recto' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                        >
+                            Recto
+                        </button>
+                        <button 
+                            onClick={() => setGlazingBeadStyle('Curvo')}
+                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Curvo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                        >
+                            Curvo
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Ancho Total</label>
