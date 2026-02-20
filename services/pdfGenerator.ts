@@ -153,22 +153,26 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 let pDef = aluminum.find(a => a.id === rp.profileId); 
                 
                 // Lógica de Contravidrio Dinámico
-                if (rp.glazingBeadOptions && rp.glazingBeadOptions.length > 0) {
-                    const candidates = aluminum.filter(p => rp.glazingBeadOptions?.includes(p.id));
+                if (rp.glazingBeadOptions && Array.isArray(rp.glazingBeadOptions) && rp.glazingBeadOptions.length > 0) {
+                    const candidates = aluminum.filter(p => (rp.glazingBeadOptions || []).includes(p.id));
                     let styleMatches = candidates.filter(p => p.glazingBeadStyle === beadStyle);
                     if (styleMatches.length === 0) styleMatches = candidates;
-                    const thicknessMatch = styleMatches.find(p => {
-                        const min = p.minGlassThickness || 0; const max = p.maxGlassThickness || 100;
+                    
+                    let bestMatch = styleMatches.find(p => {
+                        const min = p.minGlassThickness || 0; 
+                        const max = p.maxGlassThickness || 100;
                         return totalGlassThick >= min && totalGlassThick <= max;
                     });
-                    if (thicknessMatch) { pDef = thicknessMatch; }
-                    else {
-                        const anyMatch = candidates.find(p => {
-                            const min = p.minGlassThickness || 0; const max = p.maxGlassThickness || 100;
+
+                    if (!bestMatch) {
+                        bestMatch = candidates.find(p => {
+                            const min = p.minGlassThickness || 0; 
+                            const max = p.maxGlassThickness || 100;
                             return totalGlassThick >= min && totalGlassThick <= max;
                         });
-                        if (anyMatch) pDef = anyMatch;
                     }
+
+                    if (bestMatch) pDef = bestMatch;
                 }
 
                 if (!pDef) return;
@@ -400,9 +404,50 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
             const recipeTransomQty = transomTemplate?.quantity || 1;
+            
+            // Cálculo de espesor de vidrio para selección dinámica
+            const gOuter = glasses.find(g => g.id === mod.glassOuterId);
+            const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
+            const dvhCam = mod.isDVH ? dvhInputs.find(i => i.id === mod.dvhCameraId) : null;
+            let camThick = 12;
+            if (dvhCam) { const m = dvhCam.detail.match(/(\d+)\s*mm/i); if (m) camThick = parseInt(m[1]); }
+            const getThick = (g: any) => {
+                if (!g) return 0;
+                const m = g.detail.match(/(\d+)\s*mm/i); if (m) return parseInt(m[1]);
+                const mc = g.code.match(/(\d+)\s*mm/i); if (mc) return parseInt(mc[1]);
+                return 4;
+            };
+            const totalGlassThick = getThick(gOuter) + (mod.isDVH ? (getThick(gInner) + camThick) : 0);
+            const beadStyle = (item as any).glazingBeadStyle || 'Recto';
+
             recipe.profiles.forEach(rp => {
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
-                const p = aluminum.find(a => a.id === rp.profileId); if (!p) return;
+                let p = aluminum.find(a => a.id === rp.profileId);
+                
+                // Lógica de Contravidrio Dinámico
+                if (rp.glazingBeadOptions && Array.isArray(rp.glazingBeadOptions) && rp.glazingBeadOptions.length > 0) {
+                    const candidates = aluminum.filter(pf => (rp.glazingBeadOptions || []).includes(pf.id));
+                    let styleMatches = candidates.filter(pf => pf.glazingBeadStyle === beadStyle);
+                    if (styleMatches.length === 0) styleMatches = candidates;
+                    
+                    let bestMatch = styleMatches.find(pf => {
+                        const min = pf.minGlassThickness || 0; 
+                        const max = pf.maxGlassThickness || 100;
+                        return totalGlassThick >= min && totalGlassThick <= max;
+                    });
+
+                    if (!bestMatch) {
+                        bestMatch = candidates.find(pf => {
+                            const min = pf.minGlassThickness || 0; 
+                            const max = pf.maxGlassThickness || 100;
+                            return totalGlassThick >= min && totalGlassThick <= max;
+                        });
+                    }
+
+                    if (bestMatch) p = bestMatch;
+                }
+
+                if (!p) return;
                 
                 // Exclusión centralizada de Tapajuntas en materiales individuales
                 const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
@@ -731,22 +776,26 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 let p = aluminum.find(a => a.id === rp.profileId);
                 
                 // Lógica de Contravidrio Dinámico
-                if (rp.glazingBeadOptions && rp.glazingBeadOptions.length > 0) {
-                    const candidates = aluminum.filter(pf => rp.glazingBeadOptions?.includes(pf.id));
+                if (rp.glazingBeadOptions && Array.isArray(rp.glazingBeadOptions) && rp.glazingBeadOptions.length > 0) {
+                    const candidates = aluminum.filter(pf => (rp.glazingBeadOptions || []).includes(pf.id));
                     let styleMatches = candidates.filter(pf => pf.glazingBeadStyle === beadStyle);
                     if (styleMatches.length === 0) styleMatches = candidates;
-                    const thicknessMatch = styleMatches.find(pf => {
-                        const min = pf.minGlassThickness || 0; const max = pf.maxGlassThickness || 100;
+                    
+                    let bestMatch = styleMatches.find(pf => {
+                        const min = pf.minGlassThickness || 0; 
+                        const max = pf.maxGlassThickness || 100;
                         return totalGlassThick >= min && totalGlassThick <= max;
                     });
-                    if (thicknessMatch) { p = thicknessMatch; }
-                    else {
-                        const anyMatch = candidates.find(pf => {
-                            const min = pf.minGlassThickness || 0; const max = pf.maxGlassThickness || 100;
+
+                    if (!bestMatch) {
+                        bestMatch = candidates.find(pf => {
+                            const min = pf.minGlassThickness || 0; 
+                            const max = pf.maxGlassThickness || 100;
                             return totalGlassThick >= min && totalGlassThick <= max;
                         });
-                        if (anyMatch) p = anyMatch;
                     }
+
+                    if (bestMatch) p = bestMatch;
                 }
                 
                 // Exclusión centralizada de Tapajuntas en hoja de taller

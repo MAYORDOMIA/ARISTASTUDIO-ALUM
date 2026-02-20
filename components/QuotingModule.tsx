@@ -785,7 +785,8 @@ const QuotingModule: React.FC<Props> = ({
           couplingDeduction: Number(couplingDeduction || 0),
           isManualDim: isManualDim
       },
-      couplingProfileId, extras: { ...extras }, calculatedCost: Math.round(finalPrice), previewImage, breakdown
+      couplingProfileId, extras: { ...extras }, calculatedCost: Math.round(finalPrice), previewImage, breakdown,
+      glazingBeadStyle
     };
     setCurrentWorkItems([...currentWorkItems, tempItem]);
     if (onUpdateActiveItem) onUpdateActiveItem(tempItem);

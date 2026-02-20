@@ -184,6 +184,7 @@ export interface QuoteItem {
     };
   };
   couplingProfileId?: string;
+  glazingBeadStyle?: 'Recto' | 'Curvo';
 }
 
 export interface Quote {
