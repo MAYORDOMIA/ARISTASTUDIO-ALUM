@@ -94,7 +94,7 @@ const getModuleGlassPanes = (
     return panes;
 };
 
-export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], config: GlobalConfig, blindPanels: BlindPanel[]) => {
+export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], config: GlobalConfig, blindPanels: BlindPanel[], glasses: Glass[], dvhInputs: DVHInput[]) => {
     const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F');
@@ -186,9 +186,9 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 if (isMosq && !item.extras.mosquitero) return;
                 
                 const cutLen = evaluateFormula(rp.formula, modW, modH); if (cutLen <= 0) return;
-                const list = cutsByProfile.get(rp.profileId) || [];
+                const list = cutsByProfile.get(pDef.id) || [];
                 for(let k=0; k < rp.quantity * item.quantity; k++) { list.push({ len: cutLen, type: recipe.type, cutStart: rp.cutStart || '90', cutEnd: rp.cutEnd || '90', label: itemCode }); }
-                cutsByProfile.set(rp.profileId, list);
+                cutsByProfile.set(pDef.id, list);
             });
             if (mod.transoms && mod.transoms.length > 0) {
               mod.transoms.forEach(t => {

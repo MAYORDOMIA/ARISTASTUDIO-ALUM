@@ -71,7 +71,7 @@ const QuotesHistory: React.FC<Props> = ({
           generateMaterialsOrderPDF(quote, recipes, aluminum, accessories, glasses, dvhInputs, config, blindPanels); 
           break;
         case 'barras': 
-          generateBarOptimizationPDF(quote, recipes, aluminum, config, blindPanels); 
+          generateBarOptimizationPDF(quote, recipes, aluminum, config, blindPanels, glasses, dvhInputs); 
           break;
         case 'vidrios': 
           generateGlassOptimizationPDF(quote, recipes, glasses, aluminum, dvhInputs, blindPanels); 
