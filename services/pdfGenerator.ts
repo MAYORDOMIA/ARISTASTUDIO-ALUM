@@ -237,7 +237,13 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         // Lógica Tapajuntas Unificada: Solo si está activado
         if (item.extras.tapajuntas) {
             const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
-            const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            let tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            
+            // Fallback: Si no hay default configurado, buscar el primer perfil con rol Tapajuntas en la receta
+            if (!tjProfile && firstRecipe) {
+                const tjRef = firstRecipe.profiles.find(p => p.role === 'Tapajuntas');
+                if (tjRef) tjProfile = aluminum.find(p => p.id === tjRef.profileId);
+            }
             
             if (tjProfile) {
                 const list = cutsByProfile.get(tjProfile.id) || [];
@@ -499,7 +505,14 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         // Sumatoria Unificada de Tapajuntas en el pedido de materiales
         if (item.extras.tapajuntas && validModules.length > 0) {
             const firstRecipe = recipes.find(r => r.id === validModules[0].recipeId);
-            const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            let tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            
+            // Fallback: Si no hay default configurado, buscar el primer perfil con rol Tapajuntas en la receta
+            if (!tjProfile && firstRecipe) {
+                const tjRef = firstRecipe.profiles.find(p => p.role === 'Tapajuntas');
+                if (tjRef) tjProfile = aluminum.find(p => p.id === tjRef.profileId);
+            }
+
             if (tjProfile) {
                 const tjThick = Number(tjProfile.thickness || 30);
                 const { top, bottom, left, right } = item.extras.tapajuntasSides;
@@ -868,7 +881,14 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         // Sumatoria Unificada de Tapajuntas en la Hoja de Taller
         if (item.extras.tapajuntas) {
             const firstRecipe = recipes.find(r => r.id === item.composition.modules[0].recipeId);
-            const tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            let tjProfile = aluminum.find(p => p.id === firstRecipe?.defaultTapajuntasProfileId);
+            
+            // Fallback
+            if (!tjProfile && firstRecipe) {
+                const tjRef = firstRecipe.profiles.find(p => p.role === 'Tapajuntas');
+                if (tjRef) tjProfile = aluminum.find(p => p.id === tjRef.profileId);
+            }
+
             if (tjProfile) {
                 const tjThick = Number(tjProfile.thickness || 30); const { top, bottom, left, right } = item.extras.tapajuntasSides;
                 if (top) profileCuts.push([tjProfile.code, 'Tapajunta Superior', Math.round(item.width + (left ? tjThick : 0) + (right ? tjThick : 0)), 1, '45° / 45°']);
