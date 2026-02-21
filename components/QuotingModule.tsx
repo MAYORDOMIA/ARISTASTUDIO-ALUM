@@ -790,7 +790,22 @@ const QuotingModule: React.FC<Props> = ({
     };
     setCurrentWorkItems([...currentWorkItems, tempItem]);
     if (onUpdateActiveItem) onUpdateActiveItem(tempItem);
-    setItemCode(''); 
+    
+    // Autoincremento inteligente de código (V1 -> V2, P-01 -> P-02)
+    const match = (itemCode || '').match(/^([a-zA-Z]+[-_\s]*)(\d+)$/);
+    if (match) {
+        const prefix = match[1];
+        const numStr = match[2];
+        const num = parseInt(numStr);
+        const nextNum = num + 1;
+        // Preservar ceros a la izquierda si existen (ej: 01 -> 02)
+        const nextNumStr = numStr.length > 1 && numStr.startsWith('0') 
+            ? nextNum.toString().padStart(numStr.length, '0') 
+            : nextNum.toString();
+        setItemCode(`${prefix}${nextNumStr}`);
+    } else {
+        setItemCode(''); 
+    }
   };
 
   useEffect(() => {

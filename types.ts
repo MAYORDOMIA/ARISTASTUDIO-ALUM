@@ -86,6 +86,8 @@ export interface RecipeAccessory {
   formula?: string;   
   label?: string;       // Nueva etiqueta para agrupar opciones
   isAlternative?: boolean; // Marca si es una opción secundaria (no se suma por defecto)
+  isSpaced?: boolean;
+  spacingMm?: number;
 }
 
 export type VisualOpeningType = string;

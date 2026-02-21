@@ -366,9 +366,10 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                         </select>
                                         <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400" />
                                     </div>
-                                    <div className="flex bg-slate-200 dark:bg-slate-700 p-0.5 rounded-lg h-8 items-center min-w-[60px]">
-                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${!ra.isLinear ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-400'}`}>U</button>
-                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = true; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isLinear ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>ML</button>
+                                    <div className="flex bg-slate-200 dark:bg-slate-700 p-0.5 rounded-lg h-8 items-center min-w-[90px]">
+                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updated[idx].isSpaced = false; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${!ra.isLinear && !ra.isSpaced ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-white shadow-sm' : 'text-slate-400'}`}>U</button>
+                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = true; updated[idx].isSpaced = false; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isLinear ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>ML</button>
+                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updated[idx].isSpaced = true; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isSpaced ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400'}`}>CLIPS</button>
                                     </div>
                                     <button 
                                         onClick={() => { const updated = [...recipe.accessories]; updated[idx].isAlternative = !updated[idx].isAlternative; updateRecipe(recipe.id, { accessories: updated }); }}
@@ -388,10 +389,18 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                           onChange={e => { const updated = [...recipe.accessories]; updated[idx].label = e.target.value.toUpperCase(); updateRecipe(recipe.id, { accessories: updated }); }}
                                         />
                                     </div>
-                                    <input type="number" className="w-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 rounded text-center font-black text-[10px] dark:text-white" value={ra.quantity} onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
-                                    <span className="text-[8px] font-black text-slate-400 uppercase">{ra.isLinear ? 'ML' : 'UNID'}</span>
+                                    {!ra.isSpaced && (
+                                        <input type="number" className="w-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 rounded text-center font-black text-[10px] dark:text-white" value={ra.quantity} onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                    )}
+                                    <span className="text-[8px] font-black text-slate-400 uppercase">{ra.isLinear ? 'ML' : ra.isSpaced ? 'C/MM' : 'UNID'}</span>
                                     {ra.isLinear && (
                                         <input className="flex-1 bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 h-7 px-2 rounded font-mono text-[9px] font-black text-indigo-600 dark:text-indigo-400 outline-none" placeholder="Fórmula (W/H)" value={ra.formula} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                    )}
+                                    {ra.isSpaced && (
+                                        <div className="flex gap-1 items-center flex-[2]">
+                                            <input className="w-12 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 h-7 px-1 rounded text-center font-mono text-[9px] font-black text-amber-600 outline-none" placeholder="mm" type="number" value={ra.spacingMm || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].spacingMm = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                            <input className="flex-1 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 h-7 px-2 rounded font-mono text-[9px] font-black text-amber-600 outline-none" placeholder="Longitud (W/H)" value={ra.formula} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                        </div>
                                     )}
                                 </div>
                             </div>

@@ -630,6 +630,11 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
                     const lengthMm = evaluateFormula(ra.formula, panes[0]?.w || 1000, panes[0]?.h || 1000); 
                     existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+                } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
+                    const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+                    const lengthMm = evaluateFormula(ra.formula, panes[0]?.w || 1000, panes[0]?.h || 1000);
+                    const count = Math.ceil(lengthMm / ra.spacingMm);
+                    existing.qty += count * (ra.quantity || 1) * item.quantity;
                 } else { existing.qty += (ra.quantity * item.quantity); }
                 accSummary.set(acc.id, existing);
             });

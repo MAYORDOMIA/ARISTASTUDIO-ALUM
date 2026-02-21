@@ -382,6 +382,10 @@ export const calculateItemPrice = (
         const lengthMm = evaluateFormula(ra.formula, width, height);
         const totalMeters = (lengthMm / 1000) * Number(ra.quantity || 0);
         accCost += uPrice * totalMeters;
+      } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
+        const lengthMm = evaluateFormula(ra.formula, width, height);
+        const count = Math.ceil(lengthMm / ra.spacingMm);
+        accCost += uPrice * count * Number(ra.quantity || 1);
       } else {
         accCost += uPrice * Number(ra.quantity || 0);
       }
