@@ -1467,7 +1467,8 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="space-y-4">
                             <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest border-l-4 border-indigo-600 pl-3 flex items-center gap-2"><Layers size={14} /> Paños y Llenado</h4>
                             <div className="space-y-3">
-                                {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, paneIdx) => {
+                                {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, i, arr) => {
+                                    const paneIdx = arr.length - 1 - i; // Invertir el índice para mostrar superior primero
                                     const isBlind = (currentModForEdit.blindPanes || []).includes(paneIdx);
                                     const infillType = isBlind ? 'ciego' : (currentModForEdit.isDVH ? 'dvh' : 'vs');
                                     return (
