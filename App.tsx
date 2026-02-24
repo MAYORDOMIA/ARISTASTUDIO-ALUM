@@ -273,54 +273,54 @@ const App: React.FC = () => {
           )}
           {activeTab === 'history' && <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} blindPanels={blindPanels} />}
           {activeTab === 'config' && (
-              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white dark:bg-[#252525] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-4"><Zap size={14} /> Económicos y Técnicos</h2>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
+              <div className="max-w-4xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="bg-white dark:bg-[#252525] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-1"><Zap size={14} /> Económicos y Técnicos</h2>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Alu Crudo ($/KG)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.aluminumPricePerKg} onChange={(e) => setConfig({...config, aluminumPricePerKg: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.aluminumPricePerKg} onChange={(e) => setConfig({...config, aluminumPricePerKg: parseFloat(e.target.value) || 0})} />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Margen Obra %</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.laborPercentage} onChange={(e) => setConfig({...config, laborPercentage: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.laborPercentage} onChange={(e) => setConfig({...config, laborPercentage: parseFloat(e.target.value) || 0})} />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">IVA %</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.taxRate} onChange={(e) => setConfig({...config, taxRate: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.taxRate} onChange={(e) => setConfig({...config, taxRate: parseFloat(e.target.value) || 0})} />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Hoja Corte (mm)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.discWidth} onChange={(e) => setConfig({...config, discWidth: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.discWidth} onChange={(e) => setConfig({...config, discWidth: parseFloat(e.target.value) || 0})} />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Ciego ($/M2)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.blindPanelPricePerM2} onChange={(e) => setConfig({...config, blindPanelPricePerM2: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.blindPanelPricePerM2} onChange={(e) => setConfig({...config, blindPanelPricePerM2: parseFloat(e.target.value) || 0})} />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1"><Wind size={8} /> Tela Mosq. ($/M2)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl font-mono text-xs font-bold dark:text-white" value={config.meshPricePerM2} onChange={(e) => setConfig({...config, meshPricePerM2: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.meshPricePerM2} onChange={(e) => setConfig({...config, meshPricePerM2: parseFloat(e.target.value) || 0})} />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white dark:bg-[#252525] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-4"><Building2 size={14} /> Identidad Corporativa</h2>
-                        <div className="space-y-3">
-                            <div className="space-y-1">
+                    <div className="bg-white dark:bg-[#252525] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-1"><Building2 size={14} /> Identidad Corporativa</h2>
+                        <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-1">Nombre Comercial</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl text-xs font-bold dark:text-white" value={config.companyName} onChange={(e) => setConfig({...config, companyName: e.target.value})} />
+                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyName} onChange={(e) => setConfig({...config, companyName: e.target.value})} />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-1">Dirección Legal/Planta</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl text-xs font-bold dark:text-white" value={config.companyAddress} onChange={(e) => setConfig({...config, companyAddress: e.target.value})} />
+                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyAddress} onChange={(e) => setConfig({...config, companyAddress: e.target.value})} />
                             </div>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-1">Teléfono Contacto</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-2 rounded-xl text-xs font-bold dark:text-white" value={config.companyPhone} onChange={(e) => setConfig({...config, companyPhone: e.target.value})} />
+                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyPhone} onChange={(e) => setConfig({...config, companyPhone: e.target.value})} />
                             </div>
-                            <div className="pt-2">
-                                <label className="flex items-center gap-2 cursor-pointer bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all">
+                            <div className="pt-0.5">
+                                <label className="flex items-center gap-2 cursor-pointer bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all">
                                     <Upload size={14} />
                                     <span className="text-[9px] font-black uppercase tracking-widest">Subir Logo de Empresa</span>
                                     <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />

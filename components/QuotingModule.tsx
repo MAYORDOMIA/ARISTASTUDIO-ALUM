@@ -1030,27 +1030,27 @@ const QuotingModule: React.FC<Props> = ({
   return (
     <div className="grid grid-cols-12 gap-6 h-full">
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-7 shadow-sm space-y-8 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
-            <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-5 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
-            <div className="space-y-3 pt-2">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-4 shadow-sm space-y-4 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
+            <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-2 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
+            <div className="space-y-1 pt-1">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
-                <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-12 px-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-sm focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
+                <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-10 px-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-sm focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
             </div>
 
             {/* Selector de Estilo de Contravidrio (Solo si aplica) */}
             {hasDynamicBeads && (
-                <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 animate-in slide-in-from-top-2 space-y-2">
+                <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-3 rounded-2xl border border-indigo-100 dark:border-indigo-800 animate-in slide-in-from-top-2 space-y-1">
                     <label className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-widest flex items-center gap-2"><Settings size={12}/> Estilo de Contravidrio</label>
                     <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                         <button 
                             onClick={() => setGlazingBeadStyle('Recto')}
-                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Recto' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Recto' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                         >
                             Recto
                         </button>
                         <button 
                             onClick={() => setGlazingBeadStyle('Curvo')}
-                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Curvo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Curvo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                         >
                             Curvo
                         </button>
@@ -1058,19 +1058,19 @@ const QuotingModule: React.FC<Props> = ({
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
                     <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Ancho Total</label>
-                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalWidth} onChange={e => handleTotalChange('width', parseInt(e.target.value) || 0)} />
+                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-10 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalWidth} onChange={e => handleTotalChange('width', parseInt(e.target.value) || 0)} />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1">
                     <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Alto Total</label>
-                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
+                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-10 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
                 </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Layers size={10} className="text-indigo-400"/> Cantidad de Unidades</label>
-                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-10 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
             </div>
             {liveBreakdown && (
                 <button 
@@ -1078,30 +1078,30 @@ const QuotingModule: React.FC<Props> = ({
                         setShowBreakdownModal(true);
                         setBreakdownModalPos({ x: 0, y: 0 });
                     }}
-                    className="w-full bg-slate-900 dark:bg-slate-950 rounded-3xl p-5 group hover:bg-indigo-600 transition-all text-left shadow-xl border border-slate-800/50 flex flex-col gap-2"
+                    className="w-full bg-slate-900 dark:bg-slate-950 rounded-3xl p-4 group hover:bg-indigo-600 transition-all text-left shadow-xl border border-slate-800/50 flex flex-col gap-1"
                 >
                     <div className="flex items-center justify-between">
                         <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400 group-hover:text-white flex items-center gap-2"><DollarSign size={12}/> Cotización Técnica</span>
                         <TrendingUp size={14} className="text-indigo-500 group-hover:text-white" />
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-mono font-black text-white leading-none tracking-tighter">
+                        <span className="text-xl font-mono font-black text-white leading-none tracking-tighter">
                             ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
                         </span>
                         <span className="text-[8px] font-bold text-slate-500 group-hover:text-indigo-200 uppercase tracking-tighter italic">Ver Análisis</span>
                     </div>
                 </button>
             )}
-            <div className="space-y-3 pt-5 border-t-2 border-slate-50 dark:border-slate-800">
+            <div className="space-y-1 pt-2 border-t-2 border-slate-50 dark:border-slate-800">
                 <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block px-1">Terminación Superficial</label>
-                <select className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 transition-all shadow-inner" value={colorId} onChange={e => setSelectedColorId(e.target.value)}>
+                <select className="w-full bg-slate-50 dark:bg-slate-800 h-10 px-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 transition-all shadow-inner" value={colorId} onChange={e => setSelectedColorId(e.target.value)}>
                     <option value="">(SELECCIONE ACABADO)</option>
                     {treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
             </div>
-            <div className="space-y-5 pt-5 border-t-2 border-indigo-100/50 dark:border-indigo-900/50 bg-indigo-50/20 dark:bg-indigo-950/20 p-5 -mx-7">
+            <div className="space-y-2 pt-2 border-t-2 border-indigo-100/50 dark:border-indigo-900/50 bg-indigo-50/20 dark:bg-indigo-950/20 p-3 -mx-4">
                 <h4 className="text-[10px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 px-1"><Settings size={14} /> Ingeniería de Extras</h4>
-                <div className="px-1 space-y-5">
+                <div className="px-1 space-y-2">
                     <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
                         <Bug size={16} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
                         <span className={`text-[10px] font-black uppercase tracking-widest ${extras.mosquitero ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
@@ -1109,7 +1109,7 @@ const QuotingModule: React.FC<Props> = ({
                             <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.mosquitero ? 'translate-x-5' : 'translate-x-0'}`} />
                         </button>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
                             <Frame size={16} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
                             <span className={`text-[10px] font-black uppercase tracking-widest ${extras.tapajuntas ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
@@ -1118,10 +1118,10 @@ const QuotingModule: React.FC<Props> = ({
                             </button>
                         </div>
                         {extras.tapajuntas && (
-                          <div className="grid grid-cols-4 gap-2 mt-3 animate-in fade-in slide-in-from-top-1">
+                          <div className="grid grid-cols-4 gap-2 mt-1 animate-in fade-in slide-in-from-top-1">
                             {['top', 'bottom', 'left', 'right'].map((side) => (
                                 <button key={side} onClick={() => toggleTJSide(side as any)}
-                                    className={`py-2 rounded-xl text-[8px] font-black uppercase border-2 transition-all ${
+                                    className={`py-1.5 rounded-xl text-[8px] font-black uppercase border-2 transition-all ${
                                         extras.tapajuntasSides[side as keyof typeof extras.tapajuntasSides] 
                                         ? 'bg-indigo-600 border-indigo-700 text-white shadow-md' 
                                         : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:border-indigo-200'
@@ -1132,7 +1132,7 @@ const QuotingModule: React.FC<Props> = ({
                     </div>
                 </div>
             </div>
-            <div className="space-y-6 pt-5 border-t-2 border-slate-50 dark:border-slate-800">
+            <div className="space-y-3 pt-2 border-t-2 border-slate-50 dark:border-slate-800">
                 <div className="flex items-center justify-between px-1">
                     <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Grid3X3 size={14} /> Estructura del Conjunto</h4>
                     <button 
@@ -1144,8 +1144,8 @@ const QuotingModule: React.FC<Props> = ({
                       <span className="text-[8px] font-black uppercase">{isManualDim ? 'Manual' : 'Propor.'}</span>
                     </button>
                 </div>
-                <div className="px-1 space-y-6">
-                    <div className="space-y-4">
+                <div className="px-1 space-y-3">
+                    <div className="space-y-2">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Columns size={16} className="text-indigo-600" />
@@ -1467,8 +1467,7 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="space-y-4">
                             <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest border-l-4 border-indigo-600 pl-3 flex items-center gap-2"><Layers size={14} /> Paños y Llenado</h4>
                             <div className="space-y-3">
-                                {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, i, arr) => {
-                                    const paneIdx = arr.length - 1 - i; // Invertir el índice para mostrar superior primero
+                                {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, paneIdx) => {
                                     const isBlind = (currentModForEdit.blindPanes || []).includes(paneIdx);
                                     const infillType = isBlind ? 'ciego' : (currentModForEdit.isDVH ? 'dvh' : 'vs');
                                     return (
