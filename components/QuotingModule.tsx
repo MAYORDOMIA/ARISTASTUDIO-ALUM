@@ -1030,11 +1030,11 @@ const QuotingModule: React.FC<Props> = ({
   return (
     <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm space-y-2 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
-            <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-1 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
-            <div className="space-y-0.5 pt-0.5">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
-                <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-9 px-3 rounded-xl border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-sm focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm space-y-3 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
+            <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-2 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
+            <div className="space-y-0.5">
+                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
+                <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-8 px-2 rounded-lg border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-xs focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
             </div>
 
             {/* Selector de Estilo de Contravidrio (Solo si aplica) */}
@@ -1060,17 +1060,17 @@ const QuotingModule: React.FC<Props> = ({
 
             <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-0.5">
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Ancho Total</label>
-                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalWidth} onChange={e => handleTotalChange('width', parseInt(e.target.value) || 0)} />
+                    <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Ancho Total</label>
+                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalWidth} onChange={e => handleTotalChange('width', parseInt(e.target.value) || 0)} />
                 </div>
                 <div className="space-y-0.5">
-                    <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Alto Total</label>
-                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
+                    <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Alto Total</label>
+                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
                 </div>
             </div>
             <div className="space-y-0.5">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Layers size={10} className="text-indigo-400"/> Cantidad de Unidades</label>
-                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-sm focus:border-indigo-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Layers size={10} className="text-indigo-400"/> Cantidad de Unidades</label>
+                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-indigo-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
             </div>
             {liveBreakdown && (
                 <button 
@@ -1092,29 +1092,29 @@ const QuotingModule: React.FC<Props> = ({
                     </div>
                 </button>
             )}
-            <div className="space-y-1 pt-1 border-t-2 border-slate-50 dark:border-slate-800">
-                <label className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block px-1">Terminación Superficial</label>
-                <select className="w-full bg-slate-50 dark:bg-slate-800 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 transition-all shadow-inner" value={colorId} onChange={e => setSelectedColorId(e.target.value)}>
+            <div className="space-y-0.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block px-1">Terminación Superficial</label>
+                <select className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 transition-all shadow-inner" value={colorId} onChange={e => setSelectedColorId(e.target.value)}>
                     <option value="">(SELECCIONE ACABADO)</option>
                     {treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
             </div>
-            <div className="space-y-1.5 pt-1.5 border-t-2 border-indigo-100/50 dark:border-indigo-900/50 bg-indigo-50/20 dark:bg-indigo-950/20 p-2 -mx-3">
-                <h4 className="text-[10px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2 px-1"><Settings size={14} /> Ingeniería de Extras</h4>
-                <div className="px-1 space-y-1.5">
-                    <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
-                        <Bug size={16} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${extras.mosquitero ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
-                        <button className={`w-11 h-6 ml-auto rounded-full p-1 transition-all ${extras.mosquitero ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                            <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.mosquitero ? 'translate-x-5' : 'translate-x-0'}`} />
+            <div className="space-y-1 pt-2 border-t border-indigo-100/50 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20 p-2 rounded-lg">
+                <h4 className="text-[9px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2"><Settings size={12} /> Ingeniería de Extras</h4>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2 cursor-pointer group bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30 shadow-sm transition-all hover:border-indigo-200" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
+                        <Bug size={14} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
+                        <span className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.mosquitero ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
+                        <button className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.mosquitero ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                            <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.mosquitero ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
                     </div>
-                    <div className="space-y-1.5">
-                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
-                            <Frame size={16} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${extras.tapajuntas ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
-                            <button className={`w-11 h-6 ml-auto rounded-full p-1 transition-all ${extras.tapajuntas ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
-                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.tapajuntas ? 'translate-x-5' : 'translate-x-0'}`} />
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 cursor-pointer group bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30 shadow-sm transition-all hover:border-indigo-200" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
+                            <Frame size={14} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
+                            <span className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.tapajuntas ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
+                            <button className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.tapajuntas ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.tapajuntas ? 'translate-x-4' : 'translate-x-0'}`} />
                             </button>
                         </div>
                         {extras.tapajuntas && (
@@ -1132,9 +1132,9 @@ const QuotingModule: React.FC<Props> = ({
                     </div>
                 </div>
             </div>
-            <div className="space-y-2 pt-1.5 border-t-2 border-slate-50 dark:border-slate-800">
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between px-1">
-                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Grid3X3 size={14} /> Estructura del Conjunto</h4>
+                    <h4 className="text-[9px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Grid3X3 size={12} /> Estructura del Conjunto</h4>
                     <button 
                       onClick={() => setIsManualDim(!isManualDim)}
                       className={`flex items-center gap-2 p-1 rounded-lg border-2 transition-all ${isManualDim ? 'bg-amber-600 border-amber-700 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'}`}
@@ -1159,14 +1159,14 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
                             {colSizes.map((size, idx) => (
-                                <div key={idx} className={`flex items-center justify-between group p-3 rounded-2xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
+                                <div key={idx} className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
                                     <div className="flex flex-col">
-                                        <span className={`text-[8px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Ancho C{idx+1}</span>
-                                        <span className={`text-[7px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
+                                        <span className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Ancho C{idx+1}</span>
+                                        <span className={`text-[6px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" className={`w-24 bg-white dark:bg-slate-900 border px-3 py-2 rounded-xl font-mono font-black text-right text-[11px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('width', idx, parseInt(e.target.value) || 0)} />
-                                        <span className={`text-[8px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
+                                        <input type="number" className={`w-20 bg-white dark:bg-slate-900 border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('width', idx, parseInt(e.target.value) || 0)} />
+                                        <span className={`text-[7px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
                                     </div>
                                 </div>
                             ))}
@@ -1186,14 +1186,14 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
                         <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
                             {rowSizes.map((size, idx) => (
-                                <div key={idx} className={`flex items-center justify-between group p-3 rounded-2xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
+                                <div key={idx} className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
                                     <div className="flex flex-col">
-                                        <span className={`text-[8px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Alto R{idx+1}</span>
-                                        <span className={`text-[7px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
+                                        <span className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Alto R{idx+1}</span>
+                                        <span className={`text-[6px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" className={`w-24 bg-white dark:bg-slate-900 border px-3 py-2 rounded-xl font-mono font-black text-right text-[11px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('height', idx, parseInt(e.target.value) || 0)} />
-                                        <span className={`text-[8px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
+                                        <input type="number" className={`w-20 bg-white dark:bg-slate-900 border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('height', idx, parseInt(e.target.value) || 0)} />
+                                        <span className={`text-[7px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
                                     </div>
                                 </div>
                             ))}
