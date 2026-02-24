@@ -57,7 +57,7 @@ import {
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('quoter');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const savedTheme = localStorage.getItem('aristastudio-theme');
@@ -165,10 +165,10 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#1c1c1c] text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
-      <aside className={`transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-xl ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
-        <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
-          {isSidebarOpen && (
-            <div className="flex items-center gap-2">
+      <aside className={`fixed lg:relative transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 shadow-xl h-full ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-0 lg:w-20'}`}>
+        <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 overflow-hidden">
+          {(isSidebarOpen || window.innerWidth >= 1024) && (
+            <div className={`flex items-center gap-2 transition-opacity duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
               <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center font-black text-white shadow-lg text-lg italic">A</div>
               <div className="flex flex-col">
                 <div className="flex items-baseline italic">
@@ -188,7 +188,10 @@ const App: React.FC = () => {
           {MENU_ITEMS.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (window.innerWidth < 1024) setIsSidebarOpen(false);
+              }}
               className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group border ${
                 activeTab === item.id 
                 ? 'bg-indigo-600 text-white font-black shadow-lg border-indigo-700' 
@@ -216,26 +219,38 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-16 bg-white dark:bg-[#252525] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shadow-sm z-10 transition-colors">
-          <div className="flex items-center gap-4">
-            <h1 className="text-sm font-black uppercase tracking-[0.2em] text-[#0f172a] dark:text-white">
+      <main className="flex-1 flex flex-col overflow-hidden relative w-full">
+        {isSidebarOpen && window.innerWidth < 1024 && (
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden" 
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+        <header className="h-16 bg-white dark:bg-[#252525] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-6 shadow-sm z-10 transition-colors">
+          <div className="flex items-center gap-3 lg:gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+              className="lg:hidden p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400"
+            >
+              <Menu size={20} />
+            </button>
+            <h1 className="text-xs lg:text-sm font-black uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[#0f172a] dark:text-white truncate max-w-[150px] lg:max-w-none">
               {MENU_ITEMS.find(m => m.id === activeTab)?.label || activeTab}
             </h1>
           </div>
           
-          <div className="flex items-center gap-6">
-             <div className="flex items-center gap-3 border-r pr-6 border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3 lg:gap-6">
+             <div className="flex items-center gap-2 lg:gap-3 border-r pr-3 lg:pr-6 border-slate-100 dark:border-slate-800">
                 <button 
                   onClick={toggleTheme}
-                  className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-all border border-slate-200 dark:border-slate-700"
+                  className="p-2 lg:p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-all border border-slate-200 dark:border-slate-700"
                 >
-                  {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                  {theme === 'light' ? <Moon size={16} lg:size={18} /> : <Sun size={16} lg:size={18} />}
                 </button>
              </div>
              <div className="flex flex-col items-end">
-                <span className="text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">P. ALUMINIO BASE</span>
-                <span className="text-sm font-mono text-indigo-600 dark:text-indigo-400 font-black">${config.aluminumPricePerKg.toFixed(2)} / KG</span>
+                <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">P. ALU</span>
+                <span className="text-xs lg:text-sm font-mono text-indigo-600 dark:text-indigo-400 font-black">${config.aluminumPricePerKg.toFixed(2)}</span>
              </div>
           </div>
         </header>
@@ -274,7 +289,7 @@ const App: React.FC = () => {
           {activeTab === 'history' && <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} blindPanels={blindPanels} />}
           {activeTab === 'config' && (
               <div className="max-w-4xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="bg-white dark:bg-[#252525] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
                         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-1"><Zap size={14} /> Económicos y Técnicos</h2>
                         <div className="grid grid-cols-2 gap-2">

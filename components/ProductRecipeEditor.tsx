@@ -140,7 +140,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
   const isTubeType = recipe?.visualType === 'tubo_h' || recipe?.visualType === 'tubo_v';
 
   return (
-    <div className="flex h-full gap-6 animate-in fade-in duration-500">
+    <div className="flex flex-col lg:flex-row h-full gap-6 animate-in fade-in duration-500 overflow-y-auto lg:overflow-hidden pb-20 lg:pb-0">
       {showWarning && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-100 dark:border-amber-900/30 text-center space-y-6">
@@ -164,8 +164,8 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
         </div>
       )}
 
-      <div className="w-80 flex flex-col gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] p-5 shadow-sm flex flex-col h-[85vh] transition-colors">
+      <div className="w-full lg:w-80 flex flex-col gap-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] p-5 shadow-sm flex flex-col h-auto lg:h-[85vh] transition-colors">
             <div className="flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-4">
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><Shapes size={20} /></div>
                 <div>
@@ -197,7 +197,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
 
       <div className="flex-1 min-w-0">
         {recipe ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm h-[85vh] overflow-y-auto custom-scrollbar space-y-8 border-t-8 border-t-indigo-600 transition-colors">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm h-auto lg:h-[85vh] overflow-y-auto custom-scrollbar space-y-6 lg:space-y-8 border-t-8 border-t-indigo-600 transition-colors">
             <div className="flex justify-between items-start gap-6">
                 <div className="flex-1 min-w-0 space-y-4">
                     <div className="flex items-center gap-4">

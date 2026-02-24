@@ -330,7 +330,7 @@ const DatabaseCRUD: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
         <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto">
           {DATABASE_TABS.map((tab) => (
             <button
@@ -344,13 +344,13 @@ const DatabaseCRUD: React.FC<Props> = ({
             </button>
           ))}
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 lg:gap-3">
             <input type="file" ref={fileInputRef} onChange={handleImportFromExcel} className="hidden" accept=".xlsx,.xls" />
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-indigo-600 transition-all shadow-sm">
-                <Upload size={14} /> Importar Base
+            <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-indigo-600 transition-all shadow-sm">
+                <Upload size={14} /> Importar
             </button>
-            <button onClick={handleExportToExcel} className="flex items-center gap-3 px-6 py-3 bg-slate-900 dark:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95">
-                <Download size={14} /> Backup Maestro
+            <button onClick={handleExportToExcel} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-900 dark:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95">
+                <Download size={14} /> Backup
             </button>
         </div>
       </div>

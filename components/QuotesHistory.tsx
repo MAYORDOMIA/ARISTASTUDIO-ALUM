@@ -93,22 +93,22 @@ const QuotesHistory: React.FC<Props> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-wrap items-center justify-between gap-6 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-2 border-slate-300 dark:border-slate-800 shadow-xl ring-1 ring-slate-200 transition-colors">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 bg-white dark:bg-slate-900 p-4 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] border-2 border-slate-300 dark:border-slate-800 shadow-xl ring-1 ring-slate-200 transition-colors">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 border-2 border-indigo-700/30">
-            <FileText size={24} />
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 border-2 border-indigo-700/30 shrink-0">
+            <FileText size={20} />
           </div>
           <div>
-            <h2 className="text-xl font-black uppercase tracking-widest text-slate-800 dark:text-white">Historial de Obras</h2>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Registros de Ingeniería y Presupuestos</p>
+            <h2 className="text-sm lg:text-xl font-black uppercase tracking-widest text-slate-800 dark:text-white">Historial de Obras</h2>
+            <p className="text-[8px] lg:text-[10px] text-slate-400 font-bold uppercase tracking-widest">Registros de Ingeniería y Presupuestos</p>
           </div>
         </div>
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+        <div className="relative w-full lg:w-96">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
           <input 
             type="text" 
-            placeholder="Buscar por cliente o ID de obra..." 
-            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-12 pr-6 py-4 rounded-2xl text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-[#0f172a] dark:text-white shadow-inner"
+            placeholder="Buscar..." 
+            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-11 lg:pl-12 pr-4 lg:pr-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-[#0f172a] dark:text-white shadow-inner"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -159,22 +159,22 @@ const QuotesHistory: React.FC<Props> = ({
 
         <div className="xl:col-span-7">
           {selectedQuote ? (
-            <div className="bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-slate-300 dark:border-slate-800 shadow-2xl p-10 space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col ring-1 ring-slate-200 transition-colors">
-              <div className="flex justify-between items-start border-b-2 border-slate-100 dark:border-slate-800 pb-8">
+            <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] lg:rounded-[3rem] border-2 border-slate-300 dark:border-slate-800 shadow-2xl p-4 lg:p-10 space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col ring-1 ring-slate-200 transition-colors">
+              <div className="flex justify-between items-start border-b-2 border-slate-100 dark:border-slate-800 pb-4 lg:pb-8">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-indigo-600 font-black uppercase tracking-widest bg-indigo-600/10 px-3 py-1 rounded-full border-2 border-indigo-600/20">Expediente Industrial</span>
-                    <span className="text-[10px] text-slate-400 font-mono">MOD_VER_2.5</span>
+                  <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+                    <span className="text-[8px] lg:text-[10px] text-indigo-600 font-black uppercase tracking-widest bg-indigo-600/10 px-3 py-1 rounded-full border-2 border-indigo-600/20">Expediente Industrial</span>
+                    <span className="text-[8px] lg:text-[10px] text-slate-400 font-mono">MOD_VER_2.5</span>
                   </div>
-                  <h3 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">{selectedQuote.clientName}</h3>
-                  <p className="text-xs text-slate-500 font-bold">Cotizado el {formatDate(selectedQuote.date)}</p>
+                  <h3 className="text-xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">{selectedQuote.clientName}</h3>
+                  <p className="text-[10px] lg:text-xs text-slate-500 font-bold">Cotizado el {formatDate(selectedQuote.date)}</p>
                 </div>
-                <button onClick={() => setSelectedQuote(null)} className="p-3 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-200 dark:border-slate-700 shadow-sm">
-                  <X size={20} />
+                <button onClick={() => setSelectedQuote(null)} className="p-2 lg:p-3 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors bg-slate-50 dark:bg-slate-800 rounded-xl lg:rounded-2xl border-2 border-slate-200 dark:border-slate-700 shadow-sm">
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-4">
                 <button onClick={() => downloadReport(selectedQuote, 'presupuesto')} className="flex items-center gap-4 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-indigo-600/10">
                   <div className="w-10 h-10 bg-indigo-600/10 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white border-2 border-indigo-600/20 group-hover:border-indigo-700 transition-all">
                     <FileText size={20} />

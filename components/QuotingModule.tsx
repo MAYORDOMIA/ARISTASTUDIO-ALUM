@@ -1028,7 +1028,7 @@ const QuotingModule: React.FC<Props> = ({
   }, [aluminum, slatSearch]);
 
   return (
-    <div className="grid grid-cols-12 gap-6 h-full">
+    <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm space-y-2 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
             <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-1 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
@@ -1209,8 +1209,8 @@ const QuotingModule: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="col-span-12 lg:col-span-8 xl:col-span-9 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-sm relative overflow-hidden flex items-center justify-center min-h-[600px] transition-colors">
-        <canvas ref={mainCanvasRef} width={2400} height={1800} className="w-full h-full max-h-[88vh] object-contain p-12" />
+      <div className="col-span-12 lg:col-span-8 xl:col-span-9 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-sm relative overflow-hidden flex items-center justify-center min-h-[400px] lg:min-h-[600px] transition-colors">
+        <canvas ref={mainCanvasRef} width={2400} height={1800} className="w-full h-full max-h-[60vh] lg:max-h-[88vh] object-contain p-4 lg:p-12" />
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
             <div style={{ display: 'grid', gridTemplateColumns: (colSizes || []).map(s => `${s}fr`).join(' '), gridTemplateRows: (rowSizes || []).map(s => `${s}fr`).join(' '), aspectRatio: `${totalWidth || 1} / ${totalHeight || 1}`, width: '100%', height: '100%' }}>
                 {(modules || []).filter(mod => mod && typeof mod.x === 'number' && typeof mod.y === 'number').map(mod => (
@@ -1266,11 +1266,11 @@ const QuotingModule: React.FC<Props> = ({
       )}
 
       {showBreakdownModal && liveBreakdown && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center pointer-events-none">
-             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" />
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setShowBreakdownModal(false)} />
              <div 
-                style={{ transform: `translate(${breakdownModalPos.x}px, ${breakdownModalPos.y}px)`, transition: isDraggingBreakdown ? 'none' : 'transform 0.1s ease-out' }}
-                className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl space-y-6 border-2 border-white dark:border-slate-800 flex flex-col pointer-events-auto relative ring-1 ring-black/5"
+                style={{ transform: window.innerWidth > 1024 ? `translate(${breakdownModalPos.x}px, ${breakdownModalPos.y}px)` : 'none', transition: isDraggingBreakdown ? 'none' : 'transform 0.1s ease-out' }}
+                className="bg-white dark:bg-slate-900 w-full lg:max-w-xl rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-2xl space-y-6 border-2 border-white dark:border-slate-800 flex flex-col pointer-events-auto relative ring-1 ring-black/5 max-h-[90vh] overflow-y-auto"
              >
                 <div 
                     onMouseDown={(e) => startDragging(e, 'breakdown')}
@@ -1338,15 +1338,15 @@ const QuotingModule: React.FC<Props> = ({
       )}
 
       {editingModuleId && currentModForEdit && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-            <div className="absolute inset-0 bg-slate-900/10 dark:bg-slate-950/20 backdrop-blur-[1px]" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 lg:p-4">
+            <div className="absolute inset-0 bg-slate-900/10 dark:bg-slate-950/20 backdrop-blur-[1px]" onClick={() => setEditingModuleId(null)} />
             <div 
                 ref={modalContainerRef}
                 style={{ 
-                    transform: `translate(${modalPos.x}px, ${modalPos.y}px)`,
+                    transform: window.innerWidth > 1024 ? `translate(${modalPos.x}px, ${modalPos.y}px)` : 'none',
                     transition: isDragging ? 'none' : 'transform 0.1s ease-out'
                 }}
-                className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[2rem] p-6 shadow-2xl space-y-6 overflow-hidden max-h-[92vh] border-2 border-white dark:border-slate-800 flex flex-col transition-colors pointer-events-auto relative ring-1 ring-black/5"
+                className="bg-white dark:bg-slate-900 w-full lg:max-w-5xl rounded-[1.5rem] lg:rounded-[2rem] p-4 lg:p-6 shadow-2xl space-y-4 lg:space-y-6 overflow-hidden max-h-[95vh] border-2 border-white dark:border-slate-800 flex flex-col transition-colors pointer-events-auto relative ring-1 ring-black/5"
             >
                 <div 
                     onMouseDown={(e) => startDragging(e, 'inge')}
@@ -1370,9 +1370,9 @@ const QuotingModule: React.FC<Props> = ({
                         <X size={24} />
                     </button>
                 </div>
-                <div className="grid grid-cols-12 gap-6 flex-1 overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 flex-1 overflow-y-auto lg:overflow-hidden">
                     {/* PANEL IZQUIERDO CON SCROLL MEJORADO PARA MODO MANUAL */}
-                    <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar border-r border-slate-50 dark:border-slate-800 pr-6 pb-4">
+                    <div className="col-span-1 lg:col-span-5 flex flex-col gap-4 lg:overflow-y-auto custom-scrollbar lg:border-r border-slate-50 dark:border-slate-800 lg:pr-6 pb-4">
                         {isManualDim && (
                             <div className="flex flex-col gap-4 p-5 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800 shrink-0 animate-in slide-in-from-top-2">
                                 <h4 className="text-[9px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2"><Maximize2 size={12}/> Medidas Individuales (Manual)</h4>
@@ -1433,7 +1433,7 @@ const QuotingModule: React.FC<Props> = ({
                             )}
                         </div>
                     </div>
-                    <div className="col-span-12 lg:col-span-7 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
+                    <div className="col-span-1 lg:col-span-7 flex flex-col gap-6 lg:overflow-y-auto custom-scrollbar pr-2">
                         <div className="space-y-4">
                             <div className="flex justify-between items-center border-l-4 border-indigo-600 pl-3">
                                 <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2"><Split size={14} className="rotate-90"/> Divisiones Técnicas</h4>
@@ -1584,8 +1584,8 @@ const QuotingModule: React.FC<Props> = ({
       )}
 
       {showSlatSelector && slatPaneIdx !== null && currentModForEdit && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-indigo-100 dark:border-slate-800 flex flex-col max-h-[85vh] transition-colors relative">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 lg:p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full lg:max-w-xl rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-2xl border-2 border-indigo-100 dark:border-slate-800 flex flex-col max-h-[90vh] transition-colors relative">
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-5 mb-6">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><Box size={24} /></div>

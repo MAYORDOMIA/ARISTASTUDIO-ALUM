@@ -35,6 +35,7 @@ export interface Glass {
   width: number;
   height: number;
   pricePerM2: number;
+  thickness?: number;
   isMirror?: boolean;
 }
 
