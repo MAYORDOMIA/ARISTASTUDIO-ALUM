@@ -170,13 +170,6 @@ const App: React.FC = () => {
           {(isSidebarOpen || window.innerWidth >= 1024) && (
             <div className={`flex items-center gap-2 transition-opacity duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
               <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center font-black text-white shadow-lg text-lg italic">A</div>
-              <div className="flex flex-col">
-                <div className="flex items-baseline italic">
-                  <span className="font-black tracking-tighter text-md leading-none text-[#0f172a] dark:text-white">ARISTA</span>
-                  <span className="font-black tracking-tighter text-md leading-none text-indigo-600">STUDIO</span>
-                </div>
-                <span className="text-[8px] text-gray-400 dark:text-slate-500 font-bold tracking-[0.2em]">ALUM v2.8</span>
-              </div>
             </div>
           )}
           <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-all hover:text-indigo-600">
@@ -230,12 +223,18 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3 lg:gap-4">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-              className="lg:hidden p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400"
+              className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400"
             >
               <Menu size={20} />
             </button>
             <h1 className="text-xs lg:text-sm font-black uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[#0f172a] dark:text-white truncate max-w-[150px] lg:max-w-none">
-              {MENU_ITEMS.find(m => m.id === activeTab)?.label || activeTab}
+              {activeTab === 'quoter' ? (
+                <div className="flex items-baseline italic">
+                   <span className="font-black tracking-tighter text-lg leading-none text-[#0f172a] dark:text-white">ARISTA</span>
+                   <span className="font-black tracking-tighter text-lg leading-none text-indigo-600">STUDIO</span>
+                   <span className="ml-2 text-[10px] font-bold text-slate-400 tracking-widest not-italic">ALUM</span>
+                </div>
+              ) : (MENU_ITEMS.find(m => m.id === activeTab)?.label || activeTab)}
             </h1>
           </div>
           
@@ -248,9 +247,15 @@ const App: React.FC = () => {
                   {theme === 'light' ? <Moon size={16} lg:size={18} /> : <Sun size={16} lg:size={18} />}
                 </button>
              </div>
-             <div className="flex flex-col items-end">
-                <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">P. ALU</span>
-                <span className="text-xs lg:text-sm font-mono text-indigo-600 dark:text-indigo-400 font-black">${config.aluminumPricePerKg.toFixed(2)}</span>
+             <div className="flex items-center gap-3 lg:gap-4">
+                 <div className="flex flex-col items-end">
+                    <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">P. ALU</span>
+                    <span className="text-xs lg:text-sm font-mono text-indigo-600 dark:text-indigo-400 font-black">${config.aluminumPricePerKg.toFixed(2)}</span>
+                 </div>
+                 <div className="hidden sm:flex flex-col items-end pl-3 lg:pl-4 border-l border-slate-100 dark:border-slate-800">
+                    <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">MARGEN</span>
+                    <span className="text-xs lg:text-sm font-mono text-emerald-600 dark:text-emerald-400 font-black">+{config.laborPercentage}%</span>
+                 </div>
              </div>
           </div>
         </header>
