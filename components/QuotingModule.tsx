@@ -1443,31 +1443,36 @@ const QuotingModule: React.FC<Props> = ({
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                {(currentModForEdit.transoms || []).map((t, idx) => (
-                                    <div key={idx} className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-3 group/item">
-                                        <div className="flex-1 space-y-1">
-                                            <div className="flex justify-between items-center">
-                                                <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Altura desde Base (mm)</label>
-                                                <span className="text-[7px] font-black text-indigo-500 uppercase">Travesaño {idx+1}</span>
+                                {(currentModForEdit.transoms || []).map((_, i, arr) => {
+                                    const idx = arr.length - 1 - i;
+                                    const t = arr[idx];
+                                    return (
+                                        <div key={idx} className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-3 group/item">
+                                            <div className="flex-1 space-y-1">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Altura desde Base (mm)</label>
+                                                    <span className="text-[7px] font-black text-indigo-500 uppercase">Travesaño {idx+1}</span>
+                                                </div>
+                                                <div className="relative">
+                                                    <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none pr-12" value={t.height} onChange={e => {
+                                                        const newTransoms = [...(currentModForEdit.transoms || [])];
+                                                        newTransoms[idx].height = parseInt(e.target.value) || 0;
+                                                        updateModule(editingModuleId, { transoms: newTransoms });
+                                                    }} />
+                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">MM</div>
+                                                </div>
                                             </div>
-                                            <div className="relative">
-                                                <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none pr-12" value={t.height} onChange={e => {
-                                                    const newTransoms = [...(currentModForEdit.transoms || [])];
-                                                    newTransoms[idx].height = parseInt(e.target.value) || 0;
-                                                    updateModule(editingModuleId, { transoms: newTransoms });
-                                                }} />
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">MM</div>
-                                            </div>
+                                            <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"><Trash2 size={16}/></button>
                                         </div>
-                                        <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"><Trash2 size={16}/></button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                         <div className="space-y-4">
                             <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest border-l-4 border-indigo-600 pl-3 flex items-center gap-2"><Layers size={14} /> Paños y Llenado</h4>
                             <div className="space-y-3">
-                                {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, paneIdx) => {
+                                {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, i, arr) => {
+                                    const paneIdx = arr.length - 1 - i;
                                     const isBlind = (currentModForEdit.blindPanes || []).includes(paneIdx);
                                     const infillType = isBlind ? 'ciego' : (currentModForEdit.isDVH ? 'dvh' : 'vs');
                                     return (
