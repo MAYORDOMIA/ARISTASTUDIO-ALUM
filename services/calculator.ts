@@ -166,7 +166,7 @@ export const calculateCompositePrice = (
       }
 
       const tjWeight = (totalTjMm / 1000) * tjProfile.weightPerMeter;
-      totalAluCost += tjWeight * baseAluPrice;
+      // totalAluCost += tjWeight * baseAluPrice; // ELIMINADO POR SOLICITUD: No sumar al costo, solo optimización
       totalAluWeight += tjWeight;
     }
   }
@@ -434,6 +434,18 @@ export const calculateItemPrice = (
       }
     }
   });
+
+  // Lógica de Tela Mosquitera como Extra (Costo de Malla)
+  if (extras?.mosquitero && visualType !== 'mosquitero') {
+      let meshArea = (width * height) / 1000000;
+      // Ajuste para corredizas (generalmente la mitad)
+      if (visualType.includes('sliding')) {
+          meshArea = meshArea / 2;
+      }
+      // Mínimo de facturación
+      const billingArea = Math.max(meshArea, 0.5);
+      glassCost += (Number(config.meshPricePerM2 || 25.0)) * billingArea;
+  }
 
   const materialCost = aluCost + glassCost + accCost;
   const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
