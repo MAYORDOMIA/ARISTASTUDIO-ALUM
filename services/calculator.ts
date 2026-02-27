@@ -166,7 +166,7 @@ export const calculateCompositePrice = (
       }
 
       const tjWeight = (totalTjMm / 1000) * tjProfile.weightPerMeter;
-      // totalAluCost += tjWeight * baseAluPrice; // ELIMINADO POR SOLICITUD: No sumar al costo, solo optimización
+      totalAluCost += tjWeight * baseAluPrice; 
       totalAluWeight += tjWeight;
     }
   }
