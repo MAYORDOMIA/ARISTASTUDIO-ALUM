@@ -529,13 +529,14 @@ interface Props {
   quotes: Quote[];
   setQuotes: React.Dispatch<React.SetStateAction<Quote[]>>;
   onUpdateActiveItem?: (item: QuoteItem | null) => void;
+  onRecipeChange?: (name: string | null) => void;
   currentWorkItems: QuoteItem[];
   setCurrentWorkItems: React.Dispatch<React.SetStateAction<QuoteItem[]>>;
 }
 
 const QuotingModule: React.FC<Props> = ({ 
     recipes, aluminum, glasses, blindPanels, accessories, 
-    dvhInputs, treatments, config, quotes, setQuotes, onUpdateActiveItem,
+    dvhInputs, treatments, config, quotes, setQuotes, onUpdateActiveItem, onRecipeChange,
     currentWorkItems, setCurrentWorkItems
 }) => {
   const [totalWidth, setTotalWidth] = useState(1500);
@@ -563,6 +564,18 @@ const QuotingModule: React.FC<Props> = ({
   const [slatPaneIdx, setSlatPaneIdx] = useState<number | null>(null);
   const [slatSearch, setSlatSearch] = useState('');
   const [glazingBeadStyle, setGlazingBeadStyle] = useState<'Recto' | 'Curvo'>('Recto');
+
+  useEffect(() => {
+    if (onRecipeChange) {
+        const firstMod = modules[0];
+        if (firstMod) {
+            const r = recipes.find(x => x.id === firstMod.recipeId);
+            onRecipeChange(r ? r.name : null);
+        } else {
+            onRecipeChange(null);
+        }
+    }
+  }, [modules, recipes, onRecipeChange]);
 
   const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -1356,7 +1369,9 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="w-11 h-11 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"><LayoutGrid size={22} /></div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-lg leading-none italic">Terminal de Ingeniería</h3>
+                                <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-lg leading-none italic">
+                                    {currentModForEdit.recipeId ? recipes.find(r => r.id === currentModForEdit.recipeId)?.name : 'Terminal de Ingeniería'}
+                                </h3>
                                 <GripHorizontal size={16} className="text-slate-300 dark:text-slate-700 animate-pulse" />
                             </div>
                             <p className="text-[9px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Módulo {currentModForEdit.id.substring(0,8)} • Arrastre para mover</p>

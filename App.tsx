@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Menu, 
   X, 
@@ -24,6 +24,7 @@ import {
   Upload,
   Sun,
   Moon,
+  Tag,
   Wallet,
   Wind
 } from 'lucide-react';
@@ -89,6 +90,15 @@ const App: React.FC = () => {
 
   const [currentWorkItems, setCurrentWorkItems] = useState<QuoteItem[]>([]);
   const [activeQuoteItem, setActiveQuoteItem] = useState<QuoteItem | null>(null);
+  const [currentRecipeName, setCurrentRecipeName] = useState<string | null>(null);
+
+  const openingName = useMemo(() => {
+    if (activeTab === 'quoter' && currentRecipeName) return currentRecipeName;
+    if (!activeQuoteItem || !activeQuoteItem.composition.modules.length) return null;
+    const firstModule = activeQuoteItem.composition.modules[0];
+    const recipe = recipes.find(r => r.id === firstModule.recipeId);
+    return recipe ? recipe.name : null;
+  }, [activeQuoteItem, recipes, currentRecipeName, activeTab]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -229,16 +239,24 @@ const App: React.FC = () => {
             </button>
             <h1 className="text-xs lg:text-sm font-black uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[#0f172a] dark:text-white truncate max-w-[150px] lg:max-w-none">
               {activeTab === 'quoter' ? (
-                <div className="flex items-baseline italic">
-                   <span className="font-black tracking-tighter text-lg leading-none text-[#0f172a] dark:text-white">ARISTA</span>
-                   <span className="font-black tracking-tighter text-lg leading-none text-indigo-600">STUDIO</span>
-                   <span className="ml-2 text-[10px] font-bold text-slate-400 tracking-widest not-italic">ALUM</span>
+                <div className="flex items-baseline italic shrink-0">
+                  <span className="font-black tracking-tighter text-lg leading-none text-[#0f172a] dark:text-white">ARISTA</span>
+                  <span className="font-black tracking-tighter text-lg leading-none text-indigo-600">STUDIO</span>
+                  <span className="ml-2 text-[10px] font-bold text-slate-400 tracking-widest not-italic">ALUM</span>
                 </div>
               ) : (MENU_ITEMS.find(m => m.id === activeTab)?.label || activeTab)}
             </h1>
           </div>
           
           <div className="flex items-center gap-3 lg:gap-6">
+             {activeTab === 'quoter' && openingName && (
+               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 animate-in fade-in slide-in-from-right-2">
+                 <Tag size={12} className="text-indigo-500" />
+                 <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+                   {openingName}
+                 </span>
+               </div>
+             )}
              <div className="flex items-center gap-2 lg:gap-3 border-r pr-3 lg:pr-6 border-slate-100 dark:border-slate-800">
                 <button 
                   onClick={toggleTheme}
@@ -276,6 +294,7 @@ const App: React.FC = () => {
               quotes={quotes} 
               setQuotes={setQuotes} 
               onUpdateActiveItem={setActiveQuoteItem}
+              onRecipeChange={setCurrentRecipeName}
               currentWorkItems={currentWorkItems}
               setCurrentWorkItems={setCurrentWorkItems}
             />
