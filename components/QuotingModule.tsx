@@ -937,7 +937,7 @@ const QuotingModule: React.FC<Props> = ({
     const modIdxY = currentModForEdit.y - bounds.minY; 
     const modH = (isManualDim && currentModForEdit.height) ? currentModForEdit.height : Number(rowSizes[modIdxY] || 0);
     const transomRecipe = recipes.find(r => r.id === currentModForEdit.recipeId);
-    const updatedTransoms = [...(currentModForEdit.transoms || []), { height: 0, profileId: transomRecipe?.defaultTransomProfileId || aluminum[0]?.id || '' }];
+    const updatedTransoms = [...(currentModForEdit.transoms || []), { height: 0, profileId: transomRecipe?.defaultTransomProfileId || '' }];
     const parts = updatedTransoms.length + 1;
     const step = modH / parts;
     const redistributed = updatedTransoms.map((t, idx) => ({
@@ -1476,6 +1476,18 @@ const QuotingModule: React.FC<Props> = ({
                                                     }} />
                                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">MM</div>
                                                 </div>
+                                                <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none mt-1 uppercase" value={t.profileId} onChange={e => {
+                                                    const newTransoms = [...(currentModForEdit.transoms || [])];
+                                                    newTransoms[idx].profileId = e.target.value;
+                                                    updateModule(editingModuleId, { transoms: newTransoms });
+                                                }}>
+                                                    <option value="">(SELECCIONE PERFIL)</option>
+                                                    {aluminum.filter(p => {
+                                                        const r = recipes.find(x => x.id === currentModForEdit.recipeId);
+                                                        const allowed = r?.profiles.filter(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave'))).map(rp => rp.profileId);
+                                                        return allowed?.includes(p.id);
+                                                    }).map(p => <option key={p.id} value={p.id}>{p.code} - {p.detail}</option>)}
+                                                </select>
                                             </div>
                                             <button onClick={() => removeTransomFromModule(idx)} className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"><Trash2 size={16}/></button>
                                         </div>

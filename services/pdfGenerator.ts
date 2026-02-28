@@ -63,13 +63,13 @@ const getModuleGlassPanes = (
     }
     const adjustedW = modW - (recipe.glassDeductionW || 0); 
     const adjustedH = modH - (recipe.glassDeductionH || 0);
-    const visualType = recipe.visualType || '';
+    const visualType = (recipe.visualType || '').toLowerCase();
     let numLeaves = 1;
-    if (visualType.includes('sliding_3')) numLeaves = 3;
-    else if (visualType.includes('sliding_4')) numLeaves = 4;
-    else if (visualType.includes('sliding')) numLeaves = 2;
+    if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+    else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+    else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
     let leafBaseW = adjustedW;
-    if (visualType.includes('sliding')) { leafBaseW = adjustedW / numLeaves; }
+    if (visualType.includes('sliding') || visualType.includes('corrediza')) { leafBaseW = adjustedW / numLeaves; }
     const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
     const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
     const panes: { w: number, h: number, isBlind: boolean }[] = [];
@@ -206,7 +206,8 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             }
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            const visualType = (recipe.visualType || '').toLowerCase();
+            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
             panes.forEach((p, pIdx) => {
                 if (p.isBlind) {
                     const bpId = mod.blindPaneIds?.[pIdx];
@@ -478,7 +479,8 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             }
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            const visualType = (recipe.visualType || '').toLowerCase();
+            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
             panes.forEach((p, paneIdx) => {
                 if (p.isBlind) {
                     const bpId = mod.blindPaneIds?.[paneIdx];
@@ -588,7 +590,8 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            const visualType = (recipe.visualType || '').toLowerCase();
+            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
             panes.forEach((pane, paneIdx) => {
                 if (pane.isBlind) {
                     const bpId = mod.blindPaneIds?.[paneIdx];
@@ -837,7 +840,8 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             }
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            const visualType = (recipe.visualType || '').toLowerCase();
+            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
             panes.forEach((p, pIdx) => {
                 if (p.isBlind) {
                     const slatId = mod.slatProfileIds?.[pIdx];

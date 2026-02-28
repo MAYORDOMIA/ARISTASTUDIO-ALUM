@@ -322,11 +322,11 @@ export const calculateItemPrice = (
 
   const adjustedW = width - Number(recipe.glassDeductionW || 0); 
   const adjustedH = height - Number(recipe.glassDeductionH || 0);
-  const visualType = recipe.visualType || '';
+  const visualType = (recipe.visualType || '').toLowerCase();
   let numLeaves = 1;
-  if (visualType.includes('sliding_3')) numLeaves = 3;
-  else if (visualType.includes('sliding_4')) numLeaves = 4;
-  else if (visualType.includes('sliding')) numLeaves = 2;
+  if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+  else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+  else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
   let leafBaseW = adjustedW;
   if (visualType.includes('sliding')) leafBaseW = adjustedW / numLeaves;
   const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
