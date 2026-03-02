@@ -605,13 +605,39 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     }
                     return;
                 }
-                let spec = (recipe.visualType === 'mosquitero') ? 'TELA MOSQUITERA' : 'Vidrio';
-                if (recipe.visualType !== 'mosquitero') {
-                    const gOuter = glasses.find(g => g.id === mod.glassOuterId); spec = mod.isDVH ? `${gOuter?.detail || '?'} / DVH` : (gOuter?.detail || 'VS');
+                if (recipe.visualType === 'mosquitero') {
+                    const spec = 'TELA MOSQUITERA';
+                    const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                    const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                    existing.qty += (item.quantity * numLeaves); 
+                    fillSummary.set(key, existing);
+                } else {
+                    const gOuter = glasses.find(g => g.id === mod.glassOuterId);
+                    
+                    if (mod.isDVH) {
+                        // Outer Glass
+                        const specOuter = gOuter?.detail || 'Vidrio (Ext)';
+                        const keyOuter = `${specOuter}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                        const existingOuter = fillSummary.get(keyOuter) || { spec: specOuter, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                        existingOuter.qty += (item.quantity * numLeaves);
+                        fillSummary.set(keyOuter, existingOuter);
+
+                        // Inner Glass
+                        const gInner = glasses.find(g => g.id === mod.glassInnerId);
+                        const specInner = gInner?.detail || 'Vidrio (Int)';
+                        const keyInner = `${specInner}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                        const existingInner = fillSummary.get(keyInner) || { spec: specInner, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                        existingInner.qty += (item.quantity * numLeaves);
+                        fillSummary.set(keyInner, existingInner);
+                    } else {
+                        // Single Glass
+                        const spec = gOuter?.detail || 'VS';
+                        const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
+                        const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
+                        existing.qty += (item.quantity * numLeaves);
+                        fillSummary.set(key, existing);
+                    }
                 }
-                const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
-                const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                existing.qty += (item.quantity * numLeaves); fillSummary.set(key, existing);
             });
         });
     });
