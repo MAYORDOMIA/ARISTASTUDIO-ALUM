@@ -246,6 +246,11 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 if (tjRef) tjProfile = aluminum.find(p => p.id === tjRef.profileId);
             }
             
+            // Fallback global
+            if (!tjProfile) {
+                tjProfile = aluminum.find(p => p.code.toUpperCase().includes('TJ') || p.detail.toLowerCase().includes('tapajunta'));
+            }
+            
             if (tjProfile) {
                 const list = cutsByProfile.get(tjProfile.id) || [];
                 const tjThick = Number(tjProfile.thickness || 30);
@@ -513,6 +518,11 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             if (!tjProfile && firstRecipe) {
                 const tjRef = firstRecipe.profiles.find(p => p.role === 'Tapajuntas');
                 if (tjRef) tjProfile = aluminum.find(p => p.id === tjRef.profileId);
+            }
+
+            // Fallback global
+            if (!tjProfile) {
+                tjProfile = aluminum.find(p => p.code.toUpperCase().includes('TJ') || p.detail.toLowerCase().includes('tapajunta'));
             }
 
             if (tjProfile) {
@@ -922,6 +932,11 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             if (!tjProfile && firstRecipe) {
                 const tjRef = firstRecipe.profiles.find(p => p.role === 'Tapajuntas');
                 if (tjRef) tjProfile = aluminum.find(p => p.id === tjRef.profileId);
+            }
+            
+            // Fallback global
+            if (!tjProfile) {
+                tjProfile = aluminum.find(p => p.code.toUpperCase().includes('TJ') || p.detail.toLowerCase().includes('tapajunta'));
             }
 
             if (tjProfile) {

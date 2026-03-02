@@ -320,6 +320,34 @@ export const calculateItemPrice = (
     });
   }
 
+  // Lógica de Costo de Tapajuntas (Si está activo en extras)
+  if (extras?.tapajuntas) {
+      let tjProfile = profiles.find(p => p.id === recipe.defaultTapajuntasProfileId);
+      if (!tjProfile) {
+          const tjRef = (recipe.profiles || []).find(p => p.role === 'Tapajuntas' || (p.role && p.role.toLowerCase().includes('tapa')));
+          if (tjRef) tjProfile = profiles.find(p => p.id === tjRef.profileId);
+      }
+      
+      // Fallback global: Buscar cualquier perfil que sea Tapajuntas si la receta no lo especifica
+      if (!tjProfile) {
+          tjProfile = profiles.find(p => p.code.toUpperCase().includes('TJ') || p.detail.toLowerCase().includes('tapajunta'));
+      }
+
+      if (tjProfile) {
+          const sides = extras.tapajuntasSides || { top: true, bottom: true, left: true, right: true };
+          let totalLen = 0;
+          const tjThick = Number(tjProfile.thickness || 30); // Ancho estimado del perfil si no está definido
+
+          // Cálculo aproximado considerando los cortes a 45 grados
+          if (sides.top) totalLen += (width + (sides.left ? tjThick : 0) + (sides.right ? tjThick : 0));
+          if (sides.bottom) totalLen += (width + (sides.left ? tjThick : 0) + (sides.right ? tjThick : 0));
+          if (sides.left) totalLen += (height + (sides.top ? tjThick : 0) + (sides.bottom ? tjThick : 0));
+          if (sides.right) totalLen += (height + (sides.top ? tjThick : 0) + (sides.bottom ? tjThick : 0));
+
+          totalAluWeight += ((totalLen + (Number(config.discWidth || 0) * 4)) / 1000) * Number(tjProfile.weightPerMeter || 0);
+      }
+  }
+
   const adjustedW = width - Number(recipe.glassDeductionW || 0); 
   const adjustedH = height - Number(recipe.glassDeductionH || 0);
   const visualType = (recipe.visualType || '').toLowerCase();
