@@ -36,6 +36,7 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'swing_door_45_no_dintel', label: 'PUERTA 1H 45° SIN DINTEL', description: 'Marco lateral 45°. Hoja 45° arriba / 90° abajo con Zócalo.' },
   { id: 'double_swing_door_45_no_dintel', label: 'PUERTA 2H 45° SIN DINTEL', description: 'Marco lateral 45°. 2 Hojas 45° arriba / 90° abajo con Zócalo.' },
   { id: 'swing_v', label: 'V. DE REBATIR', description: 'Ventana de abrir tradicional.' },
+  { id: 'double_swing_v_45', label: 'V. DE REBATIR 2H 45°', description: 'Ventana de abrir 2 hojas con corte a 45°.' },
   { id: 'projecting', label: 'DESPLAZABLE', description: 'Apertura proyectante exterior.' },
   { id: 'fixed', label: 'PAÑO FIJO', description: 'Marco perimetral fijo.' },
   { id: 'mosquitero', label: 'MOSQUITERO', description: 'Sistema de tela mosquitera.' },

@@ -355,8 +355,10 @@ export const calculateItemPrice = (
   if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
   else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
   else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+  else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+
   let leafBaseW = adjustedW;
-  if (visualType.includes('sliding')) leafBaseW = adjustedW / numLeaves;
+  if (visualType.includes('sliding') || numLeaves > 1) leafBaseW = adjustedW / numLeaves;
   const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
   
   const transomGlassDeduction = Number(recipe.transomGlassDeduction || 0); 
