@@ -620,7 +620,13 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const visualType = (recipe.visualType || '').toLowerCase();
-            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
+            let numLeaves = recipe.leaves || 1;
+            if (!recipe.leaves) {
+                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+            }
             panes.forEach((pane, paneIdx) => {
                 if (pane.isBlind) {
                     const bpId = mod.blindPaneIds?.[paneIdx];
@@ -1060,7 +1066,14 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
     quote.items.forEach((item, itemIdx) => {
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe || recipe.visualType === 'mosquitero') return;
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            const visualType = (recipe.visualType || '').toLowerCase();
+            let numLeaves = recipe.leaves || 1;
+            if (!recipe.leaves) {
+                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+            }
             const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const gOuter = glasses.find(g => g.id === mod.glassOuterId); const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
             glassPanes.forEach((pane, paneIdx) => {
