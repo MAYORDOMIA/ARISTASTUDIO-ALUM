@@ -64,16 +64,23 @@ const getModuleGlassPanes = (
     const adjustedW = modW - (recipe.glassDeductionW || 0); 
     const adjustedH = modH - (recipe.glassDeductionH || 0);
     const visualType = (recipe.visualType || '').toLowerCase();
-    let numLeaves = 1;
-    if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
-    else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
-    else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+    
+    let numLeaves = recipe.leaves || 1;
+    if (!recipe.leaves) {
+        if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+        else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+        else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+        else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+    }
+
     let leafBaseW = adjustedW;
-    if (visualType.includes('sliding') || visualType.includes('corrediza')) { leafBaseW = adjustedW / numLeaves; }
+    if (visualType.includes('sliding') || numLeaves > 1) { leafBaseW = adjustedW / numLeaves; }
+    
     const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
     const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
     const panes: { w: number, h: number, isBlind: boolean }[] = [];
-    const transomGlassDeduction = recipe.transomGlassDeduction || 0; 
+    
+    // Generate panes for a single leaf (callers will multiply by numLeaves)
     if (!mod.transoms || mod.transoms.length === 0) {
         panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
     } else {
@@ -207,7 +214,13 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const visualType = (recipe.visualType || '').toLowerCase();
-            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
+            let numLeaves = recipe.leaves || 1;
+            if (!recipe.leaves) {
+                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+            }
             panes.forEach((p, pIdx) => {
                 if (p.isBlind) {
                     const bpId = mod.blindPaneIds?.[pIdx];
@@ -485,7 +498,13 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const visualType = (recipe.visualType || '').toLowerCase();
-            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
+            let numLeaves = recipe.leaves || 1;
+            if (!recipe.leaves) {
+                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+            }
             panes.forEach((p, paneIdx) => {
                 if (p.isBlind) {
                     const bpId = mod.blindPaneIds?.[paneIdx];
@@ -877,7 +896,13 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
             const visualType = (recipe.visualType || '').toLowerCase();
-            const numLeaves = (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) ? 3 : (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) ? 4 : (visualType.includes('sliding') || visualType.includes('corrediza') ? 2 : 1);
+            let numLeaves = recipe.leaves || 1;
+            if (!recipe.leaves) {
+                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+            }
             panes.forEach((p, pIdx) => {
                 if (p.isBlind) {
                     const slatId = mod.slatProfileIds?.[pIdx];
@@ -977,7 +1002,14 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                     spec = `${gOuter?.detail || '?'} / ${camera?.detail || '?'} / ${gInner?.detail || '?'}`;
                 } else { spec = gOuter?.detail || 'Vidrio Simple'; }
             }
-            const numLeaves = (recipe.visualType?.includes('sliding_3')) ? 3 : (recipe.visualType?.includes('sliding_4')) ? 4 : (recipe.visualType?.includes('sliding') ? 2 : 1);
+            const visualType = (recipe.visualType || '').toLowerCase();
+            let numLeaves = recipe.leaves || 1;
+            if (!recipe.leaves) {
+                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+            }
             panes.forEach((p, pIdx) => {
                 if (!p.isBlind) { glassPieces.push([`Paño ${pIdx + 1}`, spec, `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]); }
                 else { 
