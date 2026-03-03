@@ -228,6 +228,18 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                           <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Línea:</span>
                           <input className="bg-transparent border-none text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 outline-none w-24" value={recipe.line} onChange={e => updateRecipe(recipe.id, { line: e.target.value.toUpperCase() })} />
                         </div>
+                        <div className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100/50 dark:border-emerald-800/50`}>
+                          <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Hojas:</span>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            max="10"
+                            placeholder="Auto"
+                            className="bg-transparent border-none text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 outline-none w-8 text-center" 
+                            value={recipe.leaves || ''} 
+                            onChange={e => updateRecipe(recipe.id, { leaves: e.target.value ? parseInt(e.target.value) : undefined })} 
+                          />
+                        </div>
                         {isTubeType && (
                           <div className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 rounded-xl border border-amber-200 animate-in zoom-in`}>
                             <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Espesor (mm):</span>

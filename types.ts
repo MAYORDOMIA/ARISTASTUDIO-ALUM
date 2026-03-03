@@ -127,6 +127,7 @@ export interface ProductRecipe {
   mosquiteroProfileId?: string;
   mosquiteroFormulaW?: string;
   mosquiteroFormulaH?: string;
+  leaves?: number;
 }
 
 export interface MeasurementModule {
