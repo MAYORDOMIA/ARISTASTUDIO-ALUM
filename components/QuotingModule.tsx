@@ -577,6 +577,28 @@ const QuotingModule: React.FC<Props> = ({
     }
   }, [modules, recipes, onRecipeChange]);
 
+  // Ensure there is always a product selected
+  useEffect(() => {
+      if (recipes.length > 0) {
+          setModules(prev => {
+              const defaultGlassId = glasses.length > 0 ? glasses[0].id : '';
+              
+              if (prev.length === 0) {
+                  return [{ 
+                      id: 'm1', recipeId: recipes[0].id, x: 0, y: 0, isDVH: false, glassOuterId: defaultGlassId, transoms: [], blindPanes: [] 
+                  }];
+              }
+              
+              if (!prev[0].recipeId) {
+                  const newMods = [...prev];
+                  newMods[0] = { ...newMods[0], recipeId: recipes[0].id, glassOuterId: newMods[0].glassOuterId || defaultGlassId };
+                  return newMods;
+              }
+              return prev;
+          });
+      }
+  }, [recipes, glasses]);
+
   const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -1042,7 +1064,7 @@ const QuotingModule: React.FC<Props> = ({
 
   return (
     <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
-      <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
+      <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4 order-2 lg:order-1">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm space-y-3 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
             <h3 className="text-[10px] font-black uppercase text-sky-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-2 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
             <div className="space-y-0.5">
@@ -1222,7 +1244,7 @@ const QuotingModule: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="col-span-12 lg:col-span-8 xl:col-span-9 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-sm relative overflow-hidden flex items-center justify-center min-h-[400px] lg:min-h-[600px] transition-colors">
+      <div className="col-span-12 lg:col-span-8 xl:col-span-9 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-sm relative overflow-hidden flex items-center justify-center min-h-[400px] lg:min-h-[600px] transition-colors order-1 lg:order-2">
         <canvas ref={mainCanvasRef} width={2400} height={1800} className="w-full h-full max-h-[60vh] lg:max-h-[88vh] object-contain p-4 lg:p-12" />
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
             <div style={{ display: 'grid', gridTemplateColumns: (colSizes || []).map(s => `${s}fr`).join(' '), gridTemplateRows: (rowSizes || []).map(s => `${s}fr`).join(' '), aspectRatio: `${totalWidth || 1} / ${totalHeight || 1}`, width: '100%', height: '100%' }}>
