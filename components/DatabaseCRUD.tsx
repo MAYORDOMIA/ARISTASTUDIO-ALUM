@@ -183,18 +183,18 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Cód. Perfil', 'Descripción', 'Peso (KG/M)', 'Largo (M)', 'Espesor DB', 'Costo Extra', 'Contravidrio?', 'Estilo', 'Rango Vidrio', 'Acciones']} onAdd={() => setAluminum([...aluminum, { id: Date.now().toString(), code: 'NUEVO', detail: 'Nuevo Perfil', weightPerMeter: 0, barLength: 6, treatmentCost: 0, thickness: 0, isGlazingBead: false, minGlassThickness: 0, maxGlassThickness: 0 }])}>
             {aluminum.filter(p => filter(p.code) || filter(p.detail)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style"><input className="input-technical font-black text-indigo-800 uppercase" value={item.code} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-black text-sky-800 uppercase" value={item.code} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
                 <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
                 <td className="cell-style"><input type="number" step="0.001" className="input-technical font-mono font-black text-slate-900" value={item.weightPerMeter} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, weightPerMeter: parseFloat(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-slate-900" value={item.barLength} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, barLength: parseFloat(e.target.value) || 0} : x))} /></td>
-                <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-indigo-600 bg-indigo-50/50 rounded-lg px-2" value={item.thickness} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} /></td>
+                <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-sky-600 bg-sky-50/50 rounded-lg px-2" value={item.thickness} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><div className="flex items-center text-slate-400 font-mono font-bold">$<input type="number" className="bg-transparent w-16 outline-none" value={item.treatmentCost} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, treatmentCost: parseFloat(e.target.value) || 0} : x))} /></div></td>
                 
                 {/* Nuevas columnas para Contravidrios */}
                 <td className="cell-style text-center">
                     <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded cursor-pointer accent-indigo-600" 
+                        className="w-4 h-4 rounded cursor-pointer accent-sky-600" 
                         checked={item.isGlazingBead || false} 
                         onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, isGlazingBead: e.target.checked} : x))} 
                     />
@@ -202,7 +202,7 @@ const DatabaseCRUD: React.FC<Props> = ({
                 <td className="cell-style">
                     {item.isGlazingBead && (
                         <select 
-                            className="bg-transparent text-[10px] font-black uppercase outline-none text-indigo-600"
+                            className="bg-transparent text-[10px] font-black uppercase outline-none text-sky-600"
                             value={item.glazingBeadStyle || 'Recto'}
                             onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, glazingBeadStyle: e.target.value as any} : x))}
                         >
@@ -243,7 +243,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Cód. Vidrio', 'Descripción', 'Ancho (mm)', 'Alto (mm)', 'Costo M2', 'Espejo', 'Acciones']} onAdd={() => setGlasses([...glasses, { id: Date.now().toString(), code: 'V-00', detail: 'Nuevo Cristal', width: 2400, height: 1800, pricePerM2: 0, isMirror: false }])}>
             {glasses.filter(g => filter(g.detail) || filter(g.code)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style"><input className="input-technical font-black text-indigo-800" value={item.code} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, code: e.target.value} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-black text-sky-800" value={item.code} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, code: e.target.value} : x))} /></td>
                 <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.width} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, width: parseInt(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.height} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, height: parseInt(e.target.value) || 0} : x))} /></td>
@@ -261,7 +261,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Código', 'Descripción', 'Costo ($)', 'Acciones']} onAdd={() => setAccessories([...accessories, { id: Date.now().toString(), code: 'ACC-00', detail: 'Nuevo Herraje', unitPrice: 0 }])}>
             {accessories.filter(a => filter(a.detail) || filter(a.code)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style w-40"><input className="input-technical font-black text-indigo-800 uppercase" value={item.code} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
+                <td className="cell-style w-40"><input className="input-technical font-black text-sky-800 uppercase" value={item.code} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
                 <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
                 <td className="cell-style w-40"><div className="flex items-center text-green-800 font-mono font-black bg-green-50/30 px-3 py-1.5 rounded-xl border border-green-100">$<input type="number" className="bg-transparent w-full outline-none ml-1" value={item.unitPrice} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, unitPrice: parseFloat(e.target.value) || 0} : x))} /></div></td>
                 <td className="cell-style w-20 text-right"><button onClick={() => setAccessories(accessories.filter(x => x.id !== item.id))} className="btn-delete"><Trash2 size={16} /></button></td>
@@ -275,7 +275,7 @@ const DatabaseCRUD: React.FC<Props> = ({
             {dvhInputs.filter(i => filter(i.detail) || filter(i.type)).map((item) => (
               <tr key={item.id} className="row-style group">
                 <td className="cell-style">
-                    <select className="bg-transparent outline-none font-black text-indigo-800 uppercase text-[10px]" value={item.type} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, type: e.target.value as any} : x))}>
+                    <select className="bg-transparent outline-none font-black text-sky-800 uppercase text-[10px]" value={item.type} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, type: e.target.value as any} : x))}>
                         <option value="Cámara">Cámara</option>
                         <option value="Butilo">Butilo</option>
                         <option value="Sales">Sales</option>
@@ -310,7 +310,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Cód. Panel', 'Descripción', 'Costo', 'Unidad', 'Acciones']} onAdd={() => setBlindPanels([...blindPanels, { id: Date.now().toString(), code: 'P-00', detail: 'Nuevo Panel', price: 0, unit: 'm2' }])}>
             {blindPanels.filter(b => filter(b.detail) || filter(b.code)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style"><input className="input-technical font-black text-indigo-800 uppercase" value={item.code} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-black text-sky-800 uppercase" value={item.code} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
                 <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
                 <td className="cell-style text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-16 outline-none" value={item.price} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, price: parseFloat(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style">
@@ -337,7 +337,7 @@ const DatabaseCRUD: React.FC<Props> = ({
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id)}
               className={`flex items-center gap-3 px-6 py-2 rounded-lg transition-all text-[10px] uppercase font-black tracking-widest whitespace-nowrap ${
-                activeSubTab === tab.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-800 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                activeSubTab === tab.id ? 'bg-sky-600 text-white shadow-lg' : 'text-slate-800 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               {tab.label}
@@ -346,20 +346,20 @@ const DatabaseCRUD: React.FC<Props> = ({
         </div>
         <div className="flex flex-col sm:flex-row gap-2 lg:gap-3">
             <input type="file" ref={fileInputRef} onChange={handleImportFromExcel} className="hidden" accept=".xlsx,.xls" />
-            <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-indigo-600 transition-all shadow-sm">
+            <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sky-600 transition-all shadow-sm">
                 <Upload size={14} /> Importar
             </button>
-            <button onClick={handleExportToExcel} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-900 dark:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95">
+            <button onClick={handleExportToExcel} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-900 dark:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-xl active:scale-95">
                 <Download size={14} /> Backup
             </button>
         </div>
       </div>
 
-      <div className="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900 p-4 rounded-2xl flex gap-4 items-center">
-        <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg"><Info size={20} /></div>
+      <div className="bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 p-4 rounded-2xl flex gap-4 items-center">
+        <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg"><Info size={20} /></div>
         <div className="flex flex-col">
-            <p className="text-[10px] font-black text-indigo-900 dark:text-indigo-300 uppercase tracking-widest leading-none">Terminal de Sincronización Industrial</p>
-            <p className="text-[9px] font-bold text-indigo-600/70 dark:text-indigo-400/50 uppercase mt-1">La tabla Accesorios está configurada con: Código | Descripción | Costo</p>
+            <p className="text-[10px] font-black text-sky-900 dark:text-sky-300 uppercase tracking-widest leading-none">Terminal de Sincronización Industrial</p>
+            <p className="text-[9px] font-bold text-sky-600/70 dark:text-sky-400/50 uppercase mt-1">La tabla Accesorios está configurada con: Código | Descripción | Costo</p>
         </div>
       </div>
 
@@ -367,7 +367,7 @@ const DatabaseCRUD: React.FC<Props> = ({
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/30 dark:bg-slate-950/20">
             <div className="relative w-full max-w-lg">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input type="text" placeholder="Filtrar registros en tiempo real..." className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 pl-11 pr-4 py-2.5 rounded-xl text-[11px] focus:outline-none focus:border-indigo-500 transition-all font-black text-slate-900 dark:text-slate-100 shadow-sm placeholder:text-slate-400" value={search} onChange={(e) => setSearch(e.target.value)} />
+                <input type="text" placeholder="Filtrar registros en tiempo real..." className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 pl-11 pr-4 py-2.5 rounded-xl text-[11px] focus:outline-none focus:border-sky-500 transition-all font-black text-slate-900 dark:text-slate-100 shadow-sm placeholder:text-slate-400" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <div className="text-[9px] text-slate-900 dark:text-slate-400 font-black uppercase tracking-[0.2em] flex items-center gap-3">
                 <CheckCircle2 size={14} className="text-green-600" /> Sincronización Industrial Activa
@@ -404,7 +404,7 @@ const TableWrapper: React.FC<{ headers: string[], children: React.ReactNode, onA
         {children}
         <tr>
           <td colSpan={headers.length} className="p-6">
-            <button onClick={onAdd} className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 dark:text-slate-500 hover:text-indigo-600 hover:border-indigo-600 transition-all flex items-center justify-center gap-3 font-black uppercase text-[10px] tracking-widest bg-slate-50/30 dark:bg-slate-900/10 group">
+            <button onClick={onAdd} className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400 dark:text-slate-500 hover:text-sky-600 hover:border-sky-600 transition-all flex items-center justify-center gap-3 font-black uppercase text-[10px] tracking-widest bg-slate-50/30 dark:bg-slate-900/10 group">
               <Plus size={16} className="group-hover:scale-125 transition-transform" /> Insertar Registro Manual
             </button>
           </td>

@@ -95,7 +95,7 @@ const QuotesHistory: React.FC<Props> = ({
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6 bg-white dark:bg-slate-900 p-4 lg:p-8 rounded-[1.5rem] lg:rounded-[2.5rem] border-2 border-slate-300 dark:border-slate-800 shadow-xl ring-1 ring-slate-200 transition-colors">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 border-2 border-indigo-700/30 shrink-0">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-sky-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-sky-600/20 border-2 border-sky-700/30 shrink-0">
             <FileText size={20} />
           </div>
           <div>
@@ -108,7 +108,7 @@ const QuotesHistory: React.FC<Props> = ({
           <input 
             type="text" 
             placeholder="Buscar..." 
-            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-11 lg:pl-12 pr-4 lg:pr-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm focus:outline-none focus:border-indigo-600 transition-all font-medium text-[#0f172a] dark:text-white shadow-inner"
+            className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-11 lg:pl-12 pr-4 lg:pr-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm focus:outline-none focus:border-sky-600 transition-all font-medium text-[#0f172a] dark:text-white shadow-inner"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -123,16 +123,16 @@ const QuotesHistory: React.FC<Props> = ({
                 key={q.id}
                 onClick={() => setSelectedQuote(q)}
                 className={`group relative p-6 rounded-[2rem] border-2 transition-all cursor-pointer flex items-center justify-between shadow-sm ${
-                  selectedQuote?.id === q.id ? 'bg-white dark:bg-slate-800 border-indigo-600 shadow-2xl scale-[1.02] ring-1 ring-indigo-400/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-indigo-300'
+                  selectedQuote?.id === q.id ? 'bg-white dark:bg-slate-800 border-sky-600 shadow-2xl scale-[1.02] ring-1 ring-sky-400/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-sky-300'
                 }`}
               >
                 <div className="flex items-center gap-5">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors border-2 ${selectedQuote?.id === q.id ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 group-hover:text-indigo-600 group-hover:border-indigo-200'}`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors border-2 ${selectedQuote?.id === q.id ? 'bg-sky-600 text-white border-sky-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 group-hover:bg-sky-100 dark:group-hover:bg-sky-900/50 group-hover:text-sky-600 group-hover:border-sky-200'}`}>
                     <User size={20} />
                   </div>
                   <div className="space-y-1">
-                    <div className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">{formatDate(q.date)}</div>
-                    <div className="text-sm font-black text-slate-800 dark:text-white uppercase group-hover:text-indigo-600 transition-colors truncate max-w-[200px]">{q.clientName}</div>
+                    <div className="text-[10px] text-sky-600 font-black uppercase tracking-widest">{formatDate(q.date)}</div>
+                    <div className="text-sm font-black text-slate-800 dark:text-white uppercase group-hover:text-sky-600 transition-colors truncate max-w-[200px]">{q.clientName}</div>
                     <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
                         ID: {q.id.substring(0,8)} | {q.items.length} ÍTEMS
                     </div>
@@ -163,7 +163,7 @@ const QuotesHistory: React.FC<Props> = ({
               <div className="flex justify-between items-start border-b-2 border-slate-100 dark:border-slate-800 pb-4 lg:pb-8">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2 lg:gap-3">
-                    <span className="text-[8px] lg:text-[10px] text-indigo-600 font-black uppercase tracking-widest bg-indigo-600/10 px-3 py-1 rounded-full border-2 border-indigo-600/20">Expediente Industrial</span>
+                    <span className="text-[8px] lg:text-[10px] text-sky-600 font-black uppercase tracking-widest bg-sky-600/10 px-3 py-1 rounded-full border-2 border-sky-600/20">Expediente Industrial</span>
                     <span className="text-[8px] lg:text-[10px] text-slate-400 font-mono">MOD_VER_2.5</span>
                   </div>
                   <h3 className="text-xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none">{selectedQuote.clientName}</h3>
@@ -175,8 +175,8 @@ const QuotesHistory: React.FC<Props> = ({
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-4">
-                <button onClick={() => downloadReport(selectedQuote, 'presupuesto')} className="flex items-center gap-4 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-indigo-600/10">
-                  <div className="w-10 h-10 bg-indigo-600/10 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white border-2 border-indigo-600/20 group-hover:border-indigo-700 transition-all">
+                <button onClick={() => downloadReport(selectedQuote, 'presupuesto')} className="flex items-center gap-4 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-sky-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-sky-600/10">
+                  <div className="w-10 h-10 bg-sky-600/10 rounded-xl flex items-center justify-center text-sky-600 group-hover:bg-sky-600 group-hover:text-white border-2 border-sky-600/20 group-hover:border-sky-700 transition-all">
                     <FileText size={20} />
                   </div>
                   <div className="text-left">
@@ -211,8 +211,8 @@ const QuotesHistory: React.FC<Props> = ({
                     <div className="text-[9px] text-slate-400 font-bold uppercase">Consolidado</div>
                   </div>
                 </button>
-                <button onClick={() => downloadReport(selectedQuote, 'barras')} className="flex items-center gap-4 p-5 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800 hover:border-indigo-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-indigo-600/10">
-                  <div className="w-10 h-10 bg-indigo-600/10 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white border-2 border-indigo-600/20 group-hover:border-indigo-700 transition-all">
+                <button onClick={() => downloadReport(selectedQuote, 'barras')} className="flex items-center gap-4 p-5 bg-sky-50 dark:bg-sky-900/20 rounded-2xl border-2 border-sky-200 dark:border-sky-800 hover:border-sky-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-sky-600/10">
+                  <div className="w-10 h-10 bg-sky-600/10 rounded-xl flex items-center justify-center text-sky-600 group-hover:bg-sky-600 group-hover:text-white border-2 border-sky-600/20 group-hover:border-sky-700 transition-all">
                     <Scissors size={20} />
                   </div>
                   <div className="text-left">
@@ -242,11 +242,11 @@ const QuotesHistory: React.FC<Props> = ({
                       : (moduleNames[0] || 'Producto');
                       
                   return (
-                    <div key={item.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-indigo-600/30">
+                    <div key={item.id} className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl border-2 border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:border-sky-600/30">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-10 bg-slate-50 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center border border-slate-100 dark:border-slate-700">
                           <span className="text-[6px] font-black text-slate-400 uppercase">ABER.</span>
-                          <span className="text-[9px] font-black text-indigo-600 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
+                          <span className="text-[9px] font-black text-sky-600 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
                         </div>
                         <div>
                           <div className="text-[10px] font-black text-slate-800 dark:text-white uppercase">{compositeName}</div>

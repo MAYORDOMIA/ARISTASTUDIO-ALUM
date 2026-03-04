@@ -1044,26 +1044,26 @@ const QuotingModule: React.FC<Props> = ({
     <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm space-y-3 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
-            <h3 className="text-[10px] font-black uppercase text-indigo-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-2 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
+            <h3 className="text-[10px] font-black uppercase text-sky-600 flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-2 tracking-[0.2em]"><Maximize size={16} /> Parámetros de Conjunto</h3>
             <div className="space-y-0.5">
-                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-indigo-500"/> Código de Abertura (V1, P1...)</label>
-                <input type="text" className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 h-8 px-2 rounded-lg border border-indigo-100 dark:border-indigo-800 font-black text-indigo-600 dark:text-indigo-400 text-xs focus:border-indigo-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
+                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Hash size={12} className="text-sky-500"/> Código de Abertura (V1, P1...)</label>
+                <input type="text" className="w-full bg-sky-50/50 dark:bg-sky-900/10 h-8 px-2 rounded-lg border border-sky-100 dark:border-sky-800 font-black text-sky-600 dark:text-sky-400 text-xs focus:border-sky-500 transition-all outline-none uppercase" placeholder="Ej: V1-ESTAR" value={itemCode} onChange={e => setItemCode(e.target.value)} />
             </div>
 
             {/* Selector de Estilo de Contravidrio (Solo si aplica) */}
             {hasDynamicBeads && (
-                <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-2 rounded-xl border border-indigo-100 dark:border-indigo-800 animate-in slide-in-from-top-2 space-y-1">
-                    <label className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-widest flex items-center gap-2"><Settings size={12}/> Estilo de Contravidrio</label>
+                <div className="bg-sky-50/50 dark:bg-sky-900/20 p-2 rounded-xl border border-sky-100 dark:border-sky-800 animate-in slide-in-from-top-2 space-y-1">
+                    <label className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 tracking-widest flex items-center gap-2"><Settings size={12}/> Estilo de Contravidrio</label>
                     <div className="flex bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
                         <button 
                             onClick={() => setGlazingBeadStyle('Recto')}
-                            className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Recto' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Recto' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-sky-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                         >
                             Recto
                         </button>
                         <button 
                             onClick={() => setGlazingBeadStyle('Curvo')}
-                            className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Curvo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === 'Curvo' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-sky-600 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                         >
                             Curvo
                         </button>
@@ -1073,17 +1073,17 @@ const QuotingModule: React.FC<Props> = ({
 
             <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-0.5">
-                    <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Ancho Total</label>
-                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalWidth} onChange={e => handleTotalChange('width', parseInt(e.target.value) || 0)} />
+                    <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-sky-400"/> Ancho Total</label>
+                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-sky-500 transition-all outline-none shadow-inner" value={totalWidth} onChange={e => handleTotalChange('width', parseInt(e.target.value) || 0)} />
                 </div>
                 <div className="space-y-0.5">
-                    <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-indigo-400"/> Alto Total</label>
-                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-indigo-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
+                    <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={10} className="text-sky-400"/> Alto Total</label>
+                    <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-sky-500 transition-all outline-none shadow-inner" value={totalHeight} onChange={e => handleTotalChange('height', parseInt(e.target.value) || 0)} />
                 </div>
             </div>
             <div className="space-y-0.5">
-                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Layers size={10} className="text-indigo-400"/> Cantidad de Unidades</label>
-                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-indigo-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2"><Layers size={10} className="text-sky-400"/> Cantidad de Unidades</label>
+                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 font-mono font-black text-slate-800 dark:text-white text-xs focus:border-sky-500 transition-all outline-none shadow-inner" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
             </div>
             {liveBreakdown && (
                 <button 
@@ -1091,42 +1091,42 @@ const QuotingModule: React.FC<Props> = ({
                         setShowBreakdownModal(true);
                         setBreakdownModalPos({ x: 0, y: 0 });
                     }}
-                    className="w-full bg-slate-900 dark:bg-slate-950 rounded-xl p-2.5 group hover:bg-indigo-600 transition-all text-left shadow-xl border border-slate-800/50 flex flex-col gap-0.5"
+                    className="w-full bg-slate-900 dark:bg-slate-950 rounded-xl p-2.5 group hover:bg-sky-600 transition-all text-left shadow-xl border border-slate-800/50 flex flex-col gap-0.5"
                 >
                     <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-indigo-400 group-hover:text-white flex items-center gap-2"><DollarSign size={12}/> Cotización Técnica</span>
-                        <TrendingUp size={14} className="text-indigo-500 group-hover:text-white" />
+                        <span className="text-[8px] font-black uppercase tracking-[0.2em] text-sky-400 group-hover:text-white flex items-center gap-2"><DollarSign size={12}/> Cotización Técnica</span>
+                        <TrendingUp size={14} className="text-sky-500 group-hover:text-white" />
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-lg font-mono font-black text-white leading-none tracking-tighter">
                             ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
                         </span>
-                        <span className="text-[8px] font-bold text-slate-500 group-hover:text-indigo-200 uppercase tracking-tighter italic">Ver Análisis</span>
+                        <span className="text-[8px] font-bold text-slate-500 group-hover:text-sky-200 uppercase tracking-tighter italic">Ver Análisis</span>
                     </div>
                 </button>
             )}
             <div className="space-y-0.5 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block px-1">Terminación Superficial</label>
-                <select className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 transition-all shadow-inner" value={colorId} onChange={e => setSelectedColorId(e.target.value)}>
+                <select className="w-full bg-slate-50 dark:bg-slate-800 h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 transition-all shadow-inner" value={colorId} onChange={e => setSelectedColorId(e.target.value)}>
                     <option value="">(SELECCIONE ACABADO)</option>
                     {treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
             </div>
-            <div className="space-y-1 pt-2 border-t border-indigo-100/50 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-950/20 p-2 rounded-lg">
-                <h4 className="text-[9px] font-black text-indigo-900 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2"><Settings size={12} /> Ingeniería de Extras</h4>
+            <div className="space-y-1 pt-2 border-t border-sky-100/50 dark:border-sky-900/50 bg-sky-50/30 dark:bg-sky-950/20 p-2 rounded-lg">
+                <h4 className="text-[9px] font-black text-sky-900 dark:text-sky-400 uppercase tracking-widest flex items-center gap-2"><Settings size={12} /> Ingeniería de Extras</h4>
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 cursor-pointer group bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30 shadow-sm transition-all hover:border-indigo-200" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
-                        <Bug size={14} className={extras.mosquitero ? 'text-indigo-600' : 'text-slate-400'} />
-                        <span className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.mosquitero ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
-                        <button className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.mosquitero ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                    <div className="flex items-center gap-2 cursor-pointer group bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-sky-100/50 dark:border-sky-900/30 shadow-sm transition-all hover:border-sky-200" onClick={() => setExtras({...extras, mosquitero: !extras.mosquitero})}>
+                        <Bug size={14} className={extras.mosquitero ? 'text-sky-600' : 'text-slate-400'} />
+                        <span className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.mosquitero ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500'}`}>Mosquitero Perimetral</span>
+                        <button className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.mosquitero ? 'bg-sky-600 shadow-lg shadow-sky-100 dark:shadow-sky-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
                             <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.mosquitero ? 'translate-x-4' : 'translate-x-0'}`} />
                         </button>
                     </div>
                     <div className="space-y-1">
-                        <div className="flex items-center gap-2 cursor-pointer group bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30 shadow-sm transition-all hover:border-indigo-200" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
-                            <Frame size={14} className={extras.tapajuntas ? 'text-indigo-600' : 'text-slate-400'} />
-                            <span className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.tapajuntas ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
-                            <button className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.tapajuntas ? 'bg-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
+                        <div className="flex items-center gap-2 cursor-pointer group bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-sky-100/50 dark:border-sky-900/30 shadow-sm transition-all hover:border-sky-200" onClick={() => setExtras({...extras, tapajuntas: !extras.tapajuntas})}>
+                            <Frame size={14} className={extras.tapajuntas ? 'text-sky-600' : 'text-slate-400'} />
+                            <span className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.tapajuntas ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500'}`}>Sistema de Tapajuntas</span>
+                            <button className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.tapajuntas ? 'bg-sky-600 shadow-lg shadow-sky-100 dark:shadow-sky-900/20' : 'bg-slate-300 dark:bg-slate-700'}`}>
                                 <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.tapajuntas ? 'translate-x-4' : 'translate-x-0'}`} />
                             </button>
                         </div>
@@ -1136,8 +1136,8 @@ const QuotingModule: React.FC<Props> = ({
                                 <button key={side} onClick={() => toggleTJSide(side as any)}
                                     className={`py-1 rounded-lg text-[8px] font-black uppercase border-2 transition-all ${
                                         extras.tapajuntasSides[side as keyof typeof extras.tapajuntasSides] 
-                                        ? 'bg-indigo-600 border-indigo-700 text-white shadow-md' 
-                                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:border-indigo-200'
+                                        ? 'bg-sky-600 border-sky-700 text-white shadow-md' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-400 hover:border-sky-200'
                                     }`}>{side.substring(0,3)}</button>
                             ))}
                           </div>
@@ -1161,24 +1161,24 @@ const QuotingModule: React.FC<Props> = ({
                     <div className="space-y-1">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <Columns size={16} className="text-indigo-600" />
+                                <Columns size={16} className="text-sky-600" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Medidas de Ancho</span>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
-                                <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{colSizes.length}</span>
-                                <button onClick={addColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <span className="text-[10px] font-black text-sky-600 dark:text-sky-400 min-w-[20px] text-center">{colSizes.length}</span>
+                                <button onClick={addColumn} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-sky-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
                             </div>
                         </div>
-                        <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
+                        <div className="space-y-2 pl-7 border-l-2 border-sky-100 dark:border-sky-900">
                             {colSizes.map((size, idx) => (
-                                <div key={idx} className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
+                                <div key={idx} className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? 'bg-sky-50/30 dark:bg-sky-900/10 border-sky-200 dark:border-sky-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-sky-200'}`}>
                                     <div className="flex flex-col">
-                                        <span className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Ancho C{idx+1}</span>
-                                        <span className={`text-[6px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
+                                        <span className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400'}`}>Ancho C{idx+1}</span>
+                                        <span className={`text-[6px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-sky-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" className={`w-20 bg-white dark:bg-slate-900 border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('width', idx, parseInt(e.target.value) || 0)} />
+                                        <input type="number" className={`w-20 bg-white dark:bg-slate-900 border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 focus:border-sky-500'}`} value={size} onChange={e => handleBodySizeChange('width', idx, parseInt(e.target.value) || 0)} />
                                         <span className={`text-[7px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
                                     </div>
                                 </div>
@@ -1188,24 +1188,24 @@ const QuotingModule: React.FC<Props> = ({
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <Rows size={16} className="text-indigo-600" />
+                                <Rows size={16} className="text-sky-600" />
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">Medidas de Alto</span>
                             </div>
                             <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-full shadow-inner border border-slate-200 dark:border-slate-800">
                                 <button onClick={removeRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"><Minus size={12} /></button>
-                                <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 min-w-[20px] text-center">{rowSizes.length}</span>
-                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
+                                <span className="text-[10px] font-black text-sky-600 dark:text-sky-400 min-w-[20px] text-center">{rowSizes.length}</span>
+                                <button onClick={addRow} className="w-6 h-6 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-sky-600 shadow-sm transition-all active:scale-90"><Plus size={12} /></button>
                             </div>
                         </div>
-                        <div className="space-y-2 pl-7 border-l-2 border-indigo-100 dark:border-indigo-900">
+                        <div className="space-y-2 pl-7 border-l-2 border-sky-100 dark:border-sky-900">
                             {rowSizes.map((size, idx) => (
-                                <div key={idx} className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? 'bg-indigo-50/30 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-indigo-200'}`}>
+                                <div key={idx} className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? 'bg-sky-50/30 dark:bg-sky-900/10 border-sky-200 dark:border-sky-800 shadow-sm' : 'bg-slate-50/50 dark:bg-slate-800/50 border-transparent hover:border-sky-200'}`}>
                                     <div className="flex flex-col">
-                                        <span className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`}>Alto R{idx+1}</span>
-                                        <span className={`text-[6px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-indigo-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
+                                        <span className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400'}`}>Alto R{idx+1}</span>
+                                        <span className={`text-[6px] font-bold uppercase ${isManualDim ? 'text-amber-600' : 'text-sky-500'}`}>{isManualDim ? 'Manual' : 'Ajustable'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <input type="number" className={`w-20 bg-white dark:bg-slate-900 border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:border-indigo-500'}`} value={size} onChange={e => handleBodySizeChange('height', idx, parseInt(e.target.value) || 0)} />
+                                        <input type="number" className={`w-20 bg-white dark:bg-slate-900 border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? 'border-amber-400 text-amber-600 focus:ring-2 ring-amber-100' : 'border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 focus:border-sky-500'}`} value={size} onChange={e => handleBodySizeChange('height', idx, parseInt(e.target.value) || 0)} />
                                         <span className={`text-[7px] font-black ${isManualDim ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600'}`}>mm</span>
                                     </div>
                                 </div>
@@ -1215,7 +1215,7 @@ const QuotingModule: React.FC<Props> = ({
                 </div>
             </div>
             <div className="pt-4">
-                <button onClick={addItemToWork} className="w-full bg-indigo-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-indigo-700 hover:shadow-indigo-200">
+                <button onClick={addItemToWork} className="w-full bg-sky-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-sky-700 hover:shadow-sky-200">
                     <Plus size={18} /> Cargar a Obra
                 </button>
             </div>
@@ -1227,12 +1227,12 @@ const QuotingModule: React.FC<Props> = ({
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
             <div style={{ display: 'grid', gridTemplateColumns: (colSizes || []).map(s => `${s}fr`).join(' '), gridTemplateRows: (rowSizes || []).map(s => `${s}fr`).join(' '), aspectRatio: `${totalWidth || 1} / ${totalHeight || 1}`, width: '100%', height: '100%' }}>
                 {(modules || []).filter(mod => mod && typeof mod.x === 'number' && typeof mod.y === 'number').map(mod => (
-                    <div key={mod.id} className="relative pointer-events-auto group border-2 border-transparent hover:border-indigo-600/20 hover:bg-indigo-600/5 transition-all flex items-center justify-center">
-                        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-indigo-900/10 dark:bg-indigo-400/10 backdrop-blur-[2px]">
+                    <div key={mod.id} className="relative pointer-events-auto group border-2 border-transparent hover:border-sky-600/20 hover:bg-sky-600/5 transition-all flex items-center justify-center">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-sky-900/10 dark:bg-sky-400/10 backdrop-blur-[2px]">
                             <button onClick={() => {
                                 setEditingModuleId(mod.id);
                                 setModalPos({ x: 0, y: 0 });
-                            }} className="p-4 bg-indigo-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
+                            }} className="p-4 bg-sky-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
                         </div>
                     </div>
                 ))}
@@ -1242,8 +1242,8 @@ const QuotingModule: React.FC<Props> = ({
 
       {showCouplingModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-indigo-100 dark:border-indigo-900/30 text-center space-y-6">
-            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-950/50 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-lg">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-sky-100 dark:border-sky-900/30 text-center space-y-6">
+            <div className="w-16 h-16 bg-sky-100 dark:bg-sky-950/50 rounded-2xl flex items-center justify-center text-sky-600 dark:text-sky-400 mx-auto shadow-lg">
               <Link2 size={32} />
             </div>
             <div className="space-y-2">
@@ -1251,7 +1251,7 @@ const QuotingModule: React.FC<Props> = ({
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">Seleccione el perfil de unión para el conjunto</p>
             </div>
             <div className="space-y-4">
-                <select className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase dark:text-white outline-none focus:border-indigo-500" value={couplingProfileId} onChange={e => {
+                <select className="w-full bg-slate-50 dark:bg-slate-800 h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-black uppercase dark:text-white outline-none focus:border-sky-500" value={couplingProfileId} onChange={e => {
                     const val = e.target.value;
                     if (!val) {
                         setCouplingProfileId('');
@@ -1270,7 +1270,7 @@ const QuotingModule: React.FC<Props> = ({
             </div>
             <button 
               onClick={() => setShowCouplingModal(false)}
-              className="w-full bg-slate-900 dark:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all"
+              className="w-full bg-slate-900 dark:bg-sky-700 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-sky-600 transition-all"
             >
               Aplicar y Continuar
             </button>
@@ -1290,7 +1290,7 @@ const QuotingModule: React.FC<Props> = ({
                     className={`flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-5 select-none ${isDraggingBreakdown ? 'cursor-grabbing' : 'cursor-grab'} group`}
                 >
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100"><Receipt size={24} /></div>
+                        <div className="w-12 h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-sky-100"><Receipt size={24} /></div>
                         <div>
                             <div className="flex items-center gap-2">
                                 <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-xl leading-none italic">Análisis Técnico</h3>
@@ -1305,44 +1305,44 @@ const QuotingModule: React.FC<Props> = ({
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 space-y-4">
                         <div className="flex justify-between items-center group">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600"><Package size={14}/></div>
+                                <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-sky-600"><Package size={14}/></div>
                                 <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">1. Aluminio + Acabado</span>
                             </div>
                             <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">${Math.round(liveBreakdown.aluCost).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between items-center group">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600"><Layers size={14}/></div>
+                                <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-sky-600"><Layers size={14}/></div>
                                 <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">2. Vidrio / Rellenos</span>
                             </div>
                             <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">${Math.round(liveBreakdown.glassCost).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between items-center group">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600"><Wind size={14}/></div>
+                                <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center text-sky-600"><Wind size={14}/></div>
                                 <span className="text-[11px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-tighter">3. Herrajes y Gomas</span>
                             </div>
                             <span className="font-mono font-bold text-slate-900 dark:text-white text-sm">${Math.round(liveBreakdown.accCost).toLocaleString()}</span>
                         </div>
                         <div className="pt-4 mt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white"><Hammer size={14}/></div>
-                                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter">4. Mano de Obra ({config.laborPercentage}%)</span>
+                                <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white"><Hammer size={14}/></div>
+                                <span className="text-[11px] text-sky-600 dark:text-sky-400 font-black uppercase tracking-tighter">4. Mano de Obra ({config.laborPercentage}%)</span>
                             </div>
-                            <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-sm">${Math.round(liveBreakdown.laborCost).toLocaleString()}</span>
+                            <span className="font-mono font-black text-sky-600 dark:text-sky-400 text-sm">${Math.round(liveBreakdown.laborCost).toLocaleString()}</span>
                         </div>
                     </div>
-                    <div className="bg-slate-900 dark:bg-indigo-900/80 rounded-[2rem] p-8 text-center space-y-2 shadow-2xl relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <span className="text-[10px] font-black text-indigo-400 dark:text-indigo-200 uppercase tracking-[0.4em] relative z-10">Total Final de Ingeniería</span>
+                    <div className="bg-slate-900 dark:bg-sky-900/80 rounded-[2rem] p-8 text-center space-y-2 shadow-2xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-sky-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="text-[10px] font-black text-sky-400 dark:text-sky-200 uppercase tracking-[0.4em] relative z-10">Total Final de Ingeniería</span>
                         <div className="text-4xl font-mono font-black text-white tracking-tighter relative z-10">
                             ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
                         </div>
-                        <p className="text-[9px] text-slate-400 dark:text-indigo-300 uppercase font-bold italic pt-2 relative z-10">Incluye {quantity} unidad(es) • {totalWidth}x{totalHeight} mm</p>
+                        <p className="text-[9px] text-slate-400 dark:text-sky-300 uppercase font-bold italic pt-2 relative z-10">Incluye {quantity} unidad(es) • {totalWidth}x{totalHeight} mm</p>
                     </div>
                 </div>
                 <div className="pt-4 flex justify-center">
-                    <button onClick={() => setShowBreakdownModal(false)} className="px-10 py-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-slate-200 dark:border-slate-700">
+                    <button onClick={() => setShowBreakdownModal(false)} className="px-10 py-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-sky-50 hover:text-sky-600 transition-all border border-slate-200 dark:border-slate-700">
                         Cerrar Análisis de Costos
                     </button>
                 </div>
@@ -1366,7 +1366,7 @@ const QuotingModule: React.FC<Props> = ({
                     className={`flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} group`}
                 >
                     <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"><LayoutGrid size={22} /></div>
+                        <div className="w-11 h-11 bg-sky-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"><LayoutGrid size={22} /></div>
                         <div>
                             <div className="flex items-center gap-2">
                                 <h3 className="text-slate-900 dark:text-white font-black uppercase tracking-tighter text-lg leading-none italic">
@@ -1404,17 +1404,17 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                         )}
                         <div className="flex flex-col gap-4 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-700 shrink-0">
-                            <h4 className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2"><Tag size={12}/> Sistema y Tipología</h4>
+                            <h4 className="text-[9px] font-black text-sky-600 dark:text-sky-400 uppercase tracking-widest flex items-center gap-2"><Tag size={12}/> Sistema y Tipología</h4>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Línea Técnica</label>
-                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={recipeFilter} onChange={e => setRecipeFilter(e.target.value)}>
+                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 shadow-sm" value={recipeFilter} onChange={e => setRecipeFilter(e.target.value)}>
                                         {uniqueLines.map(line => <option key={line} value={line}>{line}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Tipología</label>
-                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-indigo-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { 
+                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { 
                                         const r = recipes.find(x => x.id === e.target.value); 
                                         if (r) {
                                           const processedAccs = ensureOneActivePerLabel(r.accessories || []);
@@ -1434,10 +1434,10 @@ const QuotingModule: React.FC<Props> = ({
                         <div className="min-h-[160px] bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center shrink-0">
                             {currentModForEdit.recipeId ? (
                                 <>
-                                    <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl animate-in zoom-in"><Check size={32} /></div>
+                                    <div className="w-16 h-16 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-xl animate-in zoom-in"><Check size={32} /></div>
                                     <div className="mt-4">
                                         <h5 className="text-[11px] font-black uppercase text-slate-800 dark:text-white tracking-widest">{recipes.find(r => r.id === currentModForEdit.recipeId)?.name}</h5>
-                                        <p className="text-[8px] font-bold text-indigo-500 uppercase mt-1 tracking-widest">SISTEMA VALIDADO</p>
+                                        <p className="text-[8px] font-bold text-sky-500 uppercase mt-1 tracking-widest">SISTEMA VALIDADO</p>
                                     </div>
                                 </>
                             ) : (
@@ -1450,11 +1450,11 @@ const QuotingModule: React.FC<Props> = ({
                     </div>
                     <div className="col-span-1 lg:col-span-7 flex flex-col gap-6 lg:overflow-y-auto custom-scrollbar pr-2">
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center border-l-4 border-indigo-600 pl-3">
+                            <div className="flex justify-between items-center border-l-4 border-sky-600 pl-3">
                                 <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2"><Split size={14} className="rotate-90"/> Divisiones Técnicas</h4>
                                 <div className="flex gap-2">
                                   <button onClick={() => centerTransomsForModule(editingModuleId!)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase shadow hover:bg-slate-200 transition-all flex items-center gap-1.5">Equidistar</button>
-                                  <button onClick={addTransomToModule} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-indigo-700 transition-all flex items-center gap-1.5"><Plus size={12}/> Nueva División</button>
+                                  <button onClick={addTransomToModule} className="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-sky-700 transition-all flex items-center gap-1.5"><Plus size={12}/> Nueva División</button>
                                 </div>
                             </div>
                             <div className="space-y-2">
@@ -1466,17 +1466,17 @@ const QuotingModule: React.FC<Props> = ({
                                             <div className="flex-1 space-y-1">
                                                 <div className="flex justify-between items-center">
                                                     <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Altura desde Base (mm)</label>
-                                                    <span className="text-[7px] font-black text-indigo-500 uppercase">Travesaño {idx+1}</span>
+                                                    <span className="text-[7px] font-black text-sky-500 uppercase">Travesaño {idx+1}</span>
                                                 </div>
                                                 <div className="relative">
-                                                    <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none pr-12" value={t.height} onChange={e => {
+                                                    <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none pr-12" value={t.height} onChange={e => {
                                                         const newTransoms = [...(currentModForEdit.transoms || [])];
                                                         newTransoms[idx].height = parseInt(e.target.value) || 0;
                                                         updateModule(editingModuleId, { transoms: newTransoms });
                                                     }} />
                                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">MM</div>
                                                 </div>
-                                                <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-indigo-600 outline-none mt-1 uppercase" value={t.profileId} onChange={e => {
+                                                <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none mt-1 uppercase" value={t.profileId} onChange={e => {
                                                     const newTransoms = [...(currentModForEdit.transoms || [])];
                                                     newTransoms[idx].profileId = e.target.value;
                                                     updateModule(editingModuleId, { transoms: newTransoms });
@@ -1496,7 +1496,7 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                         </div>
                         <div className="space-y-4">
-                            <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest border-l-4 border-indigo-600 pl-3 flex items-center gap-2"><Layers size={14} /> Paños y Llenado</h4>
+                            <h4 className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest border-l-4 border-sky-600 pl-3 flex items-center gap-2"><Layers size={14} /> Paños y Llenado</h4>
                             <div className="space-y-3">
                                 {Array.from({ length: (currentModForEdit.transoms?.length || 0) + 1 }).map((_, i, arr) => {
                                     const paneIdx = arr.length - 1 - i;
@@ -1507,7 +1507,7 @@ const QuotingModule: React.FC<Props> = ({
                                             <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-700 pb-3">
                                                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Paño {paneIdx === 0 ? 'Inferior' : (paneIdx === currentModForEdit.transoms?.length ? 'Superior' : `Medio ${paneIdx}`)}</span>
                                                 <div className="flex gap-1 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl">
-                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps, glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '' }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>VS</button>
+                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps, glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '' }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>VS</button>
                                                     <button onClick={() => { 
                                                         const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); 
                                                         updateModule(editingModuleId, { 
@@ -1517,8 +1517,8 @@ const QuotingModule: React.FC<Props> = ({
                                                             glassInnerId: currentModForEdit.glassInnerId || glasses[0]?.id || '',
                                                             dvhCameraId: currentModForEdit.dvhCameraId || dvhInputs.find(i => i.type === 'Cámara')?.id || ''
                                                         }); 
-                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>DVH</button>
-                                                    <button onClick={() => { const bps = [...(currentModForEdit.blindPanes || [])]; if (!bps.includes(paneIdx)) updateModule(editingModuleId, { blindPanes: [...bps, paneIdx] }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'ciego' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>CIEGO</button>
+                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>DVH</button>
+                                                    <button onClick={() => { const bps = [...(currentModForEdit.blindPanes || [])]; if (!bps.includes(paneIdx)) updateModule(editingModuleId, { blindPanes: [...bps, paneIdx] }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'ciego' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>CIEGO</button>
                                                 </div>
                                             </div>
                                             <div className="animate-in fade-in slide-in-from-top-1 duration-200">
@@ -1534,7 +1534,7 @@ const QuotingModule: React.FC<Props> = ({
                                                                 setSlatPaneIdx(paneIdx);
                                                                 setShowSlatSelector(true);
                                                             }}
-                                                            className="w-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 p-2 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-indigo-600 hover:text-white transition-all"
+                                                            className="w-full bg-sky-50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800 text-sky-600 dark:text-sky-400 p-2 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sky-600 hover:text-white transition-all"
                                                         >
                                                             <Box size={14} /> 
                                                             {currentModForEdit.slatProfileIds?.[paneIdx] 
@@ -1545,7 +1545,7 @@ const QuotingModule: React.FC<Props> = ({
                                                 ) : infillType === 'dvh' ? (
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div className="col-span-2">
-                                                            <select className="w-full bg-indigo-50/50 dark:bg-slate-900 border border-indigo-100 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.dvhCameraId || ''} onChange={e => updateModule(editingModuleId, { dvhCameraId: e.target.value })}>
+                                                            <select className="w-full bg-sky-50/50 dark:bg-slate-900 border border-sky-100 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.dvhCameraId || ''} onChange={e => updateModule(editingModuleId, { dvhCameraId: e.target.value })}>
                                                                 <option value="">(CÁMARA)</option>
                                                                 {dvhInputs.filter(i => i.type === 'Cámara').map(c => <option key={c.id} value={c.id}>{c.detail}</option>)}
                                                             </select>
@@ -1563,7 +1563,7 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                         </div>
                         <div className="space-y-4 pt-4 border-t border-slate-50 dark:border-slate-800">
-                            <h4 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest border-l-4 border-indigo-600 pl-3"><Wind size={14} /> Herrajes del Módulo</h4>
+                            <h4 className="text-[10px] font-black text-sky-600 dark:text-sky-400 uppercase tracking-widest border-l-4 border-sky-600 pl-3"><Wind size={14} /> Herrajes del Módulo</h4>
                             <p className="text-[8px] text-slate-400 font-bold uppercase px-3 italic">Active o desactive las opciones de herraje según el tamaño.</p>
                             <div className="grid grid-cols-1 gap-2">
                                 {(() => {
@@ -1573,11 +1573,11 @@ const QuotingModule: React.FC<Props> = ({
                                     return modAccs.map((ra, idx) => {
                                         const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
                                         return (
-                                            <div key={idx} className={`flex flex-col gap-2 p-3 border-2 rounded-xl transition-all ${ra.isAlternative ? 'bg-slate-50/40 border-slate-100 opacity-60' : 'bg-white dark:bg-slate-800/60 border-indigo-600/20 shadow-sm'}`}>
+                                            <div key={idx} className={`flex flex-col gap-2 p-3 border-2 rounded-xl transition-all ${ra.isAlternative ? 'bg-slate-50/40 border-slate-100 opacity-60' : 'bg-white dark:bg-slate-800/60 border-sky-600/20 shadow-sm'}`}>
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-2">
                                                         {ra.label ? (
-                                                          <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[8px] font-black rounded-md uppercase">{ra.label}</span>
+                                                          <span className="px-2 py-0.5 bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 text-[8px] font-black rounded-md uppercase">{ra.label}</span>
                                                         ) : (
                                                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Posición #{idx+1}</span>
                                                         )}
@@ -1585,13 +1585,13 @@ const QuotingModule: React.FC<Props> = ({
                                                     </div>
                                                     <button 
                                                         onClick={() => toggleAccessoryActive(idx)}
-                                                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black transition-all ${ra.isAlternative ? 'text-slate-400 hover:text-indigo-600' : 'bg-indigo-600 text-white shadow-md'}`}
+                                                        className={`flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black transition-all ${ra.isAlternative ? 'text-slate-400 hover:text-sky-600' : 'bg-sky-600 text-white shadow-md'}`}
                                                     >
                                                         {ra.isAlternative ? <><ToggleLeft size={14} /> DESACTIVADO</> : <><ToggleRight size={14} /> ACTIVO</>}
                                                     </button>
                                                 </div>
                                                 <select 
-                                                    className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black outline-none focus:border-indigo-500 shadow-sm ${ra.isAlternative ? 'text-slate-400' : 'text-slate-800 dark:text-white'}`}
+                                                    className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black outline-none focus:border-sky-500 shadow-sm ${ra.isAlternative ? 'text-slate-400' : 'text-slate-800 dark:text-white'}`}
                                                     value={ra.accessoryId}
                                                     onChange={(e) => handleAccessorySubstitute(idx, e.target.value)}
                                                 >
@@ -1607,7 +1607,7 @@ const QuotingModule: React.FC<Props> = ({
                     </div>
                 </div>
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button onClick={() => setEditingModuleId(null)} className="w-full bg-slate-900 dark:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all flex items-center justify-center gap-3">
+                    <button onClick={() => setEditingModuleId(null)} className="w-full bg-slate-900 dark:bg-sky-700 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-sky-600 transition-all flex items-center justify-center gap-3">
                         <CheckCircle size={18} /> Validar Ingeniería de Módulo
                     </button>
                 </div>
@@ -1617,10 +1617,10 @@ const QuotingModule: React.FC<Props> = ({
 
       {showSlatSelector && slatPaneIdx !== null && currentModForEdit && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 lg:p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-slate-900 w-full lg:max-w-xl rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-2xl border-2 border-indigo-100 dark:border-slate-800 flex flex-col max-h-[90vh] transition-colors relative">
+            <div className="bg-white dark:bg-slate-900 w-full lg:max-w-xl rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-2xl border-2 border-sky-100 dark:border-slate-800 flex flex-col max-h-[90vh] transition-colors relative">
                 <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-5 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><Box size={24} /></div>
+                        <div className="w-12 h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><Box size={24} /></div>
                         <div>
                             <h3 className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tighter leading-none italic">Selector de Tablillas</h3>
                             <p className="text-[10px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Paño #{slatPaneIdx + 1} • Cálculo Dinámico</p>
@@ -1634,7 +1634,7 @@ const QuotingModule: React.FC<Props> = ({
                     <input 
                         type="text" 
                         placeholder="Buscar perfil tablilla por código o detalle..." 
-                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-12 pr-6 py-4 rounded-2xl text-[11px] font-black uppercase dark:text-white focus:outline-none focus:border-indigo-600 transition-all shadow-inner"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-12 pr-6 py-4 rounded-2xl text-[11px] font-black uppercase dark:text-white focus:outline-none focus:border-sky-600 transition-all shadow-inner"
                         value={slatSearch}
                         onChange={(e) => setSlatSearch(e.target.value)}
                     />
@@ -1655,17 +1655,17 @@ const QuotingModule: React.FC<Props> = ({
                             }}
                             className={`w-full text-left p-5 rounded-[1.5rem] border-2 transition-all group flex items-center justify-between ${
                                 currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id 
-                                ? 'bg-indigo-600 border-indigo-700 text-white shadow-xl scale-[1.01]' 
-                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-indigo-200'
+                                ? 'bg-sky-600 border-sky-700 text-white shadow-xl scale-[1.01]' 
+                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-sky-200'
                             }`}
                         >
                             <div className="flex flex-col gap-1">
-                                <span className={`text-sm font-black uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-white' : 'text-slate-800 dark:text-white group-hover:text-indigo-600'}`}>{p.code}</span>
-                                <span className={`text-[10px] font-bold uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-indigo-200' : 'text-slate-400'}`}>{p.detail}</span>
+                                <span className={`text-sm font-black uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-white' : 'text-slate-800 dark:text-white group-hover:text-sky-600'}`}>{p.code}</span>
+                                <span className={`text-[10px] font-bold uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-sky-200' : 'text-slate-400'}`}>{p.detail}</span>
                             </div>
                             <div className="text-right">
                                 <div className={`text-[9px] font-black uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-white' : 'text-slate-400'}`}>Espesor: {p.thickness}mm</div>
-                                <div className={`text-[8px] font-bold uppercase mt-1 ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-indigo-200' : 'text-indigo-500'}`}>{p.weightPerMeter} kg/m</div>
+                                <div className={`text-[8px] font-bold uppercase mt-1 ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? 'text-sky-200' : 'text-sky-500'}`}>{p.weightPerMeter} kg/m</div>
                             </div>
                         </button>
                     )) : (

@@ -120,7 +120,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
       <div className="col-span-1 lg:col-span-8 space-y-6">
         <div className="bg-white dark:bg-slate-900 p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0"><Briefcase size={20} /></div>
+                <div className="w-10 h-10 bg-sky-600 rounded-xl flex items-center justify-center text-white shrink-0"><Briefcase size={20} /></div>
                 <div>
                     <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">Terminal de Obra Activa</h2>
                     <p className="text-[9px] text-slate-400 font-bold uppercase">{items.length} Carpinterías en Sistema</p>
@@ -142,23 +142,23 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
               return (
                 <div key={item.id} className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 p-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="w-16 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg flex flex-col items-center justify-center border border-indigo-100 dark:border-indigo-800 shrink-0">
-                      <span className="text-[8px] font-black text-indigo-400 uppercase">ABER.</span>
-                      <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
+                    <div className="w-16 h-12 bg-sky-50 dark:bg-sky-900/20 rounded-lg flex flex-col items-center justify-center border border-sky-100 dark:border-sky-800 shrink-0">
+                      <span className="text-[8px] font-black text-sky-400 uppercase">ABER.</span>
+                      <span className="text-[10px] font-black text-sky-600 dark:text-sky-400 truncate max-w-full px-1">{item.itemCode || `POS#${idx+1}`}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{compositeName}</h3>
                       <div className="flex gap-4 mt-1">
                         <span className="text-[9px] font-mono text-slate-500">{item.width} x {item.height} mm</span>
-                        <span className="text-[9px] font-black text-indigo-500 uppercase">{moduleNames.length > 1 ? 'CONJUNTO' : recipes.find(r => r.id === item.composition.modules[0].recipeId)?.line || '-'}</span>
+                        <span className="text-[9px] font-black text-sky-500 uppercase">{moduleNames.length > 1 ? 'CONJUNTO' : recipes.find(r => r.id === item.composition.modules[0].recipeId)?.line || '-'}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6">
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1 rounded-lg">
-                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 font-bold">-</button>
+                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-sky-600 font-bold">-</button>
                       <span className="text-[10px] font-black w-6 text-center dark:text-white">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 font-bold">+</button>
+                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-sky-600 font-bold">+</button>
                     </div>
                     <div className="text-right min-w-[80px] sm:min-w-[100px]">
                       <span className="text-[11px] font-black text-slate-900 dark:text-white font-mono">${(item.calculatedCost * item.quantity).toLocaleString()}</span>
@@ -173,7 +173,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
         {items.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm animate-in slide-in-from-bottom-4">
                 <div className="bg-slate-900 p-4 px-6 flex justify-between items-center">
-                    <h3 className="text-[9px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3"><Database size={14} className="text-indigo-400"/> Consolidado Maestro de Materiales (Ingeniería)</h3>
+                    <h3 className="text-[9px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3"><Database size={14} className="text-sky-400"/> Consolidado Maestro de Materiales (Ingeniería)</h3>
                     <span className="text-[8px] font-bold text-slate-400">BASADO EN RECETAS DE USUARIO</span>
                 </div>
                 <div className="p-2 overflow-x-auto">
@@ -189,7 +189,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                         <tbody>
                             {consolidatedProfiles.map((p, i) => (
                                 <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                                    <td className="p-3 text-[10px] font-black text-indigo-600">{p.code}</td>
+                                    <td className="p-3 text-[10px] font-black text-sky-600">{p.code}</td>
                                     <td className="p-3 text-[9px] font-bold text-slate-600 uppercase">{p.detail}</td>
                                     <td className="p-3 text-[10px] font-mono text-right font-bold">{(p.totalLength / 1000).toFixed(2)} m</td>
                                     <td className="p-3 text-[10px] font-mono text-right font-black text-slate-900">{p.totalWeight.toFixed(2)} kg</td>
@@ -198,8 +198,8 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                         </tbody>
                     </table>
                 </div>
-                <div className="bg-indigo-50 p-3 px-6 text-center">
-                    <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Peso Total de Aluminio en Obra: {consolidatedProfiles.reduce((acc, p) => acc + p.totalWeight, 0).toFixed(2)} KG</span>
+                <div className="bg-sky-50 p-3 px-6 text-center">
+                    <span className="text-[9px] font-black text-sky-600 uppercase tracking-widest">Peso Total de Aluminio en Obra: {consolidatedProfiles.reduce((acc, p) => acc + p.totalWeight, 0).toFixed(2)} KG</span>
                 </div>
             </div>
         )}
@@ -207,7 +207,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
 
       <div className="col-span-1 lg:col-span-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-8 shadow-sm space-y-6 lg:space-y-8 lg:sticky lg:top-6">
-            <h3 className="text-[10px] font-black uppercase text-indigo-600 tracking-widest border-b border-slate-50 dark:border-slate-800 pb-4 flex items-center gap-2"><FileText size={14}/> Cierre de Expediente</h3>
+            <h3 className="text-[10px] font-black uppercase text-sky-600 tracking-widest border-b border-slate-50 dark:border-slate-800 pb-4 flex items-center gap-2"><FileText size={14}/> Cierre de Expediente</h3>
             
             <div className="space-y-4">
                 <div className="space-y-1">
@@ -215,7 +215,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                     <input 
                       type="text" 
                       placeholder="CLIENTE O REFERENCIA..." 
-                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-[10px] font-black uppercase outline-none focus:border-indigo-500 transition-all shadow-inner"
+                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 transition-all shadow-inner"
                       value={clientName}
                       onChange={e => setClientName(e.target.value)}
                     />
@@ -233,7 +233,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                 </div>
                 <div className="pt-4 border-t border-slate-100 flex justify-between items-center px-1">
                     <span className="text-[11px] font-black text-slate-900 uppercase">Total Obra</span>
-                    <span className="text-2xl font-mono font-black text-indigo-600 tracking-tighter">${total.toLocaleString()}</span>
+                    <span className="text-2xl font-mono font-black text-sky-600 tracking-tighter">${total.toLocaleString()}</span>
                 </div>
             </div>
 
@@ -242,7 +242,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                 disabled={items.length === 0 || !clientName}
                 className={`w-full py-5 rounded-2xl uppercase text-[10px] font-black tracking-[0.2em] shadow-lg transition-all active:scale-95 border-b-4 ${
                 items.length > 0 && clientName
-                ? 'bg-indigo-600 text-white border-indigo-800 hover:bg-indigo-700' 
+                ? 'bg-sky-600 text-white border-sky-800 hover:bg-sky-700' 
                 : 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
                 }`}
             >

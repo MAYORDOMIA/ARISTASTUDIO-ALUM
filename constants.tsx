@@ -18,7 +18,7 @@ import {
 export const COLORS = {
   bg: '#f8fafc',
   card: '#ffffff',
-  accent: '#4f46e5',
+  accent: '#0ea5e9',
   text: '#0f172a',
   textDim: '#64748b'
 };

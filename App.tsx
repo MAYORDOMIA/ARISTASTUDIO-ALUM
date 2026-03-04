@@ -179,10 +179,10 @@ const App: React.FC = () => {
         <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 overflow-hidden">
           {(isSidebarOpen || window.innerWidth >= 1024) && (
             <div className={`flex items-center gap-2 transition-opacity duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
-              <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center font-black text-white shadow-lg text-lg italic">A</div>
+              <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center font-black text-white shadow-lg text-lg italic">A</div>
             </div>
           )}
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-all hover:text-indigo-600">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-400 transition-all hover:text-sky-500">
             {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
@@ -197,8 +197,8 @@ const App: React.FC = () => {
               }}
               className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group border ${
                 activeTab === item.id 
-                ? 'bg-indigo-600 text-white font-black shadow-lg border-indigo-700' 
-                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 border-transparent hover:border-slate-100 dark:hover:border-slate-800'
+                ? 'bg-sky-500 text-white font-black shadow-lg border-sky-600' 
+                : 'text-gray-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-sky-500 dark:hover:text-sky-400 border-transparent hover:border-slate-100 dark:hover:border-slate-800'
               }`}
             >
               <div className="relative">
@@ -215,7 +215,7 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-            <div className={`flex items-center gap-2 p-2 rounded-xl border transition-all text-[9px] font-black uppercase tracking-wider ${isSaving ? 'text-indigo-600 border-indigo-100 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/30' : 'text-green-600 border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/30'}`}>
+            <div className={`flex items-center gap-2 p-2 rounded-xl border transition-all text-[9px] font-black uppercase tracking-wider ${isSaving ? 'text-sky-500 border-sky-100 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/30' : 'text-green-600 border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/30'}`}>
                 {isSaving ? <Zap size={12} className="animate-pulse" /> : <ShieldCheck size={12} />}
                 {isSidebarOpen && (isSaving ? "Guardando..." : "Sincronizado")}
             </div>
@@ -239,10 +239,9 @@ const App: React.FC = () => {
             </button>
             <h1 className="text-xs lg:text-sm font-black uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[#0f172a] dark:text-white truncate max-w-[150px] lg:max-w-none">
               {activeTab === 'quoter' ? (
-                <div className="flex items-baseline italic shrink-0">
+                <div className="flex items-baseline shrink-0">
                   <span className="font-black tracking-tighter text-lg leading-none text-[#0f172a] dark:text-white">ARISTA</span>
-                  <span className="font-black tracking-tighter text-lg leading-none text-indigo-600">STUDIO</span>
-                  <span className="ml-2 text-[10px] font-bold text-slate-400 tracking-widest not-italic">ALUM</span>
+                  <span className="font-light tracking-normal text-lg leading-none text-sky-500">STUDIO</span>
                 </div>
               ) : (MENU_ITEMS.find(m => m.id === activeTab)?.label || activeTab)}
             </h1>
@@ -250,9 +249,9 @@ const App: React.FC = () => {
           
           <div className="flex items-center gap-3 lg:gap-6">
              {activeTab === 'quoter' && openingName && (
-               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 animate-in fade-in slide-in-from-right-2">
-                 <Tag size={12} className="text-indigo-500" />
-                 <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-sky-50 dark:bg-sky-900/20 rounded-lg border border-sky-100 dark:border-sky-800 animate-in fade-in slide-in-from-right-2">
+                 <Tag size={12} className="text-sky-500" />
+                 <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-sky-600 dark:text-sky-400">
                    {openingName}
                  </span>
                </div>
@@ -260,7 +259,7 @@ const App: React.FC = () => {
              <div className="flex items-center gap-2 lg:gap-3 border-r pr-3 lg:pr-6 border-slate-100 dark:border-slate-800">
                 <button 
                   onClick={toggleTheme}
-                  className="p-2 lg:p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-all border border-slate-200 dark:border-slate-700"
+                  className="p-2 lg:p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-sky-500 transition-all border border-slate-200 dark:border-slate-700"
                 >
                   {theme === 'light' ? <Moon size={16} lg:size={18} /> : <Sun size={16} lg:size={18} />}
                 </button>
@@ -268,7 +267,7 @@ const App: React.FC = () => {
              <div className="flex items-center gap-3 lg:gap-4">
                  <div className="flex flex-col items-end">
                     <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">P. ALU</span>
-                    <span className="text-xs lg:text-sm font-mono text-indigo-600 dark:text-indigo-400 font-black">${config.aluminumPricePerKg.toFixed(2)}</span>
+                    <span className="text-xs lg:text-sm font-mono text-sky-600 dark:text-sky-400 font-black">${config.aluminumPricePerKg.toFixed(2)}</span>
                  </div>
                  <div className="hidden sm:flex flex-col items-end pl-3 lg:pl-4 border-l border-slate-100 dark:border-slate-800">
                     <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">MARGEN</span>
@@ -315,7 +314,7 @@ const App: React.FC = () => {
               <div className="max-w-4xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-2">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="bg-white dark:bg-[#252525] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-1"><Zap size={14} /> Económicos y Técnicos</h2>
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-600 flex items-center gap-2 border-b dark:border-slate-800 pb-1"><Zap size={14} /> Económicos y Técnicos</h2>
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Alu Crudo ($/KG)</label>
@@ -344,7 +343,7 @@ const App: React.FC = () => {
                         </div>
                     </div>
                     <div className="bg-white dark:bg-[#252525] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2 border-b dark:border-slate-800 pb-1"><Building2 size={14} /> Identidad Corporativa</h2>
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-600 flex items-center gap-2 border-b dark:border-slate-800 pb-1"><Building2 size={14} /> Identidad Corporativa</h2>
                         <div className="space-y-1">
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-1">Nombre Comercial</label>
@@ -359,7 +358,7 @@ const App: React.FC = () => {
                                 <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyPhone} onChange={(e) => setConfig({...config, companyPhone: e.target.value})} />
                             </div>
                             <div className="pt-0.5">
-                                <label className="flex items-center gap-2 cursor-pointer bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all">
+                                <label className="flex items-center gap-2 cursor-pointer bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 p-2 rounded-lg border border-sky-100 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-all">
                                     <Upload size={14} />
                                     <span className="text-[9px] font-black uppercase tracking-widest">Subir Logo de Empresa</span>
                                     <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
@@ -387,9 +386,9 @@ const App: React.FC = () => {
         .report-btn:hover { background-color: #f1f5f9; border-color: #e2e8f0; }
         .dark .report-btn:hover { background-color: #1e293b; border-color: #334155; }
         .icon-style { color: #64748b; transition: color 0.2s; }
-        .report-btn:hover .icon-style { color: #4f46e5; }
+        .report-btn:hover .icon-style { color: #0ea5e9; }
         .label-style { font-size: 7px; font-weight: 900; color: #94a3b8; letter-spacing: 0.1em; transition: color 0.2s; }
-        .report-btn:hover .label-style { color: #4f46e5; }
+        .report-btn:hover .label-style { color: #0ea5e9; }
       `}</style>
     </div>
   );
