@@ -22,8 +22,6 @@ import {
   Phone,
   MapPin,
   Upload,
-  Sun,
-  Moon,
   Tag,
   Wallet,
   Wind
@@ -60,10 +58,6 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const savedTheme = localStorage.getItem('aristastudio-theme');
-    return (savedTheme as 'light' | 'dark') || 'light';
-  });
   
   const [config, setConfig] = useState<GlobalConfig>({
     aluminumPricePerKg: 15.0,
@@ -101,15 +95,10 @@ const App: React.FC = () => {
   }, [activeQuoteItem, recipes, currentRecipeName, activeTab]);
 
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('aristastudio-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    // Force light mode
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('aristastudio-theme');
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('maicol_engine_data_data_v2');
@@ -256,14 +245,6 @@ const App: React.FC = () => {
                  </span>
                </div>
              )}
-             <div className="flex items-center gap-2 lg:gap-3 border-r pr-3 lg:pr-6 border-slate-100 dark:border-slate-800">
-                <button 
-                  onClick={toggleTheme}
-                  className="p-2 lg:p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 hover:text-sky-500 transition-all border border-slate-200 dark:border-slate-700"
-                >
-                  {theme === 'light' ? <Moon size={16} lg:size={18} /> : <Sun size={16} lg:size={18} />}
-                </button>
-             </div>
              <div className="flex items-center gap-3 lg:gap-4">
                  <div className="flex flex-col items-end">
                     <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">P. ALU</span>
