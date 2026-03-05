@@ -281,7 +281,7 @@ const drawDetailedOpening = (
         }
     };
 
-    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, hasMesh:boolean, leafType:string, absoluteBottomY: number) => {
+    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, hasMesh:boolean, leafType:string, absoluteBottomY: number, leafIndex: number = 0, totalLeaves: number = 1) => {
         if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
         const isHybrid45_90 = leafType.includes('no_dintel') || leafType.includes('no_umbral');
@@ -321,6 +321,99 @@ const drawDetailedOpening = (
             drawProfile([{x:lx, y:ly+lh}, {x:lx+lw, y:ly+lh}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+leafT, y:ly+lh-bT}]);
             drawProfile([{x:lx, y:ly}, {x:lx+leafT, y:ly+leafT}, {x:lx+leafT, y:ly+lh-bT}, {x:lx, y:ly+lh}]);
             drawProfile([{x:lx+lw, y:ly}, {x:lx+lw-leafT, y:ly+leafT}, {x:lx+lw-leafT, y:ly+lh-bT}, {x:lx+lw, y:ly+lh}]);
+        }
+
+        // Reforzar el borde exterior de la hoja para distinguir claramente "Marco y Hoja"
+        ctx.save();
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)'; // Darker for better visibility
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(lx, ly, lw, lh);
+        ctx.restore();
+
+        // Símbolos de Apertura
+        if (!visualType.includes('sliding') && !visualType.includes('fija') && !visualType.includes('paño')) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.8)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+
+            // Coordenadas de la hoja
+            const x1 = lx;
+            const y1 = ly;
+            const x2 = lx + lw;
+            const y2 = ly + lh;
+            const cx = lx + lw / 2;
+            const cy = ly + lh / 2;
+
+            if (leafType.includes('banderola')) {
+                // Banderola: Bisagra abajo -> Vértice abajo (V)
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(cx, y2);
+                ctx.lineTo(x2, y1);
+                ctx.stroke();
+            } else if (leafType.includes('ventiluz') || leafType.includes('projecting') || leafType.includes('desplazable')) {
+                // Ventiluz: Bisagra arriba -> Vértice arriba (^)
+                ctx.moveTo(x1, y2);
+                ctx.lineTo(cx, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            } else if (leafType.includes('oscilo') || leafType.includes('osilo') || leafType.includes('batiente') || leafType.includes('tilt_turn')) {
+                // Oscilobatiente: Abre al costado Y de arriba
+                
+                // 1. Apertura lateral (Swing) - SÓLIDA
+                // Bisagra al costado -> Vértice al costado
+                ctx.beginPath();
+                if (leafType.includes('right')) {
+                    // Bisagra derecha -> Vértice derecha (>)
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, cy);
+                    ctx.lineTo(x1, y2);
+                } else {
+                    // Bisagra izquierda (default) -> Vértice izquierda (<)
+                    ctx.moveTo(x2, y1);
+                    ctx.lineTo(x1, cy);
+                    ctx.lineTo(x2, y2);
+                }
+                ctx.stroke();
+
+                // 2. Apertura superior (Banderola/Tilt) -> Vértice abajo (V) - PUNTEADA
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]); // Línea punteada
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(cx, y2);
+                ctx.lineTo(x2, y1);
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset
+
+            } else if (leafType.includes('door') || leafType.includes('swing') || leafType.includes('puerta') || leafType.includes('abrir')) {
+                 if (leafType.includes('double') || totalLeaves === 2) {
+                     if (leafIndex === 0) {
+                         // Hoja izquierda (Bisagra izquierda) -> Vértice izquierda (<)
+                         ctx.moveTo(x2, y1);
+                         ctx.lineTo(x1, cy);
+                         ctx.lineTo(x2, y2);
+                     } else {
+                         // Hoja derecha (Bisagra derecha) -> Vértice derecha (>)
+                         ctx.moveTo(x1, y1);
+                         ctx.lineTo(x2, cy);
+                         ctx.lineTo(x1, y2);
+                     }
+                 } else {
+                     if (leafType.includes('right')) {
+                         // Bisagra derecha -> Vértice derecha (>)
+                         ctx.moveTo(x1, y1);
+                         ctx.lineTo(x2, cy);
+                         ctx.lineTo(x1, y2);
+                     } else {
+                         // Bisagra izquierda -> Vértice izquierda (<)
+                         ctx.moveTo(x2, y1);
+                         ctx.lineTo(x1, cy);
+                         ctx.lineTo(x2, y2);
+                     }
+                 }
+                 ctx.stroke();
+            }
+            ctx.restore();
         }
     };
 
@@ -376,26 +469,26 @@ const drawDetailedOpening = (
                 const leafW = (innerW / 3) + overlap;
                 for(let i=0; i<3; i++) {
                     const lx = innerX + (i * (innerW - leafW) / 2);
-                    drawLeaf(lx, innerY, innerH, leafW, leafForce90, leafForce90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                    drawLeaf(lx, innerY, innerH, leafW, leafForce90, leafForce90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h, i, 3);
                 }
             } else if (numLeaves === 4) {
                 const leafW = (innerW / 4) + overlap;
                 for(let i=0; i<4; i++) {
                     const lx = innerX + (i * (innerW - leafW) / 3);
-                    drawLeaf(lx, innerY, innerH, leafW, leafForce90, leafForce90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h);
+                    drawLeaf(lx, innerY, innerH, leafW, leafForce90, leafForce90, i === 0 && (extras?.mosquitero || false), 'sliding', y + h, i, 4);
                 }
             } else {
                 const leafW = (innerW / 2) + overlap;
-                drawLeaf(innerX, innerY, innerH, leafW, leafForce90, leafForce90, extras?.mosquitero || false, 'sliding', y + h);
-                drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, leafForce90, leafForce90, false, 'sliding', y + h);
+                drawLeaf(innerX, innerY, innerH, leafW, leafForce90, leafForce90, extras?.mosquitero || false, 'sliding', y + h, 0, 2);
+                drawLeaf(innerX + innerW - leafW, innerY, innerH, leafW, leafForce90, leafForce90, false, 'sliding', y + h, 1, 2);
             }
-        } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo')) {
+        } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo') || visualType.includes('osilo') || visualType.includes('batiente') || visualType.includes('tilt_turn')) {
             if (visualType.includes('double')) {
                 const leafW = innerW / 2;
-                drawLeaf(innerX, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h);
-                drawLeaf(innerX + leafW, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, false, visualType, y + h);
+                drawLeaf(innerX, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h, 0, 2);
+                drawLeaf(innerX + leafW, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, false, visualType, y + h, 1, 2);
             } else {
-                drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h);
+                drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h, 0, 1);
             }
         } else {
             drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
