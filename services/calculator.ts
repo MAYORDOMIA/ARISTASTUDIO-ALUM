@@ -74,7 +74,8 @@ export const calculateCompositePrice = (
       mod.blindPanes, mod.blindPaneIds, blindPanels,
       isSet,
       mod.slatProfileIds,
-      glazingBeadStylePreference
+      glazingBeadStylePreference,
+      mod.handrailProfileId
     );
     
     totalAluCost += result.aluCost;
@@ -196,7 +197,8 @@ export const calculateItemPrice = (
   overriddenAccessories?: RecipeAccessory[], blindPanes: number[] = [], blindPaneIds: Record<number, string> = {}, blindPanels: BlindPanel[] = [],
   isSet: boolean = false,
   slatProfileIds: Record<number, string> = {},
-  glazingBeadStylePreference: 'Recto' | 'Curvo' = 'Recto'
+  glazingBeadStylePreference: 'Recto' | 'Curvo' = 'Recto',
+  handrailProfileId?: string
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -400,6 +402,16 @@ export const calculateItemPrice = (
   });
 
   aluCost = totalAluWeight * baseAluPrice;
+  
+  // 3.5 Lógica de Pasamano para Barandas
+  if (handrailProfileId) {
+    const handrailProf = profiles.find(p => p.id === handrailProfileId);
+    if (handrailProf) {
+      const hWeight = (width / 1000) * Number(handrailProf.weightPerMeter || 0);
+      totalAluWeight += hWeight;
+      aluCost += hWeight * baseAluPrice;
+    }
+  }
 
   const activeAccessories = (overriddenAccessories && overriddenAccessories.length > 0) 
     ? overriddenAccessories 

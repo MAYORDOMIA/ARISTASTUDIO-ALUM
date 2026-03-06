@@ -34,6 +34,7 @@ import {
   Hash,
   Tag,
   GripHorizontal,
+  ChevronRight,
   TrendingUp,
   Receipt,
   Hammer,
@@ -70,7 +71,8 @@ const drawDetailedOpening = (
     blindPaneIds: Record<number, string> = {},
     allBlindPanels: BlindPanel[] = [],
     allProfiles: AluminumProfile[] = [],
-    isSinglePreview: boolean = false
+    isSinglePreview: boolean = false,
+    handrailProfileId?: string
 ) => {
     if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return;
 
@@ -116,7 +118,7 @@ const drawDetailedOpening = (
 
     // NUEVAS TIPOLOGÍAS DE BARANDAS
     if (visualType.includes('baranda')) {
-        const hasPasamano = visualType.includes('pasamano');
+        const hasPasamano = visualType.includes('pasamano') || !!handrailProfileId;
         const isPosteAlto = visualType.includes('poste_alto');
         const isMiniPoste = visualType.includes('mini_poste');
         
@@ -715,6 +717,9 @@ const QuotingModule: React.FC<Props> = ({
   const [slatSearch, setSlatSearch] = useState('');
   const [glazingBeadStyle, setGlazingBeadStyle] = useState<'Recto' | 'Curvo'>('Recto');
 
+  const [showHandrailSelector, setShowHandrailSelector] = useState(false);
+  const [handrailSearch, setHandrailSearch] = useState('');
+
   useEffect(() => {
     if (onRecipeChange) {
         const firstMod = modules[0];
@@ -1130,7 +1135,7 @@ const QuotingModule: React.FC<Props> = ({
             exposed.forEach(iv => perimeterSegments.push({ x1: mX + mW, y1: iv.s, x2: mX + mW, y2: iv.e, side: 'right' }));
         }
 
-        drawDetailedOpening(ctx, mX, mY, mW, mH, recipe, mod.isDVH, aluColor, extras, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
+        drawDetailedOpening(ctx, mX, mY, mW, mH, recipe, mod.isDVH, aluColor, extras, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false, mod.handrailProfileId);
     });
 
     if (extras.tapajuntas) {
@@ -1270,6 +1275,13 @@ const QuotingModule: React.FC<Props> = ({
       a.detail.toLowerCase().includes(slatSearch.toLowerCase())
     );
   }, [aluminum, slatSearch]);
+
+  const filteredHandrails = useMemo(() => {
+    return aluminum.filter(a => 
+      a.code.toLowerCase().includes(handrailSearch.toLowerCase()) || 
+      a.detail.toLowerCase().includes(handrailSearch.toLowerCase())
+    );
+  }, [aluminum, handrailSearch]);
 
   return (
     <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
@@ -1654,12 +1666,32 @@ const QuotingModule: React.FC<Props> = ({
                                             transoms: [], 
                                             overriddenAccessories: processedAccs 
                                           }); 
+                                          
+                                          // Si es baranda, abrir selector de pasamano
+                                          if ((r.visualType || '').toLowerCase().includes('baranda')) {
+                                            setShowHandrailSelector(true);
+                                          }
                                         }
                                     }}>
                                         <option value="">(SELECCIONE)</option>
                                         {recipes.filter(r => recipeFilter === 'TODOS' || (r.line || '').toUpperCase() === recipeFilter).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>
                                 </div>
+                                {currentModForEdit.recipeId && recipes.find(r => r.id === currentModForEdit.recipeId)?.visualType?.toLowerCase().includes('baranda') && (
+                                    <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Pasamano Seleccionado</label>
+                                        <button 
+                                            onClick={() => setShowHandrailSelector(true)}
+                                            className="w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 text-amber-600 dark:text-amber-400 p-3 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center justify-between hover:bg-amber-600 hover:text-white transition-all group"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Wind size={14} />
+                                                <span>{currentModForEdit.handrailProfileId ? aluminum.find(a => a.id === currentModForEdit.handrailProfileId)?.code : 'SIN SELECCIONAR'}</span>
+                                            </div>
+                                            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="min-h-[160px] bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center shrink-0">
@@ -1914,6 +1946,96 @@ const QuotingModule: React.FC<Props> = ({
                             delete newIds[slatPaneIdx];
                             updateModule(editingModuleId!, { slatProfileIds: newIds });
                             setShowSlatSelector(false);
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-800 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-all border border-slate-200 dark:border-slate-700"
+                    >
+                        Limpiar Selección
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {showHandrailSelector && currentModForEdit && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 lg:p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full lg:max-w-xl rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-2xl border-2 border-amber-100 dark:border-slate-800 flex flex-col max-h-[90vh] transition-colors relative">
+                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-5 mb-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-amber-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><Wind size={24} /></div>
+                        <div>
+                            <h3 className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tighter leading-none italic">Selector de Pasamanos</h3>
+                            <p className="text-[10px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">Baranda • Perfil de Aluminio</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setShowHandrailSelector(false)} className="text-slate-300 hover:text-red-500 transition-all p-2 bg-slate-50 dark:bg-slate-800 rounded-xl"><X size={24} /></button>
+                </div>
+
+                <div className="relative mb-6">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar pasamano por código o detalle..." 
+                        className="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 pl-12 pr-6 py-4 rounded-2xl text-[11px] font-black uppercase dark:text-white focus:outline-none focus:border-amber-600 transition-all shadow-inner"
+                        value={handrailSearch}
+                        onChange={(e) => setHandrailSearch(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                    <button 
+                        onClick={() => {
+                            updateModule(editingModuleId!, { handrailProfileId: undefined });
+                            setShowHandrailSelector(false);
+                        }}
+                        className={`w-full text-left p-5 rounded-[1.5rem] border-2 transition-all group flex items-center justify-between ${
+                            !currentModForEdit.handrailProfileId 
+                            ? 'bg-red-600 border-red-700 text-white shadow-xl scale-[1.01]' 
+                            : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-red-200'
+                        }`}
+                    >
+                        <div className="flex flex-col gap-1">
+                            <span className={`text-sm font-black uppercase ${!currentModForEdit.handrailProfileId ? 'text-white' : 'text-slate-800 dark:text-white group-hover:text-red-600'}`}>SIN PASAMANO</span>
+                            <span className={`text-[10px] font-bold uppercase ${!currentModForEdit.handrailProfileId ? 'text-red-200' : 'text-slate-400'}`}>No incluir perfil superior</span>
+                        </div>
+                        <X size={20} className={!currentModForEdit.handrailProfileId ? 'text-white' : 'text-slate-300'} />
+                    </button>
+
+                    {filteredHandrails.length > 0 ? filteredHandrails.map(p => (
+                        <button 
+                            key={p.id}
+                            onClick={() => {
+                                updateModule(editingModuleId!, { 
+                                    handrailProfileId: p.id 
+                                });
+                                setShowHandrailSelector(false);
+                            }}
+                            className={`w-full text-left p-5 rounded-[1.5rem] border-2 transition-all group flex items-center justify-between ${
+                                currentModForEdit.handrailProfileId === p.id 
+                                ? 'bg-amber-600 border-amber-700 text-white shadow-xl scale-[1.01]' 
+                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-amber-200'
+                            }`}
+                        >
+                            <div className="flex flex-col gap-1">
+                                <span className={`text-sm font-black uppercase ${currentModForEdit.handrailProfileId === p.id ? 'text-white' : 'text-slate-800 dark:text-white group-hover:text-amber-600'}`}>{p.code}</span>
+                                <span className={`text-[10px] font-bold uppercase ${currentModForEdit.handrailProfileId === p.id ? 'text-amber-200' : 'text-slate-400'}`}>{p.detail}</span>
+                            </div>
+                            <div className="text-right">
+                                <div className={`text-[8px] font-bold uppercase mt-1 ${currentModForEdit.handrailProfileId === p.id ? 'text-amber-200' : 'text-amber-500'}`}>{p.weightPerMeter} kg/m</div>
+                            </div>
+                        </button>
+                    )) : (
+                        <div className="py-12 text-center text-slate-300 opacity-20 flex flex-col items-center">
+                            <Wind size={60} className="mb-4" />
+                            <p className="text-[10px] font-black uppercase tracking-widest">No hay perfiles disponibles</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <button 
+                        onClick={() => {
+                            updateModule(editingModuleId!, { handrailProfileId: undefined });
+                            setShowHandrailSelector(false);
                         }}
                         className="w-full bg-slate-50 dark:bg-slate-800 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-all border border-slate-200 dark:border-slate-700"
                     >

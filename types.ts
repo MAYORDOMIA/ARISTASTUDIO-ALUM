@@ -146,6 +146,7 @@ export interface MeasurementModule {
   slatProfileIds?: Record<number, string>; // Nuevo: Perfil de tablilla por paño
   transoms?: { height: number; profileId: string; formula?: string }[];
   overriddenAccessories?: RecipeAccessory[];
+  handrailProfileId?: string; // Nuevo: Perfil de pasamano para barandas
 }
 
 export interface QuoteItemBreakdown {
