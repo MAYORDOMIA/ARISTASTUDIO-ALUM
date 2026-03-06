@@ -508,33 +508,38 @@ const renderAdaptiveTJ = (
         const result: Segment[] = [];
         const sorted = [...list];
         
+        // Aumentamos la tolerancia para considerar la separación por acoples
+        const mergeTol = 30; // Suficiente para cubrir gaps de acoples comunes
+
         ['top', 'bottom', 'left', 'right'].forEach(side => {
             const sideSegments = sorted.filter(s => s.side === side);
             if (sideSegments.length === 0) return;
 
             if (side === 'top' || side === 'bottom') {
                 sideSegments.sort((a, b) => a.y1 - b.y1 || a.x1 - b.x1);
-                let current = sideSegments[0];
+                let current = { ...sideSegments[0] };
                 for(let i=1; i < sideSegments.length; i++) {
                     const next = sideSegments[i];
-                    if (Math.abs(next.y1 - current.y1) < 2 && Math.abs(next.x1 - current.x2) < 2) {
+                    // Si están en la misma línea Y y están cerca en X
+                    if (Math.abs(next.y1 - current.y1) < 5 && next.x1 <= current.x2 + mergeTol) {
                         current.x2 = Math.max(current.x2, next.x2);
                     } else {
                         result.push(current);
-                        current = next;
+                        current = { ...next };
                     }
                 }
                 result.push(current);
             } else {
                 sideSegments.sort((a, b) => a.x1 - b.x1 || a.y1 - b.y1);
-                let current = sideSegments[0];
+                let current = { ...sideSegments[0] };
                 for(let i=1; i < sideSegments.length; i++) {
                     const next = sideSegments[i];
-                    if (Math.abs(next.x1 - current.x1) < 2 && Math.abs(next.y1 - current.y2) < 2) {
+                    // Si están en la misma línea X y están cerca en Y
+                    if (Math.abs(next.x1 - current.x1) < 5 && next.y1 <= current.y2 + mergeTol) {
                         current.y2 = Math.max(current.y2, next.y2);
                     } else {
                         result.push(current);
-                        current = next;
+                        current = { ...next };
                     }
                 }
                 result.push(current);
@@ -959,9 +964,10 @@ const QuotingModule: React.FC<Props> = ({
     // 1. Recolección de segmentos de contorno real
     const perimeterSegments: Segment[] = [];
     
-    validModules.forEach(mod => {
-        const recipe = recipes.find(r => r.id === mod.recipeId);
-        if (!recipe) return;
+    // Calculamos los límites absolutos del conjunto para identificar los extremos globales
+    let assemblyMinX = Infinity, assemblyMaxX = -Infinity, assemblyMinY = Infinity, assemblyMaxY = -Infinity;
+    
+    const preparedModules = validModules.map(mod => {
         const modIdxX = mod.x - bounds.minX;
         const modIdxY = mod.y - bounds.minY;
         
@@ -987,32 +993,90 @@ const QuotingModule: React.FC<Props> = ({
         const mW = modW * pxPerMm;
         const mH = modH * pxPerMm;
 
-        const hasNeighbor = (dx: number, dy: number) => validModules.some(other => {
-            if (other === mod) return false;
-            const otherIdxX = other.x - bounds.minX;
-            const otherIdxY = other.y - bounds.minY;
-            const otherXOffset = (other.x > bounds.minX) ? (currentDeduction / 2) : 0;
-            const otherYOffset = (other.y > bounds.minY) ? (currentDeduction / 2) : 0;
-            let otherOx = 0; for (let i = 0; i < otherIdxX; i++) otherOx += Number(colSizes[i] || 0);
-            let otherOy = 0; for (let j = 0; j < otherIdxY; j++) otherOy += Number(rowSizes[j] || 0);
-            
-            const oX = startX + (otherOx + otherXOffset) * pxPerMm;
-            const oY = startY + (otherOy + otherXOffset) * pxPerMm; 
-            const oW = ((isManualDim && other.width) ? other.width : colSizes[otherIdxX]) * pxPerMm;
-            const oH = ((isManualDim && other.height) ? other.height : rowSizes[otherIdxY]) * pxPerMm;
+        assemblyMinX = Math.min(assemblyMinX, mX);
+        assemblyMaxX = Math.max(assemblyMaxX, mX + mW);
+        assemblyMinY = Math.min(assemblyMinY, mY);
+        assemblyMaxY = Math.max(assemblyMaxY, mY + mH);
 
-            const tol = 5;
-            if (dx === 0 && dy === -1) return Math.abs(oY + oH - mY) < tol && oX < mX + mW - tol && oX + oW > mX + tol; 
-            if (dx === 0 && dy === 1) return Math.abs(oY - (mY + mH)) < tol && oX < mX + mW - tol && oX + oW > mX + tol; 
-            if (dx === -1 && dy === 0) return Math.abs(oX + oW - mX) < tol && oY < mY + mH - tol && oY + oH > mY + tol; 
-            if (dx === 1 && dy === 0) return Math.abs(oX - (mX + mW)) < tol && oY < mY + mH - tol && oY + oH > mY + tol; 
-            return false;
-        });
+        return { mod, mX, mY, mW, mH };
+    });
 
-        if (!hasNeighbor(0, -1) && extras.tapajuntasSides.top) perimeterSegments.push({ x1: mX, y1: mY, x2: mX + mW, y2: mY, side: 'top' });
-        if (!hasNeighbor(0, 1) && extras.tapajuntasSides.bottom) perimeterSegments.push({ x1: mX, y1: mY + mH, x2: mX + mW, y2: mY + mH, side: 'bottom' });
-        if (!hasNeighbor(-1, 0) && extras.tapajuntasSides.left) perimeterSegments.push({ x1: mX, y1: mY, x2: mX, y2: mY + mH, side: 'left' });
-        if (!hasNeighbor(1, 0) && extras.tapajuntasSides.right) perimeterSegments.push({ x1: mX + mW, y1: mY, x2: mX + mW, y2: mY + mH, side: 'right' });
+    preparedModules.forEach(({ mod, mX, mY, mW, mH }) => {
+        const recipe = recipes.find(r => r.id === mod.recipeId);
+        if (!recipe) return;
+
+        // Lógica de sustracción de intervalos para detectar partes expuestas (sin vecino)
+        const subtractIntervals = (start: number, end: number, subtrahends: {s: number, e: number}[]) => {
+            let intervals = [{s: start, e: end}];
+            subtrahends.forEach(sub => {
+                let nextIntervals: {s: number, e: number}[] = [];
+                intervals.forEach(curr => {
+                    if (sub.e <= curr.s + 2 || sub.s >= curr.e - 2) {
+                        nextIntervals.push(curr);
+                    } else {
+                        if (sub.s > curr.s + 2) nextIntervals.push({s: curr.s, e: sub.s});
+                        if (sub.e < curr.e - 2) nextIntervals.push({s: sub.e, e: curr.e});
+                    }
+                });
+                intervals = nextIntervals;
+            });
+            return intervals;
+        };
+
+        const getNeighborOverlaps = (dx: number, dy: number) => {
+            const overlaps: {s: number, e: number}[] = [];
+            preparedModules.forEach(other => {
+                if (other.mod === mod) return;
+                const oX = other.mX;
+                const oY = other.mY;
+                const oW = other.mW;
+                const oH = other.mH;
+
+                const tol = (currentDeduction * pxPerMm) + 10;
+                
+                if (dx === 0 && dy === -1) { // Top
+                    if (Math.abs(oY + oH - mY) < tol && oX < mX + mW + tol && oX + oW > mX - tol) {
+                        overlaps.push({s: Math.max(mX, oX), e: Math.min(mX + mW, oX + oW)});
+                    }
+                } else if (dx === 0 && dy === 1) { // Bottom
+                    if (Math.abs(oY - (mY + mH)) < tol && oX < mX + mW + tol && oX + oW > mX - tol) {
+                        overlaps.push({s: Math.max(mX, oX), e: Math.min(mX + mW, oX + oW)});
+                    }
+                } else if (dx === -1 && dy === 0) { // Left
+                    if (Math.abs(oX + oW - mX) < tol && oY < mY + mH + tol && oY + oH > mY - tol) {
+                        overlaps.push({s: Math.max(mY, oY), e: Math.min(mY + mH, oY + oH)});
+                    }
+                } else if (dx === 1 && dy === 0) { // Right
+                    if (Math.abs(oX - (mX + mW)) < tol && oY < mY + mH + tol && oY + oH > mY - tol) {
+                        overlaps.push({s: Math.max(mY, oY), e: Math.min(mY + mH, oY + oH)});
+                    }
+                }
+            });
+            return overlaps;
+        };
+
+        // Solo aplicamos el toggle si el segmento está en el extremo absoluto del conjunto
+        const isAtGlobalTop = Math.abs(mY - assemblyMinY) < 5;
+        const isAtGlobalBottom = Math.abs(mY + mH - assemblyMaxY) < 5;
+        const isAtGlobalLeft = Math.abs(mX - assemblyMinX) < 5;
+        const isAtGlobalRight = Math.abs(mX + mW - assemblyMaxX) < 5;
+
+        if (extras.tapajuntasSides.top || !isAtGlobalTop) {
+            const exposed = subtractIntervals(mX, mX + mW, getNeighborOverlaps(0, -1));
+            exposed.forEach(iv => perimeterSegments.push({ x1: iv.s, y1: mY, x2: iv.e, y2: mY, side: 'top' }));
+        }
+        if (extras.tapajuntasSides.bottom || !isAtGlobalBottom) {
+            const exposed = subtractIntervals(mX, mX + mW, getNeighborOverlaps(0, 1));
+            exposed.forEach(iv => perimeterSegments.push({ x1: iv.s, y1: mY + mH, x2: iv.e, y2: mY + mH, side: 'bottom' }));
+        }
+        if (extras.tapajuntasSides.left || !isAtGlobalLeft) {
+            const exposed = subtractIntervals(mY, mY + mH, getNeighborOverlaps(-1, 0));
+            exposed.forEach(iv => perimeterSegments.push({ x1: mX, y1: iv.s, x2: mX, y2: iv.e, side: 'left' }));
+        }
+        if (extras.tapajuntasSides.right || !isAtGlobalRight) {
+            const exposed = subtractIntervals(mY, mY + mH, getNeighborOverlaps(1, 0));
+            exposed.forEach(iv => perimeterSegments.push({ x1: mX + mW, y1: iv.s, x2: mX + mW, y2: iv.e, side: 'right' }));
+        }
 
         drawDetailedOpening(ctx, mX, mY, mW, mH, recipe, mod.isDVH, aluColor, extras, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false);
     });
