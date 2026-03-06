@@ -39,6 +39,8 @@ export const calculateCompositePrice = (
   const realDeduction = Number(cProfile?.thickness ?? baseDeduction ?? 0);
 
   const validModules = (modules || []).filter(m => m && typeof m.x === 'number' && typeof m.y === 'number');
+  let hasHandrail = false;
+  let hasMampara = false;
   
   if (validModules.length === 0) {
     const emptyBreakdown: QuoteItemBreakdown = { aluCost: 0, glassCost: 0, accCost: 0, laborCost: 0, materialCost: 0, totalWeight: 0 };
@@ -54,6 +56,8 @@ export const calculateCompositePrice = (
   validModules.forEach(mod => {
     const recipe = recipes.find(r => r.id === mod.recipeId);
     if (!recipe) return;
+    if (recipe.type === 'Baranda') hasHandrail = true;
+    if (recipe.type === 'Mampara') hasMampara = true;
     
     let modW = (isManualDim && mod.width && mod.width > 0) ? mod.width : Number(colRatios[mod.x - minX] || 0); 
     let modH = (isManualDim && mod.height && mod.height > 0) ? mod.height : Number(rowRatios[mod.y - minY] || 0);
@@ -174,7 +178,9 @@ export const calculateCompositePrice = (
 
   const materialCost = totalAluCost + totalGlassCost + totalAccCost;
   const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
-  const finalPrice = materialCost + laborCost;
+  const handrailExtraCost = hasHandrail ? (materialCost + laborCost) * (Number(config.handrailExtraIncrement || 0) / 100) : 0;
+  const mamparaExtraCost = hasMampara ? (materialCost + laborCost) * (Number(config.mamparaExtraIncrement || 0) / 100) : 0;
+  const finalPrice = materialCost + laborCost + handrailExtraCost + mamparaExtraCost;
 
   const breakdown: QuoteItemBreakdown = {
     aluCost: totalAluCost,
@@ -182,7 +188,9 @@ export const calculateCompositePrice = (
     accCost: totalAccCost,
     laborCost: laborCost,
     materialCost: materialCost,
-    totalWeight: totalAluWeight
+    totalWeight: totalAluWeight,
+    handrailExtraCost: handrailExtraCost,
+    mamparaExtraCost: mamparaExtraCost
   };
 
   return { materialCost, totalAluWeight, finalPrice, breakdown };
@@ -494,7 +502,9 @@ export const calculateItemPrice = (
 
   const materialCost = aluCost + glassCost + accCost;
   const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
-  const finalPrice = materialCost + laborCost;
+  const handrailExtraCost = recipe.type === 'Baranda' ? (materialCost + laborCost) * (Number(config.handrailExtraIncrement || 0) / 100) : 0;
+  const mamparaExtraCost = recipe.type === 'Mampara' ? (materialCost + laborCost) * (Number(config.mamparaExtraIncrement || 0) / 100) : 0;
+  const finalPrice = materialCost + laborCost + handrailExtraCost + mamparaExtraCost;
 
   return { 
     totalAluWeight, 
@@ -504,6 +514,8 @@ export const calculateItemPrice = (
     laborCost,
     materialCost, 
     finalPrice, 
-    glassPanes 
+    glassPanes,
+    handrailExtraCost,
+    mamparaExtraCost
   };
 };

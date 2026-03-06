@@ -10,6 +10,8 @@ export interface GlobalConfig {
   companyLogo?: string; 
   companyAddress?: string;
   companyPhone?: string;
+  handrailExtraIncrement: number;
+  mamparaExtraIncrement: number;
 }
 
 export interface AluminumProfile {
@@ -156,6 +158,8 @@ export interface QuoteItemBreakdown {
   laborCost: number;
   materialCost: number;
   totalWeight: number;
+  handrailExtraCost?: number;
+  mamparaExtraCost?: number;
 }
 
 export interface QuoteItem {

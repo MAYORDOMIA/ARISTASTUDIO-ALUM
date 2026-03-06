@@ -69,7 +69,9 @@ const App: React.FC = () => {
     companyName: 'ARISTASTUDIO ALUM',
     companyAddress: 'Planta Industrial Central',
     companyPhone: '+54 11 0000 0000',
-    companyLogo: ''
+    companyLogo: '',
+    handrailExtraIncrement: 0,
+    mamparaExtraIncrement: 0
   });
 
   const [aluminum, setAluminum] = useState<AluminumProfile[]>([]);
@@ -381,6 +383,14 @@ const App: React.FC = () => {
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1"><Wind size={8} /> Tela Mosq. ($/M2)</label>
                                 <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.meshPricePerM2} onChange={(e) => setConfig({...config, meshPricePerM2: parseFloat(e.target.value) || 0})} />
+                            </div>
+                            <div className="space-y-0.5">
+                                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1">Incremento Baranda %</label>
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.handrailExtraIncrement} onChange={(e) => setConfig({...config, handrailExtraIncrement: parseFloat(e.target.value) || 0})} />
+                            </div>
+                            <div className="space-y-0.5">
+                                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1">Incremento Mampara %</label>
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.mamparaExtraIncrement} onChange={(e) => setConfig({...config, mamparaExtraIncrement: parseFloat(e.target.value) || 0})} />
                             </div>
                         </div>
                     </div>

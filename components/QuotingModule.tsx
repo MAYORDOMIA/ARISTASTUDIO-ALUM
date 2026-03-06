@@ -1574,12 +1574,30 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                             <span className="font-mono font-black text-sky-600 dark:text-sky-400 text-sm">${Math.round(liveBreakdown.laborCost).toLocaleString()}</span>
                         </div>
+                        {liveBreakdown.handrailExtraCost && liveBreakdown.handrailExtraCost > 0 && (
+                            <div className="pt-4 mt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center animate-in slide-in-from-top-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center text-white"><TrendingUp size={14}/></div>
+                                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-black uppercase tracking-tighter">5. Incremento Baranda ({config.handrailExtraIncrement}%)</span>
+                                </div>
+                                <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-sm">${Math.round(liveBreakdown.handrailExtraCost).toLocaleString()}</span>
+                            </div>
+                        )}
+                        {liveBreakdown.mamparaExtraCost && liveBreakdown.mamparaExtraCost > 0 && (
+                            <div className="pt-4 mt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center animate-in slide-in-from-top-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white"><TrendingUp size={14}/></div>
+                                    <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter">5. Incremento Mampara ({config.mamparaExtraIncrement}%)</span>
+                                </div>
+                                <span className="font-mono font-black text-indigo-600 dark:text-indigo-400 text-sm">${Math.round(liveBreakdown.mamparaExtraCost).toLocaleString()}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="bg-slate-900 dark:bg-sky-900/80 rounded-[2rem] p-8 text-center space-y-2 shadow-2xl relative overflow-hidden group">
                         <div className="absolute inset-0 bg-sky-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                         <span className="text-[10px] font-black text-sky-400 dark:text-sky-200 uppercase tracking-[0.4em] relative z-10">Total Final de Ingeniería</span>
                         <div className="text-4xl font-mono font-black text-white tracking-tighter relative z-10">
-                            ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost) * quantity).toLocaleString()}
+                            ${Math.round((liveBreakdown.materialCost + liveBreakdown.laborCost + (liveBreakdown.handrailExtraCost || 0) + (liveBreakdown.mamparaExtraCost || 0)) * quantity).toLocaleString()}
                         </div>
                         <p className="text-[9px] text-slate-400 dark:text-sky-300 uppercase font-bold italic pt-2 relative z-10">Incluye {quantity} unidad(es) • {totalWidth}x{totalHeight} mm</p>
                     </div>
