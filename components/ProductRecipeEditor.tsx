@@ -63,6 +63,10 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'mampara_vidrio_corrediza', label: 'MAMPARA VIDRIO CORREDIZA', description: 'Riel superior con hojas de vidrio solapadas sin marco inferior.' },
   { id: 'tubo_h', label: 'TUBO HORIZONTAL', description: 'Perfil único dispuesto de forma horizontal.' },
   { id: 'tubo_v', label: 'TUBO VERTICAL', description: 'Perfil único dispuesto de forma vertical.' },
+  { id: 'baranda_poste_alto', label: 'BARANDA POSTE ALTO', description: 'Vidrio con poste alto lateral.' },
+  { id: 'baranda_poste_alto_pasamano', label: 'BARANDA POSTE ALTO PASAMANO', description: 'Vidrio con poste alto lateral y pasamano superior.' },
+  { id: 'baranda_mini_poste', label: 'BARANDA MINI POSTE', description: 'Vidrio con dos mini postes inferiores.' },
+  { id: 'baranda_mini_poste_pasamano', label: 'BARANDA MINI POSTE Y PASAMANO', description: 'Vidrio con dos mini postes inferiores y pasamano superior.' },
 ];
 
 const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config }) => {

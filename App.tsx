@@ -80,6 +80,67 @@ const App: React.FC = () => {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [recipes, setRecipes] = useState<ProductRecipe[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+
+  useEffect(() => {
+    const barandaRecipes: ProductRecipe[] = [
+      {
+        id: 'std_baranda_1',
+        name: 'BARANDA POSTE ALTO',
+        line: 'ESTÁNDAR',
+        type: 'Baranda',
+        visualType: 'baranda_poste_alto',
+        profiles: [],
+        accessories: [],
+        glassFormulaW: 'W - 40',
+        glassFormulaH: 'H - 10',
+        isLocked: false
+      },
+      {
+        id: 'std_baranda_2',
+        name: 'BARANDA POSTE ALTO PASAMANO',
+        line: 'ESTÁNDAR',
+        type: 'Baranda',
+        visualType: 'baranda_poste_alto_pasamano',
+        profiles: [],
+        accessories: [],
+        glassFormulaW: 'W - 40',
+        glassFormulaH: 'H - 50',
+        isLocked: false
+      },
+      {
+        id: 'std_baranda_3',
+        name: 'BARANDA MINI POSTE',
+        line: 'ESTÁNDAR',
+        type: 'Baranda',
+        visualType: 'baranda_mini_poste',
+        profiles: [],
+        accessories: [],
+        glassFormulaW: 'W - 10',
+        glassFormulaH: 'H - 10',
+        isLocked: false
+      },
+      {
+        id: 'std_baranda_4',
+        name: 'BARANDA MINI POSTE Y PASAMANO',
+        line: 'ESTÁNDAR',
+        type: 'Baranda',
+        visualType: 'baranda_mini_poste_pasamano',
+        profiles: [],
+        accessories: [],
+        glassFormulaW: 'W - 10',
+        glassFormulaH: 'H - 50',
+        isLocked: false
+      }
+    ];
+
+    setRecipes(prev => {
+      const existingNames = prev.map(r => r.name);
+      const missing = barandaRecipes.filter(r => !existingNames.includes(r.name));
+      if (missing.length === 0) return prev;
+      return [...prev, ...missing];
+    });
+  }, []);
+
   const [customVisualTypes, setCustomVisualTypes] = useState<CustomVisualType[]>([]);
 
   const [currentWorkItems, setCurrentWorkItems] = useState<QuoteItem[]>([]);

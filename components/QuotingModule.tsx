@@ -114,6 +114,58 @@ const drawDetailedOpening = (
         return;
     }
 
+    // NUEVAS TIPOLOGÍAS DE BARANDAS
+    if (visualType.includes('baranda')) {
+        const hasPasamano = visualType.includes('pasamano');
+        const isPosteAlto = visualType.includes('poste_alto');
+        const isMiniPoste = visualType.includes('mini_poste');
+        
+        const pasamanoH = 40 * pxPerMm;
+        const posteW = 40 * pxPerMm;
+        const miniPosteW = 30 * pxPerMm;
+        const miniPosteH = 60 * pxPerMm;
+
+        // 1. Dibujar Vidrio (Fondo)
+        const glassY = hasPasamano ? y + pasamanoH : y;
+        const glassH = hasPasamano ? h - pasamanoH : h;
+        const glassW = isPosteAlto ? w - posteW : w;
+        
+        ctx.save();
+        const glassGrad = ctx.createLinearGradient(x, glassY, x + glassW, glassY + glassH);
+        glassGrad.addColorStop(0, '#bae6fd');
+        glassGrad.addColorStop(0.5, '#f0f9ff');
+        glassGrad.addColorStop(1, '#bae6fd');
+        ctx.fillStyle = glassGrad;
+        ctx.fillRect(x, glassY, glassW, glassH);
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.1)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, glassY, glassW, glassH);
+        
+        // Efecto de reflejo en el vidrio
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 1.8;
+        ctx.moveTo(x + glassW * 0.2, glassY + 12*pxPerMm);
+        ctx.lineTo(x + glassW * 0.8, glassY + glassH - 12*pxPerMm);
+        ctx.stroke();
+        ctx.restore();
+
+        // 2. Dibujar Pasamano (si aplica)
+        if (hasPasamano) {
+            applyPaintEffect(x, y, w, pasamanoH, false);
+        }
+
+        // 3. Dibujar Postes
+        if (isPosteAlto) {
+            applyPaintEffect(x + w - posteW, y, posteW, h, true);
+        } else if (isMiniPoste) {
+            const spacing = w / 4;
+            applyPaintEffect(x + spacing - (miniPosteW/2), y + h - miniPosteH, miniPosteW, miniPosteH, true);
+            applyPaintEffect(x + w - spacing - (miniPosteW/2), y + h - miniPosteH, miniPosteW, miniPosteH, true);
+        }
+        return;
+    }
+
     if (visualType === 'mampara_vidrio_corrediza') {
         const rielH = 60 * pxPerMm;
         // Dibujar riel superior con efecto de pintura
