@@ -149,6 +149,7 @@ export interface MeasurementModule {
   transoms?: { height: number; profileId: string; formula?: string }[];
   overriddenAccessories?: RecipeAccessory[];
   handrailProfileId?: string; // Nuevo: Perfil de pasamano para barandas
+  handrailType?: 'recta' | 'inclinada'; // Nuevo: Tipo de baranda
 }
 
 export interface QuoteItemBreakdown {

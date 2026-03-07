@@ -79,7 +79,8 @@ export const calculateCompositePrice = (
       isSet,
       mod.slatProfileIds,
       glazingBeadStylePreference,
-      mod.handrailProfileId
+      mod.handrailProfileId,
+      mod.handrailType
     );
     
     totalAluCost += result.aluCost;
@@ -206,7 +207,8 @@ export const calculateItemPrice = (
   isSet: boolean = false,
   slatProfileIds: Record<number, string> = {},
   glazingBeadStylePreference: 'Recto' | 'Curvo' = 'Recto',
-  handrailProfileId?: string
+  handrailProfileId?: string,
+  handrailType?: 'recta' | 'inclinada'
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -447,10 +449,14 @@ export const calculateItemPrice = (
 
   const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
   const glassPanes: { w: number, h: number }[] = [];
+  
+  // Ajuste de ancho de vidrio para barandas inclinadas (+1000mm para cálculo de valor)
+  const gWForCost = (recipe.type === 'Baranda' && handrailType === 'inclinada') ? gW + 1000 : gW;
+
   if (!transoms || transoms.length === 0) { 
-    glassPanes.push({ w: gW, h: gH }); 
+    glassPanes.push({ w: gWForCost, h: gH }); 
   } else {
-    panesHeights.forEach(ph => glassPanes.push({ w: gW, h: ph }));
+    panesHeights.forEach(ph => glassPanes.push({ w: gWForCost, h: ph }));
   }
 
   const outerGlass = glasses.find(g => g.id === glassOuterId);
