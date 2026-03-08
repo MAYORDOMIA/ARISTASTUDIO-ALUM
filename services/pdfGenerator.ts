@@ -708,9 +708,13 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
     quote.items.forEach(item => {
         item.composition.modules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
-            const activeAccs = mod.overriddenAccessories || recipe.accessories;
+            const activeAccs = (mod.overriddenAccessories && mod.overriddenAccessories.length > 0) 
+                ? mod.overriddenAccessories 
+                : (recipe.accessories || []);
+            
             activeAccs.forEach(ra => {
                 if (ra.isAlternative) return;
+                if ((ra.quantity || 0) <= 0) return;
                 const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId); if (!acc) return;
                 const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
                 if (ra.isLinear && ra.formula) {
