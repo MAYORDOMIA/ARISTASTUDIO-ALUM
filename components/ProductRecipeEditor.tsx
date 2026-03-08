@@ -213,13 +213,27 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                           onChange={e => updateRecipe(recipe.id, { name: e.target.value.toUpperCase() })} 
                         />
                       </div>
-                      <button 
-                        onClick={handleSaveManual} 
-                        className={`shrink-0 px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? 'bg-green-600 text-white border-green-700' : 'bg-sky-500 text-white border-sky-600 hover:bg-sky-400'}`}
-                      >
-                        {isSaving ? <Check size={18} /> : <Save size={18} />}
-                        {isSaving ? 'GUARDADO' : 'GUARDAR CAMBIOS'}
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                          onClick={() => {
+                            const newId = Date.now().toString();
+                            const newRecipe = { ...recipe, id: newId, name: `${recipe.name} (COPIA)` };
+                            setRecipes([...recipes, newRecipe]);
+                            setEditingId(newId);
+                          }}
+                          className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+                          title="Duplicar Sistema"
+                        >
+                          <Plus size={16} /> DUPLICAR
+                        </button>
+                        <button 
+                          onClick={handleSaveManual} 
+                          className={`px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? 'bg-green-600 text-white border-green-700' : 'bg-sky-500 text-white border-sky-600 hover:bg-sky-400'}`}
+                        >
+                          {isSaving ? <Check size={18} /> : <Save size={18} />}
+                          {isSaving ? 'GUARDADO' : 'GUARDAR CAMBIOS'}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-4 items-center">
                         <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none" value={recipe.type} onChange={e => updateRecipe(recipe.id, { type: e.target.value as any })}>
