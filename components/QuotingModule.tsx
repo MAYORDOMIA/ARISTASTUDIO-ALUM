@@ -857,20 +857,37 @@ const QuotingModule: React.FC<Props> = ({
     for (let y = bounds.minY; y <= bounds.maxY; y++) {
         newModules.push({ id: `m-${nextX}-${y}-${Date.now()}`, recipeId: recipes[0]?.id || '', x: nextX, y, isDVH: false, glassOuterId: glasses[0]?.id || '', transoms: [], blindPanes: [] });
     }
-    const newColSizes = [...colSizes, 1000];
+    
+    // Redistribute total width equally
+    const newCount = colSizes.length + 1;
+    const newSize = Math.floor(totalWidth / newCount);
+    const remainder = totalWidth % newCount;
+    const newColSizes = Array(newCount).fill(newSize);
+    for(let i=0; i<remainder; i++) newColSizes[i]++;
+    
     setModules([...(modules || []), ...newModules]);
     setColSizes(newColSizes);
-    setTotalWidth(newColSizes.reduce((a, b) => a + b, 0));
+    // setTotalWidth is NOT called to preserve user input
     setShowCouplingModal(true);
+    setIsManualDim(false);
   };
 
   const removeColumn = () => {
     if (colSizes.length <= 1) return;
     const lastX = bounds.maxX;
-    const newColSizes = colSizes.slice(0, -1);
+    
+    // Redistribute total width equally among remaining columns
+    const newCount = colSizes.length - 1;
+    const newSize = Math.floor(totalWidth / newCount);
+    const remainder = totalWidth % newCount;
+    const newColSizes = Array(newCount).fill(newSize);
+    for(let i=0; i<remainder; i++) newColSizes[i]++;
+
     setModules((modules || []).filter(m => m && m.x !== lastX));
     setColSizes(newColSizes);
-    setTotalWidth(newColSizes.reduce((a, b) => a + b, 0));
+    // setTotalWidth is NOT called
+    setIsManualDim(false);
+    
     if (newColSizes.length <= 1 && rowSizes.length <= 1) {
         setCouplingProfileId('');
         setCouplingDeduction(0);
@@ -883,20 +900,37 @@ const QuotingModule: React.FC<Props> = ({
     for (let x = bounds.minX; x <= bounds.maxX; x++) {
         newModules.push({ id: `m-${x}-${nextY}-${Date.now()}`, recipeId: recipes[0]?.id || '', x, y: nextY, isDVH: false, glassOuterId: glasses[0]?.id || '', transoms: [], blindPanes: [] });
     }
-    const newRowSizes = [...rowSizes, 1000];
+    
+    // Redistribute total height equally
+    const newCount = rowSizes.length + 1;
+    const newSize = Math.floor(totalHeight / newCount);
+    const remainder = totalHeight % newCount;
+    const newRowSizes = Array(newCount).fill(newSize);
+    for(let i=0; i<remainder; i++) newRowSizes[i]++;
+
     setModules([...(modules || []), ...newModules]);
     setRowSizes(newRowSizes);
-    setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0));
+    // setTotalHeight is NOT called
     setShowCouplingModal(true);
+    setIsManualDim(false);
   };
 
   const removeRow = () => {
     if (rowSizes.length <= 1) return;
     const lastY = bounds.maxY;
-    const newRowSizes = rowSizes.slice(0, -1);
+    
+    // Redistribute total height equally among remaining rows
+    const newCount = rowSizes.length - 1;
+    const newSize = Math.floor(totalHeight / newCount);
+    const remainder = totalHeight % newCount;
+    const newRowSizes = Array(newCount).fill(newSize);
+    for(let i=0; i<remainder; i++) newRowSizes[i]++;
+
     setModules((modules || []).filter(m => m && m.y !== lastY));
     setRowSizes(newRowSizes);
-    setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0));
+    // setTotalHeight is NOT called
+    setIsManualDim(false);
+    
     if (colSizes.length <= 1 && newRowSizes.length <= 1) {
         setCouplingProfileId('');
         setCouplingDeduction(0);
