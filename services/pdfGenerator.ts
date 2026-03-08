@@ -246,6 +246,19 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                     }
                 }
             });
+
+            // Lógica de Pasamanos (Baranda)
+            if (mod.handrailProfileId) {
+                const hrProfile = aluminum.find(p => p.id === mod.handrailProfileId);
+                if (hrProfile) {
+                    const list = cutsByProfile.get(hrProfile.id) || [];
+                    // El largo del pasamano es el ancho del módulo
+                    for(let k=0; k < item.quantity; k++) {
+                        list.push({ len: modW, type: 'Pasamano', cutStart: '90', cutEnd: '90', label: itemCode });
+                    }
+                    cutsByProfile.set(hrProfile.id, list);
+                }
+            }
         });
 
         // Lógica Tapajuntas Unificada: Solo si está activado
@@ -526,6 +539,16 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     }
                 }
             });
+
+            // Lógica de Pasamanos (Baranda)
+            if (mod.handrailProfileId) {
+                const hrProfile = aluminum.find(p => p.id === mod.handrailProfileId);
+                if (hrProfile) {
+                     const existing = aluSummary.get(hrProfile.id) || { code: hrProfile.code, detail: hrProfile.detail, totalMm: 0, barLength: hrProfile.barLength };
+                     existing.totalMm += (modW + config.discWidth) * item.quantity;
+                     aluSummary.set(hrProfile.id, existing);
+                }
+            }
         });
 
         // Sumatoria Unificada de Tapajuntas en el pedido de materiales
@@ -769,7 +792,7 @@ export const generateClientDetailedPDF = (quote: Quote, config: GlobalConfig, re
                 }
             }
         },
-        columnStyles: { 1: { cellWidth: 45, minCellHeight: 35 }, 2: { cellWidth: 'auto' }, 6: { halign: 'right', fontStyle: 'bold' } }
+        columnStyles: { 1: { cellWidth: 45, minCellHeight: 35 }, 2: { cellWidth: 'auto' }, 3: { minCellWidth: 25 }, 6: { halign: 'right', fontStyle: 'bold' } }
     });
     const lastTable = (doc as any).lastAutoTable; const finalY = lastTable ? lastTable.finalY + 15 : 200;
     doc.setFontSize(14); doc.setFont('helvetica', 'bold');
