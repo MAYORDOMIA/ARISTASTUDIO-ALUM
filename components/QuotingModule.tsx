@@ -1763,11 +1763,11 @@ const QuotingModule: React.FC<Props> = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Ancho Módulo (mm)</label>
-                                        <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-amber-500 shadow-sm" value={currentModForEdit.width || colSizes[currentModForEdit.x - bounds.minX]} onChange={e => updateModule(editingModuleId, { width: parseInt(e.target.value) || 0 })} />
+                                        <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-amber-500 shadow-sm" value={currentModForEdit.width || colSizes[currentModForEdit.x - bounds.minX] || ''} onChange={e => updateModule(editingModuleId, { width: parseInt(e.target.value) || 0 })} />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Alto Módulo (mm)</label>
-                                        <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-amber-500 shadow-sm" value={currentModForEdit.height || rowSizes[currentModForEdit.y - bounds.minY]} onChange={e => updateModule(editingModuleId, { height: parseInt(e.target.value) || 0 })} />
+                                        <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-amber-500 shadow-sm" value={currentModForEdit.height || rowSizes[currentModForEdit.y - bounds.minY] || ''} onChange={e => updateModule(editingModuleId, { height: parseInt(e.target.value) || 0 })} />
                                     </div>
                                 </div>
                             </div>
@@ -1838,7 +1838,7 @@ const QuotingModule: React.FC<Props> = ({
                                                     <span className="text-[7px] font-black text-sky-500 uppercase">Travesaño {idx+1}</span>
                                                 </div>
                                                 <div className="relative">
-                                                    <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none pr-12" value={t.height} onChange={e => {
+                                                    <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none pr-12" value={t.height || ''} onChange={e => {
                                                         const newTransoms = [...(currentModForEdit.transoms || [])];
                                                         newTransoms[idx].height = parseInt(e.target.value) || 0;
                                                         updateModule(editingModuleId, { transoms: newTransoms });
@@ -1961,7 +1961,7 @@ const QuotingModule: React.FC<Props> = ({
                                                 </div>
                                                 <select 
                                                     className={`w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black outline-none focus:border-sky-500 shadow-sm ${ra.isAlternative ? 'text-slate-400' : 'text-slate-800 dark:text-white'}`}
-                                                    value={ra.accessoryId}
+                                                    value={ra.accessoryId || ''}
                                                     onChange={(e) => handleAccessorySubstitute(idx, e.target.value)}
                                                 >
                                                     <option value="">(SIN ACCESORIO)</option>

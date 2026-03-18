@@ -288,13 +288,13 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                 </select>
                             </div>
                             <div className="col-span-2">
-                                <select className="w-full bg-transparent text-[10px] font-black uppercase outline-none dark:text-white" value={rp.profileId} onChange={e => { const updated = [...recipe.profiles]; updated[idx].profileId = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }}>{aluminum.map(a => <option key={a.id} value={a.id}>{a.code}</option>)}</select>
+                                <select className="w-full bg-transparent text-[10px] font-black uppercase outline-none dark:text-white" value={rp.profileId || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].profileId = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }}>{aluminum.map(a => <option key={a.id} value={a.id}>{a.code}</option>)}</select>
                             </div>
                             <div className="col-span-1">
-                                <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded text-center font-black text-[10px] dark:text-white" value={rp.quantity} onChange={e => { const updated = [...recipe.profiles]; updated[idx].quantity = parseInt(e.target.value) || 0; updateRecipe(recipe.id, { profiles: updated }); }} />
+                                <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded text-center font-black text-[10px] dark:text-white" value={rp.quantity || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].quantity = parseInt(e.target.value) || 0; updateRecipe(recipe.id, { profiles: updated }); }} />
                             </div>
                             <div className="col-span-2">
-                                <input className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-1.5 rounded font-mono text-[10px] font-black text-sky-600 dark:text-sky-400" value={rp.formula} onChange={e => { const updated = [...recipe.profiles]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }} />
+                                <input className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-1.5 rounded font-mono text-[10px] font-black text-sky-600 dark:text-sky-400" value={rp.formula || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }} />
                             </div>
                             <div className="col-span-2 space-y-1">
                                 <div className="flex gap-0.5 bg-slate-200/50 dark:bg-slate-700/50 p-0.5 rounded-md">
@@ -392,7 +392,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                             <div key={idx} className="bg-slate-50/50 dark:bg-slate-800/40 p-2 rounded-xl border border-slate-100 dark:border-slate-700 space-y-2 group transition-all hover:bg-white dark:hover:bg-slate-800">
                                 <div className="flex items-center gap-2">
                                     <div className="flex-1 relative">
-                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-8 px-2 pr-6 rounded text-[9px] font-black uppercase outline-none appearance-none dark:text-white" value={ra.accessoryId} onChange={e => { const updated = [...recipe.accessories]; updated[idx].accessoryId = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }}>
+                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-8 px-2 pr-6 rounded text-[9px] font-black uppercase outline-none appearance-none dark:text-white" value={ra.accessoryId || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].accessoryId = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }}>
                                             {accessories.map(a => <option key={a.id} value={a.id}>{a.code} - {a.detail}</option>)}
                                         </select>
                                         <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -421,16 +421,16 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                         />
                                     </div>
                                     {!ra.isSpaced && (
-                                        <input type="number" className="w-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 rounded text-center font-black text-[10px] dark:text-white" value={ra.quantity} onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                        <input type="number" className="w-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 rounded text-center font-black text-[10px] dark:text-white" value={ra.quantity || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
                                     )}
                                     <span className="text-[8px] font-black text-slate-400 uppercase">{ra.isLinear ? 'ML' : ra.isSpaced ? 'C/MM' : 'UNID'}</span>
                                     {ra.isLinear && (
-                                        <input className="flex-1 bg-sky-50/50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800 h-7 px-2 rounded font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" placeholder="Fórmula (W/H)" value={ra.formula} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                        <input className="flex-1 bg-sky-50/50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800 h-7 px-2 rounded font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" placeholder="Fórmula (W/H)" value={ra.formula || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
                                     )}
                                     {ra.isSpaced && (
                                         <div className="flex gap-1 items-center flex-[2]">
                                             <input className="w-12 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 h-7 px-1 rounded text-center font-mono text-[9px] font-black text-amber-600 outline-none" placeholder="mm" type="number" value={ra.spacingMm || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].spacingMm = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
-                                            <input className="flex-1 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 h-7 px-2 rounded font-mono text-[9px] font-black text-amber-600 outline-none" placeholder="Longitud (W/H)" value={ra.formula} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
+                                            <input className="flex-1 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 h-7 px-2 rounded font-mono text-[9px] font-black text-amber-600 outline-none" placeholder="Longitud (W/H)" value={ra.formula || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
                                         </div>
                                     )}
                                 </div>

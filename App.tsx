@@ -322,9 +322,13 @@ const App: React.FC = () => {
         </header>
 
         <section className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-[#f8fafc] dark:bg-[#1c1c1c] transition-colors">
-          {activeTab === 'database' && <DatabaseCRUD aluminum={aluminum} setAluminum={setAluminum} glasses={glasses} setGlasses={setGlasses} blindPanels={blindPanels} setBlindPanels={setBlindPanels} accessories={accessories} setAccessories={setAccessories} dvhInputs={dvhInputs} setDvhInputs={setDvhInputs} treatments={treatments} setTreatments={setTreatments} config={config} setConfig={setConfig} />}
-          {activeTab === 'recipes' && <ProductRecipeEditor recipes={recipes} setRecipes={setRecipes} aluminum={aluminum} accessories={accessories} customVisualTypes={customVisualTypes} setCustomVisualTypes={setCustomVisualTypes} glasses={glasses} treatments={treatments} dvhInputs={dvhInputs} config={config} />}
-          {activeTab === 'quoter' && (
+          <div className={activeTab === 'database' ? 'h-full' : 'hidden'}>
+            <DatabaseCRUD aluminum={aluminum} setAluminum={setAluminum} glasses={glasses} setGlasses={setGlasses} blindPanels={blindPanels} setBlindPanels={setBlindPanels} accessories={accessories} setAccessories={setAccessories} dvhInputs={dvhInputs} setDvhInputs={setDvhInputs} treatments={treatments} setTreatments={setTreatments} config={config} setConfig={setConfig} />
+          </div>
+          <div className={activeTab === 'recipes' ? 'h-full' : 'hidden'}>
+            <ProductRecipeEditor recipes={recipes} setRecipes={setRecipes} aluminum={aluminum} accessories={accessories} customVisualTypes={customVisualTypes} setCustomVisualTypes={setCustomVisualTypes} glasses={glasses} treatments={treatments} dvhInputs={dvhInputs} config={config} />
+          </div>
+          <div className={activeTab === 'quoter' ? 'h-full' : 'hidden'}>
             <QuotingModule 
               recipes={recipes} 
               aluminum={aluminum} 
@@ -341,8 +345,8 @@ const App: React.FC = () => {
               currentWorkItems={currentWorkItems}
               setCurrentWorkItems={setCurrentWorkItems}
             />
-          )}
-          {activeTab === 'obras' && (
+          </div>
+          <div className={activeTab === 'obras' ? 'h-full' : 'hidden'}>
             <ObrasModule 
               items={currentWorkItems} 
               setItems={setCurrentWorkItems} 
@@ -352,9 +356,11 @@ const App: React.FC = () => {
               config={config} 
               aluminum={aluminum}
             />
-          )}
-          {activeTab === 'history' && <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} blindPanels={blindPanels} />}
-          {activeTab === 'config' && (
+          </div>
+          <div className={activeTab === 'history' ? 'h-full' : 'hidden'}>
+            <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} blindPanels={blindPanels} />
+          </div>
+          <div className={activeTab === 'config' ? 'h-full' : 'hidden'}>
               <div className="max-w-4xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-2">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="bg-white dark:bg-[#252525] p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
@@ -362,35 +368,35 @@ const App: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Alu Crudo ($/KG)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.aluminumPricePerKg} onChange={(e) => setConfig({...config, aluminumPricePerKg: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.aluminumPricePerKg ?? ''} onChange={(e) => setConfig({...config, aluminumPricePerKg: parseFloat(e.target.value) || 0})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Margen Obra %</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.laborPercentage} onChange={(e) => setConfig({...config, laborPercentage: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.laborPercentage ?? ''} onChange={(e) => setConfig({...config, laborPercentage: parseFloat(e.target.value) || 0})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">IVA %</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.taxRate} onChange={(e) => setConfig({...config, taxRate: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.taxRate ?? ''} onChange={(e) => setConfig({...config, taxRate: parseFloat(e.target.value) || 0})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Hoja Corte (mm)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.discWidth} onChange={(e) => setConfig({...config, discWidth: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.discWidth ?? ''} onChange={(e) => setConfig({...config, discWidth: parseFloat(e.target.value) || 0})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">Ciego ($/M2)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.blindPanelPricePerM2} onChange={(e) => setConfig({...config, blindPanelPricePerM2: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.blindPanelPricePerM2 ?? ''} onChange={(e) => setConfig({...config, blindPanelPricePerM2: parseFloat(e.target.value) || 0})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1"><Wind size={8} /> Tela Mosq. ($/M2)</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.meshPricePerM2} onChange={(e) => setConfig({...config, meshPricePerM2: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.meshPricePerM2 ?? ''} onChange={(e) => setConfig({...config, meshPricePerM2: parseFloat(e.target.value) || 0})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1">Incremento Baranda %</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.handrailExtraIncrement} onChange={(e) => setConfig({...config, handrailExtraIncrement: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.handrailExtraIncrement ?? ''} onChange={(e) => setConfig({...config, handrailExtraIncrement: parseFloat(e.target.value) || 0})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-1">Incremento Mampara %</label>
-                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.mamparaExtraIncrement} onChange={(e) => setConfig({...config, mamparaExtraIncrement: parseFloat(e.target.value) || 0})} />
+                                <input type="number" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg font-mono text-xs font-bold dark:text-white" value={config.mamparaExtraIncrement ?? ''} onChange={(e) => setConfig({...config, mamparaExtraIncrement: parseFloat(e.target.value) || 0})} />
                             </div>
                         </div>
                     </div>
@@ -399,15 +405,15 @@ const App: React.FC = () => {
                         <div className="space-y-1">
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-1">Nombre Comercial</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyName} onChange={(e) => setConfig({...config, companyName: e.target.value})} />
+                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyName || ''} onChange={(e) => setConfig({...config, companyName: e.target.value})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-1">Dirección Legal/Planta</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyAddress} onChange={(e) => setConfig({...config, companyAddress: e.target.value})} />
+                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyAddress || ''} onChange={(e) => setConfig({...config, companyAddress: e.target.value})} />
                             </div>
                             <div className="space-y-0.5">
                                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase px-1">Teléfono Contacto</label>
-                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyPhone} onChange={(e) => setConfig({...config, companyPhone: e.target.value})} />
+                                <input type="text" className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 p-1 rounded-lg text-xs font-bold dark:text-white" value={config.companyPhone || ''} onChange={(e) => setConfig({...config, companyPhone: e.target.value})} />
                             </div>
                             <div className="pt-0.5">
                                 <label className="flex items-center gap-2 cursor-pointer bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 p-2 rounded-lg border border-sky-100 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-all">
@@ -420,7 +426,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
               </div>
-          )}
+          </div>
         </section>
       </main>
 
