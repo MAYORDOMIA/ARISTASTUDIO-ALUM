@@ -8,12 +8,45 @@ export const evaluateFormula = (formula: string, W: number, H: number): number =
   try {
     const cleanFormula = (formula || '').toString().toUpperCase().replace(/W/g, (W || 0).toString()).replace(/H/g, (H || 0).toString());
     if (!cleanFormula) return 0;
+    
+    // Sanitización estricta: solo permite números, operadores matemáticos básicos, paréntesis y espacios
+    if (!/^[0-9+\-*/().\s]+$/.test(cleanFormula)) {
+      console.warn("Caracteres inválidos en la fórmula:", formula);
+      return 0;
+    }
+    
     const result = new Function(`return ${cleanFormula}`)();
     return isFinite(result) ? result : 0;
   } catch (e) {
     console.error("Error parsing formula:", formula, e);
     return 0;
   }
+};
+
+export const calculateModuleDimensions = (
+  mod: MeasurementModule,
+  colRatios: number[],
+  rowRatios: number[],
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+  realDeduction: number,
+  isManualDim?: boolean
+): { modW: number, modH: number } => {
+  let modW = (isManualDim && mod.width && mod.width > 0) ? mod.width : Number(colRatios[mod.x - minX] || 0); 
+  let modH = (isManualDim && mod.height && mod.height > 0) ? mod.height : Number(rowRatios[mod.y - minY] || 0);
+  
+  if (colRatios.length > 1) {
+     if (mod.x !== minX) modW -= (realDeduction / 2);
+     if (mod.x !== maxX) modW -= (realDeduction / 2);
+  }
+  if (rowRatios.length > 1) {
+     if (mod.y !== minY) modH -= (realDeduction / 2);
+     if (mod.y !== maxY) modH -= (realDeduction / 2);
+  }
+  
+  return { modW, modH };
 };
 
 export const calculateCompositePrice = (
@@ -59,17 +92,7 @@ export const calculateCompositePrice = (
     if (recipe.type === 'Baranda') hasHandrail = true;
     if (recipe.type === 'Mampara') hasMampara = true;
     
-    let modW = (isManualDim && mod.width && mod.width > 0) ? mod.width : Number(colRatios[mod.x - minX] || 0); 
-    let modH = (isManualDim && mod.height && mod.height > 0) ? mod.height : Number(rowRatios[mod.y - minY] || 0);
-    
-    if (colRatios.length > 1) {
-       if (mod.x !== minX) modW -= (realDeduction / 2);
-       if (mod.x !== maxX) modW -= (realDeduction / 2);
-    }
-    if (rowRatios.length > 1) {
-       if (mod.y !== minY) modH -= (realDeduction / 2);
-       if (mod.y !== maxY) modH -= (realDeduction / 2);
-    }
+    const { modW, modH } = calculateModuleDimensions(mod, colRatios, rowRatios, minX, maxX, minY, maxY, realDeduction, isManualDim);
 
     const result = calculateItemPrice(
       recipe, modW, modH, profiles, config, treatment, glasses, accessories, dvhInputs, mod.isDVH,
@@ -221,30 +244,18 @@ export const calculateItemPrice = (
   const dvhCameraObj = isDVH && dvhCameraId ? dvhInputs.find(i => i.id === dvhCameraId) : null;
   
   // Estimación simple del espesor de la cámara (si el nombre contiene mm, o un valor por defecto)
-  // Idealmente DVHInput debería tener un campo 'thickness', pero por ahora asumimos un estándar o parseamos
   let cameraThickness = 0;
   if (dvhCameraObj) {
-      const match = dvhCameraObj.detail.match(/(\d+)\s*mm/i);
-      cameraThickness = match ? parseInt(match[1]) : 12; // Default 12mm si no se detecta
+      cameraThickness = dvhCameraObj.thickness || 12; // Default 12mm si no se detecta
+      if (!dvhCameraObj.thickness) {
+          const match = dvhCameraObj.detail.match(/(\d+)\s*mm/i);
+          if (match) cameraThickness = parseInt(match[1]);
+      }
   }
 
-  const totalGlassThickness = (outerGlassObj?.thickness || 4) + // Asumimos 4mm si no tiene campo thickness (Glass interface tiene width/height/price pero no thickness explícito en types, revisar)
-                              (innerGlassObj?.thickness || 0) + 
-                              cameraThickness;
-
-  // NOTA: La interfaz Glass en types.ts no tiene 'thickness'. 
-  // Voy a asumir que el usuario carga el espesor en el nombre o que debo agregarlo.
-  // Por ahora, para no romper, usaré una lógica de fallback o asumiré que 'thickness' existe si lo agregué antes (no lo agregué).
-  // CORRECCIÓN: Voy a usar una constante o tratar de inferirlo, pero lo ideal es que Glass tenga thickness.
-  // Como no puedo cambiar types.ts de nuevo sin gastar un turno, usaré una heurística: 
-  // Si el código es "3+3" es 6mm, si es "4mm" es 4mm. 
-  // O mejor, asumiré 4mm para simple y 20mm para DVH genérico si no puedo determinarlo, 
-  // PERO para que esto funcione bien, el usuario debería poder definir el espesor del vidrio.
-  // VOY A ASUMIR QUE EL USUARIO QUIERE ESTO FUNCIONANDO YA.
-  // Voy a intentar leer 'thickness' casteando a any por si acaso, o parseando el detalle.
-  
   const getGlassThick = (g: Glass | undefined) => {
       if (!g) return 0;
+      if (g.thickness) return g.thickness;
       // Intento buscar número + mm en el detalle
       const match = g.detail.match(/(\d+)\s*mm/i);
       if (match) return parseInt(match[1]);

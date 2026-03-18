@@ -2,7 +2,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Quote, ProductRecipe, GlobalConfig, AluminumProfile, Glass, Accessory, DVHInput, QuoteItem, Treatment, BlindPanel } from '../types';
-import { evaluateFormula } from './calculator';
+import { evaluateFormula, calculateModuleDimensions } from './calculator';
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
     'Ventana': [79, 70, 229],   
@@ -47,20 +47,9 @@ const getModuleGlassPanes = (
     const maxY = Math.max(...validModules.map(m => m.y));
     const cProfile = item.couplingProfileId ? aluminum.find(p => p.id === item.couplingProfileId) : null;
     const realDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
-    const modIdxX = mod.x - minX;
-    const modIdxY = mod.y - minY;
     
-    let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
-    let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+    const { modW, modH } = calculateModuleDimensions(mod, colRatios, rowRatios, minX, maxX, minY, maxY, realDeduction, isManualDim);
 
-    if (item.composition.colRatios.length > 1) {
-        if (mod.x !== minX) modW -= (realDeduction / 2);
-        if (mod.x !== maxX) modW -= (realDeduction / 2);
-    }
-    if (item.composition.rowRatios.length > 1) {
-        if (mod.y !== minY) modH -= (realDeduction / 2);
-        if (mod.y !== maxY) modH -= (realDeduction / 2);
-    }
     const adjustedW = modW - (recipe.glassDeductionW || 0); 
     const adjustedH = modH - (recipe.glassDeductionH || 0);
     const visualType = (recipe.visualType || '').toLowerCase();
@@ -124,19 +113,8 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
         validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
-            const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
-            
-            let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
-            let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+            const { modW, modH } = calculateModuleDimensions(mod, colRatios, rowRatios, minX, maxX, minY, maxY, realDeduction, isManualDim);
 
-            if (item.composition.colRatios.length > 1) {
-                if (mod.x !== minX) modW -= (realDeduction / 2);
-                if (mod.x !== maxX) modW -= (realDeduction / 2);
-            }
-            if (item.composition.rowRatios.length > 1) {
-                if (mod.y !== minY) modH -= (realDeduction / 2);
-                if (mod.y !== maxY) modH -= (realDeduction / 2);
-            }
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
             const recipeTransomQty = transomTemplate?.quantity || 1;
@@ -146,9 +124,15 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
             const dvhCam = mod.isDVH ? dvhInputs.find(i => i.id === mod.dvhCameraId) : null;
             let camThick = 12;
-            if (dvhCam) { const m = dvhCam.detail.match(/(\d+)\s*mm/i); if (m) camThick = parseInt(m[1]); }
+            if (dvhCam) {
+                camThick = dvhCam.thickness || 12;
+                if (!dvhCam.thickness) {
+                    const m = dvhCam.detail.match(/(\d+)\s*mm/i); if (m) camThick = parseInt(m[1]);
+                }
+            }
             const getThick = (g: any) => {
                 if (!g) return 0;
+                if (g.thickness) return g.thickness;
                 const m = g.detail.match(/(\d+)\s*mm/i); if (m) return parseInt(m[1]);
                 const mc = g.code.match(/(\d+)\s*mm/i); if (mc) return parseInt(mc[1]);
                 return 4;
@@ -428,17 +412,8 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
         const maxX = Math.max(...validModules.map(m => m.x)); const maxY = Math.max(...validModules.map(m => m.y));
         validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
-            const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
-            
-            let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
-            let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+            const { modW, modH } = calculateModuleDimensions(mod, colRatios, rowRatios, minX, maxX, minY, maxY, realDeduction, isManualDim);
 
-            if (item.composition.colRatios.length > 1) {
-                if (mod.x !== minX) modW -= (realDeduction / 2); if (mod.x !== maxX) modW -= (realDeduction / 2);
-            }
-            if (item.composition.rowRatios.length > 1) {
-                if (mod.y !== minY) modH -= (realDeduction / 2); if (mod.y !== maxY) modH -= (realDeduction / 2);
-            }
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
             const recipeTransomQty = transomTemplate?.quantity || 1;
@@ -448,9 +423,15 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
             const dvhCam = mod.isDVH ? dvhInputs.find(i => i.id === mod.dvhCameraId) : null;
             let camThick = 12;
-            if (dvhCam) { const m = dvhCam.detail.match(/(\d+)\s*mm/i); if (m) camThick = parseInt(m[1]); }
+            if (dvhCam) {
+                camThick = dvhCam.thickness || 12;
+                if (!dvhCam.thickness) {
+                    const m = dvhCam.detail.match(/(\d+)\s*mm/i); if (m) camThick = parseInt(m[1]);
+                }
+            }
             const getThick = (g: any) => {
                 if (!g) return 0;
+                if (g.thickness) return g.thickness;
                 const m = g.detail.match(/(\d+)\s*mm/i); if (m) return parseInt(m[1]);
                 const mc = g.code.match(/(\d+)\s*mm/i); if (mc) return parseInt(mc[1]);
                 return 4;
@@ -850,17 +831,8 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
         const profileCuts: any[] = [];
         validModules.forEach(mod => {
             const recipe = recipes.find(r => r.id === mod.recipeId); if (!recipe) return;
-            const modIdxX = mod.x - minX; const modIdxY = mod.y - minY;
-            
-            let modW = (isManualDim && mod.width) ? mod.width : Number(colRatios[modIdxX] || 0);
-            let modH = (isManualDim && mod.height) ? mod.height : Number(rowRatios[modIdxY] || 0);
+            const { modW, modH } = calculateModuleDimensions(mod, colRatios, rowRatios, minX, maxX, minY, maxY, realDeduction, isManualDim);
 
-            if (item.composition.colRatios.length > 1) {
-                if (mod.x !== minX) modW -= (realDeduction / 2); if (mod.x !== maxX) modW -= (realDeduction / 2);
-            }
-            if (item.composition.rowRatios.length > 1) {
-                if (mod.y !== minY) modH -= (realDeduction / 2); if (mod.y !== maxY) modH -= (realDeduction / 2);
-            }
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
             const recipeTransomQty = transomTemplate?.quantity || 1;
@@ -870,9 +842,15 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
             const dvhCam = mod.isDVH ? dvhInputs.find(i => i.id === mod.dvhCameraId) : null;
             let camThick = 12;
-            if (dvhCam) { const m = dvhCam.detail.match(/(\d+)\s*mm/i); if (m) camThick = parseInt(m[1]); }
+            if (dvhCam) {
+                camThick = dvhCam.thickness || 12;
+                if (!dvhCam.thickness) {
+                    const m = dvhCam.detail.match(/(\d+)\s*mm/i); if (m) camThick = parseInt(m[1]);
+                }
+            }
             const getThick = (g: any) => {
                 if (!g) return 0;
+                if (g.thickness) return g.thickness;
                 const m = g.detail.match(/(\d+)\s*mm/i); if (m) return parseInt(m[1]);
                 const mc = g.code.match(/(\d+)\s*mm/i); if (mc) return parseInt(mc[1]);
                 return 4;

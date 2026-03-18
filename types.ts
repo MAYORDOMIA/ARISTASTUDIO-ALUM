@@ -61,6 +61,7 @@ export interface DVHInput {
   type: 'Cámara' | 'Butilo' | 'Sales' | 'Escuadras';
   detail: string;
   cost: number;
+  thickness?: number;
 }
 
 export interface Treatment {

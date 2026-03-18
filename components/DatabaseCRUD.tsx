@@ -240,11 +240,12 @@ const DatabaseCRUD: React.FC<Props> = ({
         );
       case 'glasses':
         return (
-          <TableWrapper headers={['Cód. Vidrio', 'Descripción', 'Ancho (mm)', 'Alto (mm)', 'Costo M2', 'Espejo', 'Acciones']} onAdd={() => setGlasses([...glasses, { id: Date.now().toString(), code: 'V-00', detail: 'Nuevo Cristal', width: 2400, height: 1800, pricePerM2: 0, isMirror: false }])}>
+          <TableWrapper headers={['Cód. Vidrio', 'Descripción', 'Espesor (mm)', 'Ancho (mm)', 'Alto (mm)', 'Costo M2', 'Espejo', 'Acciones']} onAdd={() => setGlasses([...glasses, { id: Date.now().toString(), code: 'V-00', detail: 'Nuevo Cristal', width: 2400, height: 1800, pricePerM2: 0, isMirror: false, thickness: 4 }])}>
             {glasses.filter(g => filter(g.detail) || filter(g.code)).map((item) => (
               <tr key={item.id} className="row-style group">
                 <td className="cell-style"><input className="input-technical font-black text-sky-800" value={item.code} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, code: e.target.value} : x))} /></td>
                 <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
+                <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold text-sky-600 bg-sky-50/50 rounded-lg px-2" value={item.thickness || ''} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.width} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, width: parseInt(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.height} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, height: parseInt(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-20 outline-none" value={item.pricePerM2} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, pricePerM2: parseFloat(e.target.value) || 0} : x))} /></div></td>
@@ -271,7 +272,7 @@ const DatabaseCRUD: React.FC<Props> = ({
         );
       case 'dvh':
         return (
-          <TableWrapper headers={['Tipo Insumo', 'Descripción', 'Costo Unitario', 'Acciones']} onAdd={() => setDvhInputs([...dvhInputs, { id: Date.now().toString(), type: 'Cámara', detail: 'Nuevo Insumo DVH', cost: 0 }])}>
+          <TableWrapper headers={['Tipo Insumo', 'Descripción', 'Espesor (mm)', 'Costo Unitario', 'Acciones']} onAdd={() => setDvhInputs([...dvhInputs, { id: Date.now().toString(), type: 'Cámara', detail: 'Nuevo Insumo DVH', cost: 0, thickness: 12 }])}>
             {dvhInputs.filter(i => filter(i.detail) || filter(i.type)).map((item) => (
               <tr key={item.id} className="row-style group">
                 <td className="cell-style">
@@ -283,6 +284,7 @@ const DatabaseCRUD: React.FC<Props> = ({
                     </select>
                 </td>
                 <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
+                <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold text-sky-600 bg-sky-50/50 rounded-lg px-2 disabled:opacity-50" value={item.thickness || ''} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} disabled={item.type !== 'Cámara'} /></td>
                 <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-20 outline-none" value={item.cost} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, cost: parseFloat(e.target.value) || 0} : x))} /></div></td>
                 <td className="cell-style text-right"><button onClick={() => setDvhInputs(dvhInputs.filter(x => x.id !== item.id))} className="btn-delete"><Trash2 size={14} /></button></td>
               </tr>
