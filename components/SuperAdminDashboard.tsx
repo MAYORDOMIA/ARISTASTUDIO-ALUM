@@ -51,7 +51,7 @@ export default function SuperAdminDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const getAdminClient = () => {
-    const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).SUPABASE_SERVICE_ROLE_KEY;
     if (!serviceRoleKey) return supabase;
     
     try {
@@ -147,7 +147,7 @@ export default function SuperAdminDashboard() {
       return;
     }
 
-    const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).SUPABASE_SERVICE_ROLE_KEY;
     if (!serviceRoleKey) {
       setError('Falta VITE_SUPABASE_SERVICE_ROLE_KEY en los Secretos de AI Studio.');
       return;
@@ -289,7 +289,7 @@ export default function SuperAdminDashboard() {
       {/* USERS TAB */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          {!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY && (
+          {!(import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).SUPABASE_SERVICE_ROLE_KEY) && (
             <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5" />
