@@ -14,7 +14,7 @@ export default function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (user: 
     setLoading(true);
     setError('');
 
-    const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     if (!supabaseUrl || supabaseUrl === '') {
       setError('Falta configurar las credenciales de Supabase en los Secretos de AI Studio. Por favor, agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
       setLoading(false);
@@ -27,7 +27,7 @@ export default function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (user: 
       return;
     }
 
-    const anonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (anonKey && anonKey.startsWith('http')) {
       setError('¡Atención! Parece que pegaste una URL (que empieza con http...) en el secreto VITE_SUPABASE_ANON_KEY. Por favor, revisa tus secretos: VITE_SUPABASE_ANON_KEY debe ser una llave (eyJ...), no una dirección web.');
       setLoading(false);

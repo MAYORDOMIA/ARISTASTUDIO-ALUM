@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-export let supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || 'placeholder';
+export let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder';
 
 // Ensure URL has https:// prefix if it's just a project ID
 if (supabaseUrl && !supabaseUrl.startsWith('http')) {
