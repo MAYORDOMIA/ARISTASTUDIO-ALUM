@@ -14,6 +14,34 @@ export interface GlobalConfig {
   mamparaExtraIncrement: number;
 }
 
+// --- SaaS Types ---
+export interface Tenant {
+  id: string;
+  name: string;
+  status: 'active' | 'suspended';
+  deviceLimit: number;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface UserProfile {
+  id: string;
+  tenantId: string;
+  role: 'owner' | 'sales' | 'superadmin';
+  email: string;
+  fullName: string;
+}
+
+export interface DeviceSession {
+  id: string;
+  tenantId: string;
+  userId: string;
+  deviceIdentifier: string;
+  deviceName: string;
+  lastActive: string;
+}
+// ------------------
+
 export interface AluminumProfile {
   id: string;
   code: string;
@@ -200,8 +228,10 @@ export interface QuoteItem {
 
 export interface Quote {
   id: string;
+  tenantId?: string; // SaaS isolation
   clientName: string;
   date: string;
   items: QuoteItem[];
   totalPrice: number;
+  driveFileUrl?: string; // Google Drive integration
 }

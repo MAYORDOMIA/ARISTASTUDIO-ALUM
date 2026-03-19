@@ -105,6 +105,103 @@ const DatabaseCRUD: React.FC<Props> = ({
     XLSX.writeFile(wb, `BACKUP_ARISTA_SISTEMAS_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const [syncingDrive, setSyncingDrive] = useState(false);
+  const [driveUrl, setDriveUrl] = useState('');
+  const [showDriveModal, setShowDriveModal] = useState(false);
+
+  const handleSyncWithDrive = async () => {
+    if (!driveUrl) {
+      alert("Por favor ingresa el link de tu Google Sheet.");
+      return;
+    }
+    setSyncingDrive(true);
+    try {
+      // Extract the spreadsheet ID from the URL
+      const match = driveUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!match) {
+        throw new Error("Link inválido. Asegúrate de que sea un link de Google Sheets.");
+      }
+      const sheetId = match[1];
+      
+      // We need the sheet to be published to the web as CSV, or we can use the export endpoint
+      // The easiest way without API keys is the export endpoint if the sheet is public "Anyone with the link can view"
+      const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
+      
+      const response = await fetch(exportUrl);
+      if (!response.ok) throw new Error("No se pudo acceder al archivo. Asegúrate de que el link tenga permisos de 'Cualquier persona con el enlace puede leer'.");
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
+      const wb = XLSX.read(data, { type: 'array' });
+      
+      // Re-use the import logic
+      const processSheet = (possibleNames: string[], entityType: 'alu' | 'glass' | 'acc' | 'blind' | 'dvh' | 'trt') => {
+          const sheetKey = Object.keys(wb.Sheets).find(k => 
+              possibleNames.some(name => k.toLowerCase().includes(name.toLowerCase()))
+          );
+          
+          if (!sheetKey) return null;
+          const raw = XLSX.utils.sheet_to_json(wb.Sheets[sheetKey], { defval: "" }) as any[];
+          if (raw.length === 0) return null;
+
+          return raw.map((row, idx) => {
+              const normalizedRow: any = { id: row.id || `${Date.now()}-${idx}` };
+              Object.keys(row).forEach(key => {
+                  let normKey = normalizeKey(key);
+                  let val = row[key];
+
+                  // Reasignación inteligente de precios según entidad
+                  if (entityType === 'glass' && normKey === 'unitPrice') normKey = 'pricePerM2';
+                  if (entityType === 'blind' && normKey === 'unitPrice') normKey = 'price';
+                  if (entityType === 'dvh' && normKey === 'unitPrice') normKey = 'cost';
+
+                  // Sanitización numérica fuerte
+                  if (['weightPerMeter', 'barLength', 'thickness', 'pricePerM2', 'price', 'unitPrice', 'cost', 'width', 'height', 'pricePerKg', 'treatmentCost'].includes(normKey)) {
+                      val = parseFloat(String(val).replace(',', '.')) || 0;
+                  }
+                  if (normKey === 'isMirror') {
+                      val = String(val).toUpperCase().includes('SI') || val === true || val === 1;
+                  }
+                  if (normKey === 'isGlazingBead') {
+                      val = String(val).toUpperCase().includes('SI') || val === true || val === 1;
+                  }
+                  if (normKey === 'minGlassThickness' || normKey === 'maxGlassThickness') {
+                      val = parseFloat(String(val).replace(',', '.')) || 0;
+                  }
+                  normalizedRow[normKey] = val;
+              });
+              return normalizedRow;
+          });
+      };
+
+      const newAlu = processSheet(['aluminio', 'perfil', 'alu'], 'alu');
+      if (newAlu) setAluminum(newAlu);
+
+      const newGlass = processSheet(['vidrio', 'cristal', 'glass'], 'glass');
+      if (newGlass) setGlasses(newGlass);
+
+      const newAcc = processSheet(['accesorio', 'herraje', 'acc'], 'acc');
+      if (newAcc) setAccessories(newAcc);
+
+      const newBlind = processSheet(['panel', 'ciego', 'blind'], 'blind');
+      if (newBlind) setBlindPanels(newBlind);
+
+      const newDVH = processSheet(['dvh', 'camara', 'insumo'], 'dvh');
+      if (newDVH) setDvhInputs(newDVH);
+
+      const newTreat = processSheet(['pintura', 'tratamiento', 'color'], 'trt');
+      if (newTreat) setTreatments(newTreat);
+
+      alert("¡Base de datos sincronizada exitosamente desde Google Drive!");
+      setShowDriveModal(false);
+    } catch (error: any) {
+      console.error(error);
+      alert("Error al sincronizar: " + error.message);
+    } finally {
+      setSyncingDrive(false);
+    }
+  };
+
   const handleImportFromExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -347,6 +444,9 @@ const DatabaseCRUD: React.FC<Props> = ({
           ))}
         </div>
         <div className="flex flex-col sm:flex-row gap-2 lg:gap-3">
+            <button onClick={() => setShowDriveModal(true)} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                <DbIcon size={14} /> Sincronizar Drive
+            </button>
             <input type="file" ref={fileInputRef} onChange={handleImportFromExcel} className="hidden" accept=".xlsx,.xls" />
             <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sky-600 transition-all shadow-sm">
                 <Upload size={14} /> Importar
@@ -392,6 +492,61 @@ const DatabaseCRUD: React.FC<Props> = ({
         .btn-delete { color: #cbd5e1; transition: all 0.2s; padding: 0.5rem; border-radius: 8px; }
         .btn-delete:hover { color: #ef4444; background-color: #fef2f2; }
       `}</style>
+
+      {/* Drive Sync Modal */}
+      {showDriveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-3 uppercase tracking-widest">
+                <DbIcon className="w-5 h-5 text-emerald-500" />
+                Sincronizar con Google Drive
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium leading-relaxed">
+                  Pega el link de tu archivo de Google Sheets. Asegúrate de que el archivo tenga permisos de <strong>"Cualquier persona con el enlace puede leer"</strong>.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
+                  Link de Google Sheets
+                </label>
+                <input
+                  type="url"
+                  value={driveUrl}
+                  onChange={(e) => setDriveUrl(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className="w-full p-4 border-2 border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-0 outline-none transition-colors font-mono text-xs"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
+              <button
+                onClick={() => setShowDriveModal(false)}
+                className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSyncWithDrive}
+                disabled={syncingDrive || !driveUrl}
+                className="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+              >
+                {syncingDrive ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  'Sincronizar'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

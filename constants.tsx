@@ -12,7 +12,8 @@ import {
   FileText,
   Layout,
   History,
-  Briefcase
+  Briefcase,
+  ShieldAlert
 } from 'lucide-react';
 
 export const COLORS = {
@@ -30,6 +31,7 @@ export const MENU_ITEMS = [
   { id: 'recipes', label: 'Recetas / Sistemas', icon: <Hammer size={20} /> },
   { id: 'database', label: 'Base de Datos', icon: <Database size={20} /> },
   { id: 'config', label: 'Ajustes', icon: <Settings size={20} /> },
+  { id: 'superadmin', label: 'Panel SaaS', icon: <ShieldAlert size={20} />, role: 'superadmin' },
 ];
 
 export const DATABASE_TABS = [

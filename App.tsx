@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { supabase } from './services/supabase';
+import AuthScreen from './components/AuthScreen';
+import { UserProfile } from './types';
 import { 
   Menu, 
   X, 
@@ -45,6 +48,7 @@ import ProductRecipeEditor from './components/ProductRecipeEditor';
 import QuotingModule from './components/QuotingModule';
 import QuotesHistory from './components/QuotesHistory';
 import ObrasModule from './components/ObrasModule';
+import SuperAdminDashboard from './components/SuperAdminDashboard';
 import { 
   generateClientDetailedPDF, 
   generateMaterialsOrderPDF, 
@@ -55,6 +59,8 @@ import {
 } from './services/pdfGenerator';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,6 +88,72 @@ const App: React.FC = () => {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [recipes, setRecipes] = useState<ProductRecipe[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+
+  useEffect(() => {
+    // Safety timeout: if auth check takes more than 5 seconds, force it to finish
+    const authTimeout = setTimeout(() => {
+      console.warn("Auth check timed out, forcing UI to load.");
+      setIsAuthChecking(false);
+    }, 5000);
+
+    // Check active session on load
+    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      clearTimeout(authTimeout);
+      if (sessionError) {
+        console.error("Session error:", sessionError);
+        setIsAuthChecking(false);
+        return;
+      }
+      
+      if (session?.user) {
+        // If they have a session, fetch their profile
+        supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profile, error }) => {
+            if (error && error.code !== 'PGRST116') {
+              console.error("Error fetching profile:", error);
+            }
+            if (profile) {
+              setUser(profile as UserProfile);
+            } else if (session.user.email === 'aristastudiouno@gmail.com') {
+              // Superadmin fallback
+              setUser({ id: session.user.id, role: 'superadmin', email: session.user.email, tenantId: 'superadmin', fullName: 'Super Admin' });
+            }
+            setIsAuthChecking(false);
+          })
+          .catch((err) => {
+            console.error("Unexpected error fetching profile:", err);
+            setIsAuthChecking(false);
+          });
+      } else {
+        setIsAuthChecking(false);
+      }
+    }).catch((err) => {
+      clearTimeout(authTimeout);
+      console.error("Unexpected error getting session:", err);
+      setIsAuthChecking(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      clearTimeout(authTimeout);
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
 
   useEffect(() => {
     const barandaRecipes: ProductRecipe[] = [
@@ -226,8 +298,16 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#1c1c1c] text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
-      <aside className={`fixed lg:relative transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 shadow-xl h-full ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-0 lg:w-20'}`}>
+    <>
+      {isAuthChecking ? (
+        <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+        </div>
+      ) : !user ? (
+        <AuthScreen onLoginSuccess={setUser} />
+      ) : (
+        <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#1c1c1c] text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
+          <aside className={`fixed lg:relative transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 shadow-xl h-full ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-0 lg:w-20'}`}>
         <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 overflow-hidden">
           {(isSidebarOpen || window.innerWidth >= 1024) && (
             <div className={`flex items-center gap-2 transition-opacity duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
@@ -240,7 +320,7 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
-          {MENU_ITEMS.map((item) => (
+          {MENU_ITEMS.filter(item => !item.role || item.role === user?.role).map((item) => (
             <button
               key={item.id}
               onClick={() => {
@@ -266,11 +346,23 @@ const App: React.FC = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
             <div className={`flex items-center gap-2 p-2 rounded-xl border transition-all text-[9px] font-black uppercase tracking-wider ${isSaving ? 'text-sky-500 border-sky-100 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/30' : 'text-green-600 border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/30'}`}>
                 {isSaving ? <Zap size={12} className="animate-pulse" /> : <ShieldCheck size={12} />}
                 {isSidebarOpen && (isSaving ? "Guardando..." : "Sincronizado")}
             </div>
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                {user?.email}
+              </span>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="w-full py-2 text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              Cerrar Sesión
+            </button>
         </div>
       </aside>
 
@@ -427,6 +519,9 @@ const App: React.FC = () => {
                   </div>
               </div>
           </div>
+          <div className={activeTab === 'superadmin' ? 'h-full' : 'hidden'}>
+            <SuperAdminDashboard />
+          </div>
         </section>
       </main>
 
@@ -448,7 +543,9 @@ const App: React.FC = () => {
         .label-style { font-size: 7px; font-weight: 900; color: #94a3b8; letter-spacing: 0.1em; transition: color 0.2s; }
         .report-btn:hover .label-style { color: #0ea5e9; }
       `}</style>
-    </div>
+        </div>
+      )}
+    </>
   );
 };
 
