@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase, supabaseUrl, supabaseAnonKey } from './services/supabase';
+import { supabase } from './services/supabase';
 import AuthScreen from './components/AuthScreen';
 import { UserProfile } from './types';
 import { 
