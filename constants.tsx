@@ -13,7 +13,7 @@ import {
   Layout,
   History,
   Briefcase,
-  ShieldAlert
+  BarChart3
 } from 'lucide-react';
 
 export const COLORS = {
@@ -25,13 +25,13 @@ export const COLORS = {
 };
 
 export const MENU_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={20} /> },
   { id: 'quoter', label: 'Cotizador', icon: <Calculator size={20} /> },
   { id: 'obras', label: 'Obras Activas', icon: <Briefcase size={20} /> },
   { id: 'history', label: 'Historial', icon: <History size={20} /> },
   { id: 'recipes', label: 'Recetas / Sistemas', icon: <Hammer size={20} /> },
   { id: 'database', label: 'Base de Datos', icon: <Database size={20} /> },
   { id: 'config', label: 'Ajustes', icon: <Settings size={20} /> },
-  { id: 'superadmin', label: 'Panel SaaS', icon: <ShieldAlert size={20} />, role: 'superadmin' },
 ];
 
 export const DATABASE_TABS = [
