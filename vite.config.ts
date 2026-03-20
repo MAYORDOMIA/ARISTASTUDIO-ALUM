@@ -4,6 +4,18 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || '';
+    const supabaseServiceRoleKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+    
+    if (!supabaseUrl) {
+      throw new Error("CRITICAL: VITE_SUPABASE_URL is missing in build environment!");
+    }
+    
+    if (!supabaseAnonKey) {
+      throw new Error("CRITICAL: VITE_SUPABASE_ANON_KEY is missing in build environment!");
+    }
+    
     return {
       server: {
         port: 3000,
@@ -11,10 +23,9 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
-        'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''),
-        'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '')
+        '__SUPABASE_URL__': JSON.stringify(supabaseUrl),
+        '__SUPABASE_ANON_KEY__': JSON.stringify(supabaseAnonKey),
+        '__SUPABASE_SERVICE_ROLE_KEY__': JSON.stringify(supabaseServiceRoleKey)
       },
       resolve: {
         alias: {

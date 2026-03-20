@@ -1,11 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from './services/supabase';
-import AuthScreen from './components/AuthScreen';
-import { UserProfile } from './types';
 import { 
   Menu, 
   X, 
+  LogIn,
   ChevronRight, 
   Save,
   Image as ImageIcon,
@@ -48,7 +46,7 @@ import ProductRecipeEditor from './components/ProductRecipeEditor';
 import QuotingModule from './components/QuotingModule';
 import QuotesHistory from './components/QuotesHistory';
 import ObrasModule from './components/ObrasModule';
-import SuperAdminDashboard from './components/SuperAdminDashboard';
+import Auth from './components/Auth';
 import { 
   generateClientDetailedPDF, 
   generateMaterialsOrderPDF, 
@@ -57,10 +55,10 @@ import {
   generateGlassOptimizationPDF,
   generateCostsPDF
 } from './services/pdfGenerator';
+import { supabaseService } from './services/supabaseService';
+import { supabase } from './services/supabase';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
@@ -88,74 +86,95 @@ const App: React.FC = () => {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [recipes, setRecipes] = useState<ProductRecipe[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
-    // Safety timeout: if auth check takes more than 5 seconds, force it to finish
-    const authTimeout = setTimeout(() => {
-      console.warn("Auth check timed out, forcing UI to load.");
-      setIsAuthChecking(false);
-    }, 5000);
-
-    // Check active session on load
-    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
-      clearTimeout(authTimeout);
-      if (sessionError) {
-        console.error("Session error:", sessionError);
-        setIsAuthChecking(false);
-        return;
-      }
-      
-      if (session?.user) {
-        // If they have a session, fetch their profile
-        supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (error && error.code !== 'PGRST116') {
-              console.error("Error fetching profile:", error);
-            }
-            if (profile) {
-              console.log("User profile loaded:", profile);
-              setUser(profile as UserProfile);
-            } else if (session.user.email === 'aristastudiouno@gmail.com') {
-              // Superadmin fallback
-              console.log("Superadmin fallback triggered");
-              setUser({ id: session.user.id, role: 'superadmin', email: session.user.email, tenantId: 'superadmin', fullName: 'Super Admin' });
-            }
-            setIsAuthChecking(false);
-          })
-          .catch((err) => {
-            console.error("Unexpected error fetching profile:", err);
-            setIsAuthChecking(false);
-          });
-      } else {
-        setIsAuthChecking(false);
-      }
-    }).catch((err) => {
-      clearTimeout(authTimeout);
-      console.error("Unexpected error getting session:", err);
-      setIsAuthChecking(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setUser(null);
-      }
+      setUser(session?.user ?? null);
     });
 
-    return () => {
-      clearTimeout(authTimeout);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+  const loadDataFromSupabase = async () => {
+    setIsSyncing(true);
+    try {
+      const [
+        dbConfig,
+        dbAluminum,
+        dbGlasses,
+        dbBlindPanels,
+        dbAccessories,
+        dbDvhInputs,
+        dbTreatments,
+        dbRecipes,
+        dbQuotes,
+        dbCustomVisualTypes,
+        dbCurrentWorkItems
+      ] = await Promise.all([
+        supabaseService.getConfig(),
+        supabaseService.getAluminum(),
+        supabaseService.getGlasses(),
+        supabaseService.getBlindPanels(),
+        supabaseService.getAccessories(),
+        supabaseService.getDvhInputs(),
+        supabaseService.getTreatments(),
+        supabaseService.getRecipes(),
+        supabaseService.getQuotes(),
+        supabaseService.getCustomVisualTypes(),
+        supabaseService.getCurrentWorkItems()
+      ]);
+
+      if (dbConfig) setConfig(dbConfig);
+      if (dbAluminum.length > 0) setAluminum(dbAluminum);
+      if (dbGlasses.length > 0) setGlasses(dbGlasses);
+      if (dbBlindPanels.length > 0) setBlindPanels(dbBlindPanels);
+      if (dbAccessories.length > 0) setAccessories(dbAccessories);
+      if (dbDvhInputs.length > 0) setDvhInputs(dbDvhInputs);
+      if (dbTreatments.length > 0) setTreatments(dbTreatments);
+      if (dbRecipes.length > 0) setRecipes(dbRecipes);
+      if (dbQuotes.length > 0) setQuotes(dbQuotes);
+      if (dbCustomVisualTypes.length > 0) setCustomVisualTypes(dbCustomVisualTypes);
+      if (dbCurrentWorkItems.length > 0) setCurrentWorkItems(dbCurrentWorkItems);
+    } catch (error) {
+      console.error("Error loading data from Supabase:", error);
+    } finally {
+      setIsSyncing(false);
+    }
   };
+
+  const saveDataToSupabase = async () => {
+    setIsSaving(true);
+    try {
+      await Promise.all([
+        supabaseService.saveConfig(config),
+        supabaseService.saveAluminum(aluminum),
+        supabaseService.saveGlasses(glasses),
+        supabaseService.saveBlindPanels(blindPanels),
+        supabaseService.saveAccessories(accessories),
+        supabaseService.saveDvhInputs(dvhInputs),
+        supabaseService.saveTreatments(treatments),
+        supabaseService.saveRecipes(recipes),
+        supabaseService.saveQuotes(quotes),
+        supabaseService.saveCustomVisualTypes(customVisualTypes),
+        supabaseService.saveCurrentWorkItems(currentWorkItems)
+      ]);
+    } catch (error) {
+      console.error("Error saving data to Supabase:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDataFromSupabase();
+  }, []);
 
   useEffect(() => {
     const barandaRecipes: ProductRecipe[] = [
@@ -260,31 +279,9 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems };
-    setIsSaving(true);
     const timer = setTimeout(() => {
-      try {
-        const storageKey = 'maicol_engine_data_data_v2';
-        const stringified = JSON.stringify(data);
-        localStorage.setItem(storageKey, stringified);
-      } catch (e) {
-        console.error("Error en persistencia (Quota Exceeded):", e);
-        try {
-            const cleanedQuotes = quotes.map((q, idx) => ({
-                ...q,
-                items: q.items.map(item => ({
-                    ...item,
-                    previewImage: idx < 5 ? item.previewImage : undefined
-                }))
-            }));
-            const cleanedData = { ...data, quotes: cleanedQuotes };
-            localStorage.setItem('maicol_engine_data_data_v2', JSON.stringify(cleanedData));
-        } catch (retryError) {
-            console.error("Fallo crítico de almacenamiento:", retryError);
-        }
-      }
-      setIsSaving(false);
-    }, 400);
+      saveDataToSupabase();
+    }, 2000); // Debounce save to Supabase
     return () => clearTimeout(timer);
   }, [aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems]);
 
@@ -300,16 +297,8 @@ const App: React.FC = () => {
   };
 
   return (
-    <>
-      {isAuthChecking ? (
-        <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-        </div>
-      ) : !user ? (
-        <AuthScreen onLoginSuccess={setUser} />
-      ) : (
-        <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#1c1c1c] text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
-          <aside className={`fixed lg:relative transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 shadow-xl h-full ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-0 lg:w-20'}`}>
+    <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#1c1c1c] text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
+      <aside className={`fixed lg:relative transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 shadow-xl h-full ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-0 lg:w-20'}`}>
         <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 overflow-hidden">
           {(isSidebarOpen || window.innerWidth >= 1024) && (
             <div className={`flex items-center gap-2 transition-opacity duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
@@ -321,8 +310,37 @@ const App: React.FC = () => {
           </button>
         </div>
 
+        <div className="p-3 border-b border-slate-100 dark:border-slate-800">
+          {user ? (
+            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
+              <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center text-white font-black text-xs">
+                {user.email?.[0].toUpperCase()}
+              </div>
+              {isSidebarOpen && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#0f172a] dark:text-white truncate">{user.email?.split('@')[0]}</p>
+                  <button 
+                    onClick={() => supabase.auth.signOut()} 
+                    className="text-[8px] font-black text-red-500 uppercase tracking-widest hover:text-red-600 transition-colors"
+                  >
+                    Cerrar Sesión
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button 
+              onClick={() => setShowAuth(true)}
+              className="w-full flex items-center gap-3 p-3 bg-sky-500 text-white rounded-2xl shadow-lg shadow-sky-500/20 hover:bg-sky-600 transition-all"
+            >
+              <LogIn size={18} />
+              {isSidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Iniciar Sesión</span>}
+            </button>
+          )}
+        </div>
+
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
-          {MENU_ITEMS.filter(item => !item.role || item.role === user?.role).map((item) => (
+          {MENU_ITEMS.map((item) => (
             <button
               key={item.id}
               onClick={() => {
@@ -348,23 +366,21 @@ const App: React.FC = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800">
             <div className={`flex items-center gap-2 p-2 rounded-xl border transition-all text-[9px] font-black uppercase tracking-wider ${isSaving ? 'text-sky-500 border-sky-100 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/30' : 'text-green-600 border-green-100 dark:border-green-900 bg-green-50/50 dark:bg-green-950/30'}`}>
                 {isSaving ? <Zap size={12} className="animate-pulse" /> : <ShieldCheck size={12} />}
                 {isSidebarOpen && (isSaving ? "Guardando..." : "Sincronizado")}
             </div>
-            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
-                {user?.email}
-              </span>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="w-full py-2 text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-            >
-              Cerrar Sesión
-            </button>
+            {isSidebarOpen && (
+              <button 
+                onClick={loadDataFromSupabase}
+                disabled={isSyncing}
+                className="mt-2 w-full flex items-center justify-center gap-2 p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all disabled:opacity-50"
+              >
+                <Download size={12} className={isSyncing ? 'animate-bounce' : ''} />
+                {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
+              </button>
+            )}
         </div>
       </aside>
 
@@ -521,10 +537,9 @@ const App: React.FC = () => {
                   </div>
               </div>
           </div>
-          <div className={activeTab === 'superadmin' ? 'h-full' : 'hidden'}>
-            <SuperAdminDashboard />
-          </div>
         </section>
+
+        {showAuth && <Auth onClose={() => setShowAuth(false)} />}
       </main>
 
       <style>{`
@@ -545,9 +560,7 @@ const App: React.FC = () => {
         .label-style { font-size: 7px; font-weight: 900; color: #94a3b8; letter-spacing: 0.1em; transition: color 0.2s; }
         .report-btn:hover .label-style { color: #0ea5e9; }
       `}</style>
-        </div>
-      )}
-    </>
+    </div>
   );
 };
 

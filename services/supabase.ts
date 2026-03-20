@@ -1,30 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Professional setup: Reading credentials from environment variables
-console.log("DEBUG: VITE_SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
-export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Ensure URL has https:// prefix if it's just a project ID
-let url = supabaseUrl;
-if (url && !url.startsWith('http')) {
-  if (url.includes('.')) {
-    url = `https://${url}`;
-  } else {
-    url = `https://${url}.supabase.co`;
+const isValidUrl = (url: string) => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
   }
-}
+};
 
-let client;
-try {
-  // Validate URL format before creating client
-  new URL(url);
-  client = createClient(url, supabaseAnonKey);
-} catch (e) {
-  console.error("Invalid Supabase URL provided:", url);
-  // Fallback to a valid placeholder so the app doesn't crash completely,
-  // allowing the AuthScreen to show the configuration error.
-  client = createClient('https://placeholder.supabase.co', 'placeholder');
-}
+const supabaseUrl = (rawUrl && isValidUrl(rawUrl.trim())) ? rawUrl.trim() : 'https://kccfrshkkejmqlbebfst.supabase.co';
+const supabaseAnonKey = (rawKey && rawKey.trim()) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjY2Zyc2hra2VqbXFsYmViZnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTEzMDUsImV4cCI6MjA4OTU4NzMwNX0.AvVtc5bnE3MMZVtVKg8ZnM_teCYznEIDWehhEN50gRA';
 
-export const supabase = client;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

@@ -51,7 +51,7 @@ export default function SuperAdminDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const getAdminClient = () => {
-    const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = typeof __SUPABASE_SERVICE_ROLE_KEY__ !== 'undefined' ? __SUPABASE_SERVICE_ROLE_KEY__ : '';
     if (!serviceRoleKey) return supabase;
     
     try {
@@ -147,7 +147,7 @@ export default function SuperAdminDashboard() {
       return;
     }
 
-    const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).VITE_SUPABASE_SERVICE_ROLE_KEY || (process.env as any).SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = typeof __SUPABASE_SERVICE_ROLE_KEY__ !== 'undefined' ? __SUPABASE_SERVICE_ROLE_KEY__ : '';
     if (!serviceRoleKey) {
       setError('Falta VITE_SUPABASE_SERVICE_ROLE_KEY en los Secretos de AI Studio.');
       return;
