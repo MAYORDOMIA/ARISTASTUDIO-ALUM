@@ -117,9 +117,11 @@ const App: React.FC = () => {
               console.error("Error fetching profile:", error);
             }
             if (profile) {
+              console.log("User profile loaded:", profile);
               setUser(profile as UserProfile);
             } else if (session.user.email === 'aristastudiouno@gmail.com') {
               // Superadmin fallback
+              console.log("Superadmin fallback triggered");
               setUser({ id: session.user.id, role: 'superadmin', email: session.user.email, tenantId: 'superadmin', fullName: 'Super Admin' });
             }
             setIsAuthChecking(false);
