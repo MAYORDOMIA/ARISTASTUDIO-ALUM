@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Professional setup: Reading credentials from environment variables
+console.log("DEBUG: VITE_SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL);
 export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
