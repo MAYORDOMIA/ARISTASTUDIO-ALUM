@@ -14,17 +14,6 @@ export default function AuthScreen({ onLoginSuccess }: { onLoginSuccess: (user: 
     setLoading(true);
     setError('');
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-    console.log('DEBUG: Supabase config check:', { supabaseUrl: !!supabaseUrl, anonKey: !!anonKey, env: import.meta.env });
-
-    if (!supabaseUrl || supabaseUrl === '') {
-      setError('Falta configurar las credenciales de Supabase en los Secretos de AI Studio. Por favor, agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
-      setLoading(false);
-      return;
-    }
-
     try {
       // 1. Authenticate with Supabase
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
