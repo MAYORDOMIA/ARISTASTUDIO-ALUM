@@ -1,5 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
+console.log("DEBUG: Supabase initialization check:", {
+  url: import.meta.env.VITE_SUPABASE_URL,
+  key: import.meta.env.VITE_SUPABASE_ANON_KEY ? '***' : 'MISSING',
+  rawUrl: import.meta.env.VITE_SUPABASE_URL
+});
+
 export let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder';
 
