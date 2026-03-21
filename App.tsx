@@ -23,7 +23,8 @@ import {
   Upload,
   Tag,
   Wallet,
-  Wind
+  Wind,
+  LogOut
 } from 'lucide-react';
 import { 
   GlobalConfig, 
@@ -45,6 +46,9 @@ import QuotingModule from './components/QuotingModule';
 import QuotesHistory from './components/QuotesHistory';
 import ObrasModule from './components/ObrasModule';
 import SuperAdminDashboard from './src/components/SuperAdminDashboard';
+import Auth from './src/components/Auth';
+import { supabase } from './src/services/supabaseClient';
+import { Session } from '@supabase/supabase-js';
 import { 
   generateClientDetailedPDF, 
   generateMaterialsOrderPDF, 
@@ -55,10 +59,13 @@ import {
 } from './services/pdfGenerator';
 
 const App: React.FC = () => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
-  const userEmail = "aristastudiouno@gmail.com"; // Tu correo
   
   const [config, setConfig] = useState<GlobalConfig>({
     aluminumPricePerKg: 15.0,
@@ -83,6 +90,39 @@ const App: React.FC = () => {
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [recipes, setRecipes] = useState<ProductRecipe[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchProfile(session.user);
+      else setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) fetchProfile(session.user);
+      else {
+        setProfile(null);
+        setAuthLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (user: any) => {
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (data) {
+      setProfile(data);
+    } else {
+      // Auto-crear el perfil si no existe (por si no se configuró el Trigger en Supabase)
+      const { data: newProfile } = await supabase.from('profiles').insert([
+        { id: user.id, email: user.email, is_active: user.email === 'aristastudiouno@gmail.com' }
+      ]).select().single();
+      if (newProfile) setProfile(newProfile);
+    }
+    setAuthLoading(false);
+  };
 
   useEffect(() => {
     const barandaRecipes: ProductRecipe[] = [
@@ -226,6 +266,41 @@ const App: React.FC = () => {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f1f5f9] dark:bg-[#1c1c1c]">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-sky-500 rounded-2xl flex items-center justify-center text-white"><ShieldCheck size={24} /></div>
+          <p className="text-slate-500 font-bold text-sm uppercase tracking-widest">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
+
+  const isSuperAdmin = session.user.email === 'aristastudiouno@gmail.com';
+
+  if (profile && !profile.is_active && !isSuperAdmin) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f1f5f9] dark:bg-[#1c1c1c] p-4">
+        <div className="text-center p-8 bg-white dark:bg-[#252525] rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full">
+          <ShieldCheck className="mx-auto text-amber-500 mb-4" size={48} />
+          <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Cuenta en revisión</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Tu cuenta ha sido creada exitosamente, pero un administrador debe activarla para que puedas acceder al cotizador.</p>
+          <button 
+            onClick={() => supabase.auth.signOut()} 
+            className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#1c1c1c] text-[#0f172a] dark:text-slate-100 transition-colors duration-300">
       <aside className={`fixed lg:relative transition-all duration-300 bg-white dark:bg-[#252525] border-r border-slate-200 dark:border-slate-800 flex flex-col z-50 shadow-xl h-full ${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0 w-0 lg:w-20'}`}>
@@ -265,9 +340,8 @@ const App: React.FC = () => {
               {isSidebarOpen && <span className="text-[11px] truncate uppercase font-black tracking-wider">{item.label}</span>}
             </button>
           ))}
-          
           {/* Opción de Super Admin oculta para todos excepto para ti */}
-          {userEmail === 'aristastudiouno@gmail.com' && (
+          {isSuperAdmin && (
             <button
               onClick={() => setActiveTab('admin')}
               className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group border ${
@@ -332,6 +406,11 @@ const App: React.FC = () => {
                  <div className="hidden sm:flex flex-col items-end pl-3 lg:pl-4 border-l border-slate-100 dark:border-slate-800">
                     <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">MARGEN</span>
                     <span className="text-xs lg:text-sm font-mono text-emerald-600 dark:text-emerald-400 font-black">+{config.laborPercentage}%</span>
+                 </div>
+                 <div className="pl-3 lg:pl-4 border-l border-slate-100 dark:border-slate-800">
+                   <button onClick={() => supabase.auth.signOut()} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-slate-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
+                     <LogOut size={18} />
+                   </button>
                  </div>
              </div>
           </div>

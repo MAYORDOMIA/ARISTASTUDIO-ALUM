@@ -1,61 +1,98 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { ShieldCheck, UserX, UserCheck, Smartphone } from 'lucide-react';
+import { ShieldCheck, UserCheck, UserX, Loader2 } from 'lucide-react';
 
 interface Profile {
   id: string;
   email: string;
   is_active: boolean;
+  created_at?: string;
 }
 
 const SuperAdminDashboard: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfiles();
   }, []);
 
   const fetchProfiles = async () => {
-    const { data, error } = await supabase.from('profiles').select('*');
-    if (error) console.error('Error fetching profiles:', error);
-    else setProfiles(data || []);
+    setLoading(true);
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (data) setProfiles(data);
     setLoading(false);
   };
 
-  const toggleUserStatus = async (id: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_active: !currentStatus })
-      .eq('id', id);
-    
-    if (error) alert('Error al cambiar estado');
-    else fetchProfiles();
+  const toggleStatus = async (id: string, currentStatus: boolean) => {
+    setToggling(id);
+    const { error } = await supabase.from('profiles').update({ is_active: !currentStatus }).eq('id', id);
+    if (!error) {
+      setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentStatus } : p));
+    }
+    setToggling(null);
   };
 
-  if (loading) return <div>Cargando panel de control...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="animate-spin text-sky-500" size={32} />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
-      <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-        <ShieldCheck className="text-sky-500" /> Panel de Super Admin
-      </h2>
-      <div className="space-y-4">
-        {profiles.map((profile) => (
-          <div key={profile.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-            <div>
-              <p className="font-bold text-slate-700">{profile.email}</p>
-              <p className="text-xs text-slate-400">ID: {profile.id}</p>
-            </div>
-            <button 
-              onClick={() => toggleUserStatus(profile.id, profile.is_active)}
-              className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 ${profile.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-            >
-              {profile.is_active ? <UserCheck size={16} /> : <UserX size={16} />}
-              {profile.is_active ? 'Activo' : 'Bloqueado'}
-            </button>
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2">
+      <div className="bg-white dark:bg-[#252525] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+          <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+            <ShieldCheck size={20} />
           </div>
-        ))}
+          <div>
+            <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-widest">Super Administrador</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Gestión de acceso de usuarios</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {profiles.length === 0 ? (
+            <div className="text-center py-8 text-slate-500 text-sm">No hay usuarios registrados aún.</div>
+          ) : (
+            profiles.map(profile => (
+              <div key={profile.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div>
+                  <div className="font-bold text-sm text-slate-800 dark:text-white">{profile.email}</div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    Estado: <span className={profile.is_active ? 'text-emerald-500 font-bold' : 'text-amber-500 font-bold'}>
+                      {profile.is_active ? 'Activo' : 'En revisión'}
+                    </span>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => toggleStatus(profile.id, profile.is_active)}
+                  disabled={toggling === profile.id || profile.email === 'aristastudiouno@gmail.com'}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${
+                    profile.email === 'aristastudiouno@gmail.com' 
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
+                      : profile.is_active 
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40' 
+                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40'
+                  }`}
+                >
+                  {toggling === profile.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : profile.is_active ? (
+                    <><UserX size={14} /> Desactivar</>
+                  ) : (
+                    <><UserCheck size={14} /> Activar</>
+                  )}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

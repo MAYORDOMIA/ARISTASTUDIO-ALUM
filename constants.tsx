@@ -25,7 +25,6 @@ export const COLORS = {
 };
 
 export const MENU_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={20} /> },
   { id: 'quoter', label: 'Cotizador', icon: <Calculator size={20} /> },
   { id: 'obras', label: 'Obras Activas', icon: <Briefcase size={20} /> },
   { id: 'history', label: 'Historial', icon: <History size={20} /> },
