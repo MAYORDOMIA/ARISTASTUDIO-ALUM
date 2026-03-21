@@ -255,7 +255,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                 glazingBeadOptions: newGlazingBeadOptions
                             };
                         }),
-                        accessories: r.accessories.map((ra: any) => {
+                        accessories: (r.accessories || []).map((ra: any) => {
                             const newAccessoryId = getAccId(ra._accessoryCode, ra.accessoryId);
                             const { _accessoryCode, ...cleanRa } = ra;
                             return {
