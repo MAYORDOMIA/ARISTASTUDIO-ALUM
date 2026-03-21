@@ -137,13 +137,19 @@ const App: React.FC = () => {
   };
 
   const fetchProfile = async (user: any) => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    let { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    
     if (data) {
       if (data.app_data && Object.keys(data.app_data).length > 0) {
         hydrateData(data.app_data);
-      } else {
-        const saved = localStorage.getItem('maicol_engine_data_data_v2');
-        if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
+      } else if (user.email !== 'aristastudiouno@gmail.com') {
+        // Si no tiene datos, intentar cargar los del administrador
+        const { data: adminData } = await supabase.from('profiles').select('app_data').eq('email', 'aristastudiouno@gmail.com').single();
+        if (adminData?.app_data) {
+          hydrateData(adminData.app_data);
+          // Opcional: Guardar estos datos en el perfil del usuario actual para que no tenga que volver a cargarlos
+          await supabase.from('profiles').update({ app_data: adminData.app_data }).eq('id', user.id);
+        }
       }
       setIsDataLoaded(true);
       checkDeviceAccess(data);
@@ -160,10 +166,7 @@ const App: React.FC = () => {
         }
       ]).select().single();
       
-      const saved = localStorage.getItem('maicol_engine_data_data_v2');
-      if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
       setIsDataLoaded(true);
-
       if (newProfile) checkDeviceAccess(newProfile);
       else setAuthLoading(false);
     }
