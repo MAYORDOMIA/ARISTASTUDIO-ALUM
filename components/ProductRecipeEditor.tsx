@@ -121,7 +121,26 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
   }, [recipes, searchFilter]);
 
   const handleExportRecipes = () => {
-    const dataStr = JSON.stringify(recipes, null, 2);
+    // Enriquecer las recetas con los códigos de perfiles y accesorios para que al importar en otra cuenta se puedan vincular
+    const enrichedRecipes = recipes.map(r => ({
+      ...r,
+      profiles: r.profiles.map(rp => {
+        const profile = aluminum.find(a => a.id === rp.profileId);
+        return {
+          ...rp,
+          _profileCode: profile?.code // Guardamos el código como referencia
+        };
+      }),
+      accessories: r.accessories.map(ra => {
+        const accessory = accessories.find(a => a.id === ra.accessoryId);
+        return {
+          ...ra,
+          _accessoryCode: accessory?.code // Guardamos el código como referencia
+        };
+      })
+    }));
+
+    const dataStr = JSON.stringify(enrichedRecipes, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
@@ -135,8 +154,49 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
     const reader = new FileReader();
     reader.onload = (evt) => {
         try {
-            const imported = JSON.parse(evt.target?.result as string) as ProductRecipe[];
-            if (Array.isArray(imported)) { setRecipes([...recipes, ...imported]); }
+            const imported = JSON.parse(evt.target?.result as string) as any[];
+            if (Array.isArray(imported)) { 
+                // Mapear los IDs basándose en los códigos (_profileCode y _accessoryCode) si existen
+                const mappedRecipes = imported.map(r => {
+                    return {
+                        ...r,
+                        // Asegurar un ID único para la receta importada para evitar conflictos si se importa varias veces
+                        id: r.id.includes('-imp-') ? r.id : `${r.id}-imp-${Date.now().toString().slice(-4)}`,
+                        profiles: r.profiles.map((rp: any) => {
+                            let newProfileId = rp.profileId;
+                            // Si viene el código de referencia, buscar el ID local correspondiente
+                            if (rp._profileCode) {
+                                const localProfile = aluminum.find(a => a.code === rp._profileCode);
+                                if (localProfile) newProfileId = localProfile.id;
+                            }
+                            
+                            // Limpiar la propiedad temporal
+                            const { _profileCode, ...cleanRp } = rp;
+                            return {
+                                ...cleanRp,
+                                profileId: newProfileId
+                            };
+                        }),
+                        accessories: r.accessories.map((ra: any) => {
+                            let newAccessoryId = ra.accessoryId;
+                            // Si viene el código de referencia, buscar el ID local correspondiente
+                            if (ra._accessoryCode) {
+                                const localAccessory = accessories.find(a => a.code === ra._accessoryCode);
+                                if (localAccessory) newAccessoryId = localAccessory.id;
+                            }
+                            
+                            // Limpiar la propiedad temporal
+                            const { _accessoryCode, ...cleanRa } = ra;
+                            return {
+                                ...cleanRa,
+                                accessoryId: newAccessoryId
+                            };
+                        })
+                    } as ProductRecipe;
+                });
+                
+                setRecipes([...recipes, ...mappedRecipes]); 
+            }
         } catch (err) { alert("Error al importar librería."); }
     };
     reader.readAsText(file);

@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
     }
     
     return {
-      base: '/', // Mejor para Vercel
+      base: './', // Fundamental para que funcione en GitHub Pages y Vercel
       server: {
         port: 3000,
         host: '0.0.0.0',

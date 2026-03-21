@@ -64,6 +64,7 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [deviceLimitReached, setDeviceLimitReached] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
@@ -121,9 +122,30 @@ const App: React.FC = () => {
     return id;
   };
 
+  const hydrateData = (parsed: any) => {
+    if (parsed.aluminum) setAluminum(parsed.aluminum);
+    if (parsed.glasses) setGlasses(parsed.glasses);
+    if (parsed.blindPanels) setBlindPanels(parsed.blindPanels);
+    if (parsed.accessories) setAccessories(parsed.accessories);
+    if (parsed.dvhInputs) setDvhInputs(parsed.dvhInputs);
+    if (parsed.treatments) setTreatments(parsed.treatments);
+    if (parsed.recipes) setRecipes(parsed.recipes);
+    if (parsed.config) setConfig(parsed.config);
+    if (parsed.quotes) setQuotes(parsed.quotes);
+    if (parsed.customVisualTypes) setCustomVisualTypes(parsed.customVisualTypes);
+    if (parsed.currentWorkItems) setCurrentWorkItems(parsed.currentWorkItems);
+  };
+
   const fetchProfile = async (user: any) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (data) {
+      if (data.app_data && Object.keys(data.app_data).length > 0) {
+        hydrateData(data.app_data);
+      } else {
+        const saved = localStorage.getItem('maicol_engine_data_data_v2');
+        if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
+      }
+      setIsDataLoaded(true);
       checkDeviceAccess(data);
     } else {
       // Auto-crear el perfil si no existe
@@ -133,15 +155,27 @@ const App: React.FC = () => {
           email: user.email, 
           is_active: user.email === 'aristastudiouno@gmail.com',
           max_devices: 1,
-          registered_devices: []
+          registered_devices: [],
+          app_data: {}
         }
       ]).select().single();
+      
+      const saved = localStorage.getItem('maicol_engine_data_data_v2');
+      if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
+      setIsDataLoaded(true);
+
       if (newProfile) checkDeviceAccess(newProfile);
       else setAuthLoading(false);
     }
   };
 
   const checkDeviceAccess = async (profileData: any) => {
+    // Si no hay perfil, no dejamos pasar
+    if (!profileData) {
+      setAuthLoading(false);
+      return;
+    }
+
     // Si es super admin, no limitamos dispositivos
     if (profileData.email === 'aristastudiouno@gmail.com') {
       setProfile(profileData);
@@ -163,9 +197,18 @@ const App: React.FC = () => {
     if (!devices.includes(deviceId)) {
       if (devices.length < maxDevices) {
         // Registrar nuevo dispositivo
-        devices = [...devices, deviceId];
-        await supabase.from('profiles').update({ registered_devices: devices }).eq('id', profileData.id);
-        setProfile({ ...profileData, registered_devices: devices });
+        const newDevices = [...devices, deviceId];
+        const { error } = await supabase.from('profiles').update({ registered_devices: newDevices }).eq('id', profileData.id);
+        
+        if (error) {
+          console.error("Error al registrar el dispositivo en la base de datos:", error);
+          alert("Hubo un problema al registrar tu dispositivo. Por favor, contacta al administrador.");
+          await supabase.auth.signOut();
+          setAuthLoading(false);
+          return;
+        }
+        
+        setProfile({ ...profileData, registered_devices: newDevices });
       } else {
         // Límite alcanzado
         setDeviceLimitReached(true);
@@ -178,6 +221,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!isDataLoaded) return;
     const barandaRecipes: ProductRecipe[] = [
       {
         id: 'std_baranda_1',
@@ -235,7 +279,7 @@ const App: React.FC = () => {
       if (missing.length === 0) return prev;
       return [...prev, ...missing];
     });
-  }, []);
+  }, [isDataLoaded]);
 
   const [customVisualTypes, setCustomVisualTypes] = useState<CustomVisualType[]>([]);
 
@@ -258,37 +302,25 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem('maicol_engine_data_data_v2');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.aluminum) setAluminum(parsed.aluminum);
-        if (parsed.glasses) setGlasses(parsed.glasses);
-        if (parsed.blindPanels) setBlindPanels(parsed.blindPanels);
-        if (parsed.accessories) setAccessories(parsed.accessories);
-        if (parsed.dvhInputs) setDvhInputs(parsed.dvhInputs);
-        if (parsed.treatments) setTreatments(parsed.treatments);
-        if (parsed.recipes) setRecipes(parsed.recipes);
-        if (parsed.config) setConfig(parsed.config);
-        if (parsed.quotes) setQuotes(parsed.quotes);
-        if (parsed.customVisualTypes) setCustomVisualTypes(parsed.customVisualTypes);
-        if (parsed.currentWorkItems) setCurrentWorkItems(parsed.currentWorkItems);
-      } catch (e) {
-        console.error("Error crítico de hidratación:", e);
-      }
-    }
-  }, []);
+    if (!isDataLoaded || !session?.user?.id) return;
 
-  useEffect(() => {
     const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems };
     setIsSaving(true);
-    const timer = setTimeout(() => {
+    
+    const timer = setTimeout(async () => {
       try {
+        // Guardado local
         const storageKey = 'maicol_engine_data_data_v2';
         const stringified = JSON.stringify(data);
         localStorage.setItem(storageKey, stringified);
+
+        // Guardado en la nube (Supabase)
+        const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
+        if (error) {
+          console.error("Error al guardar en la nube:", error);
+        }
       } catch (e) {
-        console.error("Error en persistencia (Quota Exceeded):", e);
+        console.error("Error en persistencia:", e);
         try {
             const cleanedQuotes = quotes.map((q, idx) => ({
                 ...q,
@@ -299,14 +331,15 @@ const App: React.FC = () => {
             }));
             const cleanedData = { ...data, quotes: cleanedQuotes };
             localStorage.setItem('maicol_engine_data_data_v2', JSON.stringify(cleanedData));
+            await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
         } catch (retryError) {
             console.error("Fallo crítico de almacenamiento:", retryError);
         }
       }
       setIsSaving(false);
-    }, 400);
+    }, 1500);
     return () => clearTimeout(timer);
-  }, [aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems]);
+  }, [aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems, isDataLoaded, session]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -361,6 +394,24 @@ const App: React.FC = () => {
           <ShieldCheck className="mx-auto text-amber-500 mb-4" size={48} />
           <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Cuenta en revisión</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Tu cuenta ha sido creada exitosamente, pero un administrador debe activarla para que puedas acceder al cotizador.</p>
+          <button 
+            onClick={() => supabase.auth.signOut()} 
+            className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile && !isSuperAdmin) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f1f5f9] dark:bg-[#1c1c1c] p-4">
+        <div className="text-center p-8 bg-white dark:bg-[#252525] rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full">
+          <ShieldCheck className="mx-auto text-red-500 mb-4" size={48} />
+          <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Error de Perfil</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">No se pudo cargar tu perfil correctamente. Por favor, contacta al administrador.</p>
           <button 
             onClick={() => supabase.auth.signOut()} 
             className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"

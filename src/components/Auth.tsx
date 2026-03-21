@@ -21,8 +21,26 @@ const Auth: React.FC = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+        
+        // Intentar crear el perfil manualmente si RLS lo permite
+        if (data?.user) {
+          const { error: profileError } = await supabase.from('profiles').insert([
+            { 
+              id: data.user.id, 
+              email: data.user.email, 
+              is_active: false,
+              max_devices: 1,
+              registered_devices: []
+            }
+          ]);
+          
+          if (profileError) {
+            console.error('Error al crear el perfil (puede requerir trigger SQL):', profileError);
+          }
+        }
+        
         setMessage('Registro exitoso. Por favor, espera a que un administrador active tu cuenta.');
       }
     } catch (err: any) {
