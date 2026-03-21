@@ -137,22 +137,50 @@ const App: React.FC = () => {
   };
 
   const fetchProfile = async (user: any) => {
-    let { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    // 1. Cargar perfil del usuario
+    const { data: userData, error: userError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     
-    if (data) {
-      if (data.app_data && Object.keys(data.app_data).length > 0) {
-        hydrateData(data.app_data);
-      } else if (user.email !== 'aristastudiouno@gmail.com') {
-        // Si no tiene datos, intentar cargar los del administrador
-        const { data: adminData } = await supabase.from('profiles').select('app_data').eq('email', 'aristastudiouno@gmail.com').single();
-        if (adminData?.app_data) {
-          hydrateData(adminData.app_data);
-          // Opcional: Guardar estos datos en el perfil del usuario actual para que no tenga que volver a cargarlos
-          await supabase.from('profiles').update({ app_data: adminData.app_data }).eq('id', user.id);
+    // 2. Cargar datos globales del administrador
+    const { data: adminData } = await supabase.from('profiles').select('app_data').eq('email', 'aristastudiouno@gmail.com').single();
+    
+    const globalEntities = ['aluminum', 'glasses', 'blindPanels', 'accessories', 'dvhInputs', 'treatments'];
+    const privateEntities = ['recipes', 'config', 'quotes', 'customVisualTypes', 'currentWorkItems'];
+
+    const hydrate = (data: any, isGlobal: boolean) => {
+      if (!data) return;
+      
+      const entitiesToHydrate = isGlobal ? globalEntities : privateEntities;
+      
+      entitiesToHydrate.forEach(entity => {
+        if (data[entity]) {
+          switch(entity) {
+            case 'aluminum': setAluminum(data.aluminum); break;
+            case 'glasses': setGlasses(data.glasses); break;
+            case 'blindPanels': setBlindPanels(data.blindPanels); break;
+            case 'accessories': setAccessories(data.accessories); break;
+            case 'dvhInputs': setDvhInputs(data.dvhInputs); break;
+            case 'treatments': setTreatments(data.treatments); break;
+            case 'recipes': setRecipes(data.recipes); break;
+            case 'config': setConfig(data.config); break;
+            case 'quotes': setQuotes(data.quotes); break;
+            case 'customVisualTypes': setCustomVisualTypes(data.customVisualTypes); break;
+            case 'currentWorkItems': setCurrentWorkItems(data.currentWorkItems); break;
+          }
         }
+      });
+    };
+
+    // Aplicar datos
+    if (adminData?.app_data) {
+      hydrate(adminData.app_data, true);
+    }
+
+    if (userData) {
+      if (userData.app_data && Object.keys(userData.app_data).length > 0) {
+        hydrate(userData.app_data, false);
       }
       setIsDataLoaded(true);
-      checkDeviceAccess(data);
+      checkDeviceAccess(userData);
     } else {
       // Auto-crear el perfil si no existe
       const { data: newProfile } = await supabase.from('profiles').insert([
