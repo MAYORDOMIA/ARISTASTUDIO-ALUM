@@ -202,6 +202,13 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
     reader.readAsText(file);
   };
 
+  const handleDeleteAllRecipes = () => {
+    if (confirm('¿Estás seguro de que deseas eliminar TODAS las ingenierías/recetas? Esta acción no se puede deshacer y borrará toda tu librería actual.')) {
+      setRecipes([]);
+      setEditingId(null);
+    }
+  };
+
   const isTubeType = recipe?.visualType === 'tubo_h' || recipe?.visualType === 'tubo_v';
 
   return (
@@ -257,6 +264,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                 <input type="file" ref={importFileRef} onChange={handleImportRecipes} className="hidden" accept=".json" />
             </div>
             <button onClick={addNewRecipe} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl text-[9px] uppercase tracking-widest hover:bg-sky-500 transition-all mt-2"><Plus size={14} /> Nueva Ingeniería</button>
+            <button onClick={handleDeleteAllRecipes} className="w-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-black py-3 rounded-xl text-[8px] uppercase tracking-widest hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-100 dark:border-red-800 transition-all mt-2 flex items-center justify-center gap-2"><Trash2 size={14} /> Eliminar Todas</button>
         </div>
       </div>
 
