@@ -24,7 +24,8 @@ import {
   Tag,
   Wallet,
   Wind,
-  LogOut
+  LogOut,
+  MonitorOff
 } from 'lucide-react';
 import { 
   GlobalConfig, 
@@ -62,6 +63,7 @@ const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [deviceLimitReached, setDeviceLimitReached] = useState(false);
 
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
@@ -110,16 +112,67 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const getDeviceId = () => {
+    let id = localStorage.getItem('arista_device_id');
+    if (!id) {
+      id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('arista_device_id', id);
+    }
+    return id;
+  };
+
   const fetchProfile = async (user: any) => {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (data) {
-      setProfile(data);
+      checkDeviceAccess(data);
     } else {
-      // Auto-crear el perfil si no existe (por si no se configuró el Trigger en Supabase)
+      // Auto-crear el perfil si no existe
       const { data: newProfile } = await supabase.from('profiles').insert([
-        { id: user.id, email: user.email, is_active: user.email === 'aristastudiouno@gmail.com' }
+        { 
+          id: user.id, 
+          email: user.email, 
+          is_active: user.email === 'aristastudiouno@gmail.com',
+          max_devices: 1,
+          registered_devices: []
+        }
       ]).select().single();
-      if (newProfile) setProfile(newProfile);
+      if (newProfile) checkDeviceAccess(newProfile);
+      else setAuthLoading(false);
+    }
+  };
+
+  const checkDeviceAccess = async (profileData: any) => {
+    // Si es super admin, no limitamos dispositivos
+    if (profileData.email === 'aristastudiouno@gmail.com') {
+      setProfile(profileData);
+      setAuthLoading(false);
+      return;
+    }
+
+    // Si no está activo, lo dejamos pasar a la pantalla de "En revisión"
+    if (!profileData.is_active) {
+      setProfile(profileData);
+      setAuthLoading(false);
+      return;
+    }
+
+    const deviceId = getDeviceId();
+    let devices = profileData.registered_devices || [];
+    const maxDevices = profileData.max_devices || 1;
+
+    if (!devices.includes(deviceId)) {
+      if (devices.length < maxDevices) {
+        // Registrar nuevo dispositivo
+        devices = [...devices, deviceId];
+        await supabase.from('profiles').update({ registered_devices: devices }).eq('id', profileData.id);
+        setProfile({ ...profileData, registered_devices: devices });
+      } else {
+        // Límite alcanzado
+        setDeviceLimitReached(true);
+        setProfile(profileData);
+      }
+    } else {
+      setProfile(profileData);
     }
     setAuthLoading(false);
   };
@@ -282,6 +335,24 @@ const App: React.FC = () => {
   }
 
   const isSuperAdmin = session.user.email === 'aristastudiouno@gmail.com';
+
+  if (deviceLimitReached && !isSuperAdmin) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#f1f5f9] dark:bg-[#1c1c1c] p-4">
+        <div className="text-center p-8 bg-white dark:bg-[#252525] rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full">
+          <MonitorOff className="mx-auto text-red-500 mb-4" size={48} />
+          <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Límite de Dispositivos</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Has alcanzado el límite máximo de dispositivos permitidos para tu cuenta. Contacta al administrador si necesitas acceder desde este nuevo dispositivo.</p>
+          <button 
+            onClick={() => { supabase.auth.signOut(); setDeviceLimitReached(false); }} 
+            className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (profile && !profile.is_active && !isSuperAdmin) {
     return (
