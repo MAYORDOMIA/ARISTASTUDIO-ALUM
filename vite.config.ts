@@ -9,15 +9,15 @@ export default defineConfig(({ mode }) => {
     const supabaseServiceRoleKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
     
     if (!supabaseUrl) {
-      throw new Error("CRITICAL: VITE_SUPABASE_URL is missing in build environment!");
+      console.warn("WARNING: VITE_SUPABASE_URL is missing in build environment!");
     }
     
     if (!supabaseAnonKey) {
-      throw new Error("CRITICAL: VITE_SUPABASE_ANON_KEY is missing in build environment!");
+      console.warn("WARNING: VITE_SUPABASE_ANON_KEY is missing in build environment!");
     }
     
     return {
-      base: './', // Fundamental para que funcione en GitHub Pages
+      base: '/', // Mejor para Vercel
       server: {
         port: 3000,
         host: '0.0.0.0',
