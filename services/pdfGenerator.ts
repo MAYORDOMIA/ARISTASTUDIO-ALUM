@@ -475,7 +475,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 const isMosq = role.includes('mosquitero') || p.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
                 const len = evaluateFormula(rp.formula, modW, modH); const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
-                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength || 6 };
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
                 existing.totalMm += totalMm; aluSummary.set(p.id, existing);
             });
             if (mod.transoms && mod.transoms.length > 0) {
@@ -484,7 +484,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 if (trProf) {
                   const f = t.formula || recipeTransomFormula; const cutLen = evaluateFormula(f, modW, modH);
                   const totalMm = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
-                  const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength || 6 };
+                  const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength };
                   existing.totalMm += totalMm; aluSummary.set(trProf.id, existing);
                 }
               });
@@ -514,7 +514,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                       if (slatProf && slatProf.thickness > 0) {
                         const numSlats = Math.ceil(p.h / slatProf.thickness);
                         const totalMm = (p.w + config.discWidth) * numSlats * numLeaves * item.quantity;
-                        const existing = aluSummary.get(slatProf.id) || { code: slatProf.code, detail: slatProf.detail, totalMm: 0, barLength: slatProf.barLength || 6 };
+                        const existing = aluSummary.get(slatProf.id) || { code: slatProf.code, detail: slatProf.detail, totalMm: 0, barLength: slatProf.barLength };
                         existing.totalMm += totalMm; aluSummary.set(slatId, existing);
                       }
                     }
@@ -525,7 +525,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             if (mod.handrailProfileId) {
                 const hrProfile = aluminum.find(p => p.id === mod.handrailProfileId);
                 if (hrProfile) {
-                     const existing = aluSummary.get(hrProfile.id) || { code: hrProfile.code, detail: hrProfile.detail, totalMm: 0, barLength: hrProfile.barLength || 6 };
+                     const existing = aluSummary.get(hrProfile.id) || { code: hrProfile.code, detail: hrProfile.detail, totalMm: 0, barLength: hrProfile.barLength };
                      existing.totalMm += (modW + config.discWidth) * item.quantity;
                      aluSummary.set(hrProfile.id, existing);
                 }
@@ -570,7 +570,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                         }
                     }
                 }
-                const existing = aluSummary.get(tjProfile.id) || { code: tjProfile.code, detail: tjProfile.detail, totalMm: 0, barLength: tjProfile.barLength || 6 };
+                const existing = aluSummary.get(tjProfile.id) || { code: tjProfile.code, detail: tjProfile.detail, totalMm: 0, barLength: tjProfile.barLength };
                 existing.totalMm += (tjLenTotal + config.discWidth) * item.quantity; aluSummary.set(tjProfile.id, existing);
             }
         }
@@ -605,8 +605,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                         }
                     }
                 }
-                const bl = p.barLength || 6;
-                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: bl };
+                const existing = aluSummary.get(p.id) || { code: p.code, detail: p.detail, totalMm: 0, barLength: p.barLength };
                 existing.totalMm += (totalC + config.discWidth) * item.quantity; aluSummary.set(p.id, existing);
             }
         }

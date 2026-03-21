@@ -137,50 +137,16 @@ const App: React.FC = () => {
   };
 
   const fetchProfile = async (user: any) => {
-    // 1. Cargar perfil del usuario
-    const { data: userData, error: userError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    
-    // 2. Cargar datos globales del administrador
-    const { data: adminData } = await supabase.from('profiles').select('app_data').eq('email', 'aristastudiouno@gmail.com').single();
-    
-    const globalEntities = ['aluminum', 'glasses', 'blindPanels', 'accessories', 'dvhInputs', 'treatments'];
-    const privateEntities = ['recipes', 'config', 'quotes', 'customVisualTypes', 'currentWorkItems'];
-
-    const hydrate = (data: any, isGlobal: boolean) => {
-      if (!data) return;
-      
-      const entitiesToHydrate = isGlobal ? globalEntities : privateEntities;
-      
-      entitiesToHydrate.forEach(entity => {
-        if (data[entity]) {
-          switch(entity) {
-            case 'aluminum': setAluminum(data.aluminum); break;
-            case 'glasses': setGlasses(data.glasses); break;
-            case 'blindPanels': setBlindPanels(data.blindPanels); break;
-            case 'accessories': setAccessories(data.accessories); break;
-            case 'dvhInputs': setDvhInputs(data.dvhInputs); break;
-            case 'treatments': setTreatments(data.treatments); break;
-            case 'recipes': setRecipes(data.recipes); break;
-            case 'config': setConfig(data.config); break;
-            case 'quotes': setQuotes(data.quotes); break;
-            case 'customVisualTypes': setCustomVisualTypes(data.customVisualTypes); break;
-            case 'currentWorkItems': setCurrentWorkItems(data.currentWorkItems); break;
-          }
-        }
-      });
-    };
-
-    // Aplicar datos
-    if (adminData?.app_data) {
-      hydrate(adminData.app_data, true);
-    }
-
-    if (userData) {
-      if (userData.app_data && Object.keys(userData.app_data).length > 0) {
-        hydrate(userData.app_data, false);
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (data) {
+      if (data.app_data && Object.keys(data.app_data).length > 0) {
+        hydrateData(data.app_data);
+      } else {
+        const saved = localStorage.getItem('maicol_engine_data_data_v2');
+        if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
       }
       setIsDataLoaded(true);
-      checkDeviceAccess(userData);
+      checkDeviceAccess(data);
     } else {
       // Auto-crear el perfil si no existe
       const { data: newProfile } = await supabase.from('profiles').insert([
@@ -194,7 +160,10 @@ const App: React.FC = () => {
         }
       ]).select().single();
       
+      const saved = localStorage.getItem('maicol_engine_data_data_v2');
+      if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
       setIsDataLoaded(true);
+
       if (newProfile) checkDeviceAccess(newProfile);
       else setAuthLoading(false);
     }

@@ -194,7 +194,7 @@ export const calculateCompositePrice = (
         }
       }
 
-      const tjWeight = (totalTjMm / 1000) * Number(tjProfile.weightPerMeter || 0);
+      const tjWeight = (totalTjMm / 1000) * tjProfile.weightPerMeter;
       totalAluCost += tjWeight * baseAluPrice; 
       totalAluWeight += tjWeight;
     }
@@ -416,7 +416,7 @@ export const calculateItemPrice = (
       if (slatProfile && slatProfile.thickness > 0 && pH > 0) {
         const numSlats = Math.ceil(pH / slatProfile.thickness);
         const totalLinealMm = (gW + Number(config.discWidth || 0)) * numSlats * numLeaves;
-        const slatWeight = (totalLinealMm / 1000) * Number(slatProfile.weightPerMeter || 0);
+        const slatWeight = (totalLinealMm / 1000) * slatProfile.weightPerMeter;
         totalAluWeight += slatWeight;
       }
     }

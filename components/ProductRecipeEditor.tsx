@@ -124,19 +124,20 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
     // Enriquecer las recetas con los códigos de perfiles y accesorios para que al importar en otra cuenta se puedan vincular
     const enrichedRecipes = recipes.map(r => ({
       ...r,
-      _defaultTransomProfileCode: aluminum.find(a => a.id === r.defaultTransomProfileId)?.code,
-      _defaultTapajuntasProfileCode: aluminum.find(a => a.id === r.defaultTapajuntasProfileId)?.code,
-      _defaultCouplingProfileCode: aluminum.find(a => a.id === r.defaultCouplingProfileId)?.code,
-      _mosquiteroProfileCode: aluminum.find(a => a.id === r.mosquiteroProfileId)?.code,
-      profiles: r.profiles.map(rp => ({
-        ...rp,
-        _profileCode: aluminum.find(a => a.id === rp.profileId)?.code,
-        _glazingBeadOptionsCodes: rp.glazingBeadOptions?.map(id => aluminum.find(a => a.id === id)?.code).filter(Boolean)
-      })),
-      accessories: r.accessories.map(ra => ({
-        ...ra,
-        _accessoryCode: accessories.find(a => a.id === ra.accessoryId)?.code
-      }))
+      profiles: r.profiles.map(rp => {
+        const profile = aluminum.find(a => a.id === rp.profileId);
+        return {
+          ...rp,
+          _profileCode: profile?.code // Guardamos el código como referencia
+        };
+      }),
+      accessories: r.accessories.map(ra => {
+        const accessory = accessories.find(a => a.id === ra.accessoryId);
+        return {
+          ...ra,
+          _accessoryCode: accessory?.code // Guardamos el código como referencia
+        };
+      })
     }));
 
     const dataStr = JSON.stringify(enrichedRecipes, null, 2);
@@ -155,141 +156,50 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
         try {
             const imported = JSON.parse(evt.target?.result as string) as any[];
             if (Array.isArray(imported)) { 
-                const missingProfiles = new Set<string>();
-                const missingAccessories = new Set<string>();
-
-                const checkAlu = (code?: string, id?: string) => {
-                    if (!code && !id) return true;
-                    if (code) {
-                        const found = aluminum.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase());
-                        if (found) return true;
-                        missingProfiles.add(code);
-                        return false;
-                    }
-                    if (id) {
-                        const found = aluminum.some(a => a.id === id);
-                        if (found) return true;
-                        missingProfiles.add(`ID:${id}`);
-                        return false;
-                    }
-                    return false;
-                };
-
-                const checkAcc = (code?: string, id?: string) => {
-                    if (!code && !id) return true;
-                    if (code) {
-                        const found = accessories.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase());
-                        if (found) return true;
-                        missingAccessories.add(code);
-                        return false;
-                    }
-                    if (id) {
-                        const found = accessories.some(a => a.id === id);
-                        if (found) return true;
-                        missingAccessories.add(`ID:${id}`);
-                        return false;
-                    }
-                    return false;
-                };
-
-                // 1. Pre-validación estricta
-                imported.forEach(r => {
-                    checkAlu(r._defaultTransomProfileCode, r.defaultTransomProfileId);
-                    checkAlu(r._defaultTapajuntasProfileCode, r.defaultTapajuntasProfileId);
-                    checkAlu(r._defaultCouplingProfileCode, r.defaultCouplingProfileId);
-                    checkAlu(r._mosquiteroProfileCode, r.mosquiteroProfileId);
-                    
-                    r.profiles?.forEach((rp: any) => {
-                        checkAlu(rp._profileCode, rp.profileId);
-                        rp._glazingBeadOptionsCodes?.forEach((c: string) => checkAlu(c));
-                    });
-                    
-                    r.accessories?.forEach((ra: any) => {
-                        checkAcc(ra._accessoryCode, ra.accessoryId);
-                    });
-                });
-
-                if (missingProfiles.size > 0 || missingAccessories.size > 0) {
-                    let errorMsg = "IMPORTACIÓN RECHAZADA.\n\nFaltan los siguientes elementos en tu base de datos local:\n";
-                    if (missingProfiles.size > 0) {
-                        errorMsg += `\nPERFILES DE ALUMINIO FALTANTES:\n- ${Array.from(missingProfiles).join('\n- ')}\n`;
-                    }
-                    if (missingAccessories.size > 0) {
-                        errorMsg += `\nACCESORIOS FALTANTES:\n- ${Array.from(missingAccessories).join('\n- ')}\n`;
-                    }
-                    errorMsg += "\nDebes crear estos códigos exactos en tu base de datos antes de importar las recetas.";
-                    alert(errorMsg);
-                    if (importFileRef.current) importFileRef.current.value = '';
-                    return; // Abortar importación
-                }
-
-                // 2. Mapeo estricto (ya sabemos que todo existe)
-                const getAluId = (code?: string, id?: string) => {
-                    if (code) return aluminum.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase())!.id;
-                    return id;
-                };
-
-                const getAccId = (code?: string, id?: string) => {
-                    if (code) return accessories.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase())!.id;
-                    return id;
-                };
-
+                // Mapear los IDs basándose en los códigos (_profileCode y _accessoryCode) si existen
                 const mappedRecipes = imported.map(r => {
-                    const newRecipe = {
+                    return {
                         ...r,
+                        // Asegurar un ID único para la receta importada para evitar conflictos si se importa varias veces
                         id: r.id.includes('-imp-') ? r.id : `${r.id}-imp-${Date.now().toString().slice(-4)}`,
-                        defaultTransomProfileId: r._defaultTransomProfileCode ? getAluId(r._defaultTransomProfileCode) : r.defaultTransomProfileId,
-                        defaultTapajuntasProfileId: r._defaultTapajuntasProfileCode ? getAluId(r._defaultTapajuntasProfileCode) : r.defaultTapajuntasProfileId,
-                        defaultCouplingProfileId: r._defaultCouplingProfileCode ? getAluId(r._defaultCouplingProfileCode) : r.defaultCouplingProfileId,
-                        mosquiteroProfileId: r._mosquiteroProfileCode ? getAluId(r._mosquiteroProfileCode) : r.mosquiteroProfileId,
                         profiles: r.profiles.map((rp: any) => {
-                            const newProfileId = getAluId(rp._profileCode, rp.profileId);
-                            const newGlazingBeadOptions = rp._glazingBeadOptionsCodes 
-                                ? rp._glazingBeadOptionsCodes.map((c: string) => getAluId(c)).filter(Boolean) 
-                                : rp.glazingBeadOptions;
+                            let newProfileId = rp.profileId;
+                            // Si viene el código de referencia, buscar el ID local correspondiente
+                            if (rp._profileCode) {
+                                const localProfile = aluminum.find(a => a.code === rp._profileCode);
+                                if (localProfile) newProfileId = localProfile.id;
+                            }
                             
-                            const { _profileCode, _glazingBeadOptionsCodes, ...cleanRp } = rp;
+                            // Limpiar la propiedad temporal
+                            const { _profileCode, ...cleanRp } = rp;
                             return {
                                 ...cleanRp,
-                                profileId: newProfileId,
-                                glazingBeadOptions: newGlazingBeadOptions
+                                profileId: newProfileId
                             };
                         }),
-                        accessories: (r.accessories || []).map((ra: any) => {
-                            const newAccessoryId = getAccId(ra._accessoryCode, ra.accessoryId);
+                        accessories: r.accessories.map((ra: any) => {
+                            let newAccessoryId = ra.accessoryId;
+                            // Si viene el código de referencia, buscar el ID local correspondiente
+                            if (ra._accessoryCode) {
+                                const localAccessory = accessories.find(a => a.code === ra._accessoryCode);
+                                if (localAccessory) newAccessoryId = localAccessory.id;
+                            }
+                            
+                            // Limpiar la propiedad temporal
                             const { _accessoryCode, ...cleanRa } = ra;
                             return {
                                 ...cleanRa,
                                 accessoryId: newAccessoryId
                             };
                         })
-                    };
-
-                    delete newRecipe._defaultTransomProfileCode;
-                    delete newRecipe._defaultTapajuntasProfileCode;
-                    delete newRecipe._defaultCouplingProfileCode;
-                    delete newRecipe._mosquiteroProfileCode;
-
-                    return newRecipe as ProductRecipe;
+                    } as ProductRecipe;
                 });
                 
                 setRecipes([...recipes, ...mappedRecipes]); 
-                alert("Importación exitosa. Todos los perfiles y accesorios fueron vinculados correctamente.");
             }
-        } catch (err) { 
-            console.error(err);
-            alert("Error al importar librería. El archivo podría estar corrupto."); 
-        }
-        if (importFileRef.current) importFileRef.current.value = '';
+        } catch (err) { alert("Error al importar librería."); }
     };
     reader.readAsText(file);
-  };
-
-  const handleDeleteAllRecipes = () => {
-    if (confirm('¿Estás seguro de que deseas eliminar TODAS las ingenierías/recetas? Esta acción no se puede deshacer y borrará toda tu librería actual.')) {
-      setRecipes([]);
-      setEditingId(null);
-    }
   };
 
   const isTubeType = recipe?.visualType === 'tubo_h' || recipe?.visualType === 'tubo_v';
@@ -347,7 +257,6 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                 <input type="file" ref={importFileRef} onChange={handleImportRecipes} className="hidden" accept=".json" />
             </div>
             <button onClick={addNewRecipe} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl text-[9px] uppercase tracking-widest hover:bg-sky-500 transition-all mt-2"><Plus size={14} /> Nueva Ingeniería</button>
-            <button onClick={handleDeleteAllRecipes} className="w-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-black py-3 rounded-xl text-[8px] uppercase tracking-widest hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-100 dark:border-red-800 transition-all mt-2 flex items-center justify-center gap-2"><Trash2 size={14} /> Eliminar Todas</button>
         </div>
       </div>
 

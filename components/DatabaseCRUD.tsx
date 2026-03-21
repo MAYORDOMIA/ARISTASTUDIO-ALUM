@@ -47,28 +47,28 @@ const DatabaseCRUD: React.FC<Props> = ({
     if (['descripcion', 'desc', 'detalle', 'detail', 'description', 'nombre', 'perfil', 'producto', 'item'].includes(k)) return 'detail';
     
     // Medidas Físicas
-    if (['peso', 'kg', 'kgm', 'weight', 'pesopormetro', 'pesometros', 'kilogramos', 'pesokg', 'pesolineal', 'pesokgm'].includes(k)) return 'weightPerMeter';
-    if (['largo', 'barra', 'length', 'largobarra', 'medidabarra', 'longitud', 'mts', 'metros', 'largom'].includes(k)) return 'barLength';
+    if (['peso', 'kg', 'kgm', 'weight', 'pesopormetro', 'pesometros', 'kilogramos', 'pesokg', 'pesolineal'].includes(k)) return 'weightPerMeter';
+    if (['largo', 'barra', 'length', 'largobarra', 'medidabarra', 'longitud', 'mts', 'metros'].includes(k)) return 'barLength';
     if (['espesor', 'thickness', 'profundidad', 'mm', 'anchoala', 'espesordb', 'grosor', 'espesormm'].includes(k)) return 'thickness';
-    if (['ancho', 'width', 'dimx', 'base', 'anchoplancha', 'anchomm'].includes(k)) return 'width';
-    if (['alto', 'height', 'dimy', 'altura', 'altoplancha', 'altomm'].includes(k)) return 'height';
+    if (['ancho', 'width', 'dimx', 'base', 'ancho_plancha'].includes(k)) return 'width';
+    if (['alto', 'height', 'dimy', 'altura', 'alto_plancha'].includes(k)) return 'height';
     
     // Precios y Costos
-    if (['preciom2', 'costom2', 'm2', 'priceperm2', 'pm2', 'preciopormetrocuadrado', 'glassprice'].includes(k)) return 'pricePerM2';
-    if (['costo', 'precio', 'unitario', 'unitprice', 'preciounitario', 'punit', 'costounitario', 'unid', 'cadauno', 'valor'].includes(k)) return 'unitPrice';
-    if (['preciokg', 'pkg', 'priceperkg', 'costokg', 'valorkg', 'pintura'].includes(k)) return 'pricePerKg';
-    if (['costoextra', 'treatmentcost', 'costotratamiento', 'extraperfil'].includes(k)) return 'treatmentCost';
+    if (['preciom2', 'costom2', 'm2', 'priceperm2', 'p_m2', 'preciopormetrocuadrado', 'glass_price'].includes(k)) return 'pricePerM2';
+    if (['costo', 'precio', 'unitario', 'unitprice', 'preciounitario', 'p_unit', 'costounitario', 'unid', 'cadauno', 'valor'].includes(k)) return 'unitPrice';
+    if (['preciokg', 'p_kg', 'priceperkg', 'costokg', 'valorkg', 'pintura'].includes(k)) return 'pricePerKg';
+    if (['costo_extra', 'treatmentcost', 'costotratamiento', 'extra_perfil'].includes(k)) return 'treatmentCost';
     
     // Atributos
     if (['unidad', 'unit', 'medida', 'tipo'].includes(k)) return 'unit';
-    if (['hex', 'color', 'hexcolor', 'html', 'codigocolor'].includes(k)) return 'hexColor';
-    if (['espejo', 'mirror', 'ismirror', 'reflectante', 'esespejo'].includes(k)) return 'isMirror';
+    if (['hex', 'color', 'hexcolor', 'html', 'codigo_color'].includes(k)) return 'hexColor';
+    if (['espejo', 'mirror', 'is_mirror', 'reflectante'].includes(k)) return 'isMirror';
     
     // Contravidrios
-    if (['contravidrio', 'escontravidrio', 'isglazingbead', 'bead'].includes(k)) return 'isGlazingBead';
-    if (['estilo', 'style', 'beadstyle', 'tipocontravidrio', 'estilocontravidrio'].includes(k)) return 'glazingBeadStyle';
-    if (['minvidrio', 'minglass', 'vidriomin', 'glassmin'].includes(k)) return 'minGlassThickness';
-    if (['maxvidrio', 'maxglass', 'vidriomax', 'glassmax'].includes(k)) return 'maxGlassThickness';
+    if (['contravidrio', 'es_contravidrio', 'is_glazing_bead', 'bead'].includes(k)) return 'isGlazingBead';
+    if (['estilo', 'style', 'bead_style', 'tipo_contravidrio'].includes(k)) return 'glazingBeadStyle';
+    if (['min_vidrio', 'min_glass', 'vidrio_min', 'glass_min'].includes(k)) return 'minGlassThickness';
+    if (['max_vidrio', 'max_glass', 'vidrio_max', 'glass_max'].includes(k)) return 'maxGlassThickness';
 
     return k;
   };
