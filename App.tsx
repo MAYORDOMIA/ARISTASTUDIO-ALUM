@@ -137,16 +137,25 @@ const App: React.FC = () => {
   };
 
   const fetchProfile = async (user: any) => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    if (data) {
-      if (data.app_data && Object.keys(data.app_data).length > 0) {
-        hydrateData(data.app_data);
+    // 1. Obtener perfil del usuario actual para permisos
+    const { data: currentUserProfile, error: userError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    
+    // 2. Obtener perfil del administrador para datos compartidos
+    const { data: adminProfile, error: adminError } = await supabase.from('profiles').select('*').eq('email', 'aristastudiouno@gmail.com').single();
+
+    if (currentUserProfile) {
+      // Usar app_data del administrador para todos
+      if (adminProfile && adminProfile.app_data && Object.keys(adminProfile.app_data).length > 0) {
+        hydrateData(adminProfile.app_data);
+      } else if (currentUserProfile.app_data && Object.keys(currentUserProfile.app_data).length > 0) {
+        // Fallback si no hay datos del admin
+        hydrateData(currentUserProfile.app_data);
       } else {
         const saved = localStorage.getItem('maicol_engine_data_data_v2');
         if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
       }
       setIsDataLoaded(true);
-      checkDeviceAccess(data);
+      checkDeviceAccess(currentUserProfile);
     } else {
       // Auto-crear el perfil si no existe
       const { data: newProfile } = await supabase.from('profiles').insert([
