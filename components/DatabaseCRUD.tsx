@@ -45,6 +45,7 @@ const DatabaseCRUD: React.FC<Props> = ({
     // Identificadores
     if (['codigo', 'cod', 'code', 'articulo', 'art', 'id', 'sku', 'ref'].includes(k)) return 'code';
     if (['descripcion', 'desc', 'detalle', 'detail', 'description', 'nombre', 'perfil', 'producto', 'item'].includes(k)) return 'detail';
+    if (['tipo', 'type', 'tipoinsumo'].includes(k)) return 'type';
     
     // Medidas Físicas
     if (['peso', 'kg', 'kgm', 'weight', 'pesopormetro', 'pesometros', 'kilogramos', 'pesokg', 'pesolineal', 'pesokgm'].includes(k)) return 'weightPerMeter';
@@ -155,6 +156,11 @@ const DatabaseCRUD: React.FC<Props> = ({
                   if (entityType === 'blind' && normKey === 'unitPrice') normKey = 'price';
                   if (entityType === 'dvh' && normKey === 'unitPrice') normKey = 'cost';
 
+                  // Sanitización de tipo DVH
+                  if (entityType === 'dvh' && normKey === 'type') {
+                      if (String(val).toLowerCase().includes('camara')) val = 'Cámara';
+                  }
+
                   // Sanitización numérica fuerte
                   if (['weightPerMeter', 'barLength', 'thickness', 'pricePerM2', 'price', 'unitPrice', 'cost', 'width', 'height', 'pricePerKg', 'treatmentCost'].includes(normKey)) {
                       val = parseFloat(String(val).replace(',', '.')) || 0;
@@ -230,6 +236,11 @@ const DatabaseCRUD: React.FC<Props> = ({
                     if (entityType === 'glass' && normKey === 'unitPrice') normKey = 'pricePerM2';
                     if (entityType === 'blind' && normKey === 'unitPrice') normKey = 'price';
                     if (entityType === 'dvh' && normKey === 'unitPrice') normKey = 'cost';
+
+                    // Sanitización de tipo DVH
+                    if (entityType === 'dvh' && normKey === 'type') {
+                        if (String(val).toLowerCase().includes('camara')) val = 'Cámara';
+                    }
 
                     // Sanitización numérica fuerte
                     if (['weightPerMeter', 'barLength', 'thickness', 'pricePerM2', 'price', 'unitPrice', 'cost', 'width', 'height', 'pricePerKg', 'treatmentCost'].includes(normKey)) {
@@ -373,7 +384,7 @@ const DatabaseCRUD: React.FC<Props> = ({
             {dvhInputs.filter(i => filter(i.detail) || filter(i.type)).map((item) => (
               <tr key={item.id} className="row-style group">
                 <td className="cell-style">
-                    <select className="bg-transparent outline-none font-black text-sky-800 uppercase text-[10px]" value={item.type} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, type: e.target.value as any} : x))}>
+                    <select className="bg-transparent outline-none font-black text-sky-800 uppercase text-[10px]" value={item.type === 'Camara' ? 'Cámara' : item.type} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, type: e.target.value as any} : x))}>
                         <option value="Cámara">Cámara</option>
                         <option value="Butilo">Butilo</option>
                         <option value="Sales">Sales</option>
