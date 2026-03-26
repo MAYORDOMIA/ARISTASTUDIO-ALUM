@@ -144,16 +144,24 @@ const App: React.FC = () => {
     const { data: adminProfile, error: adminError } = await supabase.from('profiles').select('*').eq('email', 'aristastudiouno@gmail.com').single();
 
     if (currentUserProfile) {
-      // Usar app_data del administrador para todos
-      if (adminProfile && adminProfile.app_data && Object.keys(adminProfile.app_data).length > 0) {
-        hydrateData(adminProfile.app_data);
-      } else if (currentUserProfile.app_data && Object.keys(currentUserProfile.app_data).length > 0) {
-        // Fallback si no hay datos del admin
-        hydrateData(currentUserProfile.app_data);
-      } else {
-        const saved = localStorage.getItem('maicol_engine_data_data_v2');
-        if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
+      let dataToHydrate;
+      
+      // Si el usuario es el administrador, siempre usa sus propios datos
+      if (currentUserProfile.email === 'aristastudiouno@gmail.com') {
+          dataToHydrate = currentUserProfile.app_data || {};
+      } 
+      // Si el usuario no es admin y no tiene datos (es nuevo), copia los del admin
+      else if (!currentUserProfile.app_data || Object.keys(currentUserProfile.app_data).length === 0) {
+          dataToHydrate = adminProfile?.app_data || {};
+          // Guardar la copia inicial en su perfil
+          await supabase.from('profiles').update({ app_data: dataToHydrate }).eq('id', user.id);
+      } 
+      // Si ya tiene datos, usa los suyos (independencia)
+      else {
+          dataToHydrate = currentUserProfile.app_data;
       }
+      
+      hydrateData(dataToHydrate);
       setIsDataLoaded(true);
       checkDeviceAccess(currentUserProfile);
     } else {
@@ -169,6 +177,7 @@ const App: React.FC = () => {
         }
       ]).select().single();
       
+      // En el primer acceso, intentará copiar del admin en la siguiente carga
       const saved = localStorage.getItem('maicol_engine_data_data_v2');
       if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
       setIsDataLoaded(true);
