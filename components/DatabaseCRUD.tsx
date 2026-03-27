@@ -291,12 +291,12 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Cód. Perfil', 'Descripción', 'Peso (KG/M)', 'Largo (M)', 'Espesor DB', 'Costo Extra', 'Contravidrio?', 'Estilo', 'Rango Vidrio', 'Acciones']} onAdd={() => setAluminum([...aluminum, { id: Date.now().toString(), code: 'NUEVO', detail: 'Nuevo Perfil', weightPerMeter: 0, barLength: 6, treatmentCost: 0, thickness: 0, isGlazingBead: false, minGlassThickness: 0, maxGlassThickness: 0 }])}>
             {aluminum.filter(p => filter(p.code) || filter(p.detail)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style"><input className="input-technical font-black text-sky-800 uppercase" value={item.code} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
-                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
-                <td className="cell-style"><input type="number" step="0.001" className="input-technical font-mono font-black text-slate-900" value={item.weightPerMeter} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, weightPerMeter: parseFloat(e.target.value) || 0} : x))} /></td>
-                <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-slate-900" value={item.barLength} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, barLength: parseFloat(e.target.value) || 0} : x))} /></td>
-                <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-sky-600 bg-sky-50/50 rounded-lg px-2" value={item.thickness} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} /></td>
-                <td className="cell-style"><div className="flex items-center text-slate-400 font-mono font-bold">$<input type="number" className="bg-transparent w-16 outline-none" value={item.treatmentCost} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, treatmentCost: parseFloat(e.target.value) || 0} : x))} /></div></td>
+                <td className="cell-style"><input className="input-technical font-black text-sky-800 uppercase" value={item.code || ''} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail || ''} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
+                <td className="cell-style"><input type="number" step="0.001" className="input-technical font-mono font-black text-slate-900" value={item.weightPerMeter || 0} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, weightPerMeter: parseFloat(e.target.value) || 0} : x))} /></td>
+                <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-slate-900" value={item.barLength || 0} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, barLength: parseFloat(e.target.value) || 0} : x))} /></td>
+                <td className="cell-style"><input type="number" className="input-technical font-mono font-black text-sky-600 bg-sky-50/50 rounded-lg px-2" value={item.thickness || 0} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} /></td>
+                <td className="cell-style"><div className="flex items-center text-slate-400 font-mono font-bold">$<input type="number" className="bg-transparent w-16 outline-none" value={item.treatmentCost || 0} onChange={e => setAluminum(aluminum.map(x => x.id === item.id ? {...x, treatmentCost: parseFloat(e.target.value) || 0} : x))} /></div></td>
                 
                 {/* Nuevas columnas para Contravidrios */}
                 <td className="cell-style text-center">
@@ -351,12 +351,12 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Cód. Vidrio', 'Descripción', 'Espesor (mm)', 'Ancho (mm)', 'Alto (mm)', 'Costo M2', 'Espejo', 'Acciones']} onAdd={() => setGlasses([...glasses, { id: Date.now().toString(), code: 'V-00', detail: 'Nuevo Cristal', width: 2400, height: 1800, pricePerM2: 0, isMirror: false, thickness: 4 }])}>
             {glasses.filter(g => filter(g.detail) || filter(g.code)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style"><input className="input-technical font-black text-sky-800" value={item.code} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, code: e.target.value} : x))} /></td>
-                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-black text-sky-800" value={item.code || ''} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, code: e.target.value} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail || ''} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold text-sky-600 bg-sky-50/50 rounded-lg px-2" value={item.thickness || ''} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} /></td>
-                <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.width} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, width: parseInt(e.target.value) || 0} : x))} /></td>
-                <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.height} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, height: parseInt(e.target.value) || 0} : x))} /></td>
-                <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-20 outline-none" value={item.pricePerM2} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, pricePerM2: parseFloat(e.target.value) || 0} : x))} /></div></td>
+                <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.width || 0} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, width: parseInt(e.target.value) || 0} : x))} /></td>
+                <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold" value={item.height || 0} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, height: parseInt(e.target.value) || 0} : x))} /></td>
+                <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-20 outline-none" value={item.pricePerM2 || 0} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, pricePerM2: parseFloat(e.target.value) || 0} : x))} /></div></td>
                 <td className="cell-style text-center">
                     <input type="checkbox" className="w-4 h-4 rounded cursor-pointer" checked={item.isMirror || false} onChange={e => setGlasses(glasses.map(x => x.id === item.id ? {...x, isMirror: e.target.checked} : x))} />
                 </td>
@@ -370,9 +370,9 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Código', 'Descripción', 'Costo ($)', 'Acciones']} onAdd={() => setAccessories([...accessories, { id: Date.now().toString(), code: 'ACC-00', detail: 'Nuevo Herraje', unitPrice: 0 }])}>
             {accessories.filter(a => filter(a.detail) || filter(a.code)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style w-40"><input className="input-technical font-black text-sky-800 uppercase" value={item.code} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
-                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
-                <td className="cell-style w-40"><div className="flex items-center text-green-800 font-mono font-black bg-green-50/30 px-3 py-1.5 rounded-xl border border-green-100">$<input type="number" className="bg-transparent w-full outline-none ml-1" value={item.unitPrice} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, unitPrice: parseFloat(e.target.value) || 0} : x))} /></div></td>
+                <td className="cell-style w-40"><input className="input-technical font-black text-sky-800 uppercase" value={item.code || ''} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail || ''} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
+                <td className="cell-style w-40"><div className="flex items-center text-green-800 font-mono font-black bg-green-50/30 px-3 py-1.5 rounded-xl border border-green-100">$<input type="number" className="bg-transparent w-full outline-none ml-1" value={item.unitPrice || 0} onChange={e => setAccessories(accessories.map(x => x.id === item.id ? {...x, unitPrice: parseFloat(e.target.value) || 0} : x))} /></div></td>
                 <td className="cell-style w-20 text-right"><button onClick={() => setAccessories(accessories.filter(x => x.id !== item.id))} className="btn-delete"><Trash2 size={16} /></button></td>
               </tr>
             ))}
@@ -391,9 +391,9 @@ const DatabaseCRUD: React.FC<Props> = ({
                         <option value="Escuadras">Escuadras</option>
                     </select>
                 </td>
-                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail || ''} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
                 <td className="cell-style"><input type="number" className="input-technical w-16 font-mono font-bold text-sky-600 bg-sky-50/50 rounded-lg px-2 disabled:opacity-50" value={item.thickness || ''} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, thickness: parseFloat(e.target.value) || 0} : x))} disabled={item.type !== 'Cámara'} /></td>
-                <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-20 outline-none" value={item.cost} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, cost: parseFloat(e.target.value) || 0} : x))} /></div></td>
+                <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-20 outline-none" value={item.cost || 0} onChange={e => setDvhInputs(dvhInputs.map(x => x.id === item.id ? {...x, cost: parseFloat(e.target.value) || 0} : x))} /></div></td>
                 <td className="cell-style text-right"><button onClick={() => setDvhInputs(dvhInputs.filter(x => x.id !== item.id))} className="btn-delete"><Trash2 size={14} /></button></td>
               </tr>
             ))}
@@ -404,11 +404,11 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Nombre Acabado', 'Costo Extra / KG', 'HEX', 'Vista', 'Acciones']} onAdd={() => setTreatments([...treatments, { id: Date.now().toString(), name: 'Nuevo Color', pricePerKg: 0, hexColor: '#475569' }])}>
             {treatments.filter(t => filter(t.name)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style"><input className="input-technical font-black text-slate-900" value={item.name} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, name: e.target.value} : x))} /></td>
-                <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-24 outline-none" value={item.pricePerKg} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, pricePerKg: parseFloat(e.target.value) || 0} : x))} /></div></td>
-                <td className="cell-style"><input className="input-technical font-mono text-[10px]" value={item.hexColor} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, hexColor: e.target.value} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-black text-slate-900" value={item.name || ''} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, name: e.target.value} : x))} /></td>
+                <td className="cell-style"><div className="flex items-center text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-24 outline-none" value={item.pricePerKg || 0} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, pricePerKg: parseFloat(e.target.value) || 0} : x))} /></div></td>
+                <td className="cell-style"><input className="input-technical font-mono text-[10px]" value={item.hexColor || ''} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, hexColor: e.target.value} : x))} /></td>
                 <td className="cell-style">
-                    <input type="color" className="w-10 h-10 rounded-xl border-none cursor-pointer shadow-sm" value={item.hexColor} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, hexColor: e.target.value} : x))} />
+                    <input type="color" className="w-10 h-10 rounded-xl border-none cursor-pointer shadow-sm" value={item.hexColor || '#000000'} onChange={e => setTreatments(treatments.map(x => x.id === item.id ? {...x, hexColor: e.target.value} : x))} />
                 </td>
                 <td className="cell-style text-right"><button onClick={() => setTreatments(treatments.filter(x => x.id !== item.id))} className="btn-delete"><Trash2 size={14} /></button></td>
               </tr>
@@ -420,9 +420,9 @@ const DatabaseCRUD: React.FC<Props> = ({
           <TableWrapper headers={['Cód. Panel', 'Descripción', 'Costo', 'Unidad', 'Acciones']} onAdd={() => setBlindPanels([...blindPanels, { id: Date.now().toString(), code: 'P-00', detail: 'Nuevo Panel', price: 0, unit: 'm2' }])}>
             {blindPanels.filter(b => filter(b.detail) || filter(b.code)).map((item) => (
               <tr key={item.id} className="row-style group">
-                <td className="cell-style"><input className="input-technical font-black text-sky-800 uppercase" value={item.code} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
-                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
-                <td className="cell-style text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-16 outline-none" value={item.price} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, price: parseFloat(e.target.value) || 0} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-black text-sky-800 uppercase" value={item.code || ''} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, code: e.target.value.toUpperCase()} : x))} /></td>
+                <td className="cell-style"><input className="input-technical font-bold text-slate-900" value={item.detail || ''} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, detail: e.target.value} : x))} /></td>
+                <td className="cell-style text-green-800 font-mono font-black">$<input type="number" className="bg-transparent w-16 outline-none" value={item.price || 0} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, price: parseFloat(e.target.value) || 0} : x))} /></td>
                 <td className="cell-style">
                     <select className="bg-transparent text-[10px] font-black text-slate-900 outline-none" value={item.unit} onChange={e => setBlindPanels(blindPanels.map(x => x.id === item.id ? {...x, unit: e.target.value as any} : x))}>
                         <option value="m2">M2</option>

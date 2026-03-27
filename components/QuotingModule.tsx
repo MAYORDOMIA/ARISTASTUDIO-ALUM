@@ -803,9 +803,9 @@ const QuotingModule: React.FC<Props> = ({
 
   const handrailProfiles = useMemo(() => {
     return aluminum.filter(a => 
-      a.detail.toLowerCase().includes('pasamano') || 
-      a.detail.toLowerCase().includes('baranda') ||
-      a.code.toLowerCase().includes('pasamano')
+      (a.detail || '').toLowerCase().includes('pasamano') || 
+      (a.detail || '').toLowerCase().includes('baranda') ||
+      (a.code || '').toLowerCase().includes('pasamano')
     );
   }, [aluminum]);
 
@@ -1331,8 +1331,8 @@ const QuotingModule: React.FC<Props> = ({
 
   const filteredSlats = useMemo(() => {
     return aluminum.filter(a => 
-      a.code.toLowerCase().includes(slatSearch.toLowerCase()) || 
-      a.detail.toLowerCase().includes(slatSearch.toLowerCase())
+      (a.code || '').toLowerCase().includes((slatSearch || '').toLowerCase()) || 
+      (a.detail || '').toLowerCase().includes((slatSearch || '').toLowerCase())
     );
   }, [aluminum, slatSearch]);
 
@@ -1783,7 +1783,7 @@ const QuotingModule: React.FC<Props> = ({
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Tipología</label>
-                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 shadow-sm" value={currentModForEdit.recipeId} onChange={e => { 
+                                    <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 shadow-sm" value={currentModForEdit.recipeId || ''} onChange={e => { 
                                         const r = recipes.find(x => x.id === e.target.value); 
                                         if (r) {
                                           const processedAccs = ensureOneActivePerLabel(r.accessories || []);
@@ -1845,7 +1845,7 @@ const QuotingModule: React.FC<Props> = ({
                                                     }} />
                                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">MM</div>
                                                 </div>
-                                                <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none mt-1 uppercase" value={t.profileId} onChange={e => {
+                                                <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none mt-1 uppercase" value={t.profileId || ''} onChange={e => {
                                                     const newTransoms = [...(currentModForEdit.transoms || [])];
                                                     newTransoms[idx].profileId = e.target.value;
                                                     updateModule(editingModuleId, { transoms: newTransoms });

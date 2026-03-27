@@ -113,6 +113,36 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Suscripción en tiempo real para sincronización entre dispositivos
+  useEffect(() => {
+    if (!session?.user?.id || !isDataLoaded) return;
+
+    const channel = supabase
+      .channel(`realtime_sync_${session.user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${session.user.id}`,
+        },
+        (payload) => {
+          // Solo sincronizamos si el cambio viene de la base de datos y NO estamos guardando nosotros
+          // Esto evita bucles infinitos y colisiones mientras el usuario escribe
+          if (payload.new && payload.new.app_data && !isSaving) {
+            console.log("Sincronización remota detectada, actualizando datos...");
+            hydrateData(payload.new.app_data);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, isDataLoaded, isSaving]);
+
   const getDeviceId = () => {
     let id = localStorage.getItem('arista_device_id');
     if (!id) {
@@ -166,6 +196,7 @@ const App: React.FC = () => {
       checkDeviceAccess(currentUserProfile);
     } else {
       // Auto-crear el perfil si no existe
+      const adminData = adminProfile?.app_data || {};
       const { data: newProfile } = await supabase.from('profiles').insert([
         { 
           id: user.id, 
@@ -173,13 +204,11 @@ const App: React.FC = () => {
           is_active: user.email === 'aristastudiouno@gmail.com',
           max_devices: 1,
           registered_devices: [],
-          app_data: {}
+          app_data: adminData
         }
       ]).select().single();
       
-      // En el primer acceso, intentará copiar del admin en la siguiente carga
-      const saved = localStorage.getItem('maicol_engine_data_data_v2');
-      if (saved) { try { hydrateData(JSON.parse(saved)); } catch (e) {} }
+      hydrateData(adminData);
       setIsDataLoaded(true);
 
       if (newProfile) checkDeviceAccess(newProfile);

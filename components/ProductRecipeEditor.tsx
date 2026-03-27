@@ -114,8 +114,8 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
   const filteredRecipes = useMemo(() => {
     return [...recipes]
       .filter(r => 
-        r.name.toLowerCase().includes(searchFilter.toLowerCase()) || 
-        r.line.toLowerCase().includes(searchFilter.toLowerCase())
+        (r.name || '').toLowerCase().includes((searchFilter || '').toLowerCase()) || 
+        (r.line || '').toLowerCase().includes((searchFilter || '').toLowerCase())
       )
       .sort((a, b) => b.id.localeCompare(a.id));
   }, [recipes, searchFilter]);
@@ -360,7 +360,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                       <div className="flex-1 min-w-0">
                         <input 
                           className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 dark:text-white focus:outline-none bg-transparent w-full`} 
-                          value={recipe.name} 
+                          value={recipe.name || ''} 
                           onChange={e => updateRecipe(recipe.id, { name: e.target.value.toUpperCase() })} 
                         />
                       </div>
@@ -387,15 +387,15 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-4 items-center">
-                        <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none" value={recipe.type} onChange={e => updateRecipe(recipe.id, { type: e.target.value as any })}>
+                        <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none" value={recipe.type || ''} onChange={e => updateRecipe(recipe.id, { type: e.target.value as any })}>
                             {['Ventana', 'Puerta', 'Mampara', 'Paño Fijo', 'Banderola', 'Baranda', 'Vidriera'].map(v => <option key={v} value={v}>{v}</option>)}
                         </select>
-                        <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none" value={recipe.visualType} onChange={e => updateRecipe(recipe.id, { visualType: e.target.value })}>
+                        <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none" value={recipe.visualType || ''} onChange={e => updateRecipe(recipe.id, { visualType: e.target.value })}>
                             {DEFAULT_VISUAL_TYPES.map(vt => <option key={vt.id} value={vt.id}>{vt.label}</option>)}
                         </select>
                         <div className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 dark:bg-sky-900/20 rounded-xl border border-sky-100/50 dark:border-sky-800/50`}>
                           <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">Línea:</span>
-                          <input className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 dark:text-sky-400 outline-none w-24" value={recipe.line} onChange={e => updateRecipe(recipe.id, { line: e.target.value.toUpperCase() })} />
+                          <input className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 dark:text-sky-400 outline-none w-24" value={recipe.line || ''} onChange={e => updateRecipe(recipe.id, { line: e.target.value.toUpperCase() })} />
                         </div>
                         <div className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100/50 dark:border-emerald-800/50`}>
                           <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Cant. Hojas:</span>
@@ -593,8 +593,8 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                 <div className="bg-slate-50/50 dark:bg-slate-800/20 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4">
                     <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">Vidriado Maestro</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <FormulaInput label="Ancho Cristal" value={recipe.glassFormulaW} onChange={v => updateRecipe(recipe.id, { glassFormulaW: v })} />
-                        <FormulaInput label="Alto Cristal" value={recipe.glassFormulaH} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
+                        <FormulaInput label="Ancho Cristal" value={recipe.glassFormulaW || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaW: v })} />
+                        <FormulaInput label="Alto Cristal" value={recipe.glassFormulaH || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
                         <div className="space-y-1 flex-1">
                             <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Desc. Vidrio (Travesaño)</label>
                             <input 
