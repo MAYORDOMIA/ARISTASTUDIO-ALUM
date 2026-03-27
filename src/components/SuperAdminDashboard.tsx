@@ -22,14 +22,14 @@ const SuperAdminDashboard: React.FC = () => {
 
   const fetchProfiles = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('perfiles').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
     if (data) setProfiles(data);
     setLoading(false);
   };
 
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     setToggling(id);
-    const { error } = await supabase.from('perfiles').update({ is_active: !currentStatus }).eq('id', id);
+    const { error } = await supabase.from('profiles').update({ is_active: !currentStatus }).eq('id', id);
     if (!error) {
       setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentStatus } : p));
     }
@@ -38,7 +38,7 @@ const SuperAdminDashboard: React.FC = () => {
 
   const updateMaxDevices = async (id: string, max: number) => {
     if (max < 1) return;
-    const { error } = await supabase.from('perfiles').update({ max_devices: max }).eq('id', id);
+    const { error } = await supabase.from('profiles').update({ max_devices: max }).eq('id', id);
     if (!error) {
       setProfiles(prev => prev.map(p => p.id === id ? { ...p, max_devices: max } : p));
     }
@@ -47,7 +47,7 @@ const SuperAdminDashboard: React.FC = () => {
   const resetDevices = async (id: string) => {
     if (!confirm('¿Estás seguro de resetear los dispositivos de este usuario? Tendrá que volver a iniciar sesión en sus dispositivos.')) return;
     setToggling(id);
-    const { error } = await supabase.from('perfiles').update({ registered_devices: [] }).eq('id', id);
+    const { error } = await supabase.from('profiles').update({ registered_devices: [] }).eq('id', id);
     if (!error) {
       setProfiles(prev => prev.map(p => p.id === id ? { ...p, registered_devices: [] } : p));
     }

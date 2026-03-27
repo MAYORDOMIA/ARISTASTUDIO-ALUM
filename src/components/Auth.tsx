@@ -26,7 +26,7 @@ const Auth: React.FC = () => {
         
         // Intentar crear el perfil manualmente si RLS lo permite
         if (data?.user) {
-          const { error: profileError } = await supabase.from('perfiles').insert([
+          const { error: profileError } = await supabase.from('profiles').insert([
             { 
               id: data.user.id, 
               email: data.user.email, 

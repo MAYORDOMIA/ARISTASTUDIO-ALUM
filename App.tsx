@@ -170,7 +170,7 @@ const App: React.FC = () => {
   const fetchProfile = async (user: any) => {
     console.log("Fetching profile for user:", user.id);
     // 1. Obtener perfil del usuario actual para permisos
-    const { data: currentUserProfile, error: userError } = await supabase.from('perfiles').select('*').eq('id', user.id).single();
+    const { data: currentUserProfile, error: userError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     
     if (userError) {
         console.error("Error fetching user profile:", userError);
@@ -178,7 +178,7 @@ const App: React.FC = () => {
     console.log("Current user profile:", currentUserProfile);
 
     // 2. Obtener perfil del administrador para datos compartidos
-    const { data: adminProfile, error: adminError } = await supabase.from('perfiles').select('*').eq('email', 'aristastudiouno@gmail.com').single();
+    const { data: adminProfile, error: adminError } = await supabase.from('profiles').select('*').eq('email', 'aristastudiouno@gmail.com').single();
     
     if (adminError) {
         console.error("Error fetching admin profile:", adminError);
@@ -196,7 +196,7 @@ const App: React.FC = () => {
       else if (!currentUserProfile.app_data || Object.keys(currentUserProfile.app_data).length === 0) {
           dataToHydrate = adminProfile?.app_data || {};
           // Guardar la copia inicial en su perfil
-          await supabase.from('perfiles').update({ app_data: dataToHydrate }).eq('id', user.id);
+          await supabase.from('profiles').update({ app_data: dataToHydrate }).eq('id', user.id);
       } 
       // Si ya tiene datos, usa los suyos (independencia)
       else {
@@ -209,7 +209,7 @@ const App: React.FC = () => {
     } else {
       // Auto-crear el perfil si no existe
       const adminData = adminProfile?.app_data || {};
-      const { data: newProfile } = await supabase.from('perfiles').insert([
+      const { data: newProfile } = await supabase.from('profiles').insert([
         { 
           id: user.id, 
           email: user.email, 
@@ -257,7 +257,7 @@ const App: React.FC = () => {
       if (devices.length < maxDevices) {
         // Registrar nuevo dispositivo
         const newDevices = [...devices, deviceId];
-        const { error } = await supabase.from('perfiles').update({ registered_devices: newDevices }).eq('id', profileData.id);
+        const { error } = await supabase.from('profiles').update({ registered_devices: newDevices }).eq('id', profileData.id);
         
         if (error) {
           console.error("Error al registrar el dispositivo en la base de datos:", error);
@@ -374,12 +374,13 @@ const App: React.FC = () => {
         localStorage.setItem(storageKey, stringified);
 
         // Guardado en la nube (Supabase)
-        const { error } = await supabase.from('perfiles').update({ app_data: data }).eq('id', session.user.id);
+        const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
+        
         if (error) {
-          console.error("Error al guardar en la nube:", error);
+          console.error("Error al guardar en la nube (Supabase):", error);
         }
       } catch (e) {
-        console.error("Error en persistencia:", e);
+        console.error("Error crítico en persistencia:", e);
         try {
             const cleanedQuotes = quotes.map((q, idx) => ({
                 ...q,
@@ -390,9 +391,9 @@ const App: React.FC = () => {
             }));
             const cleanedData = { ...data, quotes: cleanedQuotes };
             localStorage.setItem('maicol_engine_data_data_v2', JSON.stringify(cleanedData));
-            await supabase.from('perfiles').update({ app_data: cleanedData }).eq('id', session.user.id);
+            await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
         } catch (retryError) {
-            console.error("Fallo crítico de almacenamiento:", retryError);
+            console.error("Fallo crítico de almacenamiento en reintento:", retryError);
         }
       }
       setIsSaving(false);
