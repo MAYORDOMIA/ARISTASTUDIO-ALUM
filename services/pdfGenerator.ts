@@ -62,32 +62,45 @@ const getModuleGlassPanes = (
         else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
     }
 
-    let leafBaseW = adjustedW;
-    if (visualType.includes('sliding') || numLeaves > 1) { leafBaseW = adjustedW / numLeaves; }
-    
-    const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
-    const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
-    const panes: { w: number, h: number, isBlind: boolean }[] = [];
-    
-    // Generate panes for a single leaf (callers will multiply by numLeaves)
-    if (!mod.transoms || mod.transoms.length === 0) {
-        panes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
-    } else {
-        const sorted = [...mod.transoms].sort((a, b) => b.height - a.height); 
-        let currentY = 0;
-        const totalMm = modH;
-        sorted.forEach((t, idx) => {
-            const currentTProf = aluminum.find(p => p.id === t.profileId);
-            const currentTThickness = currentTProf?.thickness || recipe.transomThickness || 40;
-            const transomYFromTop = totalMm - t.height; 
-            const paneH = (transomYFromTop - (currentTThickness/2)) - currentY;
-            if (paneH > 0) panes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(sorted.length - idx) || false });
-            currentY = transomYFromTop + (currentTThickness/2);
+    const getPanesForLeafWidth = (lw: number) => {
+        const gW = evaluateFormula(recipe.glassFormulaW || 'W', lw, adjustedH);
+        const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
+        const leafPanes: { w: number, h: number, isBlind: boolean }[] = [];
+        
+        if (!mod.transoms || mod.transoms.length === 0) {
+            leafPanes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
+        } else {
+            const sorted = [...mod.transoms].sort((a, b) => b.height - a.height); 
+            let currentY = 0;
+            const totalMm = modH;
+            sorted.forEach((t, idx) => {
+                const currentTProf = aluminum.find(p => p.id === t.profileId);
+                const currentTThickness = currentTProf?.thickness || recipe.transomThickness || 40;
+                const transomYFromTop = totalMm - t.height; 
+                const paneH = (transomYFromTop - (currentTThickness/2)) - currentY;
+                if (paneH > 0) leafPanes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(sorted.length - idx) || false });
+                currentY = transomYFromTop + (currentTThickness/2);
+            });
+            const lastPaneH = totalMm - currentY;
+            if (lastPaneH > 0) leafPanes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(0) || false });
+        }
+        return leafPanes;
+    };
+
+    let allPanes: { w: number, h: number, isBlind: boolean }[] = [];
+    if (mod.leafWidths && mod.leafWidths.length === numLeaves) {
+        // Asymmetric leaves
+        mod.leafWidths.forEach(lw => {
+            allPanes = allPanes.concat(getPanesForLeafWidth(lw));
         });
-        const lastPaneH = totalMm - currentY;
-        if (lastPaneH > 0) panes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(0) || false });
+    } else {
+        // Symmetric leaves
+        const leafBaseW = (visualType.includes('sliding') || numLeaves > 1) ? adjustedW / numLeaves : adjustedW;
+        for (let i = 0; i < numLeaves; i++) {
+            allPanes = allPanes.concat(getPanesForLeafWidth(leafBaseW));
+        }
     }
-    return panes;
+    return allPanes;
 };
 
 export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[], aluminum: AluminumProfile[], config: GlobalConfig, blindPanels: BlindPanel[], glasses: Glass[], dvhInputs: DVHInput[]) => {
@@ -114,6 +127,15 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const recipe = recipes.find(r => r.id === mod.recipeId);
             if (!recipe) return;
             const { modW, modH } = calculateModuleDimensions(mod, colRatios, rowRatios, minX, maxX, minY, maxY, realDeduction, isManualDim);
+
+            const visualType = (recipe.visualType || '').toLowerCase();
+            let numLeaves = recipe.leaves || 1;
+            if (!recipe.leaves) {
+                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
+                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
+                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
+                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
+            }
 
             const transomTemplate = (recipe.profiles || []).find(rp => rp.role === 'Travesaño' || (rp.role && rp.role.toLowerCase().includes('trave')));
             const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || 'W';
@@ -176,10 +198,31 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 const isMosq = role.includes('mosquitero') || pDef.id === recipe.mosquiteroProfileId;
                 if (isMosq && !item.extras.mosquitero) return;
                 
-                const cutLen = evaluateFormula(rp.formula, modW, modH); if (cutLen <= 0) return;
-                const list = cutsByProfile.get(pDef.id) || [];
-                for(let k=0; k < rp.quantity * item.quantity; k++) { list.push({ len: cutLen, type: recipe.type, cutStart: rp.cutStart || '90', cutEnd: rp.cutEnd || '90', label: itemCode }); }
-                cutsByProfile.set(pDef.id, list);
+                const isLeafWidthDependent = role.includes('hoja') || role.includes('zócalo') || role.includes('encuentro') || role.includes('contravidrio');
+                
+                if (isLeafWidthDependent && mod.leafWidths && mod.leafWidths.length === numLeaves && (rp.quantity % numLeaves === 0)) {
+                    const piecesPerLeaf = rp.quantity / numLeaves;
+                    mod.leafWidths.forEach(lw => {
+                        const effectiveW = lw * numLeaves;
+                        const cutLen = evaluateFormula(rp.formula, effectiveW, modH);
+                        if (cutLen > 0) {
+                            const list = cutsByProfile.get(pDef!.id) || [];
+                            for(let k=0; k < piecesPerLeaf * item.quantity; k++) {
+                                list.push({ len: cutLen, type: recipe.type, cutStart: rp.cutStart || '90', cutEnd: rp.cutEnd || '90', label: itemCode });
+                            }
+                            cutsByProfile.set(pDef!.id, list);
+                        }
+                    });
+                } else {
+                    const cutLen = evaluateFormula(rp.formula, modW, modH);
+                    if (cutLen > 0) {
+                        const list = cutsByProfile.get(pDef.id) || [];
+                        for(let k=0; k < rp.quantity * item.quantity; k++) {
+                            list.push({ len: cutLen, type: recipe.type, cutStart: rp.cutStart || '90', cutEnd: rp.cutEnd || '90', label: itemCode });
+                        }
+                        cutsByProfile.set(pDef.id, list);
+                    }
+                }
             });
             if (mod.transoms && mod.transoms.length > 0) {
               mod.transoms.forEach(t => {
@@ -197,14 +240,6 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             }
             
             const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-            const visualType = (recipe.visualType || '').toLowerCase();
-            let numLeaves = recipe.leaves || 1;
-            if (!recipe.leaves) {
-                if (visualType.includes('sliding_3') || visualType.includes('corrediza_3')) numLeaves = 3;
-                else if (visualType.includes('sliding_4') || visualType.includes('corrediza_4')) numLeaves = 4;
-                else if (visualType.includes('sliding') || visualType.includes('corrediza')) numLeaves = 2;
-                else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
-            }
             panes.forEach((p, pIdx) => {
                 if (p.isBlind) {
                     const bpId = mod.blindPaneIds?.[pIdx];
@@ -212,7 +247,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                     const slatId = mod.slatProfileIds?.[pIdx];
                     if (bp && bp.unit === 'ml' && !slatId) {
                         const list = cutsByProfile.get(bp.id) || [];
-                        for(let k=0; k < numLeaves * item.quantity; k++) {
+                        for(let k=0; k < item.quantity; k++) {
                             list.push({ len: p.w, type: 'Panel Lineal', cutStart: '90', cutEnd: '90', label: itemCode });
                         }
                         cutsByProfile.set(bp.id, list);
@@ -222,7 +257,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                       if (slatProf && slatProf.thickness > 0) {
                         const numSlats = Math.ceil(p.h / slatProf.thickness);
                         const list = cutsByProfile.get(slatProf.id) || [];
-                        for(let k=0; k < numSlats * numLeaves * item.quantity; k++) {
+                        for(let k=0; k < numSlats * item.quantity; k++) {
                             list.push({ len: p.w, type: 'Tablilla', cutStart: '90', cutEnd: '90', label: itemCode });
                         }
                         cutsByProfile.set(slatProf.id, list);
@@ -506,14 +541,14 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     const slatId = mod.slatProfileIds?.[paneIdx];
                     if (bp && bp.unit === 'ml' && !slatId) {
                         const existing = aluSummary.get(bp.id) || { code: bp.code, detail: bp.detail, totalMm: 0, barLength: 6 };
-                        existing.totalMm += p.w * numLeaves * item.quantity;
+                        existing.totalMm += p.w * item.quantity;
                         aluSummary.set(bp.id, existing);
                     }
                     if (slatId) {
                       const slatProf = aluminum.find(a => a.id === slatId);
                       if (slatProf && slatProf.thickness > 0) {
                         const numSlats = Math.ceil(p.h / slatProf.thickness);
-                        const totalMm = (p.w + config.discWidth) * numSlats * numLeaves * item.quantity;
+                        const totalMm = (p.w + config.discWidth) * numSlats * item.quantity;
                         const existing = aluSummary.get(slatProf.id) || { code: slatProf.code, detail: slatProf.detail, totalMm: 0, barLength: slatProf.barLength || 6 };
                         existing.totalMm += totalMm; aluSummary.set(slatId, existing);
                       }
@@ -641,7 +676,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     if (bp && bp.unit === 'm2') {
                         const key = `CIEGO-${bp.code}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                         const existing = fillSummary.get(key) || { spec: `PANEL CIEGO: ${bp.detail}`, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                        existing.qty += (item.quantity * numLeaves); fillSummary.set(key, existing);
+                        existing.qty += item.quantity; fillSummary.set(key, existing);
                     }
                     return;
                 }
@@ -701,13 +736,17 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
                 if (ra.isLinear && ra.formula) {
                     const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-                    const lengthMm = evaluateFormula(ra.formula, panes[0]?.w || 1000, panes[0]?.h || 1000); 
-                    existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+                    panes.forEach(pane => {
+                        const lengthMm = evaluateFormula(ra.formula, pane.w || 1000, pane.h || 1000); 
+                        existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+                    });
                 } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
                     const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-                    const lengthMm = evaluateFormula(ra.formula, panes[0]?.w || 1000, panes[0]?.h || 1000);
-                    const count = Math.ceil(lengthMm / ra.spacingMm);
-                    existing.qty += count * (ra.quantity || 1) * item.quantity;
+                    panes.forEach(pane => {
+                        const lengthMm = evaluateFormula(ra.formula, pane.w || 1000, pane.h || 1000);
+                        const count = Math.ceil(lengthMm / ra.spacingMm);
+                        existing.qty += count * (ra.quantity || 1) * item.quantity;
+                    });
                 } else { existing.qty += (ra.quantity * item.quantity); }
                 accSummary.set(acc.id, existing);
             });
@@ -922,7 +961,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                         const slatProf = aluminum.find(a => a.id === slatId);
                         if (slatProf && slatProf.thickness > 0) {
                             const numSlats = Math.ceil(p.h / slatProf.thickness);
-                            profileCuts.push([slatProf.code, `Tablilla (${pIdx+1})`, Math.round(p.w), numSlats * numLeaves, '90° / 90°']);
+                            profileCuts.push([slatProf.code, `Tablilla (${pIdx+1})`, Math.round(p.w), numSlats, '90° / 90°']);
                         }
                     }
                 }
@@ -1023,12 +1062,12 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                 else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
             }
             panes.forEach((p, pIdx) => {
-                if (!p.isBlind) { glassPieces.push([`Paño ${pIdx + 1}`, spec, `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]); }
+                if (!p.isBlind) { glassPieces.push([`Paño ${pIdx + 1}`, spec, `${Math.round(p.w)} x ${Math.round(p.h)}`, 1]); }
                 else { 
                     const slatId = mod.slatProfileIds?.[pIdx];
                     const slatProf = aluminum.find(a => a.id === slatId);
                     const blindText = slatProf ? `CIEGO (TABLILLAS ${slatProf.code})` : 'PANEL CIEGO';
-                    glassPieces.push([`Paño ${pIdx + 1}`, blindText, `${Math.round(p.w)} x ${Math.round(p.h)}`, numLeaves]); 
+                    glassPieces.push([`Paño ${pIdx + 1}`, blindText, `${Math.round(p.w)} x ${Math.round(p.h)}`, 1]); 
                 }
             });
         });
@@ -1084,7 +1123,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
             const gOuter = glasses.find(g => g.id === mod.glassOuterId); const gInner = mod.isDVH ? glasses.find(g => g.id === mod.glassInnerId) : null;
             glassPanes.forEach((pane, paneIdx) => {
                 if (!pane.isBlind) {
-                    const qtyPerSheet = item.quantity * numLeaves; const outerSpec = gOuter?.detail || 'Vidrio Ext';
+                    const qtyPerSheet = item.quantity; const outerSpec = gOuter?.detail || 'Vidrio Ext';
                     listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, outerSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
                     for (let i = 0; i < qtyPerSheet; i++) {
                         allPieces.push({ id: `${item.id}-ext-${i}-${Math.random()}`, itemCode: item.itemCode || `POS#${itemIdx+1}`, spec: outerSpec, w: Math.round(pane.w), h: Math.round(pane.h), glassId: mod.glassOuterId });
@@ -1100,7 +1139,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                     const bpId = mod.blindPaneIds?.[paneIdx];
                     const bp = blindPanels.find(x => x.id === bpId);
                     if (bp && bp.unit === 'm2') {
-                        const qtyPerSheet = item.quantity * numLeaves;
+                        const qtyPerSheet = item.quantity;
                         const panelSpec = `PANEL CIEGO: ${bp.detail}`;
                         listTableData.push([item.itemCode || `POS#${itemIdx + 1}`, panelSpec, `${Math.round(pane.w)} x ${Math.round(pane.h)}`, qtyPerSheet]);
                         for (let i = 0; i < qtyPerSheet; i++) {
@@ -1128,13 +1167,57 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
         pieces.sort((a, b) => (b.w * b.h) - (a.w * a.h)); 
         let sheets: { p: GlassPiece, x: number, y: number, rw: number, rh: number }[][] = [[]];
         let curSheetIdx = 0, curY = 0, curShelfH = 0, curX = 0;
+        
         pieces.forEach(p => {
-            let fitsNormal = (curX + p.w + margin <= sheetW) && (curY + p.h + margin <= sheetH);
-            if (fitsNormal) { p.rotated = false; } else {
-                curX = 0; curY += curShelfH + margin; curShelfH = 0; fitsNormal = (curX + p.w + margin <= sheetW) && (curY + p.h + margin <= sheetH);
-                if (fitsNormal) { p.rotated = false; } else { curX = 0; curY = 0; curShelfH = 0; curSheetIdx++; sheets[curSheetIdx] = []; p.rotated = false; }
+            let rotated = false;
+            let w = p.w;
+            let h = p.h;
+
+            // Intentar encajar en orientación normal
+            let fitsNormal = (curX + w + margin <= sheetW) && (curY + h + margin <= sheetH);
+            
+            // Intentar encajar rotado
+            let fitsRotated = (curX + h + margin <= sheetW) && (curY + w + margin <= sheetH);
+
+            if (!fitsNormal && !fitsRotated) {
+                // No encaja en la estantería actual, intentar nueva estantería
+                curX = 0;
+                curY += curShelfH + margin;
+                curShelfH = 0;
+                
+                fitsNormal = (curX + w + margin <= sheetW) && (curY + h + margin <= sheetH);
+                fitsRotated = (curX + h + margin <= sheetW) && (curY + w + margin <= sheetH);
+                
+                if (!fitsNormal && !fitsRotated) {
+                    // No encaja en la plancha actual, nueva plancha
+                    curX = 0;
+                    curY = 0;
+                    curShelfH = 0;
+                    curSheetIdx++;
+                    sheets[curSheetIdx] = [];
+                    
+                    // Re-evaluar tras nueva plancha
+                    fitsNormal = (curX + w + margin <= sheetW) && (curY + h + margin <= sheetH);
+                    fitsRotated = (curX + h + margin <= sheetW) && (curY + w + margin <= sheetH);
+                }
             }
-            sheets[curSheetIdx].push({ p, x: curX, y: curY, rw: p.w, rh: p.h }); curX += p.w + margin; if (p.h > curShelfH) curShelfH = p.h;
+
+            if (fitsNormal || fitsRotated) {
+                // Elegir la mejor orientación si ambas caben (aquí elegimos simple: si normal cabe, usar normal)
+                if (fitsNormal) {
+                    rotated = false;
+                } else {
+                    rotated = true;
+                    [w, h] = [h, w];
+                }
+                p.rotated = rotated;
+                sheets[curSheetIdx].push({ p, x: curX, y: curY, rw: w, rh: h });
+                curX += w + margin;
+                if (h > curShelfH) curShelfH = h;
+            } else {
+                // Si después de todo no cabe, esto no debería pasar con una plancha suficientemente grande
+                console.error("Pieza no cabe en la plancha", p);
+            }
         });
         sheets.forEach((sheetPieces, sIdx) => {
             doc.addPage(); doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 25, 'F'); doc.setTextColor(255); doc.setFontSize(10);
@@ -1145,7 +1228,14 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                 const px = startX + (sp.x * scale), py = startY + (sp.y * scale), pw = sp.rw * scale, ph = sp.rh * scale;
                 doc.setDrawColor(79, 70, 229); doc.setFillColor(243, 244, 246); doc.rect(px, py, pw, ph, 'FD');
                 const fontSize = Math.max(10, 24 * scale); doc.setFontSize(fontSize); doc.setTextColor(30, 41, 59); 
-                if (pw > 15 && ph > 15) { const yCenter = py + ph/2; doc.setFont('helvetica', 'bold'); doc.text(sp.p.itemCode, px + pw/2, yCenter - (fontSize * 0.1), { align: 'center' }); doc.setFont('helvetica', 'normal'); doc.text(`${Math.round(sp.p.w)}x${Math.round(sp.p.h)}`, px + pw/2, yCenter + (fontSize * 0.5), { align: 'center' }); }
+                if (pw > 15 && ph > 15) { 
+                    const yCenter = py + ph/2; 
+                    doc.setFont('helvetica', 'bold'); 
+                    doc.text(sp.p.itemCode, px + pw/2, yCenter - (fontSize * 0.1), { align: 'center' }); 
+                    doc.setFont('helvetica', 'normal'); 
+                    const dimText = sp.p.rotated ? `${Math.round(sp.p.h)}x${Math.round(sp.p.w)}` : `${Math.round(sp.p.w)}x${Math.round(sp.p.h)}`;
+                    doc.text(dimText, px + pw/2, yCenter + (fontSize * 0.5), { align: 'center' }); 
+                }
             });
         });
     });

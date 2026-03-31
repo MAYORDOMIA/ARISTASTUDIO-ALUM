@@ -231,7 +231,8 @@ export const calculateItemPrice = (
   slatProfileIds: Record<number, string> = {},
   glazingBeadStylePreference: 'Recto' | 'Curvo' = 'Recto',
   handrailProfileId?: string,
-  handrailType?: 'recta' | 'inclinada'
+  handrailType?: 'recta' | 'inclinada',
+  leafWidths?: number[]
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -458,16 +459,28 @@ export const calculateItemPrice = (
     }
   });
 
-  const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
   const glassPanes: { w: number, h: number }[] = [];
   
   // Ajuste de ancho de vidrio para barandas inclinadas (+1000mm para cálculo de valor)
-  const gWForCost = (recipe.type === 'Baranda' && handrailType === 'inclinada') ? gW + 1000 : gW;
+  const getGWForCost = (w: number) => (recipe.type === 'Baranda' && handrailType === 'inclinada') ? evaluateFormula(recipe.glassFormulaW || 'W', w, adjustedH) + 1000 : evaluateFormula(recipe.glassFormulaW || 'W', w, adjustedH);
 
-  if (!transoms || transoms.length === 0) { 
-    glassPanes.push({ w: gWForCost, h: gH }); 
+  if (leafWidths && leafWidths.length > 0) {
+      leafWidths.forEach(lw => {
+          const w = lw - Number(recipe.glassDeductionW || 0);
+          if (!transoms || transoms.length === 0) {
+              glassPanes.push({ w: getGWForCost(w), h: evaluateFormula(recipe.glassFormulaH || 'H', w, adjustedH) });
+          } else {
+              panesHeights.forEach(ph => glassPanes.push({ w: getGWForCost(w), h: ph }));
+          }
+      });
   } else {
-    panesHeights.forEach(ph => glassPanes.push({ w: gWForCost, h: ph }));
+      const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
+      const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
+      if (!transoms || transoms.length === 0) { 
+        glassPanes.push({ w: (recipe.type === 'Baranda' && handrailType === 'inclinada') ? gW + 1000 : gW, h: gH }); 
+      } else {
+        panesHeights.forEach(ph => glassPanes.push({ w: (recipe.type === 'Baranda' && handrailType === 'inclinada') ? gW + 1000 : gW, h: ph }));
+      }
   }
 
   const outerGlass = glasses.find(g => g.id === glassOuterId);

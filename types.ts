@@ -179,6 +179,8 @@ export interface MeasurementModule {
   overriddenAccessories?: RecipeAccessory[];
   handrailProfileId?: string; // Nuevo: Perfil de pasamano para barandas
   handrailType?: 'recta' | 'inclinada'; // Nuevo: Tipo de baranda
+  hand?: 'left' | 'right'; // Nuevo: Mano de la puerta
+  leafWidths?: number[]; // Nuevo: Ancho individual de hojas para puertas dobles
 }
 
 export interface QuoteItemBreakdown {

@@ -72,7 +72,9 @@ const drawDetailedOpening = (
     allBlindPanels: BlindPanel[] = [],
     allProfiles: AluminumProfile[] = [],
     isSinglePreview: boolean = false,
-    handrailProfileId?: string
+    handrailProfileId?: string,
+    hand?: 'left' | 'right',
+    leafWidths?: number[]
 ) => {
     if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return;
 
@@ -335,7 +337,7 @@ const drawDetailedOpening = (
         }
     };
 
-    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, hasMesh:boolean, leafType:string, absoluteBottomY: number, leafIndex: number = 0, totalLeaves: number = 1) => {
+    const drawLeaf = (lx:number, ly:number, lh:number, lw:number, force90:boolean, leafHasZocalo:boolean, hasMesh:boolean, leafType:string, absoluteBottomY: number, leafIndex: number = 0, totalLeaves: number = 1, leafHand?: 'left' | 'right') => {
         if (!isFinite(lx) || !isFinite(ly) || !isFinite(lw) || !isFinite(lh)) return;
         const bT = leafHasZocalo ? zocaloT : leafT;
         const isHybrid45_90 = leafType.includes('no_dintel') || leafType.includes('no_umbral');
@@ -417,7 +419,7 @@ const drawDetailedOpening = (
                 // 1. Apertura lateral (Swing) - SÓLIDA
                 // Bisagra al costado -> Vértice al costado
                 ctx.beginPath();
-                if (leafType.includes('right')) {
+                if (leafHand === 'right') {
                     // Bisagra derecha -> Vértice derecha (>)
                     ctx.moveTo(x1, y1);
                     ctx.lineTo(x2, cy);
@@ -441,25 +443,26 @@ const drawDetailedOpening = (
 
             } else if (leafType.includes('door') || leafType.includes('swing') || leafType.includes('puerta') || leafType.includes('abrir')) {
                  if (leafType.includes('double') || totalLeaves === 2) {
+                     // For double doors, leaf 0 opens left (towards middle), leaf 1 opens right (towards middle)
                      if (leafIndex === 0) {
-                         // Hoja izquierda (Bisagra izquierda) -> Vértice izquierda (<)
+                         // Hoja izquierda -> Vértice derecha (>)
+                         ctx.moveTo(x1, y1);
+                         ctx.lineTo(x2, cy);
+                         ctx.lineTo(x1, y2);
+                     } else {
+                         // Hoja derecha -> Vértice izquierda (<)
                          ctx.moveTo(x2, y1);
                          ctx.lineTo(x1, cy);
                          ctx.lineTo(x2, y2);
-                     } else {
+                     }
+                 } else {
+                     if (leafHand === 'right') {
                          // Hoja derecha (Bisagra derecha) -> Vértice derecha (>)
                          ctx.moveTo(x1, y1);
                          ctx.lineTo(x2, cy);
                          ctx.lineTo(x1, y2);
-                     }
-                 } else {
-                     if (leafType.includes('right')) {
-                         // Bisagra derecha -> Vértice derecha (>)
-                         ctx.moveTo(x1, y1);
-                         ctx.lineTo(x2, cy);
-                         ctx.lineTo(x1, y2);
                      } else {
-                         // Bisagra izquierda -> Vértice izquierda (<)
+                         // Hoja izquierda (Bisagra izquierda) -> Vértice izquierda (<)
                          ctx.moveTo(x2, y1);
                          ctx.lineTo(x1, cy);
                          ctx.lineTo(x2, y2);
@@ -538,11 +541,13 @@ const drawDetailedOpening = (
             }
         } else if (visualType.includes('swing') || visualType.includes('door') || visualType.includes('right') || visualType.includes('left') || visualType.includes('projecting') || visualType.includes('ventiluz') || visualType.includes('banderola') || visualType.includes('oscilo') || visualType.includes('osilo') || visualType.includes('batiente') || visualType.includes('tilt_turn')) {
             if (visualType.includes('double')) {
-                const leafW = innerW / 2;
-                drawLeaf(innerX, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h, 0, 2);
-                drawLeaf(innerX + leafW, innerY, innerH, leafW, false, isFrame90 || isNoDintel || isNoUmbral, false, visualType, y + h, 1, 2);
+                const totalW = (leafWidths && leafWidths.length >= 2) ? (leafWidths[0] + leafWidths[1]) : 0;
+                const leafW1 = (leafWidths && leafWidths.length >= 2) ? (leafWidths[0] / totalW * innerW) : innerW / 2;
+                const leafW2 = (leafWidths && leafWidths.length >= 2) ? (leafWidths[1] / totalW * innerW) : innerW / 2;
+                drawLeaf(innerX, innerY, innerH, leafW1, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h, 0, 2, hand);
+                drawLeaf(innerX + leafW1, innerY, innerH, leafW2, false, isFrame90 || isNoDintel || isNoUmbral, false, visualType, y + h, 1, 2, hand);
             } else {
-                drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h, 0, 1);
+                drawLeaf(innerX, innerY, innerH, innerW, false, isFrame90 || isNoDintel || isNoUmbral, extras?.mosquitero || false, visualType, y + h, 0, 1, hand);
             }
         } else {
             drawGlassWithTransoms(innerX, innerY, innerW, innerH, y + h);
@@ -1188,7 +1193,7 @@ const QuotingModule: React.FC<Props> = ({
             exposed.forEach(iv => perimeterSegments.push({ x1: mX + mW, y1: iv.s, x2: mX + mW, y2: iv.e, side: 'right' }));
         }
 
-        drawDetailedOpening(ctx, mX, mY, mW, mH, recipe, mod.isDVH, aluColor, extras, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false, mod.handrailProfileId);
+        drawDetailedOpening(ctx, mX, mY, mW, mH, recipe, mod.isDVH, aluColor, extras, pxPerMm, mod.transoms, mod.blindPanes, mod.blindPaneIds || {}, blindPanels, aluminum, false, mod.handrailProfileId, mod.hand, mod.leafWidths);
     });
 
     if (extras.tapajuntas) {
@@ -1790,7 +1795,8 @@ const QuotingModule: React.FC<Props> = ({
                                           updateModule(editingModuleId, { 
                                             recipeId: r.id, 
                                             transoms: [], 
-                                            overriddenAccessories: processedAccs 
+                                            overriddenAccessories: processedAccs,
+                                            hand: r.type === 'Puerta' ? (currentModForEdit.hand || 'left') : undefined
                                           }); 
                                         }
                                     }}>
@@ -1798,6 +1804,33 @@ const QuotingModule: React.FC<Props> = ({
                                         {recipes.filter(r => recipeFilter === 'TODOS' || (r.line || '').toUpperCase() === recipeFilter).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                     </select>
                                 </div>
+                                {recipes.find(r => r.id === currentModForEdit.recipeId)?.leaves === 2 && (
+                                    <div className="space-y-1.5 p-4 bg-sky-50 dark:bg-sky-900/20 rounded-xl border border-sky-100 dark:border-sky-800">
+                                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Ancho de Hojas (mm)</label>
+                                        <div className="flex items-center gap-2">
+                                            <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-10 px-3 rounded-lg text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 shadow-sm" value={currentModForEdit.leafWidths?.[0] || (currentModForEdit.width || 0) / 2} onChange={e => {
+                                                const newW1 = parseInt(e.target.value) || 0;
+                                                const totalW = currentModForEdit.width || (colSizes[currentModForEdit.x - bounds.minX] || 0);
+                                                updateModule(editingModuleId, { leafWidths: [newW1, Math.max(0, totalW - newW1)] });
+                                            }} />
+                                            <span className="text-slate-400 font-black">/</span>
+                                            <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-10 px-3 rounded-lg text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 shadow-sm" value={currentModForEdit.leafWidths?.[1] || (currentModForEdit.width || 0) / 2} onChange={e => {
+                                                const newW2 = parseInt(e.target.value) || 0;
+                                                const totalW = currentModForEdit.width || (colSizes[currentModForEdit.x - bounds.minX] || 0);
+                                                updateModule(editingModuleId, { leafWidths: [Math.max(0, totalW - newW2), newW2] });
+                                            }} />
+                                        </div>
+                                    </div>
+                                )}
+                                {recipes.find(r => r.id === currentModForEdit.recipeId)?.type === 'Puerta' && (
+                                    <div className="space-y-1.5">
+                                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Mano de la Puerta</label>
+                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-11 px-4 rounded-xl text-[10px] font-black uppercase dark:text-white outline-none focus:border-sky-500 shadow-sm" value={currentModForEdit.hand || 'left'} onChange={e => updateModule(editingModuleId, { hand: e.target.value as 'left' | 'right' })}>
+                                            <option value="left">Izquierda</option>
+                                            <option value="right">Derecha</option>
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                             <div className="min-h-[160px] bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-6 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center shrink-0">
                                 {currentModForEdit.recipeId ? (
