@@ -106,6 +106,7 @@ export interface RecipeProfile {
   cutStart: '45' | '90';
   cutEnd: '45' | '90';
   role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Tapajuntas' | 'Mosquitero' | 'Contravidrio' | 'Otro';
+  alternative?: 'A' | 'B';
   
   // Para contravidrios dinámicos: lista de IDs de perfiles compatibles
   glazingBeadOptions?: string[]; 
@@ -140,10 +141,13 @@ export interface ProductRecipe {
   accessories: RecipeAccessory[];
   glassFormulaW: string; 
   glassFormulaH: string; 
+  dvhFormulaW?: string;
+  dvhFormulaH?: string;
   defaultTransomProfileId?: string;
   transomFormula?: string; 
   transomThickness?: number; 
   transomGlassDeduction?: number;
+  dvhTransomGlassDeduction?: number;
   defaultTransoms?: { height: number; profileId: string }[];
   glassDeductionW?: number;
   glassDeductionH?: number;
@@ -178,6 +182,8 @@ export interface MeasurementModule {
   transoms?: { height: number; profileId: string; formula?: string }[];
   overriddenAccessories?: RecipeAccessory[];
   handrailProfileId?: string; // Nuevo: Perfil de pasamano para barandas
+  leafProfileId?: string; // Nuevo: Perfil de hoja seleccionado
+  leafAlternative?: 'A' | 'B'; // Nuevo: Alternativa de hoja seleccionada
   handrailType?: 'recta' | 'inclinada'; // Nuevo: Tipo de baranda
   hand?: 'left' | 'right'; // Nuevo: Mano de la puerta
   leafWidths?: number[]; // Nuevo: Ancho individual de hojas para puertas dobles

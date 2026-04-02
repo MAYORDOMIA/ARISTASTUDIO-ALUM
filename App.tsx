@@ -74,6 +74,8 @@ const App: React.FC = () => {
     aluminumPricePerKg: 15.0,
     laborPercentage: 45,
     discWidth: 4,
+    vsDiscount: 0,
+    dvhDiscount: 0,
     taxRate: 21,
     blindPanelPricePerM2: 85.0, 
     meshPricePerM2: 25.0,

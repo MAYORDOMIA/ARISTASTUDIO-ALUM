@@ -441,6 +441,15 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                             <div className="col-span-2">
                                 <select className="w-full bg-transparent text-[10px] font-black uppercase outline-none dark:text-white" value={rp.profileId || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].profileId = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }}>{aluminum.map(a => <option key={a.id} value={a.id}>{a.code}</option>)}</select>
                             </div>
+                            {recipe.visualType?.includes('sliding') && (
+                                <div className="col-span-1">
+                                    <select className="w-full bg-transparent text-[9px] font-black uppercase outline-none dark:text-white" value={rp.alternative || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].alternative = e.target.value as any; updateRecipe(recipe.id, { profiles: updated }); }}>
+                                        <option value="">-</option>
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                    </select>
+                                </div>
+                            )}
                             <div className="col-span-1">
                                 <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded text-center font-black text-[10px] dark:text-white" value={rp.quantity || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].quantity = parseInt(e.target.value) || 0; updateRecipe(recipe.id, { profiles: updated }); }} />
                             </div>
@@ -593,15 +602,26 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                 <div className="bg-slate-50/50 dark:bg-slate-800/20 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4">
                     <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">Vidriado Maestro</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <FormulaInput label="Ancho Cristal" value={recipe.glassFormulaW || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaW: v })} />
-                        <FormulaInput label="Alto Cristal" value={recipe.glassFormulaH || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
+                        <FormulaInput label="Desc. VS Ancho" value={recipe.glassFormulaW || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaW: v })} />
+                        <FormulaInput label="Desc. VS Alto" value={recipe.glassFormulaH || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
                         <div className="space-y-1 flex-1">
-                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Desc. Vidrio (Travesaño)</label>
+                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Desc. VS (Travesaño)</label>
                             <input 
                               type="number" 
                               className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" 
                               value={recipe.transomGlassDeduction || 0} 
                               onChange={e => updateRecipe(recipe.id, { transomGlassDeduction: parseFloat(e.target.value) || 0 })} 
+                            />
+                        </div>
+                        <FormulaInput label="Desc. DVH Ancho" value={recipe.dvhFormulaW || ''} onChange={v => updateRecipe(recipe.id, { dvhFormulaW: v })} />
+                        <FormulaInput label="Desc. DVH Alto" value={recipe.dvhFormulaH || ''} onChange={v => updateRecipe(recipe.id, { dvhFormulaH: v })} />
+                        <div className="space-y-1 flex-1">
+                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Desc. DVH (Travesaño)</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" 
+                              value={recipe.dvhTransomGlassDeduction || 0} 
+                              onChange={e => updateRecipe(recipe.id, { dvhTransomGlassDeduction: parseFloat(e.target.value) || 0 })} 
                             />
                         </div>
                     </div>

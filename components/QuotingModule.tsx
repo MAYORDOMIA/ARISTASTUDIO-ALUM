@@ -1909,24 +1909,51 @@ const QuotingModule: React.FC<Props> = ({
                                             <div className="flex items-center justify-between border-b border-slate-50 dark:border-slate-700 pb-3">
                                                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Paño {paneIdx === 0 ? 'Inferior' : (paneIdx === currentModForEdit.transoms?.length ? 'Superior' : `Medio ${paneIdx}`)}</span>
                                                 <div className="flex gap-1 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl">
-                                                    <button onClick={() => { const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); updateModule(editingModuleId, { isDVH: false, blindPanes: bps, glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '' }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>VS</button>
                                                     <button onClick={() => { 
+                                                        const recipe = recipes.find(r => r.id === currentModForEdit.recipeId);
+                                                        const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); 
+                                                        updateModule(editingModuleId, { 
+                                                            isDVH: false, 
+                                                            blindPanes: bps, 
+                                                            glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '',
+                                                            leafAlternative: 'A'
+                                                        }); 
+                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'vs' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>VS</button>
+                                                    <button onClick={() => { 
+                                                        const recipe = recipes.find(r => r.id === currentModForEdit.recipeId);
                                                         const bps = (currentModForEdit.blindPanes || []).filter(i => i !== paneIdx); 
                                                         updateModule(editingModuleId, { 
                                                             isDVH: true, 
                                                             blindPanes: bps,
                                                             glassOuterId: currentModForEdit.glassOuterId || glasses[0]?.id || '',
                                                             glassInnerId: currentModForEdit.glassInnerId || glasses[0]?.id || '',
-                                                            dvhCameraId: currentModForEdit.dvhCameraId || dvhInputs.find(i => i.type === 'Cámara')?.id || ''
+                                                            dvhCameraId: currentModForEdit.dvhCameraId || dvhInputs.find(i => i.type === 'Cámara')?.id || '',
+                                                            leafAlternative: 'B'
                                                         }); 
-                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>DVH</button>
-                                                    <button onClick={() => { const bps = [...(currentModForEdit.blindPanes || [])]; if (!bps.includes(paneIdx)) updateModule(editingModuleId, { blindPanes: [...bps, paneIdx] }); }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'ciego' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>CIEGO</button>
+                                                     }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'dvh' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>DVH</button>
+                                                     <button onClick={() => { 
+                                                        const recipe = recipes.find(r => r.id === currentModForEdit.recipeId);
+                                                        const bps = [...(currentModForEdit.blindPanes || [])]; 
+                                                        if (!bps.includes(paneIdx)) {
+                                                            const blindPanel = blindPanels.find(bp => bp.id === currentModForEdit.blindPaneIds?.[paneIdx]);
+                                                            const leafAlternative = blindPanel?.unit === 'm2' ? 'B' : 'A';
+                                                            updateModule(editingModuleId, { blindPanes: [...bps, paneIdx], leafAlternative }); 
+                                                        }
+                                                    }} className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === 'ciego' ? 'bg-sky-600 text-white' : 'text-slate-400'}`}>CIEGO</button>
                                                 </div>
                                             </div>
                                             <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                                                 {infillType === 'ciego' ? (
                                                     <div className="space-y-3">
-                                                        <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.blindPaneIds?.[paneIdx] || ''} onChange={e => updateModule(editingModuleId, { blindPaneIds: { ...currentModForEdit.blindPaneIds, [paneIdx]: e.target.value } })}>
+                                                        <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none" value={currentModForEdit.blindPaneIds?.[paneIdx] || ''} onChange={e => {
+                                                            const recipe = recipes.find(r => r.id === currentModForEdit.recipeId);
+                                                            const blindPanel = blindPanels.find(bp => bp.id === e.target.value);
+                                                            const leafProfileId = blindPanel?.unit === 'm2' ? recipe?.defaultProfileBId : recipe?.defaultProfileAId;
+                                                            updateModule(editingModuleId, { 
+                                                                blindPaneIds: { ...currentModForEdit.blindPaneIds, [paneIdx]: e.target.value },
+                                                                leafProfileId
+                                                            });
+                                                        }}>
                                                             <option value="">(SELECCIONE PANEL)</option>
                                                             {blindPanels.map(p => <option key={p.id} value={p.id}>{p.code} - {p.detail}</option>)}
                                                         </select>

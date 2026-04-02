@@ -62,27 +62,34 @@ const getModuleGlassPanes = (
         else if (visualType.includes('double') || visualType.includes('doble') || visualType.includes('2h')) numLeaves = 2;
     }
 
+    const getFormulaW = () => mod.isDVH && recipe.dvhFormulaW ? recipe.dvhFormulaW : (recipe.glassFormulaW || 'W');
+    const getFormulaH = () => mod.isDVH && recipe.dvhFormulaH ? recipe.dvhFormulaH : (recipe.glassFormulaH || 'H');
+
     const getPanesForLeafWidth = (lw: number) => {
-        const gW = evaluateFormula(recipe.glassFormulaW || 'W', lw, adjustedH);
-        const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
+        const gW = evaluateFormula(getFormulaW(), lw, adjustedH);
+        const gH = evaluateFormula(getFormulaH(), adjustedW, adjustedH);
         const leafPanes: { w: number, h: number, isBlind: boolean }[] = [];
+        
+        const transomGlassDeduction = mod.isDVH && recipe.dvhTransomGlassDeduction !== undefined ? Number(recipe.dvhTransomGlassDeduction) : Number(recipe.transomGlassDeduction || 0); 
         
         if (!mod.transoms || mod.transoms.length === 0) {
             leafPanes.push({ w: gW, h: gH, isBlind: mod.blindPanes?.includes(0) || false });
         } else {
-            const sorted = [...mod.transoms].sort((a, b) => b.height - a.height); 
-            let currentY = 0;
-            const totalMm = modH;
+            const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
+            let lastY = 0;
             sorted.forEach((t, idx) => {
-                const currentTProf = aluminum.find(p => p.id === t.profileId);
-                const currentTThickness = currentTProf?.thickness || recipe.transomThickness || 40;
-                const transomYFromTop = totalMm - t.height; 
-                const paneH = (transomYFromTop - (currentTThickness/2)) - currentY;
-                if (paneH > 0) leafPanes.push({ w: gW, h: paneH, isBlind: mod.blindPanes?.includes(sorted.length - idx) || false });
-                currentY = transomYFromTop + (currentTThickness/2);
+              const trProf = aluminum.find(p => p.id === t.profileId);
+              const transomThickness = Number(trProf?.thickness || recipe.transomThickness || 40);
+              let ph = (idx === 0) 
+                ? (Number(t.height) - (transomThickness / 2)) - (Number(recipe.glassDeductionH || 0) / (mod.transoms!.length + 1)) - transomGlassDeduction
+                : (Number(t.height) - lastY) - transomThickness - transomGlassDeduction;
+              leafPanes.push({ w: gW, h: ph, isBlind: mod.blindPanes?.includes(idx) || false });
+              lastY = Number(t.height);
             });
-            const lastPaneH = totalMm - currentY;
-            if (lastPaneH > 0) leafPanes.push({ w: gW, h: lastPaneH, isBlind: mod.blindPanes?.includes(0) || false });
+            const lastTrProf = aluminum.find(p => p.id === sorted[sorted.length-1].profileId);
+            const lastTransomThickness = Number(lastTrProf?.thickness || recipe.transomThickness || 40);
+            const lastPh = (modH - lastY) - (lastTrProf ? (lastTransomThickness / 2) : 0) - (Number(recipe.glassDeductionH || 0) / (mod.transoms.length + 1)) - transomGlassDeduction;
+            leafPanes.push({ w: gW, h: lastPh, isBlind: mod.blindPanes?.includes(sorted.length) || false });
         }
         return leafPanes;
     };

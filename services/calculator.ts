@@ -103,7 +103,9 @@ export const calculateCompositePrice = (
       mod.slatProfileIds,
       glazingBeadStylePreference,
       mod.handrailProfileId,
-      mod.handrailType
+      mod.handrailType,
+      undefined,
+      mod.leafAlternative
     );
     
     totalAluCost += result.aluCost;
@@ -232,7 +234,8 @@ export const calculateItemPrice = (
   glazingBeadStylePreference: 'Recto' | 'Curvo' = 'Recto',
   handrailProfileId?: string,
   handrailType?: 'recta' | 'inclinada',
-  leafWidths?: number[]
+  leafWidths?: number[],
+  leafAlternative?: 'A' | 'B'
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -281,6 +284,9 @@ export const calculateItemPrice = (
     const p = profiles.find(x => x.id === rp.profileId);
     if (!p) return true;
     
+    // Filtro por alternativa
+    if (rp.alternative && leafAlternative && rp.alternative !== leafAlternative) return false;
+
     // Filtro estricto de Tapajuntas: Siempre se excluyen de la receta base 
     // para ser manejados por el cálculo centralizado de perímetro/lados activos.
     const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
@@ -372,6 +378,9 @@ export const calculateItemPrice = (
       }
   }
 
+  const getFormulaW = () => isDVH && recipe.dvhFormulaW ? recipe.dvhFormulaW : (recipe.glassFormulaW || 'W');
+  const getFormulaH = () => isDVH && recipe.dvhFormulaH ? recipe.dvhFormulaH : (recipe.glassFormulaH || 'H');
+
   const adjustedW = width - Number(recipe.glassDeductionW || 0); 
   const adjustedH = height - Number(recipe.glassDeductionH || 0);
   const visualType = (recipe.visualType || '').toLowerCase();
@@ -386,12 +395,12 @@ export const calculateItemPrice = (
 
   let leafBaseW = adjustedW;
   if (visualType.includes('sliding') || numLeaves > 1) leafBaseW = adjustedW / numLeaves;
-  const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
+  const gW = evaluateFormula(getFormulaW(), leafBaseW, adjustedH);
   
-  const transomGlassDeduction = Number(recipe.transomGlassDeduction || 0); 
+  const transomGlassDeduction = isDVH && recipe.dvhTransomGlassDeduction !== undefined ? Number(recipe.dvhTransomGlassDeduction) : Number(recipe.transomGlassDeduction || 0); 
   const panesHeights: number[] = [];
   if (!transoms || transoms.length === 0) {
-    panesHeights.push(evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH));
+    panesHeights.push(evaluateFormula(getFormulaH(), adjustedW, adjustedH));
   } else {
     const sorted = [...transoms].sort((a, b) => a.height - b.height);
     let lastY = 0;
@@ -462,20 +471,20 @@ export const calculateItemPrice = (
   const glassPanes: { w: number, h: number }[] = [];
   
   // Ajuste de ancho de vidrio para barandas inclinadas (+1000mm para cálculo de valor)
-  const getGWForCost = (w: number) => (recipe.type === 'Baranda' && handrailType === 'inclinada') ? evaluateFormula(recipe.glassFormulaW || 'W', w, adjustedH) + 1000 : evaluateFormula(recipe.glassFormulaW || 'W', w, adjustedH);
+  const getGWForCost = (w: number) => (recipe.type === 'Baranda' && handrailType === 'inclinada') ? evaluateFormula(getFormulaW(), w, adjustedH) + 1000 : evaluateFormula(getFormulaW(), w, adjustedH);
 
   if (leafWidths && leafWidths.length > 0) {
       leafWidths.forEach(lw => {
           const w = lw - Number(recipe.glassDeductionW || 0);
           if (!transoms || transoms.length === 0) {
-              glassPanes.push({ w: getGWForCost(w), h: evaluateFormula(recipe.glassFormulaH || 'H', w, adjustedH) });
+              glassPanes.push({ w: getGWForCost(w), h: evaluateFormula(getFormulaH(), w, adjustedH) });
           } else {
               panesHeights.forEach(ph => glassPanes.push({ w: getGWForCost(w), h: ph }));
           }
       });
   } else {
-      const gW = evaluateFormula(recipe.glassFormulaW || 'W', leafBaseW, adjustedH);
-      const gH = evaluateFormula(recipe.glassFormulaH || 'H', adjustedW, adjustedH);
+      const gW = evaluateFormula(getFormulaW(), leafBaseW, adjustedH);
+      const gH = evaluateFormula(getFormulaH(), adjustedW, adjustedH);
       if (!transoms || transoms.length === 0) { 
         glassPanes.push({ w: (recipe.type === 'Baranda' && handrailType === 'inclinada') ? gW + 1000 : gW, h: gH }); 
       } else {
