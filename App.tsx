@@ -48,7 +48,7 @@ import QuotesHistory from './components/QuotesHistory';
 import ObrasModule from './components/ObrasModule';
 import SuperAdminDashboard from './src/components/SuperAdminDashboard';
 import Auth from './src/components/Auth';
-import { supabase } from './src/services/supabaseClient';
+import { supabase, isSupabaseConfigured } from './src/services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { 
   generateClientDetailedPDF, 
@@ -97,6 +97,23 @@ const App: React.FC = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      // Modo local si Supabase no está configurado
+      const localData = localStorage.getItem('maicol_engine_data_data_v2');
+      if (localData) {
+        try {
+          hydrateData(JSON.parse(localData));
+        } catch (e) {
+          console.error("Error parsing local data", e);
+        }
+      }
+      setIsDataLoaded(true);
+      setSession({ user: { id: 'local-user', email: 'local@example.com' } } as any);
+      setProfile({ email: 'local@example.com', is_active: true, max_devices: 999 });
+      setAuthLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) fetchProfile(session.user);
@@ -117,7 +134,7 @@ const App: React.FC = () => {
 
   // Suscripción en tiempo real para sincronización entre dispositivos
   useEffect(() => {
-    if (!session?.user?.id || !isDataLoaded) return;
+    if (!isSupabaseConfigured || !session?.user?.id || !isDataLoaded) return;
 
     const channel = supabase
       .channel(`realtime_sync_${session.user.id}`)
@@ -264,7 +281,8 @@ const App: React.FC = () => {
         if (error) {
           console.error("Error al registrar el dispositivo en la base de datos:", error);
           alert("Hubo un problema al registrar tu dispositivo. Por favor, contacta al administrador.");
-          await supabase.auth.signOut();
+          if (isSupabaseConfigured) await supabase.auth.signOut();
+          else setSession(null);
           setAuthLoading(false);
           return;
         }
@@ -376,10 +394,12 @@ const App: React.FC = () => {
         localStorage.setItem(storageKey, stringified);
 
         // Guardado en la nube (Supabase)
-        const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
-        
-        if (error) {
-          console.error("Error al guardar en la nube (Supabase):", error);
+        if (isSupabaseConfigured) {
+          const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
+          
+          if (error) {
+            console.error("Error al guardar en la nube (Supabase):", error);
+          }
         }
       } catch (e) {
         console.error("Error crítico en persistencia:", e);
@@ -393,7 +413,9 @@ const App: React.FC = () => {
             }));
             const cleanedData = { ...data, quotes: cleanedQuotes };
             localStorage.setItem('maicol_engine_data_data_v2', JSON.stringify(cleanedData));
-            await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
+            if (isSupabaseConfigured) {
+              await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
+            }
         } catch (retryError) {
             console.error("Fallo crítico de almacenamiento en reintento:", retryError);
         }
@@ -439,7 +461,7 @@ const App: React.FC = () => {
           <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Límite de Dispositivos</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Has alcanzado el límite máximo de dispositivos permitidos para tu cuenta. Contacta al administrador si necesitas acceder desde este nuevo dispositivo.</p>
           <button 
-            onClick={() => { supabase.auth.signOut(); setDeviceLimitReached(false); }} 
+            onClick={() => { if (isSupabaseConfigured) supabase.auth.signOut(); else setSession(null); setDeviceLimitReached(false); }} 
             className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
           >
             Cerrar sesión
@@ -457,7 +479,7 @@ const App: React.FC = () => {
           <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Cuenta en revisión</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Tu cuenta ha sido creada exitosamente, pero un administrador debe activarla para que puedas acceder al cotizador.</p>
           <button 
-            onClick={() => supabase.auth.signOut()} 
+            onClick={() => { if (isSupabaseConfigured) supabase.auth.signOut(); else setSession(null); }} 
             className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
           >
             Cerrar sesión
@@ -475,7 +497,7 @@ const App: React.FC = () => {
           <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Error de Perfil</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">No se pudo cargar tu perfil correctamente. Por favor, contacta al administrador.</p>
           <button 
-            onClick={() => supabase.auth.signOut()} 
+            onClick={() => { if (isSupabaseConfigured) supabase.auth.signOut(); else setSession(null); }} 
             className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
           >
             Cerrar sesión
@@ -592,7 +614,7 @@ const App: React.FC = () => {
                     <span className="text-xs lg:text-sm font-mono text-emerald-600 dark:text-emerald-400 font-black">+{config.laborPercentage}%</span>
                  </div>
                  <div className="pl-3 lg:pl-4 border-l border-slate-100 dark:border-slate-800">
-                   <button onClick={() => supabase.auth.signOut()} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-slate-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
+                   <button onClick={() => { if (isSupabaseConfigured) supabase.auth.signOut(); else setSession(null); }} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-slate-400 hover:text-red-500 transition-colors" title="Cerrar sesión">
                      <LogOut size={18} />
                    </button>
                  </div>

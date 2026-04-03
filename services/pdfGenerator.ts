@@ -170,6 +170,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const beadStyle = item.glazingBeadStyle || 'Recto';
 
             recipe.profiles.forEach(rp => {
+                if (rp.alternative && rp.alternative !== (mod.leafAlternative || 'A')) return;
                 let pDef = aluminum.find(a => a.id === rp.profileId); 
                 
                 // Lógica de Contravidrio Dinámico
@@ -482,6 +483,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const beadStyle = (item as any).glazingBeadStyle || 'Recto';
 
             recipe.profiles.forEach(rp => {
+                if (rp.alternative && rp.alternative !== (mod.leafAlternative || 'A')) return;
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
                 let p = aluminum.find(a => a.id === rp.profileId);
                 
@@ -691,7 +693,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                     const spec = 'TELA MOSQUITERA';
                     const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                     const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                    existing.qty += (item.quantity * numLeaves); 
+                    existing.qty += item.quantity; 
                     fillSummary.set(key, existing);
                 } else {
                     const gOuter = glasses.find(g => g.id === mod.glassOuterId);
@@ -701,7 +703,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                         const specOuter = gOuter?.detail || 'Vidrio (Ext)';
                         const keyOuter = `${specOuter}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                         const existingOuter = fillSummary.get(keyOuter) || { spec: specOuter, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                        existingOuter.qty += (item.quantity * numLeaves);
+                        existingOuter.qty += item.quantity;
                         fillSummary.set(keyOuter, existingOuter);
 
                         // Inner Glass
@@ -709,14 +711,14 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                         const specInner = gInner?.detail || 'Vidrio (Int)';
                         const keyInner = `${specInner}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                         const existingInner = fillSummary.get(keyInner) || { spec: specInner, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                        existingInner.qty += (item.quantity * numLeaves);
+                        existingInner.qty += item.quantity;
                         fillSummary.set(keyInner, existingInner);
                     } else {
                         // Single Glass
                         const spec = gOuter?.detail || 'VS';
                         const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
                         const existing = fillSummary.get(key) || { spec, w: Math.round(pane.w), h: Math.round(pane.h), qty: 0 };
-                        existing.qty += (item.quantity * numLeaves);
+                        existing.qty += item.quantity;
                         fillSummary.set(key, existing);
                     }
                 }
@@ -906,6 +908,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
             const beadStyle = item.glazingBeadStyle || 'Recto';
 
             recipe.profiles.forEach(rp => {
+                if (rp.alternative && rp.alternative !== (mod.leafAlternative || 'A')) return;
                 const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
                 let p = aluminum.find(a => a.id === rp.profileId);
                 

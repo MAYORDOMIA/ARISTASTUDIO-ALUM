@@ -285,7 +285,7 @@ export const calculateItemPrice = (
     if (!p) return true;
     
     // Filtro por alternativa
-    if (rp.alternative && leafAlternative && rp.alternative !== leafAlternative) return false;
+    if (rp.alternative && rp.alternative !== (leafAlternative || 'A')) return false;
 
     // Filtro estricto de Tapajuntas: Siempre se excluyen de la receta base 
     // para ser manejados por el cálculo centralizado de perímetro/lados activos.
