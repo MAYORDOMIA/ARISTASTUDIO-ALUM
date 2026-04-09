@@ -839,11 +839,54 @@ export const generateRecipeTechnicalPDF = (recipe: ProductRecipe, aluminum: Alum
     doc.setFillColor(30, 41, 59); doc.rect(0, 0, pageWidth, 40, 'F');
     doc.setTextColor(255); doc.setFontSize(18); doc.text('FICHA TÉCNICA DE INGENIERÍA', 15, 20);
     doc.setFontSize(10); doc.text(`SISTEMA: ${recipe.name} | LÍNEA: ${recipe.line}`, 15, 28);
+    
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
+    doc.text('1. PERFILES ESTRUCTURALES', 15, 50);
+    
     const profileData = recipe.profiles.map(rp => {
         const pDef = aluminum.find(a => a.id === rp.profileId);
         return [pDef?.code || 'S/D', pDef?.detail || 'Sin Detalle', rp.quantity, rp.formula, `${rp.cutStart}° / ${rp.cutEnd}°`];
     });
-    autoTable(doc, { startY: 50, head: [['CÓDIGO', 'DETALLE TÉCNICO', 'CANT', 'FÓRMULA', 'CORTES']], body: profileData, theme: 'grid', headStyles: { fillColor: [79, 70, 229] } });
+    autoTable(doc, { startY: 55, head: [['CÓDIGO', 'DETALLE TÉCNICO', 'CANT', 'FÓRMULA', 'CORTES']], body: profileData, theme: 'grid', headStyles: { fillColor: [79, 70, 229] } });
+    
+    let y = (doc as any).lastAutoTable.finalY + 15;
+    
+    doc.setFontSize(12); doc.text('2. DEDUCCIONES DE VIDRIO', 15, y);
+    autoTable(doc, { 
+        startY: y + 5, 
+        head: [['TIPO', 'ANCHO (Deducción)', 'ALTO (Deducción)']], 
+        body: [
+            ['Vidrio Simple (VS)', recipe.glassFormulaW || 0, recipe.glassFormulaH || 0],
+            ['Travesaño (VS)', recipe.transomGlassDeduction || 0, '-'],
+            ['DVH (Fórmula)', recipe.dvhFormulaW || 'N/A', recipe.dvhFormulaH || 'N/A'],
+            ['DVH Travesaño', recipe.dvhTransomGlassDeduction || 0, '-']
+        ], 
+        theme: 'grid', 
+        headStyles: { fillColor: [5, 150, 105] } 
+    });
+    
+    if (recipe.mosquiteroFormulaW || recipe.mosquiteroFormulaH) {
+        y = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(12); doc.text('4. DEDUCCIONES DE MOSQUITERO', 15, y);
+        autoTable(doc, {
+            startY: y + 5,
+            head: [['ANCHO (Fórmula)', 'ALTO (Fórmula)']],
+            body: [[recipe.mosquiteroFormulaW || 'N/A', recipe.mosquiteroFormulaH || 'N/A']],
+            theme: 'grid',
+            headStyles: { fillColor: [245, 158, 11] }
+        });
+    }
+    
+    y = (doc as any).lastAutoTable.finalY + 15;
+    
+    doc.setFontSize(12); doc.text('5. ACCESORIOS', 15, y);
+    const accData = recipe.accessories.map(ra => {
+        const acc = accessories.find(a => a.id === ra.accessoryId);
+        return [acc?.code || 'S/D', acc?.detail || 'Sin Detalle', ra.quantity, ra.isLinear ? 'ML' : 'UNID'];
+    });
+    autoTable(doc, { startY: y + 5, head: [['CÓDIGO', 'DETALLE', 'CANT', 'TIPO']], body: accData, theme: 'grid', headStyles: { fillColor: [220, 38, 38] } });
+
     doc.save(`Ficha_${recipe.name}.pdf`);
 };
 

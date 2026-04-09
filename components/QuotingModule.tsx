@@ -711,6 +711,7 @@ const QuotingModule: React.FC<Props> = ({
   const [colSizes, setColSizes] = useState<number[]>([1500]);
   const [rowSizes, setRowSizes] = useState<number[]>([1100]);
   
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [showBreakdownModal, setShowBreakdownModal] = useState(false);
   const [showCouplingModal, setShowCouplingModal] = useState(false);
@@ -1580,16 +1581,23 @@ const QuotingModule: React.FC<Props> = ({
 
       <div className="col-span-12 lg:col-span-8 xl:col-span-9 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-sm relative overflow-hidden flex items-center justify-center min-h-[400px] lg:min-h-[600px] transition-colors order-1 lg:order-2">
         <canvas ref={mainCanvasRef} width={2400} height={1800} className="w-full h-full max-h-[60vh] lg:max-h-[88vh] object-contain p-4 lg:p-12" />
-        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center p-4 lg:p-12">
             <div style={{ display: 'grid', gridTemplateColumns: (colSizes || []).map(s => `${s}fr`).join(' '), gridTemplateRows: (rowSizes || []).map(s => `${s}fr`).join(' '), aspectRatio: `${totalWidth || 1} / ${totalHeight || 1}`, width: '100%', height: '100%' }}>
                 {(modules || []).filter(mod => mod && typeof mod.x === 'number' && typeof mod.y === 'number').map(mod => (
-                    <div key={mod.id} className="relative pointer-events-auto group border-2 border-transparent hover:border-sky-600/20 hover:bg-sky-600/5 transition-all flex items-center justify-center">
-                        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-sky-900/10 dark:bg-sky-400/10 backdrop-blur-[2px]">
-                            <button onClick={() => {
-                                setEditingModuleId(mod.id);
-                                setModalPos({ x: 0, y: 0 });
-                            }} className="p-4 bg-sky-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
-                        </div>
+                    <div 
+                        key={mod.id} 
+                        onClick={() => setSelectedModuleId(mod.id)}
+                        className={`relative pointer-events-auto group border-2 transition-all flex items-center justify-center cursor-pointer ${selectedModuleId === mod.id ? 'border-sky-600 bg-sky-600/10' : 'border-transparent hover:border-sky-600/20 hover:bg-sky-600/5'}`}
+                    >
+                        {selectedModuleId === mod.id && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-sky-900/10 dark:bg-sky-400/10 backdrop-blur-[2px]">
+                                <button onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingModuleId(mod.id);
+                                    setModalPos({ x: 0, y: 0 });
+                                }} className="p-4 bg-sky-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

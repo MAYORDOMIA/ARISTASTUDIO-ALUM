@@ -378,6 +378,13 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                           <Plus size={16} /> DUPLICAR
                         </button>
                         <button 
+                          onClick={() => generateRecipeTechnicalPDF(recipe, aluminum, accessories, config)}
+                          className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+                          title="Descargar PDF"
+                        >
+                          <FileText size={16} /> PDF
+                        </button>
+                        <button 
                           onClick={handleSaveManual} 
                           className={`px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? 'bg-green-600 text-white border-green-700' : 'bg-sky-500 text-white border-sky-600 hover:bg-sky-400'}`}
                         >
