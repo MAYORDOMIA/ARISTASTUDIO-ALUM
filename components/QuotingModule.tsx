@@ -1589,15 +1589,13 @@ const QuotingModule: React.FC<Props> = ({
                         onClick={() => setSelectedModuleId(mod.id)}
                         className={`relative pointer-events-auto group border-2 transition-all flex items-center justify-center cursor-pointer ${selectedModuleId === mod.id ? 'border-sky-600 bg-sky-600/10' : 'border-transparent hover:border-sky-600/20 hover:bg-sky-600/5'}`}
                     >
-                        {selectedModuleId === mod.id && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-sky-900/10 dark:bg-sky-400/10 backdrop-blur-[2px]">
-                                <button onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingModuleId(mod.id);
-                                    setModalPos({ x: 0, y: 0 });
-                                }} className="p-4 bg-sky-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
-                            </div>
-                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-sky-900/0 group-hover:bg-sky-900/10 dark:group-hover:bg-sky-400/10 backdrop-blur-[0px] group-hover:backdrop-blur-[2px] transition-all opacity-0 group-hover:opacity-100">
+                            <button onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingModuleId(mod.id);
+                                setModalPos({ x: 0, y: 0 });
+                            }} className="p-4 bg-sky-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"><Settings size={18} /> Ingeniería</button>
+                        </div>
                     </div>
                 ))}
             </div>
