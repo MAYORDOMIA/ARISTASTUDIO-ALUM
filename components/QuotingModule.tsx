@@ -1587,9 +1587,9 @@ const QuotingModule: React.FC<Props> = ({
                     <div 
                         key={mod.id} 
                         onClick={() => setSelectedModuleId(mod.id)}
-                        className={`relative pointer-events-auto group border-2 transition-all flex items-center justify-center cursor-pointer ${selectedModuleId === mod.id ? 'border-sky-600 bg-sky-600/10' : 'border-transparent hover:border-sky-600/20 hover:bg-sky-600/5'}`}
+                        className="relative pointer-events-auto group transition-all flex items-center justify-center cursor-pointer"
                     >
-                        <div className="absolute inset-0 flex items-center justify-center bg-sky-900/0 group-hover:bg-sky-900/10 dark:group-hover:bg-sky-400/10 backdrop-blur-[0px] group-hover:backdrop-blur-[2px] transition-all opacity-0 group-hover:opacity-100">
+                        <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[0px] group-hover:backdrop-blur-[2px] transition-all opacity-0 group-hover:opacity-100">
                             <button onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingModuleId(mod.id);
