@@ -366,6 +366,11 @@ const App: React.FC = () => {
   const [activeQuoteItem, setActiveQuoteItem] = useState<QuoteItem | null>(null);
   const [currentRecipeName, setCurrentRecipeName] = useState<string | null>(null);
 
+  const handleEditQuote = (quote: Quote) => {
+    setCurrentWorkItems(quote.items);
+    setActiveTab('quoter');
+  };
+
   const openingName = useMemo(() => {
     if (activeTab === 'quoter' && currentRecipeName) return currentRecipeName;
     if (!activeQuoteItem || !activeQuoteItem.composition.modules.length) return null;
@@ -659,7 +664,7 @@ const App: React.FC = () => {
             />
           </div>
           <div className={activeTab === 'history' ? 'h-full' : 'hidden'}>
-            <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} blindPanels={blindPanels} />
+            <QuotesHistory quotes={quotes} setQuotes={setQuotes} config={config} recipes={recipes} aluminum={aluminum} accessories={accessories} glasses={glasses} dvhInputs={dvhInputs} treatments={treatments} blindPanels={blindPanels} onEditQuote={handleEditQuote} />
           </div>
           <div className={activeTab === 'admin' ? 'h-full' : 'hidden'}>
             <SuperAdminDashboard />

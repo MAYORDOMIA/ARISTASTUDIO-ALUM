@@ -26,6 +26,7 @@ import {
   generateGlassOptimizationPDF,
   generateCostsPDF
 } from '../services/pdfGenerator';
+import { calculateCompositePrice } from '../services/calculator';
 
 interface Props {
   quotes: Quote[];
@@ -38,10 +39,11 @@ interface Props {
   dvhInputs: DVHInput[];
   treatments: Treatment[];
   blindPanels: BlindPanel[];
+  onEditQuote: (quote: Quote) => void;
 }
 
 const QuotesHistory: React.FC<Props> = ({ 
-  quotes, setQuotes, config, recipes, aluminum, accessories, glasses, dvhInputs, treatments, blindPanels 
+  quotes, setQuotes, config, recipes, aluminum, accessories, glasses, dvhInputs, treatments, blindPanels, onEditQuote
 }) => {
   const [search, setSearch] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
@@ -172,6 +174,9 @@ const QuotesHistory: React.FC<Props> = ({
                 <button onClick={() => setSelectedQuote(null)} className="p-2 lg:p-3 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors bg-slate-50 dark:bg-slate-800 rounded-xl lg:rounded-2xl border-2 border-slate-200 dark:border-slate-700 shadow-sm">
                   <X size={18} />
                 </button>
+                <button onClick={() => onEditQuote(selectedQuote)} className="p-2 lg:p-3 text-sky-600 hover:text-white hover:bg-sky-600 transition-colors bg-sky-50 dark:bg-sky-900/20 rounded-xl lg:rounded-2xl border-2 border-sky-100 dark:border-sky-800 shadow-sm">
+                  Editar
+                </button>
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-4">
@@ -253,7 +258,41 @@ const QuotesHistory: React.FC<Props> = ({
                           <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono font-bold">{item.width} x {item.height} mm | {item.quantity} UNID.</div>
                         </div>
                       </div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white font-mono">${(item.calculatedCost * item.quantity).toLocaleString()}</div>
+                      <div className="flex items-center gap-4">
+                        <select className="text-[9px] font-black uppercase bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700" value={item.colorId} onChange={(e) => {
+                            const newColorId = e.target.value;
+                            const treatment = treatments.find(t => t.id === newColorId);
+                            if (!treatment) return;
+
+                            const updatedItems = selectedQuote.items.map(it => {
+                                if (it.id === item.id) {
+                                    const { finalPrice, breakdown } = calculateCompositePrice(
+                                        { ...it, colorId: newColorId },
+                                        recipes,
+                                        aluminum,
+                                        config,
+                                        treatment,
+                                        glasses,
+                                        accessories,
+                                        dvhInputs,
+                                        blindPanels,
+                                        it.glazingBeadStyle || 'Recto'
+                                    );
+                                    return { ...it, colorId: newColorId, calculatedCost: finalPrice, breakdown };
+                                }
+                                return it;
+                            });
+
+                            const subtotal = updatedItems.reduce((acc, it) => acc + (it.calculatedCost * it.quantity), 0);
+                            const totalPrice = Math.round(subtotal * (1 + config.taxRate / 100));
+                            const updatedQuote = {...selectedQuote, items: updatedItems, totalPrice};
+                            setSelectedQuote(updatedQuote);
+                            setQuotes(quotes.map(q => q.id === selectedQuote.id ? updatedQuote : q));
+                        }}>
+                            {treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                        <div className="text-xs font-black text-slate-900 dark:text-white font-mono">${(item.calculatedCost * item.quantity).toLocaleString()}</div>
+                      </div>
                     </div>
                   );
                 })}
