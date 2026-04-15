@@ -14,7 +14,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 interface Props {
   recipes: ProductRecipe[];
-  setRecipes: (recipes: ProductRecipe[]) => void;
+  setRecipes: (updater: ProductRecipe[] | ((prev: ProductRecipe[]) => ProductRecipe[])) => void;
   aluminum: AluminumProfile[];
   accessories: Accessory[];
   customVisualTypes: CustomVisualType[];

@@ -93,7 +93,14 @@ const App: React.FC = () => {
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [dvhInputs, setDvhInputs] = useState<DVHInput[]>([]);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
-  const [recipes, setRecipes] = useState<ProductRecipe[]>([]);
+  const [recipes, _setRecipes] = useState<ProductRecipe[]>([]);
+  const setRecipes = (updater: ProductRecipe[] | ((prev: ProductRecipe[]) => ProductRecipe[])) => {
+    _setRecipes(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      // Enforce uniqueness
+      return Array.from(new Map<string, ProductRecipe>(next.map(r => [r.id, r])).values());
+    });
+  };
   const [quotes, setQuotes] = useState<Quote[]>([]);
 
   useEffect(() => {
@@ -353,10 +360,11 @@ const App: React.FC = () => {
     ];
 
     setRecipes(prev => {
-      const existingNames = prev.map(r => r.name);
-      const missing = barandaRecipes.filter(r => !existingNames.includes(r.name));
-      if (missing.length === 0) return prev;
-      return [...prev, ...missing];
+      const uniqueRecipes = Array.from(new Map<string, ProductRecipe>(prev.map(r => [r.id, r])).values());
+      const existingIds = uniqueRecipes.map(r => r.id);
+      const missing = barandaRecipes.filter(r => !existingIds.includes(r.id));
+      if (missing.length === 0 && uniqueRecipes.length === prev.length) return prev;
+      return [...uniqueRecipes, ...missing];
     });
   }, [isDataLoaded]);
 
