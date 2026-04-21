@@ -197,7 +197,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 }
 
                 if (!pDef) return;
-                const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
+                const role = rp.role?.toLowerCase() || ''; if (role === 'travesaño') return;
                 
                 // Exclusión centralizada de Tapajuntas en el despiece de receta
                 const isTJ = role.includes('tapa') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
@@ -484,7 +484,7 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
 
             recipe.profiles.forEach(rp => {
                 if (rp.alternative && rp.alternative !== (mod.leafAlternative || 'A')) return;
-                const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
+                const role = rp.role?.toLowerCase() || ''; if (role === 'travesaño') return;
                 let p = aluminum.find(a => a.id === rp.profileId);
                 
                 // Lógica de Contravidrio Dinámico
@@ -952,7 +952,7 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
 
             recipe.profiles.forEach(rp => {
                 if (rp.alternative && rp.alternative !== (mod.leafAlternative || 'A')) return;
-                const role = rp.role?.toLowerCase() || ''; if (role.includes('trave')) return;
+                const role = rp.role?.toLowerCase() || ''; if (role === 'travesaño') return;
                 let p = aluminum.find(a => a.id === rp.profileId);
                 
                 // Lógica de Contravidrio Dinámico

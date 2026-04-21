@@ -69,6 +69,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
+  const lastSavedData = React.useRef<string | null>(null);
   
   const [config, setConfig] = useState<GlobalConfig>({
     aluminumPricePerKg: 15.0,
@@ -397,44 +398,31 @@ const App: React.FC = () => {
     if (!isDataLoaded || !session?.user?.id) return;
 
     const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems };
-    setIsSaving(true);
-    
     const timer = setTimeout(async () => {
       try {
-        // Guardado local
-        const storageKey = 'maicol_engine_data_data_v2';
         const stringified = JSON.stringify(data);
-        localStorage.setItem(storageKey, stringified);
+        
+        // Guardado local
+        localStorage.setItem('maicol_engine_data_data_v2', stringified);
 
-        // Guardado en la nube (Supabase)
-        if (isSupabaseConfigured) {
+        // Guardado en la nube (Supabase) - Solo si cambió
+        if (isSupabaseConfigured && stringified !== lastSavedData.current) {
+          setIsSaving(true);
           const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
           
           if (error) {
             console.error("Error al guardar en la nube (Supabase):", error);
+          } else {
+            lastSavedData.current = stringified; // Actualiza el tracking
           }
         }
       } catch (e) {
         console.error("Error crítico en persistencia:", e);
-        try {
-            const cleanedQuotes = quotes.map((q, idx) => ({
-                ...q,
-                items: q.items.map(item => ({
-                    ...item,
-                    previewImage: idx < 5 ? item.previewImage : undefined
-                }))
-            }));
-            const cleanedData = { ...data, quotes: cleanedQuotes };
-            localStorage.setItem('maicol_engine_data_data_v2', JSON.stringify(cleanedData));
-            if (isSupabaseConfigured) {
-              await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
-            }
-        } catch (retryError) {
-            console.error("Fallo crítico de almacenamiento en reintento:", retryError);
-        }
+      } finally {
+        setIsSaving(false);
       }
-      setIsSaving(false);
-    }, 1500);
+    }, 2000); // Aumentar a 2 segundos para mayor robustez
+
     return () => clearTimeout(timer);
   }, [aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems, isDataLoaded, session]);
 

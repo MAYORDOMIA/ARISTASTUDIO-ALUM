@@ -442,7 +442,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                         <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-slate-50/50 dark:bg-slate-800/30 p-2 rounded-xl border border-slate-100 dark:border-slate-700 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-sky-100">
                             <div className="col-span-2">
                                 <select className="w-full bg-transparent text-[9px] font-black uppercase outline-none dark:text-white" value={rp.role || 'Marco'} onChange={e => { const updated = [...recipe.profiles]; updated[idx].role = e.target.value as any; updateRecipe(recipe.id, { profiles: updated }); }}>
-                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Tapajuntas', 'Mosquitero', 'Contravidrio', 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
+                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Tapajuntas', 'Mosquitero', 'Contravidrio', ...((recipe.profiles.some(p => p.role === 'Travesaño') ? ['ContravidrioTravesaño'] : []) as any[]), 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
                                 </select>
                             </div>
                             <div className="col-span-2">
@@ -476,7 +476,7 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                                         <button key={deg} onClick={() => { const updated = [...recipe.profiles]; updated[idx].cutEnd = deg as any; updateRecipe(recipe.id, { profiles: updated }); }} className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutEnd === deg ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400'}`}>{deg}°</button>
                                     ))}
                                 </div>
-                                {rp.role === 'Contravidrio' && (
+                                { (rp.role === 'Contravidrio' || rp.role === 'ContravidrioTravesaño') && (
                                     <div className="relative group/bead">
                                         <button 
                                             onClick={() => {

@@ -105,7 +105,7 @@ export interface RecipeProfile {
   formula: string; 
   cutStart: '45' | '90';
   cutEnd: '45' | '90';
-  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Tapajuntas' | 'Mosquitero' | 'Contravidrio' | 'Otro';
+  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Tapajuntas' | 'Mosquitero' | 'Contravidrio' | 'ContravidrioTravesaño' | 'Otro';
   alternative?: 'A' | 'B';
   
   // Para contravidrios dinámicos: lista de IDs de perfiles compatibles
