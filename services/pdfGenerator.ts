@@ -1269,7 +1269,7 @@ export const generateGlassOptimizationPDF = (quote: Quote, recipes: ProductRecip
                 if (h > curShelfH) curShelfH = h;
             } else {
                 // Si después de todo no cabe, esto no debería pasar con una plancha suficientemente grande
-                console.error("Pieza no cabe en la plancha", p);
+                console.error("Pieza no cabe en la plancha (info):", JSON.stringify(p));
             }
         });
         sheets.forEach((sheetPieces, sIdx) => {

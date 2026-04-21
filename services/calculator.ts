@@ -18,7 +18,7 @@ export const evaluateFormula = (formula: string, W: number, H: number): number =
     const result = new Function(`return ${cleanFormula}`)();
     return isFinite(result) ? result : 0;
   } catch (e) {
-    console.error("Error parsing formula:", formula, e);
+    console.error("Error parsing formula (msg):", formula, (e as any)?.message || e);
     return 0;
   }
 };

@@ -37,7 +37,7 @@ const Auth: React.FC = () => {
           ]);
           
           if (profileError) {
-            console.error('Error al crear el perfil (puede requerir trigger SQL):', profileError);
+            console.error('Error al crear el perfil (msg):', profileError?.message || profileError);
           }
         }
         

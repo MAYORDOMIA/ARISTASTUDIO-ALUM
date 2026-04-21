@@ -201,8 +201,11 @@ const DatabaseCRUD: React.FC<Props> = ({
       alert("¡Base de datos sincronizada exitosamente desde Google Drive!");
       setShowDriveModal(false);
     } catch (error: any) {
-      console.error(error);
-      alert("Error al sincronizar: " + error.message);
+      console.error("Error al sincronizar Drive (msg):", error?.message || error);
+      const errorMessage = error.message === 'Failed to fetch' 
+        ? "Error de conexión: El navegador bloqueó la solicitud (posiblemente por políticas de CORS). Asegúrate de que el archivo es público o utiliza el botón 'Importar' para subir el archivo descargado manualmente." 
+        : "Error al sincronizar: " + error.message;
+      alert(errorMessage);
     } finally {
       setSyncingDrive(false);
     }

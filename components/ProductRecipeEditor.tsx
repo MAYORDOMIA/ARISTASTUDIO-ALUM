@@ -276,8 +276,8 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
                 setRecipes([...recipes, ...mappedRecipes]); 
                 alert("Importación exitosa. Todos los perfiles y accesorios fueron vinculados correctamente.");
             }
-        } catch (err) { 
-            console.error(err);
+        } catch (err: any) { 
+            console.error("Error al importar librería (msg):", err?.message || err);
             alert("Error al importar librería. El archivo podría estar corrupto."); 
         }
         if (importFileRef.current) importFileRef.current.value = '';

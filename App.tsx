@@ -69,7 +69,6 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('quoter');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
-  const lastSavedData = React.useRef<string | null>(null);
   
   const [config, setConfig] = useState<GlobalConfig>({
     aluminumPricePerKg: 15.0,
@@ -112,7 +111,7 @@ const App: React.FC = () => {
         try {
           hydrateData(JSON.parse(localData));
         } catch (e) {
-          console.error("Error parsing local data", e);
+          console.error("Error parsing local data (msg):", (e as any)?.message || e);
         }
       }
       setIsDataLoaded(true);
@@ -200,7 +199,7 @@ const App: React.FC = () => {
     const { data: currentUserProfile, error: userError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     
     if (userError) {
-        console.error("Error fetching user profile:", userError);
+        console.error("Error fetching user profile (code/msg):", userError?.message || userError);
     }
     console.log("Current user profile:", currentUserProfile);
 
@@ -208,7 +207,7 @@ const App: React.FC = () => {
     const { data: adminProfile, error: adminError } = await supabase.from('profiles').select('*').eq('email', 'aristastudiouno@gmail.com').single();
     
     if (adminError) {
-        console.error("Error fetching admin profile:", adminError);
+        console.error("Error fetching admin profile (code/msg):", adminError?.message || adminError);
     }
     console.log("Admin profile:", adminProfile);
 
@@ -287,7 +286,7 @@ const App: React.FC = () => {
         const { error } = await supabase.from('profiles').update({ registered_devices: newDevices }).eq('id', profileData.id);
         
         if (error) {
-          console.error("Error al registrar el dispositivo en la base de datos:", error);
+          console.error("Error al registrar el dispositivo en la base de datos (code/msg):", error?.message || error);
           alert("Hubo un problema al registrar tu dispositivo. Por favor, contacta al administrador.");
           if (isSupabaseConfigured) await supabase.auth.signOut();
           else setSession(null);
@@ -398,31 +397,44 @@ const App: React.FC = () => {
     if (!isDataLoaded || !session?.user?.id) return;
 
     const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems };
+    setIsSaving(true);
+    
     const timer = setTimeout(async () => {
       try {
-        const stringified = JSON.stringify(data);
-        
         // Guardado local
-        localStorage.setItem('maicol_engine_data_data_v2', stringified);
+        const storageKey = 'maicol_engine_data_data_v2';
+        const stringified = JSON.stringify(data);
+        localStorage.setItem(storageKey, stringified);
 
-        // Guardado en la nube (Supabase) - Solo si cambió
-        if (isSupabaseConfigured && stringified !== lastSavedData.current) {
-          setIsSaving(true);
+        // Guardado en la nube (Supabase)
+        if (isSupabaseConfigured) {
           const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
           
           if (error) {
-            console.error("Error al guardar en la nube (Supabase):", error);
-          } else {
-            lastSavedData.current = stringified; // Actualiza el tracking
+            console.error("Error al guardar en la nube (Supabase) (code/msg):", error?.message || error);
           }
         }
-      } catch (e) {
-        console.error("Error crítico en persistencia:", e);
-      } finally {
-        setIsSaving(false);
+      } catch (e: any) {
+        console.error("Error crítico en persistencia (msg):", e?.message || e);
+        try {
+            const cleanedQuotes = quotes.map((q, idx) => ({
+                ...q,
+                items: q.items.map(item => ({
+                    ...item,
+                    previewImage: idx < 5 ? item.previewImage : undefined
+                }))
+            }));
+            const cleanedData = { ...data, quotes: cleanedQuotes };
+            localStorage.setItem('maicol_engine_data_data_v2', JSON.stringify(cleanedData));
+            if (isSupabaseConfigured) {
+              await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
+            }
+        } catch (retryError: any) {
+            console.error("Fallo crítico de almacenamiento en reintento (msg):", retryError?.message || retryError);
+        }
       }
-    }, 2000); // Aumentar a 2 segundos para mayor robustez
-
+      setIsSaving(false);
+    }, 1500);
     return () => clearTimeout(timer);
   }, [aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems, isDataLoaded, session]);
 

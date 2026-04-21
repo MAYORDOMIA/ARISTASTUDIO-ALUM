@@ -82,8 +82,8 @@ const QuotesHistory: React.FC<Props> = ({
           generateCostsPDF(quote, config, recipes, aluminum);
           break;
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Error al generar el reporte técnico (msg):", error?.message || error);
       alert("Error al generar el reporte técnico.");
     }
   };
