@@ -1,9 +1,10 @@
 
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIcon, Palette, Droplets, Thermometer, Box, AlertTriangle, Info } from 'lucide-react';
-import { AluminumProfile, Glass, BlindPanel, Accessory, DVHInput, Treatment, GlobalConfig } from '../types';
+import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIcon, Palette, Droplets, Thermometer, Box, AlertTriangle, Info, ShieldCheck, Zap } from 'lucide-react';
+import { AluminumProfile, Glass, BlindPanel, Accessory, DVHInput, Treatment, GlobalConfig, ProductRecipe, Quote } from '../types';
 import { DATABASE_TABS } from '../constants';
 import * as XLSX from 'xlsx';
+import { migrateAppDataToTables } from '../src/services/migrationService';
 
 interface Props {
   aluminum: AluminumProfile[];
@@ -20,6 +21,11 @@ interface Props {
   setTreatments: (data: Treatment[]) => void;
   config: GlobalConfig;
   setConfig: (config: GlobalConfig) => void;
+  session: any;
+  isMigrated: boolean;
+  setIsMigrated: (val: boolean) => void;
+  recipes: ProductRecipe[];
+  quotes: Quote[];
 }
 
 const DatabaseCRUD: React.FC<Props> = ({ 
@@ -28,13 +34,60 @@ const DatabaseCRUD: React.FC<Props> = ({
   blindPanels, setBlindPanels,
   accessories, setAccessories, 
   dvhInputs, setDvhInputs, 
-  treatments, setTreatments 
+  treatments, setTreatments,
+  session, isMigrated, setIsMigrated,
+  recipes, quotes
 }) => {
   const [activeSubTab, setActiveSubTab] = useState('aluminum');
   const [search, setSearch] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filter = (val: any) => String(val || '').toLowerCase().includes(search.toLowerCase());
+
+  const handleStartMigration = async () => {
+    alert("¡Boton presionado! Iniciando validación...");
+    console.log("Migration button clicked - Start");
+    
+    if (!session?.user?.id) {
+      console.error("No session ID");
+      alert("Error: No se encontró ID de usuario.");
+      return;
+    }
+    
+    console.log("Session verified:", session.user.id);
+    
+    const confirmed = confirm("ADVERTENCIA: Vas a migrar tus datos a la nueva arquitectura relacional. Esto mejorará drásticamente la velocidad y estabilidad. ¿Deseas continuar?");
+    if (!confirmed) {
+      console.log("Migration cancelled by user");
+      return;
+    }
+    
+    console.log("Starting migration process...");
+    setIsMigrating(true);
+    alert("Procesando migración... por favor espera unos segundos.");
+    const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, quotes };
+    console.log("Payload prepared:", Object.keys(data));
+    
+    try {
+      const result = await migrateAppDataToTables(session.user.id, data);
+      console.log("Migration result:", result);
+      
+      if (result.success) {
+        alert("¡MIGRACIÓN COMPLETADA! Ahora tu aplicación funciona con tablas dedicadas.");
+        setIsMigrated(true);
+        window.location.reload();
+      } else {
+        console.error("Migration failed with errors:", result.errors);
+        alert("Error en la migración: " + (result.errors?.join(", ") || "Error desconocido"));
+      }
+    } catch (err: any) {
+      console.error("Critical error during migration:", err);
+      alert("Error crítico durante la migración: " + (err.message || String(err)));
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   // MAPEADOR TÉCNICO DE CABECERAS (Normaliza variaciones de Excel)
   const normalizeKey = (key: string): string => {
@@ -104,6 +157,52 @@ const DatabaseCRUD: React.FC<Props> = ({
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportTreat), "Pinturas");
     
     XLSX.writeFile(wb, `BACKUP_ARISTA_SISTEMAS_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleExportToJSON = () => {
+    const backupData = {
+      aluminum,
+      glasses,
+      blindPanels,
+      accessories,
+      dvhInputs,
+      treatments,
+      // Note: In DatabaseCRUD we don't have access to all state, but we can export what we have
+      version: "2.0",
+      timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `RESPALDO_TECNICO_ARISTA_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFromJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const imported = JSON.parse(evt.target?.result as string);
+        if (imported.aluminum) setAluminum(imported.aluminum);
+        if (imported.glasses) setGlasses(imported.glasses);
+        if (imported.blindPanels) setBlindPanels(imported.blindPanels);
+        if (imported.accessories) setAccessories(imported.accessories);
+        if (imported.dvhInputs) setDvhInputs(imported.dvhInputs);
+        if (imported.treatments) setTreatments(imported.treatments);
+        
+        alert("Restauración de Respaldo JSON completada con éxito.");
+      } catch (err) {
+        alert("Error al procesar el archivo de respaldo JSON.");
+      }
+    };
+    reader.readAsText(file);
   };
 
   const [syncingDrive, setSyncingDrive] = useState(false);
@@ -463,20 +562,46 @@ const DatabaseCRUD: React.FC<Props> = ({
             </button>
             <input type="file" ref={fileInputRef} onChange={handleImportFromExcel} className="hidden" accept=".xlsx,.xls" />
             <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sky-600 transition-all shadow-sm">
-                <Upload size={14} /> Importar
+                <Upload size={14} /> Importar Excel
             </button>
-            <button onClick={handleExportToExcel} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-900 dark:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-xl active:scale-95">
-                <Download size={14} /> Backup
+            <button onClick={handleExportToExcel} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all shadow-sm">
+                <Download size={14} /> Excel
+            </button>
+            <button onClick={handleExportToJSON} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-900 dark:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-xl active:scale-95">
+                <Download size={14} /> Backup JSON
+            </button>
+            <input type="file" id="json-restore" className="hidden" accept=".json" onChange={handleImportFromJSON} />
+            <button onClick={() => document.getElementById('json-restore')?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                <Upload size={14} /> Restaurar JSON
             </button>
         </div>
       </div>
 
-      <div className="bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 p-4 rounded-2xl flex gap-4 items-center">
-        <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg"><Info size={20} /></div>
-        <div className="flex flex-col">
-            <p className="text-[10px] font-black text-sky-900 dark:text-sky-300 uppercase tracking-widest leading-none">Terminal de Sincronización Industrial</p>
-            <p className="text-[9px] font-bold text-sky-600/70 dark:text-sky-400/50 uppercase mt-1">La tabla Accesorios está configurada con: Código | Descripción | Costo</p>
+      <div className="bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex gap-4 items-center">
+          <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg"><Info size={20} /></div>
+          <div className="flex flex-col">
+              <p className="text-[10px] font-black text-sky-900 dark:text-sky-300 uppercase tracking-widest leading-none">Terminal de Sincronización Industrial</p>
+              <p className="text-[9px] font-bold text-sky-600/70 dark:text-sky-400/50 uppercase mt-1">
+                {isMigrated ? 'Arquitectura Relacional Activa (Alta Velocidad)' : 'Advertencia: Usando Arquitectura Mono-Celda (Riesgo de bloqueo)'}
+              </p>
+          </div>
         </div>
+        {!isMigrated && (
+          <div className="flex flex-col items-end gap-2">
+            <button 
+              onClick={handleStartMigration}
+              disabled={isMigrating}
+              className="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+            >
+              {isMigrating ? <Zap size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+              {isMigrating ? 'Migrando...' : 'Iniciar Migración Profesional'}
+            </button>
+            <span className="text-[8px] text-slate-400 uppercase font-bold tracking-tighter">
+              ID: {session?.user?.id?.substring(0, 8) || 'SIN SESIÓN'} | M: {String(isMigrated)}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] overflow-hidden shadow-sm transition-colors">

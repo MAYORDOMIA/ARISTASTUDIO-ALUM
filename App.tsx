@@ -27,6 +27,10 @@ import {
   LogOut,
   MonitorOff
 } from 'lucide-react';
+import { DATABASE_TABS } from './constants';
+import * as XLSX from 'xlsx';
+import { migrateAppDataToTables } from './src/services/migrationService';
+
 import { 
   GlobalConfig, 
   AluminumProfile, 
@@ -102,6 +106,7 @@ const App: React.FC = () => {
     });
   };
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [isMigrated, setIsMigrated] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -193,64 +198,153 @@ const App: React.FC = () => {
     if (parsed.currentWorkItems) setCurrentWorkItems(parsed.currentWorkItems);
   };
 
+  const fetchFromTables = async (userId: string) => {
+    console.log("Intentando cargar datos desde tablas relacionales...");
+    try {
+      const [
+        { data: alu },
+        { data: gls },
+        { data: acc },
+        { data: dvh },
+        { data: trt },
+        { data: bld },
+        { data: rec },
+        { data: quo }
+      ] = await Promise.all([
+        supabase.from('aluminum_inventory').select('*').eq('user_id', userId),
+        supabase.from('glass_inventory').select('*').eq('user_id', userId),
+        supabase.from('accessory_inventory').select('*').eq('user_id', userId),
+        supabase.from('dvh_inventory').select('*').eq('user_id', userId),
+        supabase.from('treatment_inventory').select('*').eq('user_id', userId),
+        supabase.from('panel_inventory').select('*').eq('user_id', userId),
+        supabase.from('recipes').select('*').eq('user_id', userId),
+        supabase.from('quotes').select('*').eq('user_id', userId)
+      ]);
+
+      return {
+        aluminum: alu?.map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, isGlazingBead: x.is_glazing_bead, glazingBeadStyle: x.glazing_bead_style, minGlassThickness: x.min_glass_thickness, maxGlassThickness: x.max_glass_thickness })),
+        glasses: gls?.map(x => ({ ...x, pricePerM2: x.price_per_m2, isMirror: x.is_mirror })),
+        accessories: acc?.map(x => ({ ...x, unitPrice: x.unit_price })),
+        dvhInputs: dvh?.map(x => ({ ...x })),
+        treatments: trt?.map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color })),
+        blindPanels: bld?.map(x => ({ ...x })),
+        recipes: rec?.map(x => x.data),
+        quotes: quo?.map(x => x.data)
+      };
+    } catch (e) {
+      console.error("Fallo al consultar tablas relacionales:", e);
+      return null;
+    }
+  };
+
   const fetchProfile = async (user: any) => {
     console.log("Fetching profile for user:", user.id);
-    // 1. Obtener perfil del usuario actual para permisos
-    const { data: currentUserProfile, error: userError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    
-    if (userError) {
-        console.error("Error fetching user profile (code/msg):", userError?.message || userError);
-    }
-    console.log("Current user profile:", currentUserProfile);
-
-    // 2. Obtener perfil del administrador para datos compartidos
-    const { data: adminProfile, error: adminError } = await supabase.from('profiles').select('*').eq('email', 'aristastudiouno@gmail.com').single();
-    
-    if (adminError) {
-        console.error("Error fetching admin profile (code/msg):", adminError?.message || adminError);
-    }
-    console.log("Admin profile:", adminProfile);
-
-    if (currentUserProfile) {
-      let dataToHydrate;
+    try {
+      // Optimizamos: Primero solo pedimos el flag de migración para evitar descargar el JSON pesado si no es necesario
+      const { data: profileCheck, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, is_migrated, email')
+        .eq('id', user.id)
+        .single();
       
-      // Si el usuario es el administrador, siempre usa sus propios datos
-      if (currentUserProfile.email === 'aristastudiouno@gmail.com') {
-          dataToHydrate = currentUserProfile.app_data || {};
-      } 
-      // Si el usuario no es admin y no tiene datos (es nuevo), copia los del admin
-      else if (!currentUserProfile.app_data || Object.keys(currentUserProfile.app_data).length === 0) {
-          dataToHydrate = adminProfile?.app_data || {};
-          // Guardar la copia inicial en su perfil
-          await supabase.from('profiles').update({ app_data: dataToHydrate }).eq('id', user.id);
-      } 
-      // Si ya tiene datos, usa los suyos (independencia)
-      else {
-          dataToHydrate = currentUserProfile.app_data;
+      if (checkError) {
+          console.error("Error checking profile status:", checkError.message);
       }
-      
-      hydrateData(dataToHydrate);
-      setIsDataLoaded(true);
-      checkDeviceAccess(currentUserProfile);
-    } else {
-      // Auto-crear el perfil si no existe
-      const adminData = adminProfile?.app_data || {};
-      const { data: newProfile } = await supabase.from('profiles').insert([
-        { 
-          id: user.id, 
-          email: user.email, 
-          is_active: user.email === 'aristastudiouno@gmail.com',
-          max_devices: 1,
-          registered_devices: [],
-          app_data: adminData
-        }
-      ]).select().single();
-      
-      hydrateData(adminData);
-      setIsDataLoaded(true);
 
-      if (newProfile) checkDeviceAccess(newProfile);
-      else setAuthLoading(false);
+      const { data: adminProfile } = await supabase.from('profiles').select('app_data').eq('email', 'aristastudiouno@gmail.com').single();
+
+      if (profileCheck) {
+        setIsMigrated(!!profileCheck.is_migrated);
+        let dataToHydrate;
+        
+        if (profileCheck.is_migrated) {
+            // Ya está migrado, cargamos desde las tablas ligeras
+            dataToHydrate = await fetchFromTables(user.id);
+            
+            // EMERGENCY RECOVERY: Si está migrado pero las tablas están VACÍAS, intentamos recuperar del local storage
+            const hasCloudData = (dataToHydrate?.aluminum?.length || 0) > 0 || (dataToHydrate?.recipes?.length || 0) > 0;
+            const localRaw = localStorage.getItem('maicol_engine_data_data_v2');
+            
+            if (!hasCloudData && localRaw) {
+               console.warn("RESCATE DINÁMICO: Base de datos vacía pero detectado respaldo local. Iniciando recuperación...");
+               try {
+                 const localBackup = JSON.parse(localRaw);
+                 if (localBackup.aluminum?.length > 0 || localBackup.recipes?.length > 0) {
+                   await migrateAppDataToTables(user.id, localBackup);
+                   dataToHydrate = await fetchFromTables(user.id);
+                   console.log("¡Rescate local completado con éxito!");
+                 }
+               } catch (e) {
+                 console.error("Fallo al intentar rescate local:", e);
+               }
+            }
+
+            if (dataToHydrate) {
+                // Solo pedimos app_data si necesitamos el config (que vive ahí temporalmente)
+                const { data: profileData } = await supabase.from('profiles').select('app_data').eq('id', user.id).single();
+                dataToHydrate.config = profileData?.app_data?.config || adminProfile?.app_data?.config;
+                dataToHydrate.customVisualTypes = profileData?.app_data?.customVisualTypes || [];
+                dataToHydrate.currentWorkItems = profileData?.app_data?.currentWorkItems || [];
+            }
+        } else {
+            // NO está migrado, AQUÍ es donde descargamos el JSON pesado solo una última vez
+            console.log("Descargando datos legacy para iniciar migración...");
+            const { data: fullProfile } = await supabase.from('profiles').select('app_data').eq('id', user.id).single();
+            
+            if (profileCheck.email === 'aristastudiouno@gmail.com') {
+                dataToHydrate = fullProfile?.app_data || {};
+            } 
+            else if (!fullProfile?.app_data || Object.keys(fullProfile.app_data).length === 0) {
+                dataToHydrate = adminProfile?.app_data || {};
+                await supabase.from('profiles').update({ app_data: dataToHydrate }).eq('id', user.id);
+            } 
+            else {
+                dataToHydrate = fullProfile.app_data;
+            }
+
+            // Iniciamos migración automática con estos datos
+            if (dataToHydrate && (dataToHydrate.aluminum?.length > 0 || dataToHydrate.recipes?.length > 0)) {
+                migrateAppDataToTables(user.id, dataToHydrate).then(res => {
+                    if (res.success) {
+                        setIsMigrated(true);
+                        alert("¡Migración técnica completada! Activando nueva base de datos...");
+                        window.location.reload();
+                    }
+                });
+            }
+        }
+        
+        if (dataToHydrate) hydrateData(dataToHydrate);
+        setIsDataLoaded(true);
+        checkDeviceAccess(profileCheck);
+      } else {
+        // Auto-crear el perfil si no existe (mantenemos lógica original)
+        const adminData = adminProfile?.app_data || {};
+        const { data: newProfile } = await supabase.from('profiles').insert([
+          { 
+            id: user.id, 
+            email: user.email, 
+            is_active: user.email === 'aristastudiouno@gmail.com',
+            max_devices: 1,
+            registered_devices: [],
+            app_data: adminData
+          }
+        ]).select().single();
+        
+        hydrateData(adminData);
+        setIsDataLoaded(true);
+
+        if (newProfile) checkDeviceAccess(newProfile);
+        else setAuthLoading(false);
+      }
+    } catch (err: any) {
+      if (err.message?.includes('Failed to fetch')) {
+        console.error("Error de red detectado. Reintentando...");
+        setTimeout(() => fetchProfile(user), 3000);
+      } else {
+        console.error("Error fatal:", err);
+        setAuthLoading(false);
+      }
     }
   };
 
@@ -394,7 +488,12 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!isDataLoaded || !session?.user?.id) return;
+    // No guardar si: no hay datos, no hay sesion, o estamos migrando
+    if (!isDataLoaded || !session?.user?.id || isMigrated === false && aluminum.length > 0) {
+      // Si no estamos migrados y tenemos datos, el auto-migrador se encagará.
+      // No intentamos guardar el bloque JSON gigante que causa el TIMEOUT.
+      return;
+    }
 
     const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems };
     setIsSaving(true);
@@ -404,14 +503,129 @@ const App: React.FC = () => {
         // Guardado local
         const storageKey = 'maicol_engine_data_data_v2';
         const stringified = JSON.stringify(data);
+        const dataSizeMB = stringified.length / (1024 * 1024);
+        
+        // Arquitectura Defensiva: No intentar guardar si el objeto es peligrosamente grande para una sola celda
+        if (dataSizeMB > 5) {
+          console.error(`DETENCIÓN DE SEGURIDAD: El tamaño de los datos (${dataSizeMB.toFixed(2)} MB) excede el límite de seguridad para guardado atómico único.`);
+          alert(`ADVERTENCIA CRÍTICA: Los datos actuales son demasiado grandes (${dataSizeMB.toFixed(2)} MB). \n\nPara evitar que pierdas información o bloquees tu cuenta, se ha suspendido el guardado automático en la nube. \n\nPor favor, contacta a soporte para iniciar la migración profesional a tablas relacionales.`);
+          setIsSaving(false);
+          return;
+        }
+
         localStorage.setItem(storageKey, stringified);
 
         // Guardado en la nube (Supabase)
         if (isSupabaseConfigured) {
-          const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
-          
-          if (error) {
-            console.error("Error al guardar en la nube (Supabase) (code/msg):", error?.message || error);
+          if (isMigrated) {
+            // Guardado Profesional - Por Tablas
+            await Promise.all([
+               supabase.from('profiles').update({ app_data: { config, customVisualTypes, currentWorkItems } }).eq('id', session.user.id),
+               // Para inventarios, por simplicidad en esta fase, reemplazamos todo.
+               (async () => {
+                 await supabase.from('aluminum_inventory').delete().eq('user_id', session.user.id);
+                 if (aluminum.length > 0) await supabase.from('aluminum_inventory').insert(aluminum.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   code: x.code, 
+                   detail: x.detail, 
+                   weight_per_meter: x.weightPerMeter, 
+                   bar_length: x.barLength, 
+                   thickness: x.thickness, 
+                   treatment_cost: x.treatmentCost, 
+                   is_glazing_bead: x.isGlazingBead, 
+                   glazing_bead_style: x.glazingBeadStyle,
+                   min_glass_thickness: x.minGlassThickness, 
+                   max_glass_thickness: x.maxGlassThickness 
+                 })));
+               })(),
+               (async () => {
+                 await supabase.from('glass_inventory').delete().eq('user_id', session.user.id);
+                 if (glasses.length > 0) await supabase.from('glass_inventory').insert(glasses.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   code: x.code, 
+                   detail: x.detail, 
+                   width: x.width, 
+                   height: x.height, 
+                   thickness: x.thickness, 
+                   price_per_m2: x.pricePerM2, 
+                   is_mirror: x.isMirror 
+                 })));
+               })(),
+               (async () => {
+                 await supabase.from('accessory_inventory').delete().eq('user_id', session.user.id);
+                 if (accessories.length > 0) await supabase.from('accessory_inventory').insert(accessories.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   code: x.code, 
+                   detail: x.detail, 
+                   unit_price: x.unitPrice 
+                 })));
+               })(),
+               (async () => {
+                 await supabase.from('dvh_inventory').delete().eq('user_id', session.user.id);
+                 if (dvhInputs.length > 0) await supabase.from('dvh_inventory').insert(dvhInputs.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   type: x.type, 
+                   detail: x.detail, 
+                   thickness: x.thickness, 
+                   cost: x.cost 
+                 })));
+               })(),
+               (async () => {
+                 await supabase.from('treatment_inventory').delete().eq('user_id', session.user.id);
+                 if (treatments.length > 0) await supabase.from('treatment_inventory').insert(treatments.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   name: x.name, 
+                   price_per_kg: x.pricePerKg, 
+                   hex_color: x.hexColor 
+                 })));
+               })(),
+               (async () => {
+                 await supabase.from('panel_inventory').delete().eq('user_id', session.user.id);
+                 if (blindPanels.length > 0) await supabase.from('panel_inventory').insert(blindPanels.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   code: x.code, 
+                   detail: x.detail, 
+                   price: x.price, 
+                   unit: x.unit 
+                 })));
+               })(),
+               (async () => {
+                 await supabase.from('recipes').delete().eq('user_id', session.user.id);
+                 if (recipes.length > 0) await supabase.from('recipes').insert(recipes.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   name: x.name, 
+                   data: x 
+                 })));
+               })(),
+               (async () => {
+                 await supabase.from('quotes').delete().eq('user_id', session.user.id);
+                 if (quotes.length > 0) await supabase.from('quotes').insert(quotes.map(x => ({ 
+                   id: x.id,
+                   user_id: session.user.id, 
+                   customer_name: x.customerName, 
+                   data: x 
+                 })));
+               })()
+            ]);
+            console.log("Datos guardados en tablas relacionales.");
+          } else {
+            // Guardado Legacy - Mono-Celda (Con protección de tamaño y reintentos)
+            console.log("Intentando guardado legacy (JSON bloque)...");
+            const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
+            if (error) {
+              if (error.message.includes("timeout")) {
+                console.error("TIMEOUT detectado en guardado legacy. Los datos son demasiado grandes para guardarse en un solo bloque.");
+              } else {
+                console.error("Error al guardar en la nube (Supabase) (code/msg):", error?.message || error);
+              }
+            }
           }
         }
       } catch (e: any) {
@@ -425,9 +639,15 @@ const App: React.FC = () => {
                 }))
             }));
             const cleanedData = { ...data, quotes: cleanedQuotes };
-            localStorage.setItem('maicol_engine_data_data_v2', JSON.stringify(cleanedData));
-            if (isSupabaseConfigured) {
+            const cleanedStringified = JSON.stringify(cleanedData);
+            const cleanedSizeMB = cleanedStringified.length / (1024 * 1024);
+
+            localStorage.setItem('maicol_engine_data_data_v2', cleanedStringified);
+
+            if (isSupabaseConfigured && cleanedSizeMB <= 5) {
               await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
+            } else if (cleanedSizeMB > 5) {
+              console.error("No se intenta reintento en nube: El tamaño de datos limpios aún excede 5MB");
             }
         } catch (retryError: any) {
             console.error("Fallo crítico de almacenamiento en reintento (msg):", retryError?.message || retryError);
@@ -637,7 +857,20 @@ const App: React.FC = () => {
 
         <section className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-[#f8fafc] dark:bg-[#1c1c1c] transition-colors">
           <div className={activeTab === 'database' ? 'h-full' : 'hidden'}>
-            <DatabaseCRUD aluminum={aluminum} setAluminum={setAluminum} glasses={glasses} setGlasses={setGlasses} blindPanels={blindPanels} setBlindPanels={setBlindPanels} accessories={accessories} setAccessories={setAccessories} dvhInputs={dvhInputs} setDvhInputs={setDvhInputs} treatments={treatments} setTreatments={setTreatments} config={config} setConfig={setConfig} />
+            <DatabaseCRUD 
+              aluminum={aluminum} setAluminum={setAluminum} 
+              glasses={glasses} setGlasses={setGlasses} 
+              blindPanels={blindPanels} setBlindPanels={setBlindPanels} 
+              accessories={accessories} setAccessories={setAccessories} 
+              dvhInputs={dvhInputs} setDvhInputs={setDvhInputs} 
+              treatments={treatments} setTreatments={setTreatments} 
+              config={config} setConfig={setConfig} 
+              session={session}
+              isMigrated={isMigrated}
+              setIsMigrated={setIsMigrated}
+              recipes={recipes}
+              quotes={quotes}
+            />
           </div>
           <div className={activeTab === 'recipes' ? 'h-full' : 'hidden'}>
             <ProductRecipeEditor recipes={recipes} setRecipes={setRecipes} aluminum={aluminum} accessories={accessories} customVisualTypes={customVisualTypes} setCustomVisualTypes={setCustomVisualTypes} glasses={glasses} treatments={treatments} dvhInputs={dvhInputs} config={config} />
