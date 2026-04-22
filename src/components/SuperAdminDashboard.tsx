@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   email: string;
   is_active: boolean;
+  is_migrated: boolean;
   max_devices?: number;
   registered_devices?: string[];
   created_at?: string;
@@ -32,6 +33,18 @@ const SuperAdminDashboard: React.FC = () => {
     const { error } = await supabase.from('profiles').update({ is_active: !currentStatus }).eq('id', id);
     if (!error) {
       setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentStatus } : p));
+    } else {
+      console.error("Error toggling status:", error);
+      alert(`Error al actualizar estado del usuario: ${error.message}. Verifica en la consola (F12) para más detalles.`);
+    }
+    setToggling(null);
+  };
+
+  const toggleMigration = async (id: string, currentStatus: boolean) => {
+    setToggling(id + '-mig');
+    const { error } = await supabase.from('profiles').update({ is_migrated: !currentStatus }).eq('id', id);
+    if (!error) {
+      setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_migrated: !currentStatus } : p));
     }
     setToggling(null);
   };
@@ -83,11 +96,22 @@ const SuperAdminDashboard: React.FC = () => {
               <div key={profile.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 gap-4">
                 <div className="flex-1">
                   <div className="font-bold text-sm text-slate-800 dark:text-white">{profile.email}</div>
-                  <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                    <span>Estado:</span>
-                    <span className={profile.is_active ? 'text-emerald-500 font-bold' : 'text-amber-500 font-bold'}>
-                      {profile.is_active ? 'Activo' : 'En revisión'}
-                    </span>
+                  <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <div className="flex items-center gap-2">
+                      <span>Estado:</span>
+                      <span className={profile.is_active ? 'text-emerald-500 font-bold' : 'text-amber-500 font-bold'}>
+                        {profile.is_active ? 'Activo' : 'En revisión'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span>Base Pro:</span>
+                       <button 
+                        onClick={() => toggleMigration(profile.id, profile.is_migrated)}
+                        className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter transition-all ${profile.is_migrated ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-500'}`}
+                       >
+                         {profile.is_migrated ? 'Migrado' : 'Pendiente'}
+                       </button>
+                    </div>
                   </div>
                   
                   {profile.email !== 'aristastudiouno@gmail.com' && (

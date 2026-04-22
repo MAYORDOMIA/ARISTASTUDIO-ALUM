@@ -240,10 +240,10 @@ const App: React.FC = () => {
   const fetchProfile = async (user: any) => {
     console.log("Fetching profile for user:", user.id);
     try {
-      // Optimizamos: Primero solo pedimos el flag de migración para evitar descargar el JSON pesado si no es necesario
+      // Optimizamos: Primero pedimos los metadatos de cuenta y estado de activación
       const { data: profileCheck, error: checkError } = await supabase
         .from('profiles')
-        .select('id, is_migrated, email')
+        .select('id, is_migrated, email, is_active, max_devices, registered_devices')
         .eq('id', user.id)
         .single();
       
@@ -256,32 +256,39 @@ const App: React.FC = () => {
       if (profileCheck) {
         setIsMigrated(!!profileCheck.is_migrated);
         let dataToHydrate;
-        
+
         if (profileCheck.is_migrated) {
             // Ya está migrado, cargamos desde las tablas ligeras
-            dataToHydrate = await fetchFromTables(user.id);
+            let dataFromTables = await fetchFromTables(user.id);
             
-            // Reparación Profesional: Si el inventario está vacío pero las recetas existen,
-            // clonamos automáticamente el inventario maestro para restaurar visibilidad.
-            const hasInventory = (dataToHydrate?.aluminum?.length || 0) > 0 || (dataToHydrate?.accessories?.length || 0) > 0;
-            const hasRecipes = (dataToHydrate?.recipes?.length || 0) > 0;
+            const isAdmin = profileCheck.email === 'aristastudiouno@gmail.com';
+            const hasInventory = (dataFromTables?.aluminum?.length || 0) > 0;
+            const hasGlass = (dataFromTables?.glasses?.length || 0) > 0;
 
-            if (!hasInventory && hasRecipes) {
-                console.log("PROFESSIONAL FIX: Detectado inventario vacío en cuenta migrada. Iniciando restauración industrial...");
+            // SOLUCIÓN PROFESIONAL: Re-sincronización forzada si el inventario está vacío
+            if (!hasInventory || !hasGlass) {
+                console.warn("SISTEMA DE RECUPERACIÓN: Detectadas tablas vacías. Iniciando re-vínculo técnico...");
                 
-                // Prioridad 1: Sincronizar desde JSON Maestro del Admin (si está disponible)
-                if (adminProfile?.app_data?.aluminum?.length > 0) {
-                    console.log("Restaurando desde backup JSON maestro...");
-                    await syncMasterInventoryToTables(user.id, adminProfile.app_data);
-                } 
-                // Prioridad 2: Clonar desde tablas Pro del Admin (si el admin ya migró)
-                else if (adminProfile?.id && adminProfile.id !== user.id) {
-                    console.log("Restaurando desde tablas relacionales del administrador...");
+                if (isAdmin) {
+                    // El Admin recupera de su propio respaldo legado
+                    const { data: adminFull } = await supabase.from('profiles').select('app_data').eq('id', user.id).single();
+                    if (adminFull?.app_data?.aluminum?.length > 0) {
+                        console.log("Admin: Migrando desde app_data legado...");
+                        await migrateAppDataToTables(user.id, adminFull.app_data);
+                        dataToHydrate = await fetchFromTables(user.id);
+                    } else {
+                        dataToHydrate = dataFromTables;
+                    }
+                } else if (adminProfile?.id) {
+                    // El cliente clona del Admin
+                    console.log("Cliente: Clonando desde base maestra del Admin...");
                     await cloneInventoryBetweenUsers(adminProfile.id, user.id);
+                    dataToHydrate = await fetchFromTables(user.id);
+                } else {
+                    dataToHydrate = dataFromTables;
                 }
-                
-                // Recargar tras la intervención
-                dataToHydrate = await fetchFromTables(user.id);
+            } else {
+                dataToHydrate = dataFromTables;
             }
 
             // EMERGENCY RECOVERY: Si está migrado pero las tablas están TOTALMENTE VACÍAS (ni recetas ni aluminio)
@@ -340,6 +347,23 @@ const App: React.FC = () => {
         if (dataToHydrate) hydrateData(dataToHydrate);
         setIsDataLoaded(true);
         checkDeviceAccess(profileCheck);
+
+        // SOLUCIÓN PROFESIONAL: Suscripción en tiempo real al estado de la cuenta
+        supabase
+          .channel(`profile_updates_${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+            (payload: any) => {
+              console.log("Cambio en perfil detectado en tiempo real:", payload.new);
+              setProfile(payload.new);
+              if (payload.new.is_active) {
+                checkDeviceAccess(payload.new);
+              }
+            }
+          )
+          .subscribe();
+
       } else {
         // Auto-crear el perfil si no existe (mantenemos lógica original)
         const adminData = adminProfile?.app_data || {};

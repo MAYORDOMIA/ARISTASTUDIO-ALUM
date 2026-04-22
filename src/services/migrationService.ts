@@ -293,7 +293,9 @@ export const cloneInventoryBetweenUsers = async (sourceUserId: string, targetUse
     { table: 'accessory_inventory', fields: ['code', 'detail', 'unit_price'] },
     { table: 'dvh_inventory', fields: ['type', 'detail', 'thickness', 'cost'] },
     { table: 'treatment_inventory', fields: ['name', 'price_per_kg', 'hex_color'] },
-    { table: 'panel_inventory', fields: ['code', 'detail', 'price', 'unit'] }
+    { table: 'panel_inventory', fields: ['code', 'detail', 'price', 'unit'] },
+    { table: 'recipes', fields: ['name', 'data'] },
+    { table: 'quotes', fields: ['customer_name', 'data'] }
   ];
 
   const errors: string[] = [];

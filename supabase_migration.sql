@@ -102,8 +102,11 @@ CREATE TABLE quotes (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 9. Añadir flag de migración al perfil actual
+-- 9. Asegurar columnas de seguridad y dispositivos en la tabla profiles
+ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT false;
 ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS is_migrated BOOLEAN DEFAULT false;
+ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 1;
+ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS registered_devices TEXT[] DEFAULT '{}';
 
 -- Habilitar Row Level Security (RLS) para todas las tablas
 ALTER TABLE aluminum_inventory ENABLE ROW LEVEL SECURITY;
@@ -124,4 +127,27 @@ CREATE POLICY "owner_all_treatments" ON treatment_inventory FOR ALL USING (auth.
 CREATE POLICY "owner_all_panels" ON panel_inventory FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "owner_all_recipes" ON recipes FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "owner_all_quotes" ON quotes FOR ALL USING (auth.uid() = user_id);
+
+-- POLÍTICA DE LLAVE MAESTRA: Permitir que el Administrador gestione perfiles de otros usuarios
+-- Nota: Asegúrate de habilitar RLS en la tabla 'profiles'
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admin_manage_all_profiles" ON profiles FOR ALL 
+USING (auth.jwt() ->> 'email' = 'aristastudiouno@gmail.com')
+WITH CHECK (auth.jwt() ->> 'email' = 'aristastudiouno@gmail.com');
+
+-- Permitir que cada usuario vea su propio perfil (necesario para el login)
+-- Y TAMBIÉN el perfil del administrador (necesario para clonación de base de datos)
+CREATE POLICY "users_see_profiles" ON profiles FOR SELECT 
+USING (auth.uid() = id OR email = 'aristastudiouno@gmail.com');
+
+CREATE POLICY "users_update_own_profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+
+-- PERMITIR QUE LOS USUARIOS LEAN EL INVENTARIO MAESTRO DEL ADMINISTRADOR PARA CLONACIÓN
+CREATE POLICY "read_admin_aluminum" ON aluminum_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
+CREATE POLICY "read_admin_glass" ON glass_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
+CREATE POLICY "read_admin_accessories" ON accessory_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
+CREATE POLICY "read_admin_dvh" ON dvh_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
+CREATE POLICY "read_admin_treatment" ON treatment_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
+CREATE POLICY "read_admin_panel" ON panel_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
+CREATE POLICY "read_admin_recipes" ON recipes FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
 

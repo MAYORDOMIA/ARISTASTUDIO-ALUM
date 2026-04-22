@@ -6,16 +6,32 @@ import {
 
 export const evaluateFormula = (formula: string, W: number, H: number): number => {
   try {
-    const cleanFormula = (formula || '').toString().toUpperCase().replace(/W/g, (W || 0).toString()).replace(/H/g, (H || 0).toString());
-    if (!cleanFormula) return 0;
+    const raw = (formula || '').toString().toUpperCase();
+    if (!raw) return 0;
+
+    const cleanFormula = raw.replace(/W/g, (W || 0).toString()).replace(/H/g, (H || 0).toString());
     
     // Sanitización estricta: solo permite números, operadores matemáticos básicos, paréntesis y espacios
     if (!/^[0-9+\-*/().\s]+$/.test(cleanFormula)) {
       console.warn("Caracteres inválidos en la fórmula:", formula);
       return 0;
     }
+
+    // Reparación Profesional: Auto-balanceo de paréntesis
+    let balanced = cleanFormula;
+    const openP = (balanced.match(/\(/g) || []).length;
+    const closeP = (balanced.match(/\)/g) || []).length;
     
-    const result = new Function(`return ${cleanFormula}`)();
+    if (openP > closeP) {
+      balanced += ')'.repeat(openP - closeP);
+    } else if (closeP > openP) {
+      // Si sobran paréntesis de cierre, intentamos limpiar el excedente al final
+      // o simplemente invalidamos si es estructuralmente incorrecto
+      console.warn("Fórmula con exceso de paréntesis de cierre:", formula);
+      return 0;
+    }
+    
+    const result = new Function(`return ${balanced}`)();
     return isFinite(result) ? result : 0;
   } catch (e) {
     console.error("Error parsing formula (msg):", formula, (e as any)?.message || e);
