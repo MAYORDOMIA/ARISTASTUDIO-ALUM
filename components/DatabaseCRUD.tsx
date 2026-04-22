@@ -567,6 +567,13 @@ const DatabaseCRUD: React.FC<Props> = ({
             <button onClick={handleExportToExcel} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all shadow-sm">
                 <Download size={14} /> Excel
             </button>
+            <button onClick={handleExportToJSON} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-900 dark:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-xl active:scale-95">
+                <Download size={14} /> Backup JSON
+            </button>
+            <input type="file" id="json-restore" className="hidden" accept=".json" onChange={handleImportFromJSON} />
+            <button onClick={() => document.getElementById('json-restore')?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                <Upload size={14} /> Restaurar JSON
+            </button>
         </div>
       </div>
 

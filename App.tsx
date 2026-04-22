@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { DATABASE_TABS } from './constants';
 import * as XLSX from 'xlsx';
-import { migrateAppDataToTables } from './src/services/migrationService';
+import { migrateAppDataToTables, syncMasterInventoryToTables, cloneInventoryBetweenUsers } from './src/services/migrationService';
 
 import { 
   GlobalConfig, 
@@ -251,7 +251,7 @@ const App: React.FC = () => {
           console.error("Error checking profile status:", checkError.message);
       }
 
-      const { data: adminProfile } = await supabase.from('profiles').select('app_data').eq('email', 'aristastudiouno@gmail.com').single();
+      const { data: adminProfile } = await supabase.from('profiles').select('id, app_data').eq('email', 'aristastudiouno@gmail.com').single();
 
       if (profileCheck) {
         setIsMigrated(!!profileCheck.is_migrated);
@@ -261,11 +261,34 @@ const App: React.FC = () => {
             // Ya está migrado, cargamos desde las tablas ligeras
             dataToHydrate = await fetchFromTables(user.id);
             
-            // EMERGENCY RECOVERY: Si está migrado pero las tablas están VACÍAS, intentamos recuperar del local storage
-            const hasCloudData = (dataToHydrate?.aluminum?.length || 0) > 0 || (dataToHydrate?.recipes?.length || 0) > 0;
+            // Reparación Profesional: Si el inventario está vacío pero las recetas existen,
+            // clonamos automáticamente el inventario maestro para restaurar visibilidad.
+            const hasInventory = (dataToHydrate?.aluminum?.length || 0) > 0 || (dataToHydrate?.accessories?.length || 0) > 0;
+            const hasRecipes = (dataToHydrate?.recipes?.length || 0) > 0;
+
+            if (!hasInventory && hasRecipes) {
+                console.log("PROFESSIONAL FIX: Detectado inventario vacío en cuenta migrada. Iniciando restauración industrial...");
+                
+                // Prioridad 1: Sincronizar desde JSON Maestro del Admin (si está disponible)
+                if (adminProfile?.app_data?.aluminum?.length > 0) {
+                    console.log("Restaurando desde backup JSON maestro...");
+                    await syncMasterInventoryToTables(user.id, adminProfile.app_data);
+                } 
+                // Prioridad 2: Clonar desde tablas Pro del Admin (si el admin ya migró)
+                else if (adminProfile?.id && adminProfile.id !== user.id) {
+                    console.log("Restaurando desde tablas relacionales del administrador...");
+                    await cloneInventoryBetweenUsers(adminProfile.id, user.id);
+                }
+                
+                // Recargar tras la intervención
+                dataToHydrate = await fetchFromTables(user.id);
+            }
+
+            // EMERGENCY RECOVERY: Si está migrado pero las tablas están TOTALMENTE VACÍAS (ni recetas ni aluminio)
+            const hasAnyCloudData = (dataToHydrate?.aluminum?.length || 0) > 0 || (dataToHydrate?.recipes?.length || 0) > 0;
             const localRaw = localStorage.getItem('maicol_engine_data_data_v2');
             
-            if (!hasCloudData && localRaw) {
+            if (!hasAnyCloudData && localRaw) {
                console.warn("RESCATE DINÁMICO: Base de datos vacía pero detectado respaldo local. Iniciando recuperación...");
                try {
                  const localBackup = JSON.parse(localRaw);
