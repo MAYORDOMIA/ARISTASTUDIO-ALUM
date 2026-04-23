@@ -291,37 +291,45 @@ export const cloneInventoryBetweenUsers = async (sourceUserId: string, targetUse
   console.log(`Clonando inventario industrial de ${sourceUserId} a ${targetUserId}...`);
   
   const entities = [
-    { table: 'aluminum_inventory', fields: ['code', 'detail', 'weight_per_meter', 'bar_length', 'thickness', 'treatment_cost', 'is_glazing_bead', 'glazing_bead_style', 'min_glass_thickness', 'max_glass_thickness'] },
-    { table: 'glass_inventory', fields: ['code', 'detail', 'width', 'height', 'thickness', 'price_per_m2', 'is_mirror'] },
-    { table: 'accessory_inventory', fields: ['code', 'detail', 'unit_price'] },
-    { table: 'dvh_inventory', fields: ['type', 'detail', 'thickness', 'cost'] },
-    { table: 'treatment_inventory', fields: ['name', 'price_per_kg', 'hex_color'] },
-    { table: 'panel_inventory', fields: ['code', 'detail', 'price', 'unit'] },
-    { table: 'recipes', fields: ['name', 'data'] },
-    { table: 'quotes', fields: ['customer_name', 'data'] }
+    { table: 'aluminum_inventory', idPrefix: 'alu' },
+    { table: 'glass_inventory', idPrefix: 'glass' },
+    { table: 'accessory_inventory', idPrefix: 'acc' },
+    { table: 'dvh_inventory', idPrefix: 'dvh' },
+    { table: 'treatment_inventory', idPrefix: 'trt' },
+    { table: 'panel_inventory', idPrefix: 'bnd' }
   ];
 
   const errors: string[] = [];
 
   for (const entity of entities) {
     try {
-      // 1. Obtener datos del origen
-      const { data, error: fetchError } = await supabase.from(entity.table).select('*').eq('user_id', sourceUserId);
-      if (fetchError) throw fetchError;
+      // 1. Obtener datos del origen (master)
+      const { data: sourceData, error: fetchErr } = await supabase.from(entity.table).select('*').eq('user_id', sourceUserId);
+      if (fetchErr) throw fetchErr;
 
-      if (data && data.length > 0) {
-        // 2. Preparar para el destino (quitamos ID original y generamos uno unívoco para el usuario)
-        const toInsert = data.map(item => {
-          const prefix = entity.table.substring(0, 3);
-          const newId = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}_${targetUserId}`;
-          const newItem: any = { id: newId, user_id: targetUserId };
-          entity.fields.forEach(f => { newItem[f] = item[f]; });
-          return newItem;
+      // 2. Obtener datos del destino (usuario) para comparar
+      const { data: targetData, error: targetErr } = await supabase.from(entity.table).select('code').eq('user_id', targetUserId);
+      if (targetErr) throw targetErr;
+
+      if (sourceData && sourceData.length > 0) {
+        const targetCodes = new Set((targetData || []).map(x => x.code?.toString().trim().toLowerCase()).filter(Boolean));
+        
+        // Solo elegimos los que no están
+        const toClone = sourceData.filter(item => {
+            const itemCode = item.code?.toString().trim().toLowerCase();
+            return !itemCode || !targetCodes.has(itemCode);
         });
 
-        // 3. Insertar
-        const { error: insertError } = await supabase.from(entity.table).upsert(toInsert, { onConflict: 'id' });
-        if (insertError) errors.push(`Error en ${entity.table}: ${insertError.message}`);
+        if (toClone.length > 0) {
+            const toInsert = toClone.map(item => {
+              const { id, user_id, ...rest } = item;
+              const newId = `${entity.idPrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}_${targetUserId}`;
+              return { id: newId, user_id: targetUserId, ...rest };
+            });
+
+            const { error: insertError } = await supabase.from(entity.table).upsert(toInsert, { onConflict: 'id' });
+            if (insertError) errors.push(`Error clonando ${entity.table}: ${insertError.message}`);
+        }
       }
     } catch (e: any) {
       errors.push(`Fallo crítico en clonación de ${entity.table}: ${e.message}`);
