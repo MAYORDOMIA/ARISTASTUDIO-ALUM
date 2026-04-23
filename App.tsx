@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Menu, 
   X, 
@@ -108,6 +108,8 @@ const App: React.FC = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isMigrated, setIsMigrated] = useState(false);
 
+  const isFetchingRef = useRef(false);
+
   useEffect(() => {
     if (!isSupabaseConfigured) {
       // Modo local si Supabase no está configurado
@@ -126,18 +128,16 @@ const App: React.FC = () => {
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchProfile(session.user);
-      else setAuthLoading(false);
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) fetchProfile(session.user);
-      else {
+      if (session) {
+        if (!isFetchingRef.current) {
+          fetchProfile(session.user);
+        }
+      } else {
         setProfile(null);
         setAuthLoading(false);
+        isFetchingRef.current = false;
       }
     });
 
@@ -247,6 +247,8 @@ const App: React.FC = () => {
   };
 
   const fetchProfile = async (user: any) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     console.log("Fetching profile for user:", user.id);
     try {
       let { data: profileCheck, error: checkError } = await supabase
@@ -282,23 +284,6 @@ const App: React.FC = () => {
 
       // Si llegamos a acá, el usuario es ACTIVO o es ADMIN
       let dataFromTables = await fetchFromTables(user.id);
-      const hasInventory = (dataFromTables?.aluminum?.length || 0) > 0;
-
-      // Si es activo pero no tiene nada (es su primer logueo tras activación), CLONAMOS y luego RELEEMOS.
-      const isInventoryTrulyEmpty = 
-        (!dataFromTables?.aluminum || dataFromTables.aluminum.length === 0) &&
-        (!dataFromTables?.glasses || dataFromTables.glasses.length === 0) &&
-        (!dataFromTables?.blindPanels || dataFromTables.blindPanels.length === 0) &&
-        (!dataFromTables?.accessories || dataFromTables.accessories.length === 0);
-
-      if (isInventoryTrulyEmpty && !isAdmin) {
-         console.warn("Usuario activo sin inventario detectado - clonando catálogo maestro...");
-         const { data: adminProfile } = await supabase.from('profiles').select('id').eq('email', 'aristastudiouno@gmail.com').single();
-         if (adminProfile?.id) {
-             await cloneInventoryBetweenUsers(adminProfile.id, user.id);
-             dataFromTables = await fetchFromTables(user.id); // volvemos a leer ya con clones insertados
-         }
-      }
 
       // Volcamos a las variables
       if (dataFromTables) hydrateData(dataFromTables);
