@@ -144,26 +144,22 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Suscripción en tiempo real para sincronización entre dispositivos
+  // Suscripción en tiempo real para sincronización de activación
   useEffect(() => {
     if (!isSupabaseConfigured || !session?.user?.id || !isDataLoaded) return;
 
+    // Solo nos suscribimos a la tabla profiles para ver si el admin activa/desactiva la cuenta
     const channel = supabase
-      .channel(`realtime_sync_${session.user.id}`)
+      .channel(`profile_updates_${session.user.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${session.user.id}`,
-        },
-        (payload) => {
-          // Solo sincronizamos si el cambio viene de la base de datos y NO estamos guardando nosotros
-          // Esto evita bucles infinitos y colisiones mientras el usuario escribe
-          if (payload.new && payload.new.app_data && !isSaving) {
-            console.log("Sincronización remota detectada, actualizando datos...");
-            hydrateData(payload.new.app_data);
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` },
+        (payload: any) => {
+          console.log("Cambio en perfil detectado en tiempo real:", payload.new);
+          setProfile(payload.new);
+          if (payload.new.is_active) {
+             // Si lo acaban de activar, volvemos a evaluar acceso y descargar
+             checkDeviceAccess(payload.new);
           }
         }
       )
@@ -172,7 +168,7 @@ const App: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session, isDataLoaded, isSaving]);
+  }, [session, isDataLoaded]);
 
   const getDeviceId = () => {
     let id = localStorage.getItem('arista_device_id');
@@ -253,169 +249,64 @@ const App: React.FC = () => {
   const fetchProfile = async (user: any) => {
     console.log("Fetching profile for user:", user.id);
     try {
-      // Optimizamos: Primero pedimos los metadatos de cuenta y estado de activación
       let { data: profileCheck, error: checkError } = await supabase
         .from('profiles')
-        .select('id, is_migrated, email, is_active, max_devices, registered_devices')
+        .select('id, email, is_active, max_devices, registered_devices')
         .eq('id', user.id)
         .single();
       
+      const isAdminUser = user.email === 'aristastudiouno@gmail.com';
+
       if (checkError || !profileCheck) {
-          console.warn("No se encontró el perfil (puede ser un usuario recién creado). Intentando crearlo manualmente...");
-          // Fallback de autocompletado de perfil por precaución
-          const newProfile = { id: user.id, email: user.email, is_active: false, is_migrated: false, max_devices: 1, registered_devices: [] };
-          await supabase.from('profiles').insert(newProfile).select().single().then((res) => {
-              if (res.data) profileCheck = res.data;
-          });
+          console.warn("Usuario nuevo - inicializando perfil...");
+          const newProfile = { 
+            id: user.id, 
+            email: user.email, 
+            is_active: isAdminUser, // Admin auto se activa
+            max_devices: 1, 
+            registered_devices: [] 
+          };
+          const { data: created } = await supabase.from('profiles').insert(newProfile).select().single();
+          profileCheck = created;
       }
 
-      const { data: adminProfile } = await supabase.from('profiles').select('id, app_data').eq('email', 'aristastudiouno@gmail.com').single();
+      const isAdmin = profileCheck?.email === 'aristastudiouno@gmail.com';
 
-      if (profileCheck) {
-        setIsMigrated(!!profileCheck.is_migrated);
-        let dataToHydrate;
-
-        if (profileCheck.is_migrated) {
-            // Ya está migrado, cargamos desde las tablas ligeras
-            let dataFromTables = await fetchFromTables(user.id);
-            
-            const isAdmin = profileCheck.email === 'aristastudiouno@gmail.com';
-            const hasInventory = (dataFromTables?.aluminum?.length || 0) > 0;
-            const hasGlass = (dataFromTables?.glasses?.length || 0) > 0;
-
-            // SOLUCIÓN PROFESIONAL: Re-sincronización forzada si el inventario está vacío
-            if (!hasInventory || !hasGlass) {
-                console.warn("SISTEMA DE RECUPERACIÓN: Detectadas tablas vacías. Iniciando re-vínculo técnico...");
-                
-                if (isAdmin) {
-                    // El Admin recupera de su propio respaldo legado
-                    const { data: adminFull } = await supabase.from('profiles').select('app_data').eq('id', user.id).single();
-                    if (adminFull?.app_data?.aluminum?.length > 0) {
-                        console.log("Admin: Migrando desde app_data legado...");
-                        await migrateAppDataToTables(user.id, adminFull.app_data);
-                        dataToHydrate = await fetchFromTables(user.id);
-                    } else {
-                        dataToHydrate = dataFromTables;
-                    }
-                } else if (adminProfile?.id) {
-                    // El cliente clona del Admin
-                    console.log("Cliente: Clonando desde base maestra del Admin...");
-                    await cloneInventoryBetweenUsers(adminProfile.id, user.id);
-                    dataToHydrate = await fetchFromTables(user.id);
-                } else {
-                    dataToHydrate = dataFromTables;
-                }
-            } else {
-                dataToHydrate = dataFromTables;
-            }
-
-            // EMERGENCY RECOVERY: Si está migrado pero las tablas están TOTALMENTE VACÍAS (ni recetas ni aluminio)
-            const hasAnyCloudData = (dataToHydrate?.aluminum?.length || 0) > 0 || (dataToHydrate?.recipes?.length || 0) > 0;
-            const localRaw = localStorage.getItem('maicol_engine_data_data_v2');
-            
-            if (!hasAnyCloudData && localRaw) {
-               console.warn("RESCATE DINÁMICO: Base de datos vacía pero detectado respaldo local. Iniciando recuperación...");
-               try {
-                 const localBackup = JSON.parse(localRaw);
-                 if (localBackup.aluminum?.length > 0 || localBackup.recipes?.length > 0) {
-                   await migrateAppDataToTables(user.id, localBackup);
-                   dataToHydrate = await fetchFromTables(user.id);
-                   console.log("¡Rescate local completado con éxito!");
-                 }
-               } catch (e) {
-                 console.error("Fallo al intentar rescate local:", e);
-               }
-            }
-
-            if (dataToHydrate) {
-                // Solo pedimos app_data si necesitamos el config (que vive ahí temporalmente)
-                const { data: profileData } = await supabase.from('profiles').select('app_data').eq('id', user.id).single();
-                dataToHydrate.config = profileData?.app_data?.config || adminProfile?.app_data?.config;
-                dataToHydrate.customVisualTypes = profileData?.app_data?.customVisualTypes || [];
-                dataToHydrate.currentWorkItems = profileData?.app_data?.currentWorkItems || [];
-            }
-        } else {
-            // NO está migrado, AQUÍ es donde descargamos el JSON pesado solo una última vez
-            console.log("Descargando datos legacy para iniciar migración...");
-            const { data: fullProfile } = await supabase.from('profiles').select('app_data').eq('id', user.id).single();
-            
-            if (profileCheck && profileCheck.email === 'aristastudiouno@gmail.com') {
-                dataToHydrate = fullProfile?.app_data || {};
-                
-                // Iniciamos migración automática con estos datos
-                if (dataToHydrate && (dataToHydrate.aluminum?.length > 0 || dataToHydrate.recipes?.length > 0)) {
-                    migrateAppDataToTables(user.id, dataToHydrate).then(res => {
-                        if (res.success) {
-                            setIsMigrated(true);
-                            alert("¡Migración técnica completada! Activando nueva base de datos...");
-                            window.location.reload();
-                        }
-                    });
-                }
-            } 
-            else if (!fullProfile?.app_data || Object.keys(fullProfile.app_data).length === 0) {
-                // AQUÍ EL NUEVO USUARIO ENTRA: No tiene app_data.
-                console.log("Usuario nuevo detectado. Configurando base de datos...");
-                
-                // 1. Mark as migrated instantly
-                await supabase.from('profiles').update({ is_migrated: true }).eq('id', user.id);
-                
-                // 2. Clone from admin
-                if (adminProfile?.id) {
-                    await cloneInventoryBetweenUsers(adminProfile.id, user.id);
-                }
-                
-                setIsMigrated(true);
-                profileCheck.is_migrated = true;
-                dataToHydrate = await fetchFromTables(user.id);
-            } 
-            else {
-                dataToHydrate = fullProfile.app_data;
-
-                // El usuario tenía un JSON legado, intentamos migrarlo con IDs seguros
-                if (dataToHydrate && (dataToHydrate.aluminum?.length > 0 || dataToHydrate.recipes?.length > 0)) {
-                    migrateAppDataToTables(user.id, dataToHydrate).then(res => {
-                        if (res.success) {
-                            setIsMigrated(true);
-                            alert("¡Migración de base de datos exitosa!");
-                            window.location.reload();
-                        } else {
-                            console.error("Error migrando secundario:", res.errors);
-                        }
-                    });
-                }
-            }
-        }
-        
-        if (dataToHydrate) hydrateData(dataToHydrate);
-        setIsDataLoaded(true);
-        if (profileCheck) {
-            setProfile(profileCheck); // Force state map so UI doesn't render "Error de perfil"
-            checkDeviceAccess(profileCheck);
-        }
-
-        // SOLUCIÓN PROFESIONAL: Suscripción en tiempo real al estado de la cuenta
-        supabase
-          .channel(`profile_updates_${user.id}`)
-          .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-            (payload: any) => {
-              console.log("Cambio en perfil detectado en tiempo real:", payload.new);
-              setProfile(payload.new);
-              if (payload.new.is_active) {
-                checkDeviceAccess(payload.new);
-              }
-            }
-          )
-          .subscribe();
+      if (!profileCheck?.is_active && !isAdmin) {
+          // El usuario no está activo y no es admin -> Pantalla Amarilla. No necesitamos clonar ni descargar tablas completas.
+          setIsDataLoaded(true);
+          setProfile(profileCheck);
+          setAuthLoading(false);
+          return;
       }
+
+      // Si llegamos a acá, el usuario es ACTIVO o es ADMIN
+      let dataFromTables = await fetchFromTables(user.id);
+      const hasInventory = (dataFromTables?.aluminum?.length || 0) > 0;
+
+      // Si es activo pero no tiene nada (es su primer logueo tras activación), CLONAMOS y luego RELEEMOS.
+      if (!hasInventory && !isAdmin) {
+         console.warn("Usuario activo vacío - clonando inventario inicial...");
+         const { data: adminProfile } = await supabase.from('profiles').select('id').eq('email', 'aristastudiouno@gmail.com').single();
+         if (adminProfile?.id) {
+             await cloneInventoryBetweenUsers(adminProfile.id, user.id);
+             dataFromTables = await fetchFromTables(user.id); // volvemos a leer ya con clones insertados
+         }
+      }
+
+      // Volcamos a las variables
+      if (dataFromTables) hydrateData(dataFromTables);
+      
+      setIsDataLoaded(true);
+      setProfile(profileCheck); // Establecemos el perfil seguro
+      checkDeviceAccess(profileCheck);
+
     } catch (err: any) {
       if (err.message?.includes('Failed to fetch')) {
         console.error("Error de red detectado. Reintentando...");
         setTimeout(() => fetchProfile(user), 3000);
       } else {
-        console.error("Error fatal:", err);
+        console.error("Error fatal cargando perfil:", err);
         setAuthLoading(false);
       }
     }
@@ -561,118 +452,37 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // No guardar si: no hay datos, no hay sesion, o estamos migrando
-    if (!isDataLoaded || !session?.user?.id || isMigrated === false && aluminum.length > 0) {
-      // Si no estamos migrados y tenemos datos, el auto-migrador se encagará.
-      // No intentamos guardar el bloque JSON gigante que causa el TIMEOUT.
-      return;
-    }
+    // Si no hay datos, sesión o no está migrado no tocamos nada del auto-save a nivel nube-masivo.
+    if (!isDataLoaded || !session?.user?.id) return;
 
-    const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems };
     setIsSaving(true);
+    
+    // Guardado local de TODO (Como seguro de vida instantáneo en el navegador)
+    const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems };
     
     const timer = setTimeout(async () => {
       try {
-        // Guardado local
         const storageKey = 'maicol_engine_data_data_v2';
         const stringified = JSON.stringify(data);
-        const dataSizeMB = stringified.length / (1024 * 1024);
-        
-        // Arquitectura Defensiva: No intentar guardar si el objeto es peligrosamente grande para una sola celda
-        if (dataSizeMB > 5) {
-          console.error(`DETENCIÓN DE SEGURIDAD: El tamaño de los datos (${dataSizeMB.toFixed(2)} MB) excede el límite de seguridad para guardado atómico único.`);
-          alert(`ADVERTENCIA CRÍTICA: Los datos actuales son demasiado grandes (${dataSizeMB.toFixed(2)} MB). \n\nPara evitar que pierdas información o bloquees tu cuenta, se ha suspendido el guardado automático en la nube. \n\nPor favor, contacta a soporte para iniciar la migración profesional a tablas relacionales.`);
-          setIsSaving(false);
-          return;
-        }
-
         localStorage.setItem(storageKey, stringified);
 
-        // Guardado en la nube (Supabase)
+        // Guardado AUTO en la nube SÓLO de datos ligeros (Configuración, Obras activas).
+        // El catálogo pesado (Aluminio, Recetas, Presupuestos terminados) lo guardaremos de forma explícita 
+        // a través de otras ventanas / o botones para evitar que al importar un Excel/JSON la nube los borre.
         if (isSupabaseConfigured) {
-          if (isMigrated) {
-            // Guardado Profesional - Por Tablas (Seguro contra pérdida de datos)
-            const syncTable = async (tableName: string, dataArray: any[], mapper: (x: any) => any) => {
-               // BLOQUEO ABSOLUTO: Jamás borrar la base de datos entera por un array vacío en memoria.
-               if (!dataArray || dataArray.length === 0) return; 
-
-               try {
-                 const mappedData = dataArray.map(mapper).map(o => {
-                    // Reasignación forzada de IDs seguros para usuarios compartidos
-                    const safeId = o.id.includes(`_${session.user.id}`) ? o.id : `${o.id}_${session.user.id}`;
-                    return { ...o, id: safeId };
-                 });
-                 const BATCH_SIZE = 500;
-                 for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
-                   const chunk = mappedData.slice(i, i + BATCH_SIZE);
-                   const { error } = await supabase.from(tableName).upsert(chunk, { onConflict: 'id' });
-                   if (error) {
-                       console.error(`Error de upsert en ${tableName} lote ${i}:`, error.message);
-                       alert(`FALLO AL GUARDAR ${tableName}: \n\n${error.message}\n\nPor favor, haz una captura de este error y no cierres la ventana.`);
-                       throw error;
-                   }
-                 }
-               } catch (e) {
-                  console.error(`Fallo crítico al sincronizar tabla ${tableName}:`, e);
-               }
-            };
-
-            await Promise.all([
-              supabase.from('profiles').update({ app_data: { config, customVisualTypes, currentWorkItems } }).eq('id', session.user.id)
-            ]);
-            await Promise.all([
-              syncTable('aluminum_inventory', aluminum, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6, thickness: x.thickness || 0, treatment_cost: x.treatmentCost || 0, is_glazing_bead: x.isGlazingBead || false, glazing_bead_style: x.glazingBeadStyle || '', min_glass_thickness: x.minGlassThickness || 0, max_glass_thickness: x.maxGlassThickness || 0 })),
-              syncTable('glass_inventory', glasses, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', width: x.width || 0, height: x.height || 0, thickness: x.thickness || 0, price_per_m2: x.pricePerM2 || 0, is_mirror: x.isMirror || false })),
-              syncTable('accessory_inventory', accessories, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', unit_price: x.unitPrice || 0 })),
-              syncTable('dvh_inventory', dvhInputs, x => ({ id: x.id, user_id: session.user.id, type: x.type || '', detail: x.detail || '', thickness: x.thickness || 0, cost: x.cost || 0 })),
-              syncTable('treatment_inventory', treatments, x => ({ id: x.id, user_id: session.user.id, name: x.name || '', price_per_kg: x.pricePerKg || 0, hex_color: x.hexColor || '' })),
-              syncTable('panel_inventory', blindPanels, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', price: x.price || 0, unit: x.unit || 'm2' })),
-              syncTable('recipes', recipes, x => ({ id: x.id, user_id: session.user.id, name: x.name || '', data: x })),
-              syncTable('quotes', quotes, x => ({ id: x.id, user_id: session.user.id, customer_name: x.customerName || '', data: x }))
-            ]);
-            console.log("Datos guardados en tablas relacionales de forma segura mediante UP-SERT.");
-          } else {
-            // Guardado Legacy - Mono-Celda (Con protección de tamaño y reintentos)
-            console.log("Intentando guardado legacy (JSON bloque)...");
-            const { error } = await supabase.from('profiles').update({ app_data: data }).eq('id', session.user.id);
-            if (error) {
-              if (error.message.includes("timeout")) {
-                console.error("TIMEOUT detectado en guardado legacy. Los datos son demasiado grandes para guardarse en un solo bloque.");
-              } else {
-                console.error("Error al guardar en la nube (Supabase) (code/msg):", error?.message || error);
-              }
-            }
-          }
+            const appDataLite = { config, customVisualTypes, currentWorkItems };
+            await supabase.from('profiles').update({ app_data: appDataLite }).eq('id', session.user.id);
         }
+
       } catch (e: any) {
-        console.error("Error crítico en persistencia (msg):", e?.message || e);
-        try {
-            const cleanedQuotes = quotes.map((q, idx) => ({
-                ...q,
-                items: q.items.map(item => ({
-                    ...item,
-                    previewImage: idx < 5 ? item.previewImage : undefined
-                }))
-            }));
-            const cleanedData = { ...data, quotes: cleanedQuotes };
-            const cleanedStringified = JSON.stringify(cleanedData);
-            const cleanedSizeMB = cleanedStringified.length / (1024 * 1024);
-
-            localStorage.setItem('maicol_engine_data_data_v2', cleanedStringified);
-
-            if (isSupabaseConfigured && cleanedSizeMB <= 5) {
-              await supabase.from('profiles').update({ app_data: cleanedData }).eq('id', session.user.id);
-            } else if (cleanedSizeMB > 5) {
-              console.error("No se intenta reintento en nube: El tamaño de datos limpios aún excede 5MB");
-            }
-        } catch (retryError: any) {
-            console.error("Fallo crítico de almacenamiento en reintento (msg):", retryError?.message || retryError);
-        }
+        console.error("Error en auto-guardado ligero:", e?.message || e);
+      } finally {
+        setIsSaving(false);
       }
-      setIsSaving(false);
     }, 1500);
+
     return () => clearTimeout(timer);
-  }, [aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, config, quotes, customVisualTypes, currentWorkItems, isDataLoaded, session]);
+  }, [config, customVisualTypes, currentWorkItems, isDataLoaded, session]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -904,6 +714,7 @@ const App: React.FC = () => {
               isMigrated={isMigrated}
               setIsMigrated={setIsMigrated}
               recipes={recipes}
+              setRecipes={setRecipes}
               quotes={quotes}
             />
           </div>

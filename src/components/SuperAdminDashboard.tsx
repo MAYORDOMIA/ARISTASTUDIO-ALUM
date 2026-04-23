@@ -67,6 +67,21 @@ const SuperAdminDashboard: React.FC = () => {
     setToggling(null);
   };
 
+  const deleteUser = async (id: string, email: string) => {
+    if (!confirm(`PELIGRO: ¿Estás ABSOLUTAMENTE seguro de borrar permanentemente la nube técnica del usuario ${email}? Esto NO borra su cuenta de login base, pero destruye todo su perfil relacional.`)) return;
+    setToggling(id);
+    
+    // We only delete their profile table strictly. Supabase auth user needs to be deleted via Supabase Dashboard if they want an entirely new account, but deleting the profile resets the loop for "new user".
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (!error) {
+       alert("Perfil técnico destruido. Si el usuario vuelve a entrar, el sistema lo interpretará como alguien 100% nuevo.");
+       setProfiles(prev => prev.filter(p => p.id !== id));
+    } else {
+       alert("Error destruyendo usuario: " + error.message);
+    }
+    setToggling(null);
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -142,25 +157,36 @@ const SuperAdminDashboard: React.FC = () => {
                   )}
                 </div>
                 
-                <button
-                  onClick={() => toggleStatus(profile.id, profile.is_active)}
-                  disabled={toggling === profile.id || profile.email === 'aristastudiouno@gmail.com'}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${
-                    profile.email === 'aristastudiouno@gmail.com' 
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
-                      : profile.is_active 
-                        ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40' 
-                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40'
-                  }`}
-                >
-                  {toggling === profile.id ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : profile.is_active ? (
-                    <><UserX size={14} /> Desactivar</>
-                  ) : (
-                    <><UserCheck size={14} /> Activar</>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <button
+                    onClick={() => toggleStatus(profile.id, profile.is_active)}
+                    disabled={toggling === profile.id || profile.email === 'aristastudiouno@gmail.com'}
+                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${
+                      profile.email === 'aristastudiouno@gmail.com' 
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
+                        : profile.is_active 
+                          ? 'bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40' 
+                          : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40'
+                    }`}
+                  >
+                    {toggling === profile.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : profile.is_active ? (
+                      <><UserX size={14} /> Desactivar</>
+                    ) : (
+                      <><UserCheck size={14} /> Activar</>
+                    )}
+                  </button>
+                  {profile.email !== 'aristastudiouno@gmail.com' && (
+                     <button
+                       onClick={() => deleteUser(profile.id, profile.email)}
+                       disabled={toggling === profile.id}
+                       className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                     >
+                        <UserX size={14} /> Destruir Cuenta Base
+                     </button>
                   )}
-                </button>
+                </div>
               </div>
             ))
           )}
