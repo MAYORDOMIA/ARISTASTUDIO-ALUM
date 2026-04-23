@@ -285,8 +285,14 @@ const App: React.FC = () => {
       const hasInventory = (dataFromTables?.aluminum?.length || 0) > 0;
 
       // Si es activo pero no tiene nada (es su primer logueo tras activación), CLONAMOS y luego RELEEMOS.
-      if (!hasInventory && !isAdmin) {
-         console.warn("Usuario activo vacío - clonando inventario inicial...");
+      const isInventoryTrulyEmpty = 
+        (!dataFromTables?.aluminum || dataFromTables.aluminum.length === 0) &&
+        (!dataFromTables?.glasses || dataFromTables.glasses.length === 0) &&
+        (!dataFromTables?.blindPanels || dataFromTables.blindPanels.length === 0) &&
+        (!dataFromTables?.accessories || dataFromTables.accessories.length === 0);
+
+      if (isInventoryTrulyEmpty && !isAdmin) {
+         console.warn("Usuario activo sin inventario detectado - clonando catálogo maestro...");
          const { data: adminProfile } = await supabase.from('profiles').select('id').eq('email', 'aristastudiouno@gmail.com').single();
          if (adminProfile?.id) {
              await cloneInventoryBetweenUsers(adminProfile.id, user.id);
