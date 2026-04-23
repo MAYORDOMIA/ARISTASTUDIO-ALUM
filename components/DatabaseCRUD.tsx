@@ -4,7 +4,7 @@ import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIco
 import { AluminumProfile, Glass, BlindPanel, Accessory, DVHInput, Treatment, GlobalConfig, ProductRecipe, Quote } from '../types';
 import { DATABASE_TABS } from '../constants';
 import * as XLSX from 'xlsx';
-import { migrateAppDataToTables } from '../src/services/migrationService';
+import { migrateAppDataToTables, pullUpdatesFromMaster } from '../src/services/migrationService';
 
 interface Props {
   aluminum: AluminumProfile[];
@@ -127,6 +127,40 @@ const DatabaseCRUD: React.FC<Props> = ({
     return k;
   };
 
+  const [isPullingUpdates, setIsPullingUpdates] = useState(false);
+
+  const handleFetchUpdates = async () => {
+    if (!session?.user?.id) return;
+    
+    // We explicitly avoid showing this to the master user themselves (though they shouldn't need it)
+    if (session.user.email === 'aristastudiouno@gmail.com') {
+      alert("No necesitas buscar actualizaciones porque tú eres el usuario maestro.");
+      return;
+    }
+
+    if (!confirm("¿Deseas buscar nuevos productos en la base de datos del Administrador? Esto NO borrará tus datos actuales, solo agregará lo que falte.")) return;
+
+    setIsPullingUpdates(true);
+    try {
+      const res = await pullUpdatesFromMaster(session.user.id);
+      
+      if (res.errors.length > 0) {
+        console.error("Errores parciales al actualizar:", res.errors);
+      }
+      
+      if (res.added > 0) {
+        alert(`¡Sincronización exitosa! Se añadieron ${res.added} productos nuevos a tu base de datos.\nLa página se recargará para mostrar los cambios.`);
+        window.location.reload();
+      } else {
+        alert("Tu base de datos ya está al día. No se encontraron productos nuevos en el servidor del Administrador.");
+      }
+    } catch (e: any) {
+      alert("Hubo un error al buscar actualizaciones: " + e.message);
+    } finally {
+      setIsPullingUpdates(false);
+    }
+  };
+
   const handleExportToExcel = () => {
     const wb = XLSX.utils.book_new();
     
@@ -190,14 +224,25 @@ const DatabaseCRUD: React.FC<Props> = ({
     reader.onload = (evt) => {
       try {
         const imported = JSON.parse(evt.target?.result as string);
-        if (imported.aluminum) setAluminum(imported.aluminum);
-        if (imported.glasses) setGlasses(imported.glasses);
-        if (imported.blindPanels) setBlindPanels(imported.blindPanels);
-        if (imported.accessories) setAccessories(imported.accessories);
-        if (imported.dvhInputs) setDvhInputs(imported.dvhInputs);
-        if (imported.treatments) setTreatments(imported.treatments);
         
-        alert("Restauración de Respaldo JSON completada con éxito.");
+        // Fusión Inteligente en memoria (MERGE): 
+        // Si descargas un backup y lo subes, no "desaparece" lo que creaste después.
+        const mergeArrays = (existing: any[], incoming: any[]) => {
+           if (!existing || existing.length === 0) return incoming;
+           if (!incoming || incoming.length === 0) return existing;
+           const map = new Map(existing.map(x => [x.id, x]));
+           incoming.forEach(x => map.set(x.id, x)); // El incoming pisa al existing en caso de misma ID
+           return Array.from(map.values());
+        };
+
+        if (imported.aluminum) setAluminum(mergeArrays(aluminum, imported.aluminum));
+        if (imported.glasses) setGlasses(mergeArrays(glasses, imported.glasses));
+        if (imported.blindPanels) setBlindPanels(mergeArrays(blindPanels, imported.blindPanels));
+        if (imported.accessories) setAccessories(mergeArrays(accessories, imported.accessories));
+        if (imported.dvhInputs) setDvhInputs(mergeArrays(dvhInputs, imported.dvhInputs));
+        if (imported.treatments) setTreatments(mergeArrays(treatments, imported.treatments));
+        
+        alert("Restauración de Respaldo JSON completada con éxito. Se combinó con los datos actuales.");
       } catch (err) {
         alert("Error al procesar el archivo de respaldo JSON.");
       }
@@ -279,23 +324,31 @@ const DatabaseCRUD: React.FC<Props> = ({
           });
       };
 
+      const mergeData = (existing: any[], incoming: any[]) => {
+         if (!existing || existing.length === 0) return incoming;
+         if (!incoming || incoming.length === 0) return existing;
+         const map = new Map(existing.map(x => [x.id, x]));
+         incoming.forEach(x => map.set(x.id, x));
+         return Array.from(map.values());
+      };
+
       const newAlu = processSheet(['aluminio', 'perfil', 'alu'], 'alu');
-      if (newAlu) setAluminum(newAlu);
+      if (newAlu) setAluminum(mergeData(aluminum, newAlu));
 
       const newGlass = processSheet(['vidrio', 'cristal', 'glass'], 'glass');
-      if (newGlass) setGlasses(newGlass);
+      if (newGlass) setGlasses(mergeData(glasses, newGlass));
 
       const newAcc = processSheet(['accesorio', 'herraje', 'acc'], 'acc');
-      if (newAcc) setAccessories(newAcc);
+      if (newAcc) setAccessories(mergeData(accessories, newAcc));
 
       const newBlind = processSheet(['panel', 'ciego', 'blind'], 'blind');
-      if (newBlind) setBlindPanels(newBlind);
+      if (newBlind) setBlindPanels(mergeData(blindPanels, newBlind));
 
       const newDVH = processSheet(['dvh', 'camara', 'insumo'], 'dvh');
-      if (newDVH) setDvhInputs(newDVH);
+      if (newDVH) setDvhInputs(mergeData(dvhInputs, newDVH));
 
       const newTreat = processSheet(['pintura', 'tratamiento', 'color'], 'trt');
-      if (newTreat) setTreatments(newTreat);
+      if (newTreat) setTreatments(mergeData(treatments, newTreat));
 
       alert("¡Base de datos sincronizada exitosamente desde Google Drive!");
       setShowDriveModal(false);
@@ -574,6 +627,15 @@ const DatabaseCRUD: React.FC<Props> = ({
             <button onClick={() => document.getElementById('json-restore')?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                 <Upload size={14} /> Restaurar JSON
             </button>
+            {session?.user?.email !== 'aristastudiouno@gmail.com' && (
+              <button 
+                onClick={handleFetchUpdates} 
+                disabled={isPullingUpdates}
+                className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg animate-pulse"
+              >
+                  <Download size={14} /> {isPullingUpdates ? 'Buscando...' : 'Actualizar Catálogo Master'}
+              </button>
+            )}
         </div>
       </div>
 

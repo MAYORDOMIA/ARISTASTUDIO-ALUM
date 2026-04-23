@@ -221,15 +221,28 @@ const App: React.FC = () => {
         supabase.from('quotes').select('*').eq('user_id', userId)
       ]);
 
+      // Función técnica de deduplicación y limpieza de IDs aislados
+      const cleanData = (list: any[]) => {
+          if (!list) return [];
+          const map = new Map();
+          list.forEach(item => {
+              const cleanId = item.id.replace(`_${userId}`, '');
+              if (!map.has(cleanId) || item.id.includes(`_${userId}`)) {
+                  map.set(cleanId, { ...item, id: cleanId });
+              }
+          });
+          return Array.from(map.values());
+      };
+
       return {
-        aluminum: alu?.map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, isGlazingBead: x.is_glazing_bead, glazingBeadStyle: x.glazing_bead_style, minGlassThickness: x.min_glass_thickness, maxGlassThickness: x.max_glass_thickness })),
-        glasses: gls?.map(x => ({ ...x, pricePerM2: x.price_per_m2, isMirror: x.is_mirror })),
-        accessories: acc?.map(x => ({ ...x, unitPrice: x.unit_price })),
-        dvhInputs: dvh?.map(x => ({ ...x })),
-        treatments: trt?.map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color })),
-        blindPanels: bld?.map(x => ({ ...x })),
-        recipes: rec?.map(x => x.data),
-        quotes: quo?.map(x => x.data)
+        aluminum: cleanData(alu).map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, isGlazingBead: x.is_glazing_bead, glazingBeadStyle: x.glazing_bead_style, minGlassThickness: x.min_glass_thickness, maxGlassThickness: x.max_glass_thickness })),
+        glasses: cleanData(gls).map(x => ({ ...x, pricePerM2: x.price_per_m2, isMirror: x.is_mirror })),
+        accessories: cleanData(acc).map(x => ({ ...x, unitPrice: x.unit_price })),
+        dvhInputs: cleanData(dvh).map(x => ({ ...x })),
+        treatments: cleanData(trt).map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color })),
+        blindPanels: cleanData(bld).map(x => ({ ...x })),
+        recipes: cleanData(rec).map(x => x.data),
+        quotes: cleanData(quo).map(x => x.data)
       };
     } catch (e) {
       console.error("Fallo al consultar tablas relacionales:", e);
@@ -241,14 +254,19 @@ const App: React.FC = () => {
     console.log("Fetching profile for user:", user.id);
     try {
       // Optimizamos: Primero pedimos los metadatos de cuenta y estado de activación
-      const { data: profileCheck, error: checkError } = await supabase
+      let { data: profileCheck, error: checkError } = await supabase
         .from('profiles')
         .select('id, is_migrated, email, is_active, max_devices, registered_devices')
         .eq('id', user.id)
         .single();
       
-      if (checkError) {
-          console.error("Error checking profile status:", checkError.message);
+      if (checkError || !profileCheck) {
+          console.warn("No se encontró el perfil (puede ser un usuario recién creado). Intentando crearlo manualmente...");
+          // Fallback de autocompletado de perfil por precaución
+          const newProfile = { id: user.id, email: user.email, is_active: false, is_migrated: false, max_devices: 1, registered_devices: [] };
+          await supabase.from('profiles').insert(newProfile).select().single().then((res) => {
+              if (res.data) profileCheck = res.data;
+          });
       }
 
       const { data: adminProfile } = await supabase.from('profiles').select('id, app_data').eq('email', 'aristastudiouno@gmail.com').single();
@@ -321,32 +339,60 @@ const App: React.FC = () => {
             console.log("Descargando datos legacy para iniciar migración...");
             const { data: fullProfile } = await supabase.from('profiles').select('app_data').eq('id', user.id).single();
             
-            if (profileCheck.email === 'aristastudiouno@gmail.com') {
+            if (profileCheck && profileCheck.email === 'aristastudiouno@gmail.com') {
                 dataToHydrate = fullProfile?.app_data || {};
+                
+                // Iniciamos migración automática con estos datos
+                if (dataToHydrate && (dataToHydrate.aluminum?.length > 0 || dataToHydrate.recipes?.length > 0)) {
+                    migrateAppDataToTables(user.id, dataToHydrate).then(res => {
+                        if (res.success) {
+                            setIsMigrated(true);
+                            alert("¡Migración técnica completada! Activando nueva base de datos...");
+                            window.location.reload();
+                        }
+                    });
+                }
             } 
             else if (!fullProfile?.app_data || Object.keys(fullProfile.app_data).length === 0) {
-                dataToHydrate = adminProfile?.app_data || {};
-                await supabase.from('profiles').update({ app_data: dataToHydrate }).eq('id', user.id);
+                // AQUÍ EL NUEVO USUARIO ENTRA: No tiene app_data.
+                console.log("Usuario nuevo detectado. Configurando base de datos...");
+                
+                // 1. Mark as migrated instantly
+                await supabase.from('profiles').update({ is_migrated: true }).eq('id', user.id);
+                
+                // 2. Clone from admin
+                if (adminProfile?.id) {
+                    await cloneInventoryBetweenUsers(adminProfile.id, user.id);
+                }
+                
+                setIsMigrated(true);
+                profileCheck.is_migrated = true;
+                dataToHydrate = await fetchFromTables(user.id);
             } 
             else {
                 dataToHydrate = fullProfile.app_data;
-            }
 
-            // Iniciamos migración automática con estos datos
-            if (dataToHydrate && (dataToHydrate.aluminum?.length > 0 || dataToHydrate.recipes?.length > 0)) {
-                migrateAppDataToTables(user.id, dataToHydrate).then(res => {
-                    if (res.success) {
-                        setIsMigrated(true);
-                        alert("¡Migración técnica completada! Activando nueva base de datos...");
-                        window.location.reload();
-                    }
-                });
+                // El usuario tenía un JSON legado, intentamos migrarlo con IDs seguros
+                if (dataToHydrate && (dataToHydrate.aluminum?.length > 0 || dataToHydrate.recipes?.length > 0)) {
+                    migrateAppDataToTables(user.id, dataToHydrate).then(res => {
+                        if (res.success) {
+                            setIsMigrated(true);
+                            alert("¡Migración de base de datos exitosa!");
+                            window.location.reload();
+                        } else {
+                            console.error("Error migrando secundario:", res.errors);
+                        }
+                    });
+                }
             }
         }
         
         if (dataToHydrate) hydrateData(dataToHydrate);
         setIsDataLoaded(true);
-        checkDeviceAccess(profileCheck);
+        if (profileCheck) {
+            setProfile(profileCheck); // Force state map so UI doesn't render "Error de perfil"
+            checkDeviceAccess(profileCheck);
+        }
 
         // SOLUCIÓN PROFESIONAL: Suscripción en tiempo real al estado de la cuenta
         supabase
@@ -363,26 +409,6 @@ const App: React.FC = () => {
             }
           )
           .subscribe();
-
-      } else {
-        // Auto-crear el perfil si no existe (mantenemos lógica original)
-        const adminData = adminProfile?.app_data || {};
-        const { data: newProfile } = await supabase.from('profiles').insert([
-          { 
-            id: user.id, 
-            email: user.email, 
-            is_active: user.email === 'aristastudiouno@gmail.com',
-            max_devices: 1,
-            registered_devices: [],
-            app_data: adminData
-          }
-        ]).select().single();
-        
-        hydrateData(adminData);
-        setIsDataLoaded(true);
-
-        if (newProfile) checkDeviceAccess(newProfile);
-        else setAuthLoading(false);
       }
     } catch (err: any) {
       if (err.message?.includes('Failed to fetch')) {
@@ -565,103 +591,46 @@ const App: React.FC = () => {
         // Guardado en la nube (Supabase)
         if (isSupabaseConfigured) {
           if (isMigrated) {
-            // Guardado Profesional - Por Tablas
+            // Guardado Profesional - Por Tablas (Seguro contra pérdida de datos)
+            const syncTable = async (tableName: string, dataArray: any[], mapper: (x: any) => any) => {
+               // BLOQUEO ABSOLUTO: Jamás borrar la base de datos entera por un array vacío en memoria.
+               if (!dataArray || dataArray.length === 0) return; 
+
+               try {
+                 const mappedData = dataArray.map(mapper).map(o => {
+                    // Reasignación forzada de IDs seguros para usuarios compartidos
+                    const safeId = o.id.includes(`_${session.user.id}`) ? o.id : `${o.id}_${session.user.id}`;
+                    return { ...o, id: safeId };
+                 });
+                 const BATCH_SIZE = 500;
+                 for (let i = 0; i < mappedData.length; i += BATCH_SIZE) {
+                   const chunk = mappedData.slice(i, i + BATCH_SIZE);
+                   const { error } = await supabase.from(tableName).upsert(chunk, { onConflict: 'id' });
+                   if (error) {
+                       console.error(`Error de upsert en ${tableName} lote ${i}:`, error.message);
+                       alert(`FALLO AL GUARDAR ${tableName}: \n\n${error.message}\n\nPor favor, haz una captura de este error y no cierres la ventana.`);
+                       throw error;
+                   }
+                 }
+               } catch (e) {
+                  console.error(`Fallo crítico al sincronizar tabla ${tableName}:`, e);
+               }
+            };
+
             await Promise.all([
-               supabase.from('profiles').update({ app_data: { config, customVisualTypes, currentWorkItems } }).eq('id', session.user.id),
-               // Para inventarios, por simplicidad en esta fase, reemplazamos todo.
-               (async () => {
-                 await supabase.from('aluminum_inventory').delete().eq('user_id', session.user.id);
-                 if (aluminum.length > 0) await supabase.from('aluminum_inventory').insert(aluminum.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   code: x.code, 
-                   detail: x.detail, 
-                   weight_per_meter: x.weightPerMeter, 
-                   bar_length: x.barLength, 
-                   thickness: x.thickness, 
-                   treatment_cost: x.treatmentCost, 
-                   is_glazing_bead: x.isGlazingBead, 
-                   glazing_bead_style: x.glazingBeadStyle,
-                   min_glass_thickness: x.minGlassThickness, 
-                   max_glass_thickness: x.maxGlassThickness 
-                 })));
-               })(),
-               (async () => {
-                 await supabase.from('glass_inventory').delete().eq('user_id', session.user.id);
-                 if (glasses.length > 0) await supabase.from('glass_inventory').insert(glasses.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   code: x.code, 
-                   detail: x.detail, 
-                   width: x.width, 
-                   height: x.height, 
-                   thickness: x.thickness, 
-                   price_per_m2: x.pricePerM2, 
-                   is_mirror: x.isMirror 
-                 })));
-               })(),
-               (async () => {
-                 await supabase.from('accessory_inventory').delete().eq('user_id', session.user.id);
-                 if (accessories.length > 0) await supabase.from('accessory_inventory').insert(accessories.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   code: x.code, 
-                   detail: x.detail, 
-                   unit_price: x.unitPrice 
-                 })));
-               })(),
-               (async () => {
-                 await supabase.from('dvh_inventory').delete().eq('user_id', session.user.id);
-                 if (dvhInputs.length > 0) await supabase.from('dvh_inventory').insert(dvhInputs.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   type: x.type, 
-                   detail: x.detail, 
-                   thickness: x.thickness, 
-                   cost: x.cost 
-                 })));
-               })(),
-               (async () => {
-                 await supabase.from('treatment_inventory').delete().eq('user_id', session.user.id);
-                 if (treatments.length > 0) await supabase.from('treatment_inventory').insert(treatments.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   name: x.name, 
-                   price_per_kg: x.pricePerKg, 
-                   hex_color: x.hexColor 
-                 })));
-               })(),
-               (async () => {
-                 await supabase.from('panel_inventory').delete().eq('user_id', session.user.id);
-                 if (blindPanels.length > 0) await supabase.from('panel_inventory').insert(blindPanels.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   code: x.code, 
-                   detail: x.detail, 
-                   price: x.price, 
-                   unit: x.unit 
-                 })));
-               })(),
-               (async () => {
-                 await supabase.from('recipes').delete().eq('user_id', session.user.id);
-                 if (recipes.length > 0) await supabase.from('recipes').insert(recipes.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   name: x.name, 
-                   data: x 
-                 })));
-               })(),
-               (async () => {
-                 await supabase.from('quotes').delete().eq('user_id', session.user.id);
-                 if (quotes.length > 0) await supabase.from('quotes').insert(quotes.map(x => ({ 
-                   id: x.id,
-                   user_id: session.user.id, 
-                   customer_name: x.customerName, 
-                   data: x 
-                 })));
-               })()
+              supabase.from('profiles').update({ app_data: { config, customVisualTypes, currentWorkItems } }).eq('id', session.user.id)
             ]);
-            console.log("Datos guardados en tablas relacionales.");
+            await Promise.all([
+              syncTable('aluminum_inventory', aluminum, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6, thickness: x.thickness || 0, treatment_cost: x.treatmentCost || 0, is_glazing_bead: x.isGlazingBead || false, glazing_bead_style: x.glazingBeadStyle || '', min_glass_thickness: x.minGlassThickness || 0, max_glass_thickness: x.maxGlassThickness || 0 })),
+              syncTable('glass_inventory', glasses, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', width: x.width || 0, height: x.height || 0, thickness: x.thickness || 0, price_per_m2: x.pricePerM2 || 0, is_mirror: x.isMirror || false })),
+              syncTable('accessory_inventory', accessories, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', unit_price: x.unitPrice || 0 })),
+              syncTable('dvh_inventory', dvhInputs, x => ({ id: x.id, user_id: session.user.id, type: x.type || '', detail: x.detail || '', thickness: x.thickness || 0, cost: x.cost || 0 })),
+              syncTable('treatment_inventory', treatments, x => ({ id: x.id, user_id: session.user.id, name: x.name || '', price_per_kg: x.pricePerKg || 0, hex_color: x.hexColor || '' })),
+              syncTable('panel_inventory', blindPanels, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', price: x.price || 0, unit: x.unit || 'm2' })),
+              syncTable('recipes', recipes, x => ({ id: x.id, user_id: session.user.id, name: x.name || '', data: x })),
+              syncTable('quotes', quotes, x => ({ id: x.id, user_id: session.user.id, customer_name: x.customerName || '', data: x }))
+            ]);
+            console.log("Datos guardados en tablas relacionales de forma segura mediante UP-SERT.");
           } else {
             // Guardado Legacy - Mono-Celda (Con protección de tamaño y reintentos)
             console.log("Intentando guardado legacy (JSON bloque)...");
@@ -759,6 +728,12 @@ const App: React.FC = () => {
           <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Cuenta en revisión</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">Tu cuenta ha sido creada exitosamente, pero un administrador debe activarla para que puedas acceder al cotizador.</p>
           <button 
+            onClick={() => fetchProfile(session.user)} 
+            className="w-full bg-sky-500 hover:bg-sky-600 text-white font-black uppercase tracking-widest py-3 rounded-xl transition-colors mb-2"
+          >
+            Revisar estado
+          </button>
+          <button 
             onClick={() => { if (isSupabaseConfigured) supabase.auth.signOut(); else setSession(null); }} 
             className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
           >
@@ -775,13 +750,26 @@ const App: React.FC = () => {
         <div className="text-center p-8 bg-white dark:bg-[#252525] rounded-3xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full">
           <ShieldCheck className="mx-auto text-red-500 mb-4" size={48} />
           <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-widest">Error de Perfil</h2>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8">No se pudo cargar tu perfil correctamente. Por favor, contacta al administrador.</p>
-          <button 
-            onClick={() => { if (isSupabaseConfigured) supabase.auth.signOut(); else setSession(null); }} 
-            className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
-          >
-            Cerrar sesión
-          </button>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
+            No se pudo cargar tu perfil correctamente. El proceso de registro pudo haber sido interrumpido.
+          </p>
+          <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-xl text-xs font-mono mb-8 text-left overflow-hidden text-ellipsis">
+            Info: {session?.user?.id || 'No User ID'}
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => { fetchProfile(session.user); }} 
+              className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
+            >
+              Reintentar
+            </button>
+            <button 
+              onClick={() => { if (isSupabaseConfigured) supabase.auth.signOut(); else setSession(null); }} 
+              className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </div>
     );
