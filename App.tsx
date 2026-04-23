@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { DATABASE_TABS } from './constants';
 import * as XLSX from 'xlsx';
-import { migrateAppDataToTables, syncMasterInventoryToTables, cloneInventoryBetweenUsers } from './src/services/migrationService';
+import { wipeUserInventory, saveBulkData } from './src/services/migrationService';
 
 import { 
   GlobalConfig, 
@@ -106,8 +106,7 @@ const App: React.FC = () => {
     });
   };
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [isMigrated, setIsMigrated] = useState(false);
-
+  
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
@@ -283,7 +282,7 @@ const App: React.FC = () => {
       }
 
       // Si llegamos a acá, el usuario es ACTIVO o es ADMIN
-      let dataFromTables = await fetchFromTables(user.id);
+      const dataFromTables = await fetchFromTables(user.id);
 
       // Volcamos a las variables
       if (dataFromTables) hydrateData(dataFromTables);
@@ -702,8 +701,6 @@ const App: React.FC = () => {
               treatments={treatments} setTreatments={setTreatments} 
               config={config} setConfig={setConfig} 
               session={session}
-              isMigrated={isMigrated}
-              setIsMigrated={setIsMigrated}
               recipes={recipes}
               setRecipes={setRecipes}
               quotes={quotes}

@@ -1,10 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIcon, Palette, Droplets, Thermometer, Box, AlertTriangle, Info, ShieldCheck, Zap } from 'lucide-react';
+import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIcon, Palette, Droplets, Thermometer, Box, AlertTriangle, Info, ShieldCheck, Zap, Database, Cloud } from 'lucide-react';
 import { AluminumProfile, Glass, BlindPanel, Accessory, DVHInput, Treatment, GlobalConfig, ProductRecipe, Quote } from '../types';
 import { DATABASE_TABS } from '../constants';
 import * as XLSX from 'xlsx';
-import { migrateAppDataToTables, pullUpdatesFromMaster } from '../src/services/migrationService';
 
 interface Props {
   aluminum: AluminumProfile[];
@@ -22,8 +21,6 @@ interface Props {
   config: GlobalConfig;
   setConfig: (config: GlobalConfig) => void;
   session: any;
-  isMigrated: boolean;
-  setIsMigrated: (val: boolean) => void;
   recipes: ProductRecipe[];
   setRecipes: (data: ProductRecipe[]) => void;
   quotes: Quote[];
@@ -36,59 +33,15 @@ const DatabaseCRUD: React.FC<Props> = ({
   accessories, setAccessories, 
   dvhInputs, setDvhInputs, 
   treatments, setTreatments,
-  session, isMigrated, setIsMigrated,
+  config, setConfig,
+  session,
   recipes, setRecipes, quotes
 }) => {
   const [activeSubTab, setActiveSubTab] = useState('aluminum');
   const [search, setSearch] = useState('');
-  const [isMigrating, setIsMigrating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filter = (val: any) => String(val || '').toLowerCase().includes(search.toLowerCase());
-
-  const handleStartMigration = async () => {
-    alert("¡Boton presionado! Iniciando validación...");
-    console.log("Migration button clicked - Start");
-    
-    if (!session?.user?.id) {
-      console.error("No session ID");
-      alert("Error: No se encontró ID de usuario.");
-      return;
-    }
-    
-    console.log("Session verified:", session.user.id);
-    
-    const confirmed = confirm("ADVERTENCIA: Vas a migrar tus datos a la nueva arquitectura relacional. Esto mejorará drásticamente la velocidad y estabilidad. ¿Deseas continuar?");
-    if (!confirmed) {
-      console.log("Migration cancelled by user");
-      return;
-    }
-    
-    console.log("Starting migration process...");
-    setIsMigrating(true);
-    alert("Procesando migración... por favor espera unos segundos.");
-    const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes, quotes };
-    console.log("Payload prepared:", Object.keys(data));
-    
-    try {
-      const result = await migrateAppDataToTables(session.user.id, data);
-      console.log("Migration result:", result);
-      
-      if (result.success) {
-        alert("¡MIGRACIÓN COMPLETADA! Ahora tu aplicación funciona con tablas dedicadas.");
-        setIsMigrated(true);
-        window.location.reload();
-      } else {
-        console.error("Migration failed with errors:", result.errors);
-        alert("Error en la migración: " + (result.errors?.join(", ") || "Error desconocido"));
-      }
-    } catch (err: any) {
-      console.error("Critical error during migration:", err);
-      alert("Error crítico durante la migración: " + (err.message || String(err)));
-    } finally {
-      setIsMigrating(false);
-    }
-  };
 
   // MAPEADOR TÉCNICO DE CABECERAS (Normaliza variaciones de Excel)
   const normalizeKey = (key: string): string => {
@@ -675,72 +628,67 @@ const DatabaseCRUD: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="bg-sky-50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex gap-4 items-center">
-          <div className="w-10 h-10 bg-sky-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg"><Info size={20} /></div>
+      {/* DATABASE RESET & SAVE HEADER */}
+      <div className="mb-6 p-6 bg-white dark:bg-slate-900 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-slate-200/50 dark:shadow-none transition-all">
+        <div className="flex items-center gap-5">
+          <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-200 dark:shadow-none ring-4 ring-indigo-50 dark:ring-indigo-900/20"><Database size={24} /></div>
           <div className="flex flex-col">
-              <p className="text-[10px] font-black text-sky-900 dark:text-sky-300 uppercase tracking-widest leading-none">Terminal de Sincronización Industrial</p>
-              <p className="text-[9px] font-bold text-sky-600/70 dark:text-sky-400/50 uppercase mt-1">
-                {isMigrated ? 'Arquitectura Relacional Activa (Alta Velocidad)' : 'Advertencia: Usando Arquitectura Mono-Celda (Riesgo de bloqueo)'}
+              <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none">Gestión de Datos en Nube (V3)</p>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mt-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Servidor Supabase Conectado | Modo: Estricto
               </p>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-            {isMigrated ? (
-               <button 
-                  onClick={async () => {
-                     alert("¡Guardando catálogo maestro en la nube!");
-                      const btn = document.getElementById('btn-save-cloud');
-                      if(btn) btn.innerHTML = "Guardando Datos...";
-                      try {
-                        const { supabase } = await import('../src/services/migrationService');
-                        const ts = (dataArray: any[], mapper: (x:any)=>any) => dataArray.map(mapper).map((o: any) => ({ 
-                           ...o, 
-                           id: String(o.id).split('_')[0] + '_' + session.user.id 
-                        }));
-                        
-                        const uid = session.user.id;
+        
+        <div className="flex flex-wrap items-center gap-3">
+            <button 
+              onClick={async () => {
+                if(!confirm("¿ESTÁS SEGURO? Esto eliminará todos tus datos actuales en la nube para siempre. Esta acción NO se puede deshacer.")) return;
+                try {
+                  const { wipeUserInventory } = await import('../src/services/migrationService');
+                  const { success, errors } = await wipeUserInventory(session.user.id);
+                  if (success) {
+                    alert("¡BASE DE DATOS EN CERO! Todo el inventario ha sido eliminado de la nube. Recarga para ver los cambios.");
+                    location.reload();
+                  } else {
+                    alert("Error al limpiar: " + (errors ? errors.join(', ') : 'Error desconocido'));
+                  }
+                } catch(e: any) {
+                  alert("Error crítico: " + e.message);
+                }
+              }}
+              className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 border border-rose-200"
+            >
+              <Trash2 size={14} /> Recetear Todo (Cero)
+            </button>
 
-                        // PASO ÚNICO: UPSERT (ACTUALIZAR O INSERTAR) SIN BORRAR NADA
-                        // Esto garantiza que si el ítem existe, se actualiza, y si no, se inserta, sin duplicados ni borrados.
-                        const upserts = [];
-                        if (aluminum.length > 0) upserts.push(supabase.from('aluminum_inventory').upsert(ts(aluminum, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6, thickness: x.thickness || 0, treatment_cost: x.treatmentCost || 0, is_glazing_bead: x.isGlazingBead || false, glazing_bead_style: x.glazingBeadStyle || '', min_glass_thickness: x.minGlassThickness || 0, max_glass_thickness: x.maxGlassThickness || 0 })), { onConflict: 'id' }));
-                        if (glasses.length > 0) upserts.push(supabase.from('glass_inventory').upsert(ts(glasses, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', width: x.width || 0, height: x.height || 0, thickness: x.thickness || 0, price_per_m2: x.pricePerM2 || 0, is_mirror: x.isMirror || false })), { onConflict: 'id' }));
-                        if (accessories.length > 0) upserts.push(supabase.from('accessory_inventory').upsert(ts(accessories, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', unit_price: x.unitPrice || 0 })), { onConflict: 'id' }));
-                        if (dvhInputs.length > 0) upserts.push(supabase.from('dvh_inventory').upsert(ts(dvhInputs, x => ({ id: x.id, user_id: uid, type: x.type || '', detail: x.detail || '', thickness: x.thickness || 0, cost: x.cost || 0 })), { onConflict: 'id' }));
-                        if (treatments.length > 0) upserts.push(supabase.from('treatment_inventory').upsert(ts(treatments, x => ({ id: x.id, user_id: uid, name: x.name || '', price_per_kg: x.pricePerKg || 0, hex_color: x.hexColor || '' })), { onConflict: 'id' }));
-                        if (blindPanels.length > 0) upserts.push(supabase.from('panel_inventory').upsert(ts(blindPanels, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', price: x.price || 0, unit: x.unit || 'm2' })), { onConflict: 'id' }));
-
-                        if (upserts.length > 0) {
-                            await Promise.all(upserts);
-                        }
-
-                        alert("¡Catálogo actualizado con éxito!");
-                        if(btn) btn.innerHTML = "Guardar Catálogo Oficial";
-                     } catch (e: any) {
-                        console.error("Error crítico:", e);
-                        alert("Hubo un fallo crítico: " + e.message);
-                        if(btn) btn.innerHTML = "Error (Reintentar)";
+            <button 
+                onClick={async () => {
+                   const btn = document.getElementById('btn-save-cloud');
+                   if(btn) btn.innerHTML = "GUARDANDO...";
+                   try {
+                     const { saveBulkData } = await import('../src/services/migrationService');
+                     const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes: [], quotes: [] };
+                     const { success, errors } = await saveBulkData(session.user.id, data);
+                     
+                     if (success) {
+                       alert("¡Datos guardados con éxito en Supabase!");
+                       if(btn) btn.innerHTML = "Subir Todo (Nube)";
+                     } else {
+                       alert("Errores: " + (errors ? errors.join('\n') : 'Error desconocido'));
+                       if(btn) btn.innerHTML = "Error (Reintentar)";
                      }
-                  }}
-                  id="btn-save-cloud"
-                  className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
-               >
-                 <Upload size={14} /> Guardar Catálogo en Nube
-               </button>
-            ) : (
-                <button 
-                  onClick={handleStartMigration}
-                  disabled={isMigrating}
-                  className="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-                >
-                  {isMigrating ? <Zap size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
-                  {isMigrating ? 'Migrando...' : 'Iniciar Migración Profesional'}
-                </button>
-            )}
-            <span className="text-[8px] text-slate-400 uppercase font-bold tracking-tighter self-end">
-              ID: {session?.user?.id?.substring(0, 8) || 'SIN SESIÓN'} | M: {String(isMigrated)}
-            </span>
+                  } catch (e: any) {
+                     alert("Fallo crítico: " + e.message);
+                     if(btn) btn.innerHTML = "Error (Reintentar)";
+                  }
+                }}
+                id="btn-save-cloud"
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+            >
+              <Cloud size={14} /> Guardar Catálogo Actual
+            </button>
         </div>
       </div>
 
