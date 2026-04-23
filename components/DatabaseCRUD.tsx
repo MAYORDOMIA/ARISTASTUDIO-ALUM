@@ -130,6 +130,10 @@ const DatabaseCRUD: React.FC<Props> = ({
 
   const [isPullingUpdates, setIsPullingUpdates] = useState(false);
 
+  const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+
   const handleFetchUpdates = async () => {
     if (!session?.user?.id) return;
     
@@ -222,18 +226,27 @@ const DatabaseCRUD: React.FC<Props> = ({
   const handleImportFromJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setPendingImportFile(file);
+    setShowImportModal(true);
+    if (e.target) e.target.value = ''; // Reset input so it can be selected again
+  };
+
+  const processJSONImport = (wantsOverwrite: boolean) => {
+    if (!pendingImportFile) return;
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
         const imported = JSON.parse(evt.target?.result as string);
         
-        // Fusión Inteligente en memoria (MERGE): 
-        // Si descargas un backup y lo subes, no "desaparece" lo que creaste después.
         const mergeArrays = (existing: any[], incoming: any[]) => {
+           if (wantsOverwrite) return incoming; // If overwrite, just return the incoming data
+           
            if (!existing || existing.length === 0) return incoming;
            if (!incoming || incoming.length === 0) return existing;
            const map = new Map(existing.map(x => [x.id, x]));
-           incoming.forEach(x => map.set(x.id, x)); // El incoming pisa al existing en caso de misma ID
+           incoming.forEach(x => map.set(x.id, x));
            return Array.from(map.values());
         };
 
@@ -244,17 +257,35 @@ const DatabaseCRUD: React.FC<Props> = ({
         if (imported.dvhInputs) setDvhInputs(mergeArrays(dvhInputs, imported.dvhInputs));
         if (imported.treatments) setTreatments(mergeArrays(treatments, imported.treatments));
         
-        // Fusión de recetas para no romper el programa
         if (imported.recipes) {
             setRecipes(mergeArrays(recipes, imported.recipes));
         }
         
-        alert("Restauración de Respaldo JSON completada con éxito. Se combinó con los datos actuales.");
+        setShowImportModal(false);
+        setPendingImportFile(null);
+        // We use a small visual toast instead of alert, or just let them see the UI update.
+        // Alert is blocked in iframes too, so no alert here either.
       } catch (err) {
-        alert("Error al procesar el archivo de respaldo JSON.");
+        setShowImportModal(false);
+        setPendingImportFile(null);
       }
     };
-    reader.readAsText(file);
+    reader.readAsText(pendingImportFile);
+  };
+
+  const handleWipeDatabase = () => {
+    setShowWipeModal(true);
+  };
+
+  const confirmWipeDatabase = () => {
+    setAluminum([]);
+    setGlasses([]);
+    setBlindPanels([]);
+    setAccessories([]);
+    setDvhInputs([]);
+    setTreatments([]);
+    setRecipes([]);
+    setShowWipeModal(false);
   };
 
   const [syncingDrive, setSyncingDrive] = useState(false);
@@ -616,31 +647,34 @@ const DatabaseCRUD: React.FC<Props> = ({
             </button>
           ))}
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 lg:gap-3">
-            <button onClick={() => setShowDriveModal(true)} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-2 lg:gap-3 flex-wrap justify-end">
+            <button onClick={() => setShowDriveModal(true)} className="flex items-center justify-center gap-3 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                 <DbIcon size={14} /> Sincronizar Drive
             </button>
             <input type="file" ref={fileInputRef} onChange={handleImportFromExcel} className="hidden" accept=".xlsx,.xls" />
-            <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sky-600 transition-all shadow-sm">
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sky-600 transition-all shadow-sm">
                 <Upload size={14} /> Importar Excel
             </button>
-            <button onClick={handleExportToExcel} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all shadow-sm">
+            <button onClick={handleExportToExcel} className="flex items-center justify-center gap-3 px-4 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all shadow-sm">
                 <Download size={14} /> Excel
             </button>
-            <button onClick={handleExportToJSON} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-slate-900 dark:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-xl active:scale-95">
+            <button onClick={handleExportToJSON} className="flex items-center justify-center gap-3 px-4 py-3 bg-slate-900 dark:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-xl active:scale-95">
                 <Download size={14} /> Backup JSON
             </button>
             <input type="file" id="json-restore" className="hidden" accept=".json" onChange={handleImportFromJSON} />
-            <button onClick={() => document.getElementById('json-restore')?.click()} className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+            <button onClick={() => document.getElementById('json-restore')?.click()} className="flex items-center justify-center gap-3 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                 <Upload size={14} /> Restaurar JSON
+            </button>
+            <button onClick={handleWipeDatabase} className="flex items-center justify-center gap-3 px-4 py-3 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                <Trash2 size={14} /> Limpiar Todo
             </button>
             {session?.user?.email !== 'aristastudiouno@gmail.com' && (
               <button 
                 onClick={handleFetchUpdates} 
                 disabled={isPullingUpdates}
-                className="flex-1 flex items-center justify-center gap-3 px-4 lg:px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg animate-pulse"
+                className="flex items-center justify-center gap-3 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg animate-pulse"
               >
-                  <Download size={14} /> {isPullingUpdates ? 'Buscando...' : 'Actualizar Catálogo Master'}
+                  <Download size={14} /> {isPullingUpdates ? 'Buscando...' : 'Catálogo Master'}
               </button>
             )}
         </div>
@@ -730,6 +764,90 @@ const DatabaseCRUD: React.FC<Props> = ({
         .btn-delete { color: #cbd5e1; transition: all 0.2s; padding: 0.5rem; border-radius: 8px; }
         .btn-delete:hover { color: #ef4444; background-color: #fef2f2; }
       `}</style>
+
+      {/* WIP: Delete User Modal (Wait, this is DatabaseCRUD, adding wipe modals) */}
+      {showWipeModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900 border-none">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-red-500/30">
+            <div className="p-6 border-b border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20">
+              <h3 className="text-xl font-black text-red-600 dark:text-red-400 uppercase tracking-widest flex items-center gap-3">
+                <Trash2 size={24} /> Limpiar Base de Datos
+              </h3>
+            </div>
+            <div className="p-8 space-y-4 text-center">
+              <p className="text-sm text-slate-600 dark:text-slate-300 font-bold">
+                ⚠️ PELIGRO EXTREMO
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                ¿Estás seguro de que quieres BURRAR TODO tu catálogo de la memoria de tu dispositivo?
+              </p>
+              <p className="text-xs text-slate-400 mt-4 bg-slate-100 dark:bg-slate-800 p-4 rounded-xl text-left font-mono">
+                Esto dejará tu pantalla en blanco para que puedas importar un JSON limpio.<br/>NO afectará a La Nube a menos que presiones "Guardar Catálogo Oficial" después.
+              </p>
+            </div>
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 flex items-center gap-3 justify-end border-t border-slate-100 dark:border-slate-800">
+              <button 
+                onClick={() => setShowWipeModal(false)}
+                className="px-6 py-3 rounded-xl border border-slate-200 dark:border-slate-700 font-black text-xs uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmWipeDatabase}
+                className="px-6 py-3 rounded-xl bg-red-600 text-white font-black text-xs uppercase tracking-widest hover:bg-red-700 shadow-xl shadow-red-500/20 transition-all"
+              >
+                Sí, Borrar Todo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* JSON Import Replace Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900 border-none">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-3">
+                <Upload size={24} className="text-amber-500" /> Método de Restauración
+              </h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Has seleccionado un archivo de respaldo. ¿Cómo deseas aplicarlo?
+              </p>
+              
+              <div 
+                onClick={() => processJSONImport(true)}
+                className="w-full text-left p-4 rounded-xl border-2 border-red-200 dark:border-red-900/30 hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-all group"
+              >
+                <h4 className="font-black text-sm uppercase tracking-widest text-red-600 dark:text-red-400">Sobrescribir Totalmente (Recomendado)</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                  Borra todos los datos actuales y deja SOLO los datos del archivo. Útil para reiniciar de forma limpia o aplicar una copia de seguridad oficial.
+                </p>
+              </div>
+
+              <div 
+                onClick={() => processJSONImport(false)}
+                className="w-full text-left p-4 rounded-xl border-2 border-sky-200 dark:border-sky-900/30 hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20 cursor-pointer transition-all group"
+              >
+                <h4 className="font-black text-sm uppercase tracking-widest text-sky-600 dark:text-sky-400">Combinar Inteligente / Anexar</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                  Mantiene lo que ya tienes y agrega lo del archivo. Si hay repetidos, el archivo manda.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-right border-t border-slate-100 dark:border-slate-800">
+               <button 
+                onClick={() => { setShowImportModal(false); setPendingImportFile(null); }}
+                className="px-6 py-3 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-black uppercase tracking-widest text-slate-500 transition-colors"
+               >
+                 Cancelar Importación
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Drive Sync Modal */}
       {showDriveModal && (
