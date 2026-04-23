@@ -466,13 +466,13 @@ const App: React.FC = () => {
         const stringified = JSON.stringify(data);
         localStorage.setItem(storageKey, stringified);
 
-        // Guardado AUTO en la nube SÓLO de datos ligeros (Configuración, Obras activas).
-        // El catálogo pesado (Aluminio, Recetas, Presupuestos terminados) lo guardaremos de forma explícita 
-        // a través de otras ventanas / o botones para evitar que al importar un Excel/JSON la nube los borre.
+        // Guardado AUTO en la nube DESACTIVADO PARA EVITAR SOBREESCRITURAS NO DESEADAS
+        /*
         if (isSupabaseConfigured) {
             const appDataLite = { config, customVisualTypes, currentWorkItems };
             await supabase.from('profiles').update({ app_data: appDataLite }).eq('id', session.user.id);
         }
+        */
 
       } catch (e: any) {
         console.error("Error en auto-guardado ligero:", e?.message || e);

@@ -5,30 +5,35 @@ export const migrateAppDataToTables = async (userId: string, appData: any) => {
   const errors: string[] = [];
 
   try {
-    // 1. Aluminio
-    if (appData.aluminum && Array.isArray(appData.aluminum)) {
-      console.log("Migrando aluminio...");
-      // REMOVED delete to prevent wiping data
-      const toInsert = appData.aluminum.map((item: any) => ({
-        id: String(item.id).includes(`_${userId}`) ? item.id : `${item.id}_${userId}`,
-        user_id: userId,
-        code: item.code,
-        detail: item.detail,
-        weight_per_meter: item.weightPerMeter,
-        bar_length: item.barLength,
-        thickness: item.thickness,
-        treatment_cost: item.treatmentCost,
-        is_glazing_bead: item.isGlazingBead,
-        glazing_bead_style: item.glazingBeadStyle,
-        min_glass_thickness: item.minGlassThickness,
-        max_glass_thickness: item.maxGlassThickness
-      }));
-      if (toInsert.length > 0) {
-        const { error: insError } = await supabase.from('aluminum_inventory').upsert(toInsert, { onConflict: 'id' });
-        if (insError) errors.push(`Error insertando aluminio: ${insError.message}`);
+      // 1. Aluminio
+      if (appData.aluminum && Array.isArray(appData.aluminum)) {
+          console.log("Migrando aluminio...");
+          const toInsert = appData.aluminum.map((item: any) => {
+              // ID Profesional: Aseguramos que siempre termine en _userId una única vez.
+              const baseId = String(item.id).split('_')[0]; 
+              const newId = `${baseId}_${userId}`;
+              
+              return {
+                id: newId,
+                user_id: userId,
+                code: item.code,
+                detail: item.detail,
+                weight_per_meter: item.weightPerMeter,
+                bar_length: item.barLength || 6,
+                thickness: item.thickness || 0,
+                treatment_cost: item.treatmentCost || 0,
+                is_glazing_bead: item.isGlazingBead || false,
+                glazing_bead_style: item.glazingBeadStyle || '',
+                min_glass_thickness: item.minGlassThickness || 0,
+                max_glass_thickness: item.maxGlassThickness || 0
+              };
+          });
+          if (toInsert.length > 0) {
+            const { error: insError } = await supabase.from('aluminum_inventory').upsert(toInsert, { onConflict: 'id' });
+            if (insError) errors.push(`Error insertando aluminio: ${insError.message}`);
+          }
+          console.log("Aluminio migrado.");
       }
-      console.log("Aluminio migrado.");
-    }
 
     // 2. Vidrios
     if (appData.glasses && Array.isArray(appData.glasses)) {

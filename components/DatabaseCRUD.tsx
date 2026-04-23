@@ -647,36 +647,31 @@ const DatabaseCRUD: React.FC<Props> = ({
             </button>
           ))}
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 lg:gap-3 flex-wrap justify-end">
-            <button onClick={() => setShowDriveModal(true)} className="flex items-center justify-center gap-3 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                <DbIcon size={14} /> Sincronizar Drive
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handleImportFromExcel} className="hidden" accept=".xlsx,.xls" />
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sky-600 transition-all shadow-sm">
-                <Upload size={14} /> Importar Excel
-            </button>
-            <button onClick={handleExportToExcel} className="flex items-center justify-center gap-3 px-4 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 transition-all shadow-sm">
-                <Download size={14} /> Excel
-            </button>
-            <button onClick={handleExportToJSON} className="flex items-center justify-center gap-3 px-4 py-3 bg-slate-900 dark:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-xl active:scale-95">
-                <Download size={14} /> Backup JSON
-            </button>
-            <input type="file" id="json-restore" className="hidden" accept=".json" onChange={handleImportFromJSON} />
-            <button onClick={() => document.getElementById('json-restore')?.click()} className="flex items-center justify-center gap-3 px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                <Upload size={14} /> Restaurar JSON
-            </button>
-            <button onClick={handleWipeDatabase} className="flex items-center justify-center gap-3 px-4 py-3 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                <Trash2 size={14} /> Limpiar Todo
-            </button>
+         <div className="flex flex-wrap gap-2 lg:gap-3 justify-end items-center">
             {session?.user?.email !== 'aristastudiouno@gmail.com' && (
               <button 
                 onClick={handleFetchUpdates} 
                 disabled={isPullingUpdates}
-                className="flex items-center justify-center gap-3 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg animate-pulse"
+                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md"
               >
-                  <Download size={14} /> {isPullingUpdates ? 'Buscando...' : 'Catálogo Master'}
+                  <RefreshCw size={12} /> {isPullingUpdates ? 'Sincronizando...' : 'Actualizar Catálogo'}
               </button>
             )}
+
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+            <button onClick={handleExportToJSON} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sky-500 transition-all shadow-sm">
+                <Download size={12} /> Backup JSON
+            </button>
+            
+            <input type="file" id="json-restore" className="hidden" accept=".json" onChange={handleImportFromJSON} />
+            <button onClick={() => document.getElementById('json-restore')?.click()} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-amber-500 transition-all shadow-sm">
+                <Upload size={12} /> Restaurar JSON
+            </button>
+            
+            <button onClick={handleWipeDatabase} className="flex items-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-red-100 dark:border-red-900/50">
+                <Trash2 size={12} /> Limpiar Todo
+            </button>
         </div>
       </div>
 
@@ -694,25 +689,42 @@ const DatabaseCRUD: React.FC<Props> = ({
             {isMigrated ? (
                <button 
                   onClick={async () => {
-                     alert("¡Guardando catálogo maestro oficial! (Presiona OK y no cierres la ventana)");
+                     alert("¡Sobrescribiendo catálogo maestro oficial en la nube! (Se eliminarán los duplicados y se ajustará exactamente a la pantalla actual. Presiona OK y no cierres la ventana)");
                      const btn = document.getElementById('btn-save-cloud');
                      if(btn) btn.innerHTML = "Guardando Datos...";
                      try {
                         const { supabase } = await import('../src/services/migrationService');
                         const ts = (dataArray: any[], mapper: (x:any)=>any) => dataArray.map(mapper).map((o: any) => ({ ...o, id: o.id.includes(`_${session.user.id}`) ? o.id : `${o.id}_${session.user.id}` }));
                         
+                        const uid = session.user.id;
+
+                        // PASO 1: DESTRUIR TODAS LAS TABLAS DE ESTE USUARIO PARA ARRANCAR DE CERO Y ELIMINAR DUPLICADOS
                         await Promise.all([
-                           supabase.from('aluminum_inventory').upsert(ts(aluminum, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6, thickness: x.thickness || 0, treatment_cost: x.treatmentCost || 0, is_glazing_bead: x.isGlazingBead || false, glazing_bead_style: x.glazingBeadStyle || '', min_glass_thickness: x.minGlassThickness || 0, max_glass_thickness: x.maxGlassThickness || 0 })), {onConflict: 'id'}),
-                           supabase.from('glass_inventory').upsert(ts(glasses, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', width: x.width || 0, height: x.height || 0, thickness: x.thickness || 0, price_per_m2: x.pricePerM2 || 0, is_mirror: x.isMirror || false })), {onConflict: 'id'}),
-                           supabase.from('accessory_inventory').upsert(ts(accessories, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', unit_price: x.unitPrice || 0 })), {onConflict: 'id'}),
-                           supabase.from('dvh_inventory').upsert(ts(dvhInputs, x => ({ id: x.id, user_id: session.user.id, type: x.type || '', detail: x.detail || '', thickness: x.thickness || 0, cost: x.cost || 0 })), {onConflict: 'id'}),
-                           supabase.from('treatment_inventory').upsert(ts(treatments, x => ({ id: x.id, user_id: session.user.id, name: x.name || '', price_per_kg: x.pricePerKg || 0, hex_color: x.hexColor || '' })), {onConflict: 'id'}),
-                           supabase.from('panel_inventory').upsert(ts(blindPanels, x => ({ id: x.id, user_id: session.user.id, code: x.code || '', detail: x.detail || '', price: x.price || 0, unit: x.unit || 'm2' })), {onConflict: 'id'})
+                            supabase.from('aluminum_inventory').delete().eq('user_id', uid),
+                            supabase.from('glass_inventory').delete().eq('user_id', uid),
+                            supabase.from('accessory_inventory').delete().eq('user_id', uid),
+                            supabase.from('dvh_inventory').delete().eq('user_id', uid),
+                            supabase.from('treatment_inventory').delete().eq('user_id', uid),
+                            supabase.from('panel_inventory').delete().eq('user_id', uid)
                         ]);
-                        alert("¡Catálogo guardado en Supabase exitosamente!");
+
+                        // PASO 2: INYECTAR SOLAMENTE LO QUE EL USUARIO TIENE EN PANTALLA EN ESTE INSTANTE
+                        const inserts = [];
+                        if (aluminum.length > 0) inserts.push(supabase.from('aluminum_inventory').insert(ts(aluminum, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6, thickness: x.thickness || 0, treatment_cost: x.treatmentCost || 0, is_glazing_bead: x.isGlazingBead || false, glazing_bead_style: x.glazingBeadStyle || '', min_glass_thickness: x.minGlassThickness || 0, max_glass_thickness: x.maxGlassThickness || 0 }))));
+                        if (glasses.length > 0) inserts.push(supabase.from('glass_inventory').insert(ts(glasses, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', width: x.width || 0, height: x.height || 0, thickness: x.thickness || 0, price_per_m2: x.pricePerM2 || 0, is_mirror: x.isMirror || false }))));
+                        if (accessories.length > 0) inserts.push(supabase.from('accessory_inventory').insert(ts(accessories, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', unit_price: x.unitPrice || 0 }))));
+                        if (dvhInputs.length > 0) inserts.push(supabase.from('dvh_inventory').insert(ts(dvhInputs, x => ({ id: x.id, user_id: uid, type: x.type || '', detail: x.detail || '', thickness: x.thickness || 0, cost: x.cost || 0 }))));
+                        if (treatments.length > 0) inserts.push(supabase.from('treatment_inventory').insert(ts(treatments, x => ({ id: x.id, user_id: uid, name: x.name || '', price_per_kg: x.pricePerKg || 0, hex_color: x.hexColor || '' }))));
+                        if (blindPanels.length > 0) inserts.push(supabase.from('panel_inventory').insert(ts(blindPanels, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', price: x.price || 0, unit: x.unit || 'm2' }))));
+
+                        if (inserts.length > 0) {
+                            await Promise.all(inserts);
+                        }
+
+                        alert("¡Catálogo guardado! La nube ahora es un reflejo EXACTO de tu pantalla, arrancando de cero sin duplicados.");
                         if(btn) btn.innerHTML = "Guardar Catálogo Oficial";
                      } catch (e: any) {
-                        alert("Hubo un fallo: " + e.message);
+                        alert("Hubo un fallo crítico: " + e.message);
                         if(btn) btn.innerHTML = "Error (Reintentar)";
                      }
                   }}
