@@ -689,41 +689,36 @@ const DatabaseCRUD: React.FC<Props> = ({
             {isMigrated ? (
                <button 
                   onClick={async () => {
-                     alert("¡Sobrescribiendo catálogo maestro oficial en la nube! (Se eliminarán los duplicados y se ajustará exactamente a la pantalla actual. Presiona OK y no cierres la ventana)");
-                     const btn = document.getElementById('btn-save-cloud');
-                     if(btn) btn.innerHTML = "Guardando Datos...";
-                     try {
+                     alert("¡Guardando catálogo maestro en la nube!");
+                      const btn = document.getElementById('btn-save-cloud');
+                      if(btn) btn.innerHTML = "Guardando Datos...";
+                      try {
                         const { supabase } = await import('../src/services/migrationService');
-                        const ts = (dataArray: any[], mapper: (x:any)=>any) => dataArray.map(mapper).map((o: any) => ({ ...o, id: o.id.includes(`_${session.user.id}`) ? o.id : `${o.id}_${session.user.id}` }));
+                        const ts = (dataArray: any[], mapper: (x:any)=>any) => dataArray.map(mapper).map((o: any) => ({ 
+                           ...o, 
+                           id: String(o.id).split('_')[0] + '_' + session.user.id 
+                        }));
                         
                         const uid = session.user.id;
 
-                        // PASO 1: DESTRUIR TODAS LAS TABLAS DE ESTE USUARIO PARA ARRANCAR DE CERO Y ELIMINAR DUPLICADOS
-                        await Promise.all([
-                            supabase.from('aluminum_inventory').delete().eq('user_id', uid),
-                            supabase.from('glass_inventory').delete().eq('user_id', uid),
-                            supabase.from('accessory_inventory').delete().eq('user_id', uid),
-                            supabase.from('dvh_inventory').delete().eq('user_id', uid),
-                            supabase.from('treatment_inventory').delete().eq('user_id', uid),
-                            supabase.from('panel_inventory').delete().eq('user_id', uid)
-                        ]);
+                        // PASO ÚNICO: UPSERT (ACTUALIZAR O INSERTAR) SIN BORRAR NADA
+                        // Esto garantiza que si el ítem existe, se actualiza, y si no, se inserta, sin duplicados ni borrados.
+                        const upserts = [];
+                        if (aluminum.length > 0) upserts.push(supabase.from('aluminum_inventory').upsert(ts(aluminum, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6, thickness: x.thickness || 0, treatment_cost: x.treatmentCost || 0, is_glazing_bead: x.isGlazingBead || false, glazing_bead_style: x.glazingBeadStyle || '', min_glass_thickness: x.minGlassThickness || 0, max_glass_thickness: x.maxGlassThickness || 0 })), { onConflict: 'id' }));
+                        if (glasses.length > 0) upserts.push(supabase.from('glass_inventory').upsert(ts(glasses, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', width: x.width || 0, height: x.height || 0, thickness: x.thickness || 0, price_per_m2: x.pricePerM2 || 0, is_mirror: x.isMirror || false })), { onConflict: 'id' }));
+                        if (accessories.length > 0) upserts.push(supabase.from('accessory_inventory').upsert(ts(accessories, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', unit_price: x.unitPrice || 0 })), { onConflict: 'id' }));
+                        if (dvhInputs.length > 0) upserts.push(supabase.from('dvh_inventory').upsert(ts(dvhInputs, x => ({ id: x.id, user_id: uid, type: x.type || '', detail: x.detail || '', thickness: x.thickness || 0, cost: x.cost || 0 })), { onConflict: 'id' }));
+                        if (treatments.length > 0) upserts.push(supabase.from('treatment_inventory').upsert(ts(treatments, x => ({ id: x.id, user_id: uid, name: x.name || '', price_per_kg: x.pricePerKg || 0, hex_color: x.hexColor || '' })), { onConflict: 'id' }));
+                        if (blindPanels.length > 0) upserts.push(supabase.from('panel_inventory').upsert(ts(blindPanels, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', price: x.price || 0, unit: x.unit || 'm2' })), { onConflict: 'id' }));
 
-                        // PASO 2: INYECTAR SOLAMENTE LO QUE EL USUARIO TIENE EN PANTALLA EN ESTE INSTANTE
-                        const inserts = [];
-                        if (aluminum.length > 0) inserts.push(supabase.from('aluminum_inventory').insert(ts(aluminum, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6, thickness: x.thickness || 0, treatment_cost: x.treatmentCost || 0, is_glazing_bead: x.isGlazingBead || false, glazing_bead_style: x.glazingBeadStyle || '', min_glass_thickness: x.minGlassThickness || 0, max_glass_thickness: x.maxGlassThickness || 0 }))));
-                        if (glasses.length > 0) inserts.push(supabase.from('glass_inventory').insert(ts(glasses, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', width: x.width || 0, height: x.height || 0, thickness: x.thickness || 0, price_per_m2: x.pricePerM2 || 0, is_mirror: x.isMirror || false }))));
-                        if (accessories.length > 0) inserts.push(supabase.from('accessory_inventory').insert(ts(accessories, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', unit_price: x.unitPrice || 0 }))));
-                        if (dvhInputs.length > 0) inserts.push(supabase.from('dvh_inventory').insert(ts(dvhInputs, x => ({ id: x.id, user_id: uid, type: x.type || '', detail: x.detail || '', thickness: x.thickness || 0, cost: x.cost || 0 }))));
-                        if (treatments.length > 0) inserts.push(supabase.from('treatment_inventory').insert(ts(treatments, x => ({ id: x.id, user_id: uid, name: x.name || '', price_per_kg: x.pricePerKg || 0, hex_color: x.hexColor || '' }))));
-                        if (blindPanels.length > 0) inserts.push(supabase.from('panel_inventory').insert(ts(blindPanels, x => ({ id: x.id, user_id: uid, code: x.code || '', detail: x.detail || '', price: x.price || 0, unit: x.unit || 'm2' }))));
-
-                        if (inserts.length > 0) {
-                            await Promise.all(inserts);
+                        if (upserts.length > 0) {
+                            await Promise.all(upserts);
                         }
 
-                        alert("¡Catálogo guardado! La nube ahora es un reflejo EXACTO de tu pantalla, arrancando de cero sin duplicados.");
+                        alert("¡Catálogo actualizado con éxito!");
                         if(btn) btn.innerHTML = "Guardar Catálogo Oficial";
                      } catch (e: any) {
+                        console.error("Error crítico:", e);
                         alert("Hubo un fallo crítico: " + e.message);
                         if(btn) btn.innerHTML = "Error (Reintentar)";
                      }
