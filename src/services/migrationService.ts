@@ -23,14 +23,43 @@ export const saveBulkData = async (userId: string, data: any) => {
   const ops = [];
 
   // Mapeos a las tablas que definimos en SQL
-  if (aluminum) 
-    ops.push(supabase.from('materiales_perfiles_usuario').upsert(prepare(aluminum), { onConflict: 'user_id,master_ref' }));
+  if (aluminum) {
+    const arr = aluminum.map((a: any) => ({
+      user_id: userId,
+      master_ref: a.id,
+      code: a.code || '',
+      detail: a.detail || '',
+      weight_per_meter: a.weight_per_meter || a.weightPerMeter || 0,
+      price_per_kg: a.price_per_kg || a.pricePerKg || 0,
+      system: a.system || ''
+    }));
+    ops.push(supabase.from('materiales_perfiles_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
+  }
   
-  if (glasses) 
-    ops.push(supabase.from('materiales_vidrios_usuario').upsert(prepare(glasses), { onConflict: 'user_id,master_ref' }));
+  if (glasses) {
+    const arr = glasses.map((g: any) => ({
+      user_id: userId,
+      master_ref: g.id,
+      code: g.code || g.name || '',
+      detail: g.detail || '',
+      price_per_m2: g.price_per_m2 || g.pricePerM2 || 0,
+      thickness: g.thickness || 0,
+      is_mirror: g.is_mirror || g.isMirror || false
+    }));
+    ops.push(supabase.from('materiales_vidrios_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
+  }
   
-  if (accessories) 
-    ops.push(supabase.from('materiales_accesorios_usuario').upsert(prepare(accessories), { onConflict: 'user_id,master_ref' }));
+  if (accessories) {
+    const arr = accessories.map((a: any) => ({
+      user_id: userId,
+      master_ref: a.id,
+      code: a.code || '',
+      detail: a.detail || '',
+      unit_price: a.unit_price || a.unitPrice || 0,
+      type: a.type || 'Unidad'
+    }));
+    ops.push(supabase.from('materiales_accesorios_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
+  }
     
   if (treatments) {
     const arr = treatments.map((t: any) => ({
@@ -179,6 +208,38 @@ export const pullUpdatesFromMaster = async (userId: string) => {
                 detail: m.detail || '',
                 cost: m.cost || 0,
                 thickness: m.thickness || 0
+            };
+        }
+        if (t.master === 'maestro_perfiles') {
+            return {
+                user_id: userId,
+                master_ref: m.id,
+                code: m.code || '',
+                detail: m.detail || '',
+                weight_per_meter: m.weight_per_meter || 0,
+                price_per_kg: m.price_per_kg || 0,
+                system: m.system || ''
+            };
+        }
+        if (t.master === 'maestro_vidrios') {
+            return {
+                user_id: userId,
+                master_ref: m.id,
+                code: m.code || '',
+                detail: m.detail || '',
+                price_per_m2: m.price_per_m2 || 0,
+                thickness: m.thickness || 0,
+                is_mirror: m.is_mirror || false
+            };
+        }
+        if (t.master === 'maestro_accesorios') {
+            return {
+                user_id: userId,
+                master_ref: m.id,
+                code: m.code || '',
+                detail: m.detail || '',
+                unit_price: m.unit_price || 0,
+                type: m.type || 'Unidad'
             };
         }
         return {
