@@ -135,7 +135,8 @@ CREATE TABLE public.materiales_perfiles_usuario (
     bar_length FLOAT DEFAULT 6000,
     is_glazing_bead BOOLEAN DEFAULT false,
     treatment_cost FLOAT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
 );
 
 CREATE TABLE public.materiales_vidrios_usuario (
@@ -145,7 +146,8 @@ CREATE TABLE public.materiales_vidrios_usuario (
     code TEXT NOT NULL,
     detail TEXT,
     price_per_m2 FLOAT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
 );
 
 CREATE TABLE public.materiales_accesorios_usuario (
@@ -155,7 +157,8 @@ CREATE TABLE public.materiales_accesorios_usuario (
     code TEXT NOT NULL,
     detail TEXT,
     unit_price FLOAT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
 );
 
 CREATE TABLE public.recetas_usuario (
@@ -164,7 +167,8 @@ CREATE TABLE public.recetas_usuario (
     master_ref TEXT REFERENCES public.maestro_recetas(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     data JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
 );
 
 CREATE TABLE public.tratamientos_usuario (
@@ -174,7 +178,8 @@ CREATE TABLE public.tratamientos_usuario (
     name TEXT NOT NULL,
     price_per_kg FLOAT DEFAULT 0,
     hex_color TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
 );
 
 CREATE TABLE public.paneles_usuario (
@@ -185,7 +190,8 @@ CREATE TABLE public.paneles_usuario (
     detail TEXT,
     price FLOAT DEFAULT 0,
     unit TEXT DEFAULT 'm2',
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
 );
 
 CREATE TABLE public.dvh_usuario (
@@ -196,7 +202,8 @@ CREATE TABLE public.dvh_usuario (
     detail TEXT,
     cost FLOAT DEFAULT 0,
     thickness FLOAT DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT now()
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
 );
 
 -- ==========================================
