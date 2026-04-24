@@ -137,7 +137,7 @@ CREATE TABLE public.maestro_dvh (
 CREATE TABLE public.materiales_perfiles_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    master_ref TEXT REFERENCES public.maestro_perfiles(id) ON DELETE SET NULL,
+    master_ref TEXT,
     code TEXT NOT NULL,
     detail TEXT,
     weight_per_meter FLOAT DEFAULT 0,
@@ -151,7 +151,7 @@ CREATE TABLE public.materiales_perfiles_usuario (
 CREATE TABLE public.materiales_vidrios_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    master_ref TEXT REFERENCES public.maestro_vidrios(id) ON DELETE SET NULL,
+    master_ref TEXT,
     code TEXT NOT NULL,
     detail TEXT,
     price_per_m2 FLOAT DEFAULT 0,
@@ -162,7 +162,7 @@ CREATE TABLE public.materiales_vidrios_usuario (
 CREATE TABLE public.materiales_accesorios_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    master_ref TEXT REFERENCES public.maestro_accesorios(id) ON DELETE SET NULL,
+    master_ref TEXT,
     code TEXT NOT NULL,
     detail TEXT,
     unit_price FLOAT DEFAULT 0,
@@ -173,7 +173,7 @@ CREATE TABLE public.materiales_accesorios_usuario (
 CREATE TABLE public.recetas_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    master_ref TEXT REFERENCES public.maestro_recetas(id) ON DELETE SET NULL,
+    master_ref TEXT,
     name TEXT NOT NULL,
     data JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now(),
@@ -183,7 +183,7 @@ CREATE TABLE public.recetas_usuario (
 CREATE TABLE public.tratamientos_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    master_ref TEXT REFERENCES public.maestro_tratamientos(id) ON DELETE SET NULL,
+    master_ref TEXT,
     name TEXT NOT NULL,
     price_per_kg FLOAT DEFAULT 0,
     hex_color TEXT,
@@ -194,7 +194,7 @@ CREATE TABLE public.tratamientos_usuario (
 CREATE TABLE public.paneles_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    master_ref TEXT REFERENCES public.maestro_paneles(id) ON DELETE SET NULL,
+    master_ref TEXT,
     code TEXT NOT NULL,
     detail TEXT,
     price FLOAT DEFAULT 0,
@@ -206,7 +206,7 @@ CREATE TABLE public.paneles_usuario (
 CREATE TABLE public.dvh_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    master_ref TEXT REFERENCES public.maestro_dvh(id) ON DELETE SET NULL,
+    master_ref TEXT,
     type TEXT NOT NULL,
     detail TEXT,
     cost FLOAT DEFAULT 0,
