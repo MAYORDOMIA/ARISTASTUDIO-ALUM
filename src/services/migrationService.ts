@@ -30,8 +30,10 @@ export const saveBulkData = async (userId: string, data: any) => {
       code: a.code || '',
       detail: a.detail || '',
       weight_per_meter: a.weight_per_meter || a.weightPerMeter || 0,
-      price_per_kg: a.price_per_kg || a.pricePerKg || 0,
-      system: a.system || ''
+      bar_length: a.bar_length || a.barLength || 6000,
+      thickness: a.thickness || 0,
+      is_glazing_bead: a.is_glazing_bead || a.isGlazingBead || false,
+      treatment_cost: a.treatment_cost || a.treatmentCost || 0
     }));
     ops.push(supabase.from('materiales_perfiles_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
   }
@@ -42,9 +44,9 @@ export const saveBulkData = async (userId: string, data: any) => {
       master_ref: g.id,
       code: g.code || g.name || '',
       detail: g.detail || '',
-      price_per_m2: g.price_per_m2 || g.pricePerM2 || 0,
       thickness: g.thickness || 0,
-      is_mirror: g.is_mirror || g.isMirror || false
+      is_mirror: g.is_mirror || g.isMirror || false,
+      price_per_m2: g.price_per_m2 || g.pricePerM2 || 0
     }));
     ops.push(supabase.from('materiales_vidrios_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
   }
@@ -55,8 +57,7 @@ export const saveBulkData = async (userId: string, data: any) => {
       master_ref: a.id,
       code: a.code || '',
       detail: a.detail || '',
-      unit_price: a.unit_price || a.unitPrice || 0,
-      type: a.type || 'Unidad'
+      unit_price: a.unit_price || a.unitPrice || 0
     }));
     ops.push(supabase.from('materiales_accesorios_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
   }
@@ -217,8 +218,10 @@ export const pullUpdatesFromMaster = async (userId: string) => {
                 code: m.code || '',
                 detail: m.detail || '',
                 weight_per_meter: m.weight_per_meter || 0,
-                price_per_kg: m.price_per_kg || 0,
-                system: m.system || ''
+                bar_length: m.bar_length || 6000,
+                thickness: m.thickness || 0,
+                is_glazing_bead: m.is_glazing_bead || false,
+                treatment_cost: m.treatment_cost || 0
             };
         }
         if (t.master === 'maestro_vidrios') {
@@ -227,9 +230,9 @@ export const pullUpdatesFromMaster = async (userId: string) => {
                 master_ref: m.id,
                 code: m.code || '',
                 detail: m.detail || '',
-                price_per_m2: m.price_per_m2 || 0,
                 thickness: m.thickness || 0,
-                is_mirror: m.is_mirror || false
+                is_mirror: m.is_mirror || false,
+                price_per_m2: m.price_per_m2 || 0
             };
         }
         if (t.master === 'maestro_accesorios') {
@@ -238,8 +241,7 @@ export const pullUpdatesFromMaster = async (userId: string) => {
                 master_ref: m.id,
                 code: m.code || '',
                 detail: m.detail || '',
-                unit_price: m.unit_price || 0,
-                type: m.type || 'Unidad'
+                unit_price: m.unit_price || 0
             };
         }
         return {
