@@ -197,14 +197,14 @@ const App: React.FC = () => {
     console.log("Intentando cargar datos desde tablas relacionales industriales...");
     try {
       const [
-        { data: alu },
-        { data: gls },
-        { data: acc },
-        { data: trt },
-        { data: pnl },
-        { data: dvh },
-        { data: rec },
-        { data: quo }
+        aluRes,
+        glsRes,
+        accRes,
+        trtRes,
+        pnlRes,
+        dvhRes,
+        recRes,
+        quoRes
       ] = await Promise.all([
         supabase.from('materiales_perfiles_usuario').select('*').eq('user_id', userId),
         supabase.from('materiales_vidrios_usuario').select('*').eq('user_id', userId),
@@ -216,17 +216,29 @@ const App: React.FC = () => {
         supabase.from('presupuestos').select('*').eq('user_id', userId)
       ]);
 
-      const cleanData = (list: any[]) => list || [];
+      // Verificar si hay errores críticos (como tabla no encontrada)
+      const criticalError = [aluRes, glsRes, accRes, trtRes, pnlRes, dvhRes, recRes, quoRes].find(r => r.error);
+      if (criticalError && criticalError.error) {
+          console.error("Error crítico de base de datos:", criticalError.error);
+          if (criticalError.error.code === '42P01') {
+              alert("BASE DE DATOS NO INICIALIZADA:\nSe detectó que faltan las tablas necesarias en Supabase.\n\nPor favor, ejecuta el contenido del archivo 'supabase_migration.sql' en el SQL Editor de tu Dashboard de Supabase.");
+          } else if (criticalError.error.message.includes('permission denied')) {
+              alert("ERROR DE PERMISOS:\nSupabase denegó el acceso al esquema public.\n\nPor favor, ejecuta el script de permisos al inicio de 'supabase_migration.sql' para solucionarlo.");
+          }
+          return null;
+      }
+
+      const cleanData = (list: any[] | null) => list || [];
 
       return {
-        aluminum: cleanData(alu).map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, isGlazingBead: x.is_glazing_bead, id: x.master_ref || x.id })),
-        glasses: cleanData(gls).map(x => ({ ...x, pricePerM2: x.price_per_m2, id: x.master_ref || x.id })),
-        accessories: cleanData(acc).map(x => ({ ...x, unitPrice: x.unit_price, id: x.master_ref || x.id })),
-        treatments: cleanData(trt).map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color, id: x.master_ref || x.id })),
-        blindPanels: cleanData(pnl).map(x => ({ ...x, id: x.master_ref || x.id })),
-        dvhInputs: cleanData(dvh).map(x => ({ ...x, id: x.master_ref || x.id })),
-        recipes: cleanData(rec).map(x => x.data),
-        quotes: cleanData(quo).map(x => x.items)
+        aluminum: cleanData(aluRes.data).map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, isGlazingBead: x.is_glazing_bead, id: x.master_ref || x.id })),
+        glasses: cleanData(glsRes.data).map(x => ({ ...x, pricePerM2: x.price_per_m2, id: x.master_ref || x.id })),
+        accessories: cleanData(accRes.data).map(x => ({ ...x, unitPrice: x.unit_price, id: x.master_ref || x.id })),
+        treatments: cleanData(trtRes.data).map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color, id: x.master_ref || x.id })),
+        blindPanels: cleanData(pnlRes.data).map(x => ({ ...x, id: x.master_ref || x.id })),
+        dvhInputs: cleanData(dvhRes.data).map(x => ({ ...x, id: x.master_ref || x.id })),
+        recipes: cleanData(recRes.data).map(x => x.data),
+        quotes: cleanData(quoRes.data).map(x => x.items)
       };
     } catch (e) {
       console.error("Fallo al consultar tablas relacionales industriales:", e);
@@ -452,7 +464,7 @@ const App: React.FC = () => {
         /*
         if (isSupabaseConfigured) {
             const appDataLite = { config, customVisualTypes, currentWorkItems };
-            await supabase.from('profiles').update({ app_data: appDataLite }).eq('id', session.user.id);
+            await supabase.from('perfiles_usuarios').update({ created_at: new Date().toISOString() }).eq('id', session.user.id);
         }
         */
 

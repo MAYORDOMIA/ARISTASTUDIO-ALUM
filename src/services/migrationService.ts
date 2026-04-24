@@ -99,7 +99,12 @@ export const saveBulkData = async (userId: string, data: any) => {
   })), { onConflict: 'user_id,master_ref' }));
 
   const results = await Promise.all(ops);
-  const errors = results.filter(r => r.error).map(r => r.error?.message || 'Error desconocido');
+  const errors = results.filter(r => r.error).map(r => {
+    const msg = r.error?.message || '';
+    if (msg.includes('permission denied')) return "ERROR DE PERMISOS: Ejecuta el inicio de supabase_migration.sql en Supabase";
+    if (r.error?.code === '42P01') return "TABLA NO ENCONTRADA: Ejecuta supabase_migration.sql en Supabase";
+    return msg || 'Error desconocido';
+  });
   
   return { success: errors.length === 0, errors };
 };
@@ -175,7 +180,12 @@ export const saveMasterData = async (data: any) => {
   })), { onConflict: 'id' }));
 
   const results = await Promise.all(ops);
-  const errors = results.filter(r => r.error).map(r => r.error?.message || 'Error desconocido');
+  const errors = results.filter(r => r.error).map(r => {
+    const msg = r.error?.message || '';
+    if (msg.includes('permission denied')) return "ERROR DE PERMISOS (M): Ejecuta el inicio de supabase_migration.sql en Supabase";
+    if (r.error?.code === '42P01') return "TABLA NO ENCONTRADA (M): Ejecuta supabase_migration.sql en Supabase";
+    return msg || 'Error desconocido';
+  });
   
   return { success: errors.length === 0, errors };
 };

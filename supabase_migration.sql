@@ -1,82 +1,82 @@
--- ESQUEMA DE MIGRACIÓN PROFESIONAL PARA ARISTA STUDIO (SUPABASE) - VERSIÓN 2
--- Ejecuta este script completo en el SQL Editor de tu Dashboard de Supabase
+-- ========================================================
+-- SCRIPT DE MIGRACIÓN UNIFICADO - ARISTA STUDIO (V3)
+-- ========================================================
 
--- 0. Limpieza (Opcional pero recomendada para evitar conflictos de tipo)
-DROP TABLE IF EXISTS quotes;
-DROP TABLE IF EXISTS recipes;
-DROP TABLE IF EXISTS panel_inventory;
-DROP TABLE IF EXISTS treatment_inventory;
-DROP TABLE IF EXISTS dvh_inventory;
-DROP TABLE IF EXISTS accessory_inventory;
-DROP TABLE IF EXISTS glass_inventory;
-DROP TABLE IF EXISTS aluminum_inventory;
+-- 1. LIMPIEZA Y PERMISOS DE ESQUEMA (SOLUCIONA "permission denied")
+-- Ejecuta esto si ves errores de permisos en el esquema public
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;
 
--- 1. Tabla de Perfiles de Aluminio
-CREATE TABLE aluminum_inventory (
-    id TEXT PRIMARY KEY, -- Cambiado a TEXT para soportar IDs existentes del sistema
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    code TEXT NOT NULL,
-    detail TEXT,
-    weight_per_meter FLOAT DEFAULT 0,
-    bar_length FLOAT DEFAULT 6,
-    thickness FLOAT DEFAULT 0,
-    treatment_cost FLOAT DEFAULT 0,
-    is_glazing_bead BOOLEAN DEFAULT false,
-    glazing_bead_style TEXT,
-    min_glass_thickness FLOAT DEFAULT 0,
-    max_glass_thickness FLOAT DEFAULT 0,
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+
+-- Habilitar extensión para UUIDs
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 2. TABLA DE PERFILES
+CREATE TABLE IF NOT EXISTS public.perfiles_usuarios (
+    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    role TEXT DEFAULT 'user' CHECK (role IN ('user', 'super_admin')),
+    is_active BOOLEAN DEFAULT false,
+    limite_dispositivos INTEGER DEFAULT 1,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. Tabla de Vidrios
-CREATE TABLE glass_inventory (
+-- 3. TABLAS MAESTRAS (GENERALES)
+CREATE TABLE IF NOT EXISTS public.maestro_perfiles (
     id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     code TEXT NOT NULL,
     detail TEXT,
-    width FLOAT DEFAULT 0,
-    height FLOAT DEFAULT 0,
-    thickness FLOAT DEFAULT 0,
+    weight_per_meter FLOAT DEFAULT 0,
+    bar_length FLOAT DEFAULT 6000,
+    is_glazing_bead BOOLEAN DEFAULT false,
+    glazing_bead_style TEXT,
+    min_glass_thickness FLOAT,
+    max_glass_thickness FLOAT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.maestro_vidrios (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL,
+    detail TEXT,
+    thickness FLOAT DEFAULT 4,
     price_per_m2 FLOAT DEFAULT 0,
     is_mirror BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. Tabla de Accesorios
-CREATE TABLE accessory_inventory (
+CREATE TABLE IF NOT EXISTS public.maestro_accesorios (
     id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     code TEXT NOT NULL,
     detail TEXT,
     unit_price FLOAT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 4. Tabla de Insumos DVH
-CREATE TABLE dvh_inventory (
+CREATE TABLE IF NOT EXISTS public.maestro_recetas (
     id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    line TEXT,
     type TEXT,
-    detail TEXT,
-    thickness FLOAT DEFAULT 0,
-    cost FLOAT DEFAULT 0,
+    data JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. Tabla de Tratamientos/Colores
-CREATE TABLE treatment_inventory (
+CREATE TABLE IF NOT EXISTS public.maestro_tratamientos (
     id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     price_per_kg FLOAT DEFAULT 0,
-    hex_color TEXT,
+    hex_color TEXT DEFAULT '#000000',
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 6. Tabla de Paneles Ciegos
-CREATE TABLE panel_inventory (
+CREATE TABLE IF NOT EXISTS public.maestro_paneles (
     id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     code TEXT NOT NULL,
     detail TEXT,
     price FLOAT DEFAULT 0,
@@ -84,70 +84,165 @@ CREATE TABLE panel_inventory (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 7. Tabla de Recetas (Plantillas)
-CREATE TABLE recipes (
+CREATE TABLE IF NOT EXISTS public.maestro_dvh (
     id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    detail TEXT,
+    cost FLOAT DEFAULT 0,
+    thickness FLOAT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 4. TABLAS DE USUARIO (MATERIALES PROPIOS)
+CREATE TABLE IF NOT EXISTS public.materiales_perfiles_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    master_ref TEXT REFERENCES public.maestro_perfiles(id) ON DELETE SET NULL,
+    code TEXT NOT NULL,
+    detail TEXT,
+    weight_per_meter FLOAT DEFAULT 0,
+    bar_length FLOAT DEFAULT 6000,
+    is_glazing_bead BOOLEAN DEFAULT false,
+    treatment_cost FLOAT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
+);
+
+CREATE TABLE IF NOT EXISTS public.materiales_vidrios_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    master_ref TEXT REFERENCES public.maestro_vidrios(id) ON DELETE SET NULL,
+    code TEXT NOT NULL,
+    detail TEXT,
+    price_per_m2 FLOAT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
+);
+
+CREATE TABLE IF NOT EXISTS public.materiales_accesorios_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    master_ref TEXT REFERENCES public.maestro_accesorios(id) ON DELETE SET NULL,
+    code TEXT NOT NULL,
+    detail TEXT,
+    unit_price FLOAT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
+);
+
+CREATE TABLE IF NOT EXISTS public.recetas_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    master_ref TEXT REFERENCES public.maestro_recetas(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
+);
+
+CREATE TABLE IF NOT EXISTS public.tratamientos_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    master_ref TEXT REFERENCES public.maestro_tratamientos(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    price_per_kg FLOAT DEFAULT 0,
+    hex_color TEXT DEFAULT '#000000',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
+);
+
+CREATE TABLE IF NOT EXISTS public.paneles_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    master_ref TEXT REFERENCES public.maestro_paneles(id) ON DELETE SET NULL,
+    code TEXT NOT NULL,
+    detail TEXT,
+    price FLOAT DEFAULT 0,
+    unit TEXT DEFAULT 'm2',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
+);
+
+CREATE TABLE IF NOT EXISTS public.dvh_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    master_ref TEXT REFERENCES public.maestro_dvh(id) ON DELETE SET NULL,
+    type TEXT NOT NULL,
+    detail TEXT,
+    cost FLOAT DEFAULT 0,
+    thickness FLOAT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, master_ref)
+);
+
+CREATE TABLE IF NOT EXISTS public.presupuestos (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    client_name TEXT,
+    total FLOAT DEFAULT 0,
+    items JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 8. Tabla de Presupuestos (Quotes)
-CREATE TABLE quotes (
-    id TEXT PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    customer_name TEXT,
-    data JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
+-- 5. DISPOSITIVOS
+CREATE TABLE IF NOT EXISTS public.gestion_dispositivos (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    device_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, device_id)
 );
 
--- 9. Asegurar columnas de seguridad y dispositivos en la tabla profiles
-ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT false;
-ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS is_migrated BOOLEAN DEFAULT false;
-ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 1;
-ALTER TABLE IF EXISTS profiles ADD COLUMN IF NOT EXISTS registered_devices TEXT[] DEFAULT '{}';
+-- 6. SEGURIDAD (RLS)
+ALTER TABLE public.perfiles_usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.materiales_perfiles_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.materiales_vidrios_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.materiales_accesorios_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recetas_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tratamientos_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.paneles_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dvh_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.presupuestos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gestion_dispositivos ENABLE ROW LEVEL SECURITY;
 
--- Habilitar Row Level Security (RLS) para todas las tablas
-ALTER TABLE aluminum_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE glass_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE accessory_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE dvh_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE treatment_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE panel_inventory ENABLE ROW LEVEL SECURITY;
-ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maestro_perfiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maestro_vidrios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maestro_accesorios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maestro_recetas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maestro_tratamientos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maestro_paneles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maestro_dvh ENABLE ROW LEVEL SECURITY;
 
--- Crear políticas con nombres únicos para evitar errores
-CREATE POLICY "owner_all_aluminum" ON aluminum_inventory FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "owner_all_glass" ON glass_inventory FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "owner_all_accessories" ON accessory_inventory FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "owner_all_dvh" ON dvh_inventory FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "owner_all_treatments" ON treatment_inventory FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "owner_all_panels" ON panel_inventory FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "owner_all_recipes" ON recipes FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "owner_all_quotes" ON quotes FOR ALL USING (auth.uid() = user_id);
+-- POLÍTICAS SIMPLIFICADAS
+CREATE POLICY "perfiles_poly" ON public.perfiles_usuarios FOR ALL USING (auth.uid() = id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "dispositivos_poly" ON public.gestion_dispositivos FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "alu_poly" ON public.materiales_perfiles_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "vid_poly" ON public.materiales_vidrios_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "acc_poly" ON public.materiales_accesorios_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "rec_poly" ON public.recetas_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "trt_poly" ON public.tratamientos_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "pnl_poly" ON public.paneles_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "dvh_poly" ON public.dvh_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "pre_poly" ON public.presupuestos FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 
--- POLÍTICA DE LLAVE MAESTRA: Permitir que el Administrador gestione perfiles de otros usuarios
--- Nota: Asegúrate de habilitar RLS en la tabla 'profiles'
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "admin_manage_all_profiles" ON profiles FOR ALL 
-USING (auth.jwt() ->> 'email' = 'aristastudiouno@gmail.com')
-WITH CHECK (auth.jwt() ->> 'email' = 'aristastudiouno@gmail.com');
+-- POLÍTICAS MAESTROS
+CREATE POLICY "maestro_read" ON public.maestro_perfiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "maestro_admin" ON public.maestro_perfiles FOR ALL USING ((SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 
--- Permitir que cada usuario vea su propio perfil (necesario para el login)
--- Y TAMBIÉN el perfil del administrador (necesario para clonación de base de datos)
-CREATE POLICY "users_see_profiles" ON profiles FOR SELECT 
-USING (auth.uid() = id OR email = 'aristastudiouno@gmail.com');
+CREATE POLICY "maestro_read_v" ON public.maestro_vidrios FOR SELECT TO authenticated USING (true);
+CREATE POLICY "maestro_admin_v" ON public.maestro_vidrios FOR ALL USING ((SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 
-CREATE POLICY "users_update_own_profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "maestro_read_a" ON public.maestro_accesorios FOR SELECT TO authenticated USING (true);
+CREATE POLICY "maestro_admin_a" ON public.maestro_accesorios FOR ALL USING ((SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 
--- PERMITIR QUE LOS USUARIOS LEAN EL INVENTARIO MAESTRO DEL ADMINISTRADOR PARA CLONACIÓN
-CREATE POLICY "read_admin_aluminum" ON aluminum_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
-CREATE POLICY "read_admin_glass" ON glass_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
-CREATE POLICY "read_admin_accessories" ON accessory_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
-CREATE POLICY "read_admin_dvh" ON dvh_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
-CREATE POLICY "read_admin_treatment" ON treatment_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
-CREATE POLICY "read_admin_panel" ON panel_inventory FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
-CREATE POLICY "read_admin_recipes" ON recipes FOR SELECT USING (user_id IN (SELECT id FROM profiles WHERE email = 'aristastudiouno@gmail.com'));
+CREATE POLICY "maestro_read_r" ON public.maestro_recetas FOR SELECT TO authenticated USING (true);
+CREATE POLICY "maestro_admin_r" ON public.maestro_recetas FOR ALL USING ((SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 
+CREATE POLICY "maestro_read_t" ON public.maestro_tratamientos FOR SELECT TO authenticated USING (true);
+CREATE POLICY "maestro_admin_t" ON public.maestro_tratamientos FOR ALL USING ((SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+
+CREATE POLICY "maestro_read_p" ON public.maestro_paneles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "maestro_admin_p" ON public.maestro_paneles FOR ALL USING ((SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+
+CREATE POLICY "maestro_read_d" ON public.maestro_dvh FOR SELECT TO authenticated USING (true);
+CREATE POLICY "maestro_admin_d" ON public.maestro_dvh FOR ALL USING ((SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
