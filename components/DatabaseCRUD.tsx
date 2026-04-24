@@ -4,7 +4,7 @@ import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIco
 import { AluminumProfile, Glass, BlindPanel, Accessory, DVHInput, Treatment, GlobalConfig, ProductRecipe, Quote } from '../types';
 import { DATABASE_TABS } from '../constants';
 import * as XLSX from 'xlsx';
-import { pullUpdatesFromMaster, saveBulkData, saveMasterData, wipeUserInventory } from '../src/services/migrationService';
+import { pullUpdatesFromMaster, saveBulkData, wipeUserInventory } from '../src/services/migrationService';
 
 interface Props {
   aluminum: AluminumProfile[];
@@ -671,8 +671,6 @@ const DatabaseCRUD: React.FC<Props> = ({
                      btn.classList.add('opacity-50', 'cursor-not-allowed');
                    }
                    try {
-                     const isMaster = session?.user?.email === 'aristastudiouno@gmail.com';
-                     console.log("Iniciando guardado masivo. Master mode:", isMaster);
 
                      const data = { 
                        aluminum, 
@@ -685,9 +683,7 @@ const DatabaseCRUD: React.FC<Props> = ({
                        quotes: [] 
                      };
                      
-                     const { success, errors } = isMaster 
-                        ? await saveMasterData(data)
-                        : await saveBulkData(session.user.id, data);
+                     const { success, errors } = await saveBulkData(session.user.id, data);
                      
                      if (success) {
                         alert(`¡OPERACIÓN EXITOSA!\nTodos los datos han sido sincronizados con Supabase correctamente.`);
