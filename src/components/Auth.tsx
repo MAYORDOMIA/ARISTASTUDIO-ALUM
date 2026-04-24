@@ -24,15 +24,15 @@ const Auth: React.FC = () => {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         
-        // Intentar crear el perfil manualmente si RLS lo permite
+        // Intentar crear el perfil manualmente si RLS lo permite (o dejar que el trigger lo haga)
         if (data?.user) {
-          const { error: profileError } = await supabase.from('profiles').insert([
+          const { error: profileError } = await supabase.from('perfiles_usuarios').insert([
             { 
               id: data.user.id, 
               email: data.user.email, 
-              is_active: false,
-              max_devices: 1,
-              registered_devices: []
+              is_active: email === 'aristastudiouno@gmail.com',
+              role: email === 'aristastudiouno@gmail.com' ? 'super_admin' : 'user',
+              limite_dispositivos: 1
             }
           ]);
           

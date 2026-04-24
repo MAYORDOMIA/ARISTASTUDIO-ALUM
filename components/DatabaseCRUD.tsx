@@ -4,6 +4,7 @@ import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIco
 import { AluminumProfile, Glass, BlindPanel, Accessory, DVHInput, Treatment, GlobalConfig, ProductRecipe, Quote } from '../types';
 import { DATABASE_TABS } from '../constants';
 import * as XLSX from 'xlsx';
+import { pullUpdatesFromMaster, saveBulkData, saveMasterData, wipeUserInventory } from '../src/services/migrationService';
 
 interface Props {
   aluminum: AluminumProfile[];
@@ -646,7 +647,6 @@ const DatabaseCRUD: React.FC<Props> = ({
               onClick={async () => {
                 if(!confirm("¿ESTÁS SEGURO? Esto eliminará todos tus datos actuales en la nube para siempre. Esta acción NO se puede deshacer.")) return;
                 try {
-                  const { wipeUserInventory } = await import('../src/services/migrationService');
                   const { success, errors } = await wipeUserInventory(session.user.id);
                   if (success) {
                     alert("¡BASE DE DATOS EN CERO! Todo el inventario ha sido eliminado de la nube. Recarga para ver los cambios.");
@@ -666,22 +666,55 @@ const DatabaseCRUD: React.FC<Props> = ({
             <button 
                 onClick={async () => {
                    const btn = document.getElementById('btn-save-cloud');
-                   if(btn) btn.innerHTML = "GUARDANDO...";
+                   if(btn) {
+                     btn.innerHTML = "PROCESANDO...";
+                     btn.classList.add('opacity-50', 'cursor-not-allowed');
+                   }
                    try {
-                     const { saveBulkData } = await import('../src/services/migrationService');
-                     const data = { aluminum, glasses, blindPanels, accessories, dvhInputs, treatments, recipes: [], quotes: [] };
-                     const { success, errors } = await saveBulkData(session.user.id, data);
+                     const isMaster = session?.user?.email === 'aristastudiouno@gmail.com';
+                     console.log("Iniciando guardado masivo. Master mode:", isMaster);
+
+                     const data = { 
+                       aluminum, 
+                       glasses, 
+                       accessories, 
+                       treatments, 
+                       blindPanels, 
+                       dvhInputs,
+                       recipes, 
+                       quotes: [] 
+                     };
+                     
+                     const { success, errors } = isMaster 
+                        ? await saveMasterData(data)
+                        : await saveBulkData(session.user.id, data);
                      
                      if (success) {
-                       alert("¡Datos guardados con éxito en Supabase!");
-                       if(btn) btn.innerHTML = "Subir Todo (Nube)";
+                        alert(`¡OPERACIÓN EXITOSA!\nTodos los datos han sido sincronizados con Supabase correctamente.`);
+                        if(btn) {
+                          btn.innerHTML = "Guardar Catálogo Actual";
+                          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
                      } else {
-                       alert("Errores: " + (errors ? errors.join('\n') : 'Error desconocido'));
-                       if(btn) btn.innerHTML = "Error (Reintentar)";
+                        const errorMsg = errors && errors.length > 0 
+                          ? errors.join('\n') 
+                          : 'Error desconocido en el servidor';
+                        
+                        console.error("Errores reportados por el servicio:", errors);
+                        alert("ERROR EN LA SINCRONIZACIÓN:\n" + errorMsg);
+                        
+                        if(btn) {
+                          btn.innerHTML = "Error (Reintentar)";
+                          btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
                      }
                   } catch (e: any) {
-                     alert("Fallo crítico: " + e.message);
-                     if(btn) btn.innerHTML = "Error (Reintentar)";
+                     console.error("Fallo crítico en el botón de guardado:", e);
+                     alert("FALLO CRÍTICO: " + (e.message || "Error al conectar con el servidor. Revisa tu conexión."));
+                     if(btn) {
+                       btn.innerHTML = "Error (Reintentar)";
+                       btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                     }
                   }
                 }}
                 id="btn-save-cloud"

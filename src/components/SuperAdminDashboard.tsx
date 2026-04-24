@@ -6,10 +6,10 @@ interface Profile {
   id: string;
   email: string;
   is_active: boolean;
-  is_migrated: boolean;
-  max_devices?: number;
-  registered_devices?: string[];
+  role: string;
+  limite_dispositivos: number;
   created_at?: string;
+  registered_count?: number; // Calculado tras fetch
 }
 
 const SuperAdminDashboard: React.FC = () => {
@@ -23,61 +23,56 @@ const SuperAdminDashboard: React.FC = () => {
 
   const fetchProfiles = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    if (data) setProfiles(data);
+    // Traemos perfiles y luego contamos dispositivos
+    const { data: profs, error } = await supabase.from('perfiles_usuarios').select('*').order('created_at', { ascending: false });
+    if (profs) {
+      const { data: devices } = await supabase.from('gestion_dispositivos').select('user_id');
+      const counts: any = {};
+      (devices || []).forEach(d => {
+        counts[d.user_id] = (counts[d.user_id] || 0) + 1;
+      });
+      
+      setProfiles(profs.map(p => ({
+        ...p,
+        registered_count: counts[p.id] || 0
+      })));
+    }
     setLoading(false);
   };
 
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     setToggling(id);
-    const { error } = await supabase.from('profiles').update({ is_active: !currentStatus }).eq('id', id);
+    const { error } = await supabase.from('perfiles_usuarios').update({ is_active: !currentStatus }).eq('id', id);
     if (!error) {
       setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_active: !currentStatus } : p));
-    } else {
-      console.error("Error toggling status:", error);
-      alert(`Error al actualizar estado del usuario: ${error.message}. Verifica en la consola (F12) para más detalles.`);
-    }
-    setToggling(null);
-  };
-
-  const toggleMigration = async (id: string, currentStatus: boolean) => {
-    setToggling(id + '-mig');
-    const { error } = await supabase.from('profiles').update({ is_migrated: !currentStatus }).eq('id', id);
-    if (!error) {
-      setProfiles(prev => prev.map(p => p.id === id ? { ...p, is_migrated: !currentStatus } : p));
     }
     setToggling(null);
   };
 
   const updateMaxDevices = async (id: string, max: number) => {
     if (max < 1) return;
-    const { error } = await supabase.from('profiles').update({ max_devices: max }).eq('id', id);
+    const { error } = await supabase.from('perfiles_usuarios').update({ limite_dispositivos: max }).eq('id', id);
     if (!error) {
-      setProfiles(prev => prev.map(p => p.id === id ? { ...p, max_devices: max } : p));
+      setProfiles(prev => prev.map(p => p.id === id ? { ...p, limite_dispositivos: max } : p));
     }
   };
 
   const resetDevices = async (id: string) => {
-    if (!confirm('¿Estás seguro de resetear los dispositivos de este usuario? Tendrá que volver a iniciar sesión en sus dispositivos.')) return;
+    if (!confirm('¿Estás seguro de resetear los dispositivos de este usuario?')) return;
     setToggling(id);
-    const { error } = await supabase.from('profiles').update({ registered_devices: [] }).eq('id', id);
+    const { error } = await supabase.from('gestion_dispositivos').delete().eq('user_id', id);
     if (!error) {
-      setProfiles(prev => prev.map(p => p.id === id ? { ...p, registered_devices: [] } : p));
+      setProfiles(prev => prev.map(p => p.id === id ? { ...p, registered_count: 0 } : p));
     }
     setToggling(null);
   };
 
   const deleteUser = async (id: string, email: string) => {
-    if (!confirm(`PELIGRO: ¿Estás ABSOLUTAMENTE seguro de borrar permanentemente la nube técnica del usuario ${email}? Esto NO borra su cuenta de login base, pero destruye todo su perfil relacional.`)) return;
+    if (!confirm(`PELIGRO: ¿Borrar permanentemente el perfil de ${email}?`)) return;
     setToggling(id);
-    
-    // We only delete their profile table strictly. Supabase auth user needs to be deleted via Supabase Dashboard if they want an entirely new account, but deleting the profile resets the loop for "new user".
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    const { error } = await supabase.from('perfiles_usuarios').delete().eq('id', id);
     if (!error) {
-       alert("Perfil técnico destruido. Si el usuario vuelve a entrar, el sistema lo interpretará como alguien 100% nuevo.");
        setProfiles(prev => prev.filter(p => p.id !== id));
-    } else {
-       alert("Error destruyendo usuario: " + error.message);
     }
     setToggling(null);
   };
@@ -119,17 +114,12 @@ const SuperAdminDashboard: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                       <span>Base Pro:</span>
-                       <button 
-                        onClick={() => toggleMigration(profile.id, profile.is_migrated)}
-                        className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter transition-all ${profile.is_migrated ? 'bg-sky-500 text-white' : 'bg-slate-200 text-slate-500'}`}
-                       >
-                         {profile.is_migrated ? 'Migrado' : 'Pendiente'}
-                       </button>
+                       <span>Rol:</span>
+                       <span className="text-sky-500 font-bold uppercase">{profile.role}</span>
                     </div>
                   </div>
                   
-                  {profile.email !== 'aristastudiouno@gmail.com' && (
+                  {profile.role !== 'super_admin' && (
                     <div className="mt-3 flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900/50 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-medium">
                         <MonitorSmartphone size={14} />
@@ -138,12 +128,12 @@ const SuperAdminDashboard: React.FC = () => {
                       <input 
                         type="number" 
                         min="1" 
-                        value={profile.max_devices || 1}
+                        value={profile.limite_dispositivos || 1}
                         onChange={(e) => updateMaxDevices(profile.id, parseInt(e.target.value) || 1)}
                         className="w-16 p-1 text-xs font-bold text-center border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
                       />
                       <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                        ({(profile.registered_devices || []).length} en uso)
+                        ({profile.registered_count || 0} en uso)
                       </span>
                       <button 
                         onClick={() => resetDevices(profile.id)} 
@@ -160,9 +150,9 @@ const SuperAdminDashboard: React.FC = () => {
                 <div className="flex flex-col gap-2 shrink-0">
                   <button
                     onClick={() => toggleStatus(profile.id, profile.is_active)}
-                    disabled={toggling === profile.id || profile.email === 'aristastudiouno@gmail.com'}
+                    disabled={toggling === profile.id || profile.role === 'super_admin'}
                     className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${
-                      profile.email === 'aristastudiouno@gmail.com' 
+                      profile.role === 'super_admin' 
                         ? 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
                         : profile.is_active 
                           ? 'bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40' 
@@ -177,7 +167,7 @@ const SuperAdminDashboard: React.FC = () => {
                       <><UserCheck size={14} /> Activar</>
                     )}
                   </button>
-                  {profile.email !== 'aristastudiouno@gmail.com' && (
+                  {profile.role !== 'super_admin' && (
                      <button
                        onClick={() => deleteUser(profile.id, profile.email)}
                        disabled={toggling === profile.id}

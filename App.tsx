@@ -152,7 +152,7 @@ const App: React.FC = () => {
       .channel(`profile_updates_${session.user.id}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${session.user.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'perfiles_usuarios', filter: `id=eq.${session.user.id}` },
         (payload: any) => {
           console.log("Cambio en perfil detectado en tiempo real:", payload.new);
           setProfile(payload.new);
@@ -194,53 +194,42 @@ const App: React.FC = () => {
   };
 
   const fetchFromTables = async (userId: string) => {
-    console.log("Intentando cargar datos desde tablas relacionales...");
+    console.log("Intentando cargar datos desde tablas relacionales industriales...");
     try {
       const [
         { data: alu },
         { data: gls },
         { data: acc },
-        { data: dvh },
         { data: trt },
-        { data: bld },
+        { data: pnl },
+        { data: dvh },
         { data: rec },
         { data: quo }
       ] = await Promise.all([
-        supabase.from('aluminum_inventory').select('*').eq('user_id', userId),
-        supabase.from('glass_inventory').select('*').eq('user_id', userId),
-        supabase.from('accessory_inventory').select('*').eq('user_id', userId),
-        supabase.from('dvh_inventory').select('*').eq('user_id', userId),
-        supabase.from('treatment_inventory').select('*').eq('user_id', userId),
-        supabase.from('panel_inventory').select('*').eq('user_id', userId),
-        supabase.from('recipes').select('*').eq('user_id', userId),
-        supabase.from('quotes').select('*').eq('user_id', userId)
+        supabase.from('materiales_perfiles_usuario').select('*').eq('user_id', userId),
+        supabase.from('materiales_vidrios_usuario').select('*').eq('user_id', userId),
+        supabase.from('materiales_accesorios_usuario').select('*').eq('user_id', userId),
+        supabase.from('tratamientos_usuario').select('*').eq('user_id', userId),
+        supabase.from('paneles_usuario').select('*').eq('user_id', userId),
+        supabase.from('dvh_usuario').select('*').eq('user_id', userId),
+        supabase.from('recetas_usuario').select('*').eq('user_id', userId),
+        supabase.from('presupuestos').select('*').eq('user_id', userId)
       ]);
 
-      // Función técnica de deduplicación y limpieza de IDs aislados
-      const cleanData = (list: any[]) => {
-          if (!list) return [];
-          const map = new Map();
-          list.forEach(item => {
-              const cleanId = item.id.replace(`_${userId}`, '');
-              if (!map.has(cleanId) || item.id.includes(`_${userId}`)) {
-                  map.set(cleanId, { ...item, id: cleanId });
-              }
-          });
-          return Array.from(map.values());
-      };
+      const cleanData = (list: any[]) => list || [];
 
       return {
-        aluminum: cleanData(alu).map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, isGlazingBead: x.is_glazing_bead, glazingBeadStyle: x.glazing_bead_style, minGlassThickness: x.min_glass_thickness, maxGlassThickness: x.max_glass_thickness })),
-        glasses: cleanData(gls).map(x => ({ ...x, pricePerM2: x.price_per_m2, isMirror: x.is_mirror })),
-        accessories: cleanData(acc).map(x => ({ ...x, unitPrice: x.unit_price })),
-        dvhInputs: cleanData(dvh).map(x => ({ ...x })),
-        treatments: cleanData(trt).map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color })),
-        blindPanels: cleanData(bld).map(x => ({ ...x })),
+        aluminum: cleanData(alu).map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, isGlazingBead: x.is_glazing_bead, id: x.master_ref || x.id })),
+        glasses: cleanData(gls).map(x => ({ ...x, pricePerM2: x.price_per_m2, id: x.master_ref || x.id })),
+        accessories: cleanData(acc).map(x => ({ ...x, unitPrice: x.unit_price, id: x.master_ref || x.id })),
+        treatments: cleanData(trt).map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color, id: x.master_ref || x.id })),
+        blindPanels: cleanData(pnl).map(x => ({ ...x, id: x.master_ref || x.id })),
+        dvhInputs: cleanData(dvh).map(x => ({ ...x, id: x.master_ref || x.id })),
         recipes: cleanData(rec).map(x => x.data),
-        quotes: cleanData(quo).map(x => x.data)
+        quotes: cleanData(quo).map(x => x.items)
       };
     } catch (e) {
-      console.error("Fallo al consultar tablas relacionales:", e);
+      console.error("Fallo al consultar tablas relacionales industriales:", e);
       return null;
     }
   };
@@ -248,33 +237,57 @@ const App: React.FC = () => {
   const fetchProfile = async (user: any) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    console.log("Fetching profile for user:", user.id);
+    console.log("Fetching industrial profile for user:", user.id);
     try {
       let { data: profileCheck, error: checkError } = await supabase
-        .from('profiles')
-        .select('id, email, is_active, max_devices, registered_devices')
+        .from('perfiles_usuarios')
+        .select('*')
         .eq('id', user.id)
         .single();
       
+      // Asegurar que el email de super admin tenga el rol correcto si ya existía
+      if (profileCheck && profileCheck.email === 'aristastudiouno@gmail.com' && profileCheck.role !== 'super_admin') {
+         await supabase.from('perfiles_usuarios').update({ role: 'super_admin', is_active: true }).eq('id', user.id);
+         profileCheck.role = 'super_admin';
+         profileCheck.is_active = true;
+      }
       const isAdminUser = user.email === 'aristastudiouno@gmail.com';
 
+      // Si no existe, el trigger lo debería haber creado, pero por seguridad verificamos
       if (checkError || !profileCheck) {
-          console.warn("Usuario nuevo - inicializando perfil...");
-          const newProfile = { 
-            id: user.id, 
-            email: user.email, 
-            is_active: isAdminUser, // Admin auto se activa
-            max_devices: 1, 
-            registered_devices: [] 
-          };
-          const { data: created } = await supabase.from('profiles').insert(newProfile).select().single();
-          profileCheck = created;
+          console.warn("Perfil no encontrado, esperando al trigger o reintentando...");
+          // Pequeño retardo para dar tiempo al trigger de auth.users
+          await new Promise(r => setTimeout(r, 1000));
+          const { data: retry } = await supabase.from('perfiles_usuarios').select('*').eq('id', user.id).single();
+          profileCheck = retry;
+          
+          if (!profileCheck) {
+            console.log("Perfil no encontrado tras reintento. Creando desde frontend...");
+            const isAdmin = user.email === 'aristastudiouno@gmail.com';
+            const { data: created, error: createError } = await supabase.from('perfiles_usuarios').insert({
+                id: user.id,
+                email: user.email,
+                role: isAdmin ? 'super_admin' : 'user',
+                is_active: isAdmin ? true : false
+            }).select().single();
+            
+            if (createError) {
+              console.error("Error al crear perfil manualmente:", createError);
+            } else {
+              profileCheck = created;
+            }
+          }
       }
 
-      const isAdmin = profileCheck?.email === 'aristastudiouno@gmail.com';
+      if (!profileCheck) {
+        setAuthLoading(false);
+        isFetchingRef.current = false;
+        return;
+      }
+
+      const isAdmin = profileCheck?.role === 'super_admin';
 
       if (!profileCheck?.is_active && !isAdmin) {
-          // El usuario no está activo y no es admin -> Pantalla Amarilla. No necesitamos clonar ni descargar tablas completas.
           setIsDataLoaded(true);
           setProfile(profileCheck);
           setAuthLoading(false);
@@ -283,40 +296,30 @@ const App: React.FC = () => {
 
       // Si llegamos a acá, el usuario es ACTIVO o es ADMIN
       const dataFromTables = await fetchFromTables(user.id);
-
-      // Volcamos a las variables
       if (dataFromTables) hydrateData(dataFromTables);
       
       setIsDataLoaded(true);
-      setProfile(profileCheck); // Establecemos el perfil seguro
+      setProfile(profileCheck);
       checkDeviceAccess(profileCheck);
 
     } catch (err: any) {
-      if (err.message?.includes('Failed to fetch')) {
-        console.error("Error de red detectado. Reintentando...");
-        setTimeout(() => fetchProfile(user), 3000);
-      } else {
-        console.error("Error fatal cargando perfil:", err);
-        setAuthLoading(false);
-      }
+      console.error("Error fatal cargando perfil:", err);
+      setAuthLoading(false);
     }
   };
 
   const checkDeviceAccess = async (profileData: any) => {
-    // Si no hay perfil, no dejamos pasar
     if (!profileData) {
       setAuthLoading(false);
       return;
     }
 
-    // Si es super admin, no limitamos dispositivos
-    if (profileData.email === 'aristastudiouno@gmail.com') {
+    if (profileData.role === 'super_admin') {
       setProfile(profileData);
       setAuthLoading(false);
       return;
     }
 
-    // Si no está activo, lo dejamos pasar a la pantalla de "En revisión"
     if (!profileData.is_active) {
       setProfile(profileData);
       setAuthLoading(false);
@@ -324,27 +327,16 @@ const App: React.FC = () => {
     }
 
     const deviceId = getDeviceId();
-    let devices = profileData.registered_devices || [];
-    const maxDevices = profileData.max_devices || 1;
+    
+    // Nueva lógica: gestion_dispositivos
+    const { data: devices } = await supabase.from('gestion_dispositivos').select('*').eq('user_id', profileData.id);
+    const registeredIds = (devices || []).map(d => d.device_id);
 
-    if (!devices.includes(deviceId)) {
-      if (devices.length < maxDevices) {
-        // Registrar nuevo dispositivo
-        const newDevices = [...devices, deviceId];
-        const { error } = await supabase.from('profiles').update({ registered_devices: newDevices }).eq('id', profileData.id);
-        
-        if (error) {
-          console.error("Error al registrar el dispositivo en la base de datos (code/msg):", error?.message || error);
-          alert("Hubo un problema al registrar tu dispositivo. Por favor, contacta al administrador.");
-          if (isSupabaseConfigured) await supabase.auth.signOut();
-          else setSession(null);
-          setAuthLoading(false);
-          return;
-        }
-        
-        setProfile({ ...profileData, registered_devices: newDevices });
+    if (!registeredIds.includes(deviceId)) {
+      if ((devices || []).length < (profileData.limite_dispositivos || 1)) {
+        await supabase.from('gestion_dispositivos').insert({ user_id: profileData.id, device_id: deviceId });
+        setProfile(profileData);
       } else {
-        // Límite alcanzado
         setDeviceLimitReached(true);
         setProfile(profileData);
       }
