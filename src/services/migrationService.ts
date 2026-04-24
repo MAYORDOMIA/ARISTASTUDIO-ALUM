@@ -40,15 +40,25 @@ export const saveBulkData = async (userId: string, data: any) => {
   const isAdmin = await checkIfAdmin(userId);
   const { aluminum, glasses, accessories, recipes, treatments, blindPanels, dvhInputs } = data;
   
-  const prepare = (list: any[], tableType: 'master'|'user', mapper: (x: any) => any) => {
+  const prepare = async (list: any[], tableType: 'master'|'user', mapper: (x: any) => any, masterTable?: string) => {
     if (!list || !Array.isArray(list)) return [];
+    
+    let masterIds = new Set();
+    if (tableType === 'user' && masterTable) {
+        const { data } = await supabase.from(masterTable).select('id');
+        masterIds = new Set((data || []).map(d => d.id));
+    }
+
     return list.map(item => {
         const mapped = mapper(item);
-        return tableType === 'user' ? { 
-            ...mapped, 
-            user_id: userId, 
-            master_ref: item.id 
-        } : mapped;
+        if (tableType === 'user') {
+            return {
+                ...mapped,
+                user_id: userId,
+                master_ref: masterIds.has(item.id) ? item.id : null
+            };
+        }
+        return mapped;
     });
   };
 
@@ -64,18 +74,18 @@ export const saveBulkData = async (userId: string, data: any) => {
   };
 
   if (aluminum) {
-      if (isAdmin) ops.push(supabase.from('maestro_perfiles').upsert(prepare(aluminum, 'master', x => x), { onConflict: 'id' }));
-      else ops.push(supabase.from('materiales_perfiles_usuario').upsert(prepare(aluminum, 'user', x => mapMaterialUser(x, 'perfiles')), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_perfiles').upsert(await prepare(aluminum, 'master', x => x), { onConflict: 'id' }));
+      else ops.push(supabase.from('materiales_perfiles_usuario').upsert(await prepare(aluminum, 'user', x => mapMaterialUser(x, 'perfiles'), 'maestro_perfiles'), { onConflict: 'user_id,master_ref' }));
   }
 
   if (glasses) {
-      if (isAdmin) ops.push(supabase.from('maestro_vidrios').upsert(prepare(glasses, 'master', x => x), { onConflict: 'id' }));
-      else ops.push(supabase.from('materiales_vidrios_usuario').upsert(prepare(glasses, 'user', x => mapMaterialUser(x, 'vidrios')), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_vidrios').upsert(await prepare(glasses, 'master', x => x), { onConflict: 'id' }));
+      else ops.push(supabase.from('materiales_vidrios_usuario').upsert(await prepare(glasses, 'user', x => mapMaterialUser(x, 'vidrios'), 'maestro_vidrios'), { onConflict: 'user_id,master_ref' }));
   }
 
   if (accessories) {
-      if (isAdmin) ops.push(supabase.from('maestro_accesorios').upsert(prepare(accessories, 'master', x => x), { onConflict: 'id' }));
-      else ops.push(supabase.from('materiales_accesorios_usuario').upsert(prepare(accessories, 'user', x => mapMaterialUser(x, 'accesorios')), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_accesorios').upsert(await prepare(accessories, 'master', x => x), { onConflict: 'id' }));
+      else ops.push(supabase.from('materiales_accesorios_usuario').upsert(await prepare(accessories, 'user', x => mapMaterialUser(x, 'accesorios'), 'maestro_accesorios'), { onConflict: 'user_id,master_ref' }));
   }
 
   if (recipes) {
@@ -83,8 +93,8 @@ export const saveBulkData = async (userId: string, data: any) => {
           name: x.name || 'Sin Nombre',
           data: x // JSONB
       });
-      if (isAdmin) ops.push(supabase.from('maestro_recetas').upsert(prepare(recipes, 'master', x => ({id: x.id, name: x.name, data: x})), { onConflict: 'id' }));
-      else ops.push(supabase.from('recetas_usuario').upsert(prepare(recipes, 'user', mapRecipeUser), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_recetas').upsert(await prepare(recipes, 'master', x => ({id: x.id, name: x.name, data: x})), { onConflict: 'id' }));
+      else ops.push(supabase.from('recetas_usuario').upsert(await prepare(recipes, 'user', mapRecipeUser, 'maestro_recetas'), { onConflict: 'user_id,master_ref' }));
   }
 
   const results = await Promise.all(ops);
