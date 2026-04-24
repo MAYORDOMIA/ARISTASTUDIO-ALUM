@@ -35,6 +35,15 @@ CREATE TABLE public.perfiles_usuarios (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Tabla para gestion de dispositivos
+CREATE TABLE public.gestion_dispositivos (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    nombre_dispositivo TEXT,
+    last_login TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Tabla para evitar recursión en RLS
 CREATE TABLE public.configuracion_admin (
     email TEXT PRIMARY KEY
@@ -234,6 +243,7 @@ ALTER TABLE public.recetas_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tratamientos_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.paneles_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dvh_usuario ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gestion_dispositivos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.presupuestos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maestro_perfiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maestro_vidrios ENABLE ROW LEVEL SECURITY;
@@ -254,6 +264,7 @@ CREATE POLICY "owner_or_admin_recetas" ON public.recetas_usuario FOR ALL USING (
 CREATE POLICY "owner_or_admin_tratamientos" ON public.tratamientos_usuario FOR ALL USING (public.es_admin() OR auth.uid() = user_id);
 CREATE POLICY "owner_or_admin_paneles" ON public.paneles_usuario FOR ALL USING (public.es_admin() OR auth.uid() = user_id);
 CREATE POLICY "owner_or_admin_dvh" ON public.dvh_usuario FOR ALL USING (public.es_admin() OR auth.uid() = user_id);
+CREATE POLICY "owner_or_admin_gestion_dispositivos" ON public.gestion_dispositivos FOR ALL USING (public.es_admin() OR auth.uid() = user_id);
 CREATE POLICY "owner_or_admin_presupuestos" ON public.presupuestos FOR ALL USING (public.es_admin() OR auth.uid() = user_id);
 
 -- Para maestros:
