@@ -54,36 +54,37 @@ export const saveBulkData = async (userId: string, data: any) => {
 
   const ops = [];
 
-  // Mapear materiales a: code, detail, type, technical_specs (JSONB)
-  const mapMaterial = (x: any, type: string) => ({
-      code: x.code || '',
-      detail: x.detail || '',
-      type: type,
-      technical_specs: x // JSONB con todos los campos originales
-  });
+  // Mapear materiales a las columnas de la tabla de usuario
+  const mapMaterialUser = (x: any, table: string) => {
+      const common = { code: x.code || '', detail: x.detail || '' };
+      if (table === 'perfiles') return { ...common, weight_per_meter: x.weightPerMeter || 0, bar_length: x.barLength || 6000, is_glazing_bead: !!x.isGlazingBead, treatment_cost: 0 };
+      if (table === 'vidrios') return { ...common, price_per_m2: x.pricePerM2 || 0 };
+      if (table === 'accesorios') return { ...common, unit_price: x.unitPrice || 0 };
+      return common;
+  };
 
   if (aluminum) {
-      if (isAdmin) ops.push(supabase.from('maestro_perfiles').upsert(prepare(aluminum, 'master', x => mapMaterial(x, 'perfil')), { onConflict: 'id' }));
-      else ops.push(supabase.from('materiales_perfiles_usuario').upsert(prepare(aluminum, 'user', x => mapMaterial(x, 'perfil')), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_perfiles').upsert(prepare(aluminum, 'master', x => x), { onConflict: 'id' }));
+      else ops.push(supabase.from('materiales_perfiles_usuario').upsert(prepare(aluminum, 'user', x => mapMaterialUser(x, 'perfiles')), { onConflict: 'user_id,master_ref' }));
   }
 
   if (glasses) {
-      if (isAdmin) ops.push(supabase.from('maestro_vidrios').upsert(prepare(glasses, 'master', x => mapMaterial(x, 'vidrio')), { onConflict: 'id' }));
-      else ops.push(supabase.from('materiales_vidrios_usuario').upsert(prepare(glasses, 'user', x => mapMaterial(x, 'vidrio')), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_vidrios').upsert(prepare(glasses, 'master', x => x), { onConflict: 'id' }));
+      else ops.push(supabase.from('materiales_vidrios_usuario').upsert(prepare(glasses, 'user', x => mapMaterialUser(x, 'vidrios')), { onConflict: 'user_id,master_ref' }));
   }
 
   if (accessories) {
-      if (isAdmin) ops.push(supabase.from('maestro_accesorios').upsert(prepare(accessories, 'master', x => mapMaterial(x, 'accesorio')), { onConflict: 'id' }));
-      else ops.push(supabase.from('materiales_accesorios_usuario').upsert(prepare(accessories, 'user', x => mapMaterial(x, 'accesorio')), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_accesorios').upsert(prepare(accessories, 'master', x => x), { onConflict: 'id' }));
+      else ops.push(supabase.from('materiales_accesorios_usuario').upsert(prepare(accessories, 'user', x => mapMaterialUser(x, 'accesorios')), { onConflict: 'user_id,master_ref' }));
   }
 
   if (recipes) {
-      const mapRecipe = (x: any) => ({
+      const mapRecipeUser = (x: any) => ({
           name: x.name || 'Sin Nombre',
-          config: x // JSONB
+          data: x // JSONB
       });
-      if (isAdmin) ops.push(supabase.from('maestro_recetas').upsert(prepare(recipes, 'master', mapRecipe), { onConflict: 'id' }));
-      else ops.push(supabase.from('recetas_usuario').upsert(prepare(recipes, 'user', mapRecipe), { onConflict: 'user_id,master_ref' }));
+      if (isAdmin) ops.push(supabase.from('maestro_recetas').upsert(prepare(recipes, 'master', x => ({id: x.id, name: x.name, data: x})), { onConflict: 'id' }));
+      else ops.push(supabase.from('recetas_usuario').upsert(prepare(recipes, 'user', mapRecipeUser), { onConflict: 'user_id,master_ref' }));
   }
 
   const results = await Promise.all(ops);
