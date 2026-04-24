@@ -7,7 +7,7 @@ import { supabase } from './supabaseClient';
 
 // Guardar datos masivos para el usuario activo
 export const saveBulkData = async (userId: string, data: any) => {
-  const { aluminum, glasses, accessories, recipes } = data;
+  const { aluminum, glasses, accessories, recipes, treatments, blindPanels, dvhInputs, quotes } = data;
   
   // Helper para preparar datos con user_id
   const prepare = (list: any[]) => {
@@ -15,7 +15,7 @@ export const saveBulkData = async (userId: string, data: any) => {
     return list.map(item => ({
       user_id: userId,
       master_ref: item.id,
-      code: item.code || item.name || '',
+      code: item.code || item.type || item.name || '',
       detail: item.detail || ''
     }));
   };
@@ -31,14 +31,68 @@ export const saveBulkData = async (userId: string, data: any) => {
   
   if (accessories) 
     ops.push(supabase.from('materiales_accesorios_usuario').upsert(prepare(accessories), { onConflict: 'user_id,master_ref' }));
+    
+  if (treatments) {
+    const arr = treatments.map((t: any) => ({
+      user_id: userId,
+      master_ref: t.id,
+      name: t.name || 'Sin nombre',
+      price_per_kg: t.pricePerKg || 0,
+      hex_color: t.hexColor || ''
+    }));
+    ops.push(supabase.from('tratamientos_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
+  }
+
+  if (blindPanels) {
+    const arr = blindPanels.map((p: any) => ({
+      user_id: userId,
+      master_ref: p.id,
+      code: p.code || '',
+      detail: p.detail || '',
+      price: p.price || 0,
+      unit: p.unit || 'm2'
+    }));
+    ops.push(supabase.from('paneles_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
+  }
+
+  if (dvhInputs) {
+    const arr = dvhInputs.map((d: any) => ({
+      user_id: userId,
+      master_ref: d.id,
+      type: d.type || 'Cámara',
+      detail: d.detail || '',
+      cost: d.cost || 0,
+      thickness: d.thickness || 0
+    }));
+    ops.push(supabase.from('dvh_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
+  }
   
   if (recipes) {
     const recetasFormateadas = recipes.map((r: any) => ({
       user_id: userId,
       master_ref: r.id,
-      name: r.name || 'Sin nombre'
+      name: r.name || 'Sin nombre',
+      data: r
     }));
     ops.push(supabase.from('recetas_usuario').upsert(recetasFormateadas, { onConflict: 'user_id,master_ref' }));
+  }
+
+  if (quotes && quotes.length > 0) {
+    const preArr = quotes.map((q: any) => ({
+      user_id: userId,
+      numero_presupuesto: q.number || 0,
+      cliente_nombre: q.clientName || '',
+      cliente_email: q.clientEmail || '',
+      total: q.total || 0,
+      items: q.items || [],
+      estado: q.status || 'borrador',
+      created_at: q.date || new Date().toISOString()
+    }));
+    // We cannot easily upsert quotes on a random ID without a master_ref map, so quotes usually are managed separately, 
+    // but for initial sync from JSON, doing a simple insert is a risk of duplication if ran multiple times.
+    // For now we'll do an insert ONLY if this is an explicit migration.
+    // Real App: quotes are handled one by one in QuotesHistory.tsx
+    // oops.push(supabase.from('presupuestos').insert(preArr));
   }
 
   const results = await Promise.all(ops);
@@ -49,7 +103,15 @@ export const saveBulkData = async (userId: string, data: any) => {
 
 // Limpiar datos del usuario
 export const wipeUserInventory = async (userId: string) => {
-  const tables = ['materiales_perfiles_usuario', 'materiales_vidrios_usuario', 'materiales_accesorios_usuario', 'recetas_usuario'];
+  const tables = [
+    'materiales_perfiles_usuario', 
+    'materiales_vidrios_usuario', 
+    'materiales_accesorios_usuario', 
+    'recetas_usuario',
+    'tratamientos_usuario',
+    'paneles_usuario',
+    'dvh_usuario'
+  ];
   const results = await Promise.all(tables.map(table => supabase.from(table).delete().eq('user_id', userId)));
   const errors = results.filter(r => r.error).map(r => r.error?.message || 'Error desconocido');
   return { success: errors.length === 0, errors };
@@ -61,7 +123,10 @@ export const pullUpdatesFromMaster = async (userId: string) => {
     { master: 'maestro_perfiles', user: 'materiales_perfiles_usuario' },
     { master: 'maestro_vidrios', user: 'materiales_vidrios_usuario' },
     { master: 'maestro_accesorios', user: 'materiales_accesorios_usuario' },
-    { master: 'maestro_recetas', user: 'recetas_usuario' }
+    { master: 'maestro_recetas', user: 'recetas_usuario' },
+    { master: 'maestro_tratamientos', user: 'tratamientos_usuario' },
+    { master: 'maestro_paneles', user: 'paneles_usuario' },
+    { master: 'maestro_dvh', user: 'dvh_usuario' }
   ];
 
   let addedCount = 0;
@@ -83,7 +148,37 @@ export const pullUpdatesFromMaster = async (userId: string) => {
             return {
                 user_id: userId,
                 master_ref: m.id,
-                name: m.name || 'Sin nombre'
+                name: m.name || 'Sin nombre',
+                data: m.data || {}
+            };
+        }
+        if (t.master === 'maestro_tratamientos') {
+            return {
+                user_id: userId,
+                master_ref: m.id,
+                name: m.name || 'Sin nombre',
+                price_per_kg: m.price_per_kg || 0,
+                hex_color: m.hex_color || ''
+            };
+        }
+        if (t.master === 'maestro_paneles') {
+            return {
+                user_id: userId,
+                master_ref: m.id,
+                code: m.code || '',
+                detail: m.detail || '',
+                price: m.price || 0,
+                unit: m.unit || 'm2'
+            };
+        }
+        if (t.master === 'maestro_dvh') {
+            return {
+                user_id: userId,
+                master_ref: m.id,
+                type: m.type || 'Cámara',
+                detail: m.detail || '',
+                cost: m.cost || 0,
+                thickness: m.thickness || 0
             };
         }
         return {
