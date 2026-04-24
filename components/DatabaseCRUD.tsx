@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIcon, Palette, Droplets, Thermometer, Box, AlertTriangle, Info, ShieldCheck, Zap, Database, Cloud } from 'lucide-react';
+import { Plus, Trash2, Upload, Search, CheckCircle2, Download, Database as DbIcon, Palette, Droplets, Thermometer, Box, AlertTriangle, Info, ShieldCheck, Zap, Database, Cloud, RefreshCw } from 'lucide-react';
 import { AluminumProfile, Glass, BlindPanel, Accessory, DVHInput, Treatment, GlobalConfig, ProductRecipe, Quote } from '../types';
 import { DATABASE_TABS } from '../constants';
 import * as XLSX from 'xlsx';
