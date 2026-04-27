@@ -4,16 +4,22 @@ import {
   Accessory, DVHInput, RecipeAccessory, BlindPanel, QuoteItem, QuoteItemBreakdown, MeasurementModule
 } from '../types';
 
-export const evaluateFormula = (formula: string, W: number, H: number): number => {
+export const evaluateFormula = (formula: string, W: number, H: number, contextName: string = ''): number => {
   try {
     const raw = (formula || '').toString().toUpperCase();
     if (!raw) return 0;
 
-    const cleanFormula = raw.replace(/W/g, (W || 0).toString()).replace(/H/g, (H || 0).toString());
+    // Handle implicit multiplication for variables e.g. 2W -> 2*W, W2 -> W*2, 2(W) -> 2*(W) handled later
+    let preCleaned = raw.replace(/([0-9.])([WH])/g, '$1*$2')
+                        .replace(/([WH])([0-9.])/g, '$1*$2');
+
+    const cleanFormula = preCleaned.replace(/W/g, (W || 0).toString()).replace(/H/g, (H || 0).toString());
     
     // Sanitización estricta: solo permite números, operadores matemáticos básicos, paréntesis y espacios
     if (!/^[0-9+\-*/().\s]+$/.test(cleanFormula)) {
-      console.warn("Caracteres inválidos en la fórmula:", formula);
+      const msg = `Caracteres inválidos en la fórmula: ${formula}`;
+      console.warn(msg);
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula, context: contextName } }));
       return 0;
     }
 
@@ -27,14 +33,23 @@ export const evaluateFormula = (formula: string, W: number, H: number): number =
     } else if (closeP > openP) {
       // Si sobran paréntesis de cierre, intentamos limpiar el excedente al final
       // o simplemente invalidamos si es estructuralmente incorrecto
-      console.warn("Fórmula con exceso de paréntesis de cierre:", formula);
+      const msg = `Fórmula con exceso de paréntesis de cierre: ${formula}`;
+      console.warn(msg);
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula, context: contextName } }));
       return 0;
     }
+
+    // Fix implicit multiplication with optional spaces
+    // e.g., "2 (W)" -> "2 * (W)", "(W) (H)" -> "(W) * (H)", "(W) 2" -> "(W) * 2"
+    balanced = balanced.replace(/\)\s*(?=[0-9(.])/g, ')*')
+                       .replace(/([0-9.])\s*(?=\()/g, '$1*');
     
     const result = new Function(`return ${balanced}`)();
     return isFinite(result) ? result : 0;
   } catch (e) {
-    console.error("Error parsing formula (msg):", formula, (e as any)?.message || e);
+    const msg = (e as any)?.message || String(e);
+    console.error("Error parsing formula (msg):", formula, msg);
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula, context: contextName } }));
     return 0;
   }
 };
@@ -344,13 +359,36 @@ export const calculateItemPrice = (
                 const max = p.maxGlassThickness || 100;
                 return calculatedGlassThickness >= min && calculatedGlassThickness <= max;
             });
-            if (anyThicknessMatch) profile = anyThicknessMatch;
+            if (anyThicknessMatch) {
+                profile = anyThicknessMatch;
+            } else if (candidates.length > 0) {
+                profile = undefined;
+                const msg = `Espesor de vidrio incompatible con contravidrios (${calculatedGlassThickness}mm). No se encontró contravidrio (curvo ni recto) adecuado para el espesor resultante.`;
+                if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula: '', context: 'Contravidrios' } }));
+            } else {
+                profile = undefined;
+                const msg = `La receta requiere un contravidrio pero no hay opciones configuradas.`;
+                if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula: '', context: 'Contravidrios' } }));
+            }
         }
     }
 
     if (profile) {
-      const cutMeasure = evaluateFormula(rp.formula, width, height);
-      const weight = ((cutMeasure + Number(config.discWidth || 0)) / 1000) * Number(rp.quantity || 0) * Number(profile.weightPerMeter || 0);
+      const isLeafWidthDependent = (rp.role?.toLowerCase() || '').includes('hoja') || (rp.role?.toLowerCase() || '').includes('zócalo') || (rp.role?.toLowerCase() || '').includes('encuentro') || (rp.role?.toLowerCase() || '').includes('contravidrio');
+      let weight = 0;
+
+      if (isLeafWidthDependent && leafWidths && leafWidths.length === numLeaves && (rp.quantity % numLeaves === 0)) {
+         const piecesPerLeaf = rp.quantity / numLeaves;
+         leafWidths.forEach(lw => {
+             const effectiveW = lw * numLeaves;
+             const cutMeasure = evaluateFormula(rp.formula, effectiveW, height, `Perfil de Hoja (Multi): ${profile!.code}`);
+             weight += ((cutMeasure + Number(config.discWidth || 0)) / 1000) * piecesPerLeaf * Number(profile!.weightPerMeter || 0);
+         });
+      } else {
+         const cutMeasure = evaluateFormula(rp.formula, width, height, `Perfil: ${profile.code}`);
+         weight = ((cutMeasure + Number(config.discWidth || 0)) / 1000) * Number(rp.quantity || 0) * Number(profile.weightPerMeter || 0);
+      }
+      
       totalAluWeight += weight;
     }
   });

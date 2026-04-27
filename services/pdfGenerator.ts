@@ -192,6 +192,10 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                             return totalGlassThick >= min && totalGlassThick <= max;
                         });
                     }
+                    if (!bestMatch && candidates.length > 0) {
+                        const msg = `Espesor de vidrio incompatible con contravidrios (${totalGlassThick}mm). PDF omitirá este contravidrio.`;
+                        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula: '', context: 'Contravidrios (PDF)' } }));
+                    }
 
                     if (bestMatch) pDef = bestMatch;
                 }
@@ -505,6 +509,10 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                             const max = pf.maxGlassThickness || 100;
                             return totalGlassThick >= min && totalGlassThick <= max;
                         });
+                    }
+                    if (!bestMatch && candidates.length > 0) {
+                        const msg = `Espesor de vidrio incompatible con contravidrios (${totalGlassThick}mm). PDF omitirá este contravidrio.`;
+                        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula: '', context: 'Contravidrios (PDF)' } }));
                     }
 
                     if (bestMatch) p = bestMatch;
@@ -973,6 +981,10 @@ export const generateAssemblyOrderPDF = (quote: Quote, recipes: ProductRecipe[],
                             const max = pf.maxGlassThickness || 100;
                             return totalGlassThick >= min && totalGlassThick <= max;
                         });
+                    }
+                    if (!bestMatch && candidates.length > 0) {
+                        const msg = `Espesor de vidrio incompatible con contravidrios (${totalGlassThick}mm). PDF omitirá este contravidrio.`;
+                        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('formula-error', { detail: { message: msg, formula: '', context: 'Contravidrios (PDF)' } }));
                     }
 
                     if (bestMatch) p = bestMatch;
