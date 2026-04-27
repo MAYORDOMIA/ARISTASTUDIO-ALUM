@@ -176,12 +176,17 @@ CREATE TABLE IF NOT EXISTS public.dvh_usuario (
 );
 
 CREATE TABLE IF NOT EXISTS public.presupuestos (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
-    client_name TEXT,
+    cliente_nombre TEXT,
+    numero_presupuesto SERIAL,
+    cliente_email TEXT,
     total FLOAT DEFAULT 0,
-    items JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
+    items JSONB DEFAULT '[]',
+    pdf_url TEXT,
+    estado TEXT DEFAULT 'borrador' CHECK (estado IN ('borrador', 'enviado', 'aprobado', 'rechazado')),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- 5. DISPOSITIVOS

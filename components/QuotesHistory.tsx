@@ -27,6 +27,7 @@ import {
   generateCostsPDF
 } from '../services/pdfGenerator';
 import { calculateCompositePrice } from '../services/calculator';
+import { supabase, isSupabaseConfigured } from '../src/services/supabaseClient';
 
 interface Props {
   quotes: Quote[];
@@ -53,10 +54,15 @@ const QuotesHistory: React.FC<Props> = ({
     q.id.includes(search)
   ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const deleteQuote = (id: string) => {
+  const deleteQuote = async (id: string) => {
     if (window.confirm('¿Está seguro de eliminar esta cotización permanentemente?')) {
       setQuotes(quotes.filter(q => q.id !== id));
       if (selectedQuote?.id === id) setSelectedQuote(null);
+      
+      if (isSupabaseConfigured) {
+          const { error } = await supabase.from('presupuestos').delete().eq('id', id);
+          if (error) console.error(error);
+      }
     }
   };
 
@@ -259,7 +265,7 @@ const QuotesHistory: React.FC<Props> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <select className="text-[9px] font-black uppercase bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700" value={item.colorId} onChange={(e) => {
+                        <select className="text-[9px] font-black uppercase bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700" value={item.colorId} onChange={async (e) => {
                             const newColorId = e.target.value;
                             const treatment = treatments.find(t => t.id === newColorId);
                             if (!treatment) return;
@@ -288,6 +294,25 @@ const QuotesHistory: React.FC<Props> = ({
                             const updatedQuote = {...selectedQuote, items: updatedItems, totalPrice};
                             setSelectedQuote(updatedQuote);
                             setQuotes(quotes.map(q => q.id === selectedQuote.id ? updatedQuote : q));
+                            
+                            if (isSupabaseConfigured) {
+                               const userRes = await supabase.auth.getUser();
+                               if (userRes.data.user) {
+                                  const { error } = await supabase.from('presupuestos').upsert({
+                                     id: updatedQuote.id,
+                                     user_id: userRes.data.user.id,
+                                     cliente_nombre: updatedQuote.clientName,
+                                     total: updatedQuote.totalPrice,
+                                     items: updatedQuote.items,
+                                     created_at: updatedQuote.date,
+                                     estado: 'borrador'
+                                  }, { onConflict: 'id' });
+                                  if (error) {
+                                      console.error("Error updating quote in DB", error);
+                                      alert("Error al actualizar en la nube: " + error.message);
+                                  }
+                               }
+                            }
                         }}>
                             {treatments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>

@@ -16,6 +16,8 @@ import {
 import { QuoteItem, Quote, ProductRecipe, GlobalConfig, AluminumProfile } from '../types';
 import { evaluateFormula } from '../services/calculator';
 
+import { supabase, isSupabaseConfigured } from '../src/services/supabaseClient';
+
 interface Props {
   items: QuoteItem[];
   setItems: React.Dispatch<React.SetStateAction<QuoteItem[]>>;
@@ -101,13 +103,36 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
     return Array.from(summary.values()).sort((a, b) => b.totalWeight - a.totalWeight);
   }, [items, recipes, aluminum, config.discWidth]);
 
-  const finalizeWork = () => {
+  const finalizeWork = async () => {
     if (items.length === 0) return alert("Cargue al menos una carpintería.");
     if (!clientName.trim()) return alert("Asigne un nombre a la obra.");
     const subtotal = items.reduce((acc, i) => acc + (i.calculatedCost * i.quantity), 0);
     const totalPrice = Math.round(subtotal * (1 + config.taxRate / 100));
-    const newQuote: Quote = { id: Date.now().toString(36).toUpperCase(), clientName, date: new Date().toISOString(), items: [...items], totalPrice };
-    setQuotes([newQuote, ...quotes]); setItems([]); setClientName('');
+    const newQuote: Quote = { id: crypto.randomUUID(), clientName, date: new Date().toISOString(), items: [...items], totalPrice };
+    
+    setQuotes([newQuote, ...quotes]); 
+    setItems([]); 
+    setClientName('');
+    
+    if (isSupabaseConfigured) {
+       const userRes = await supabase.auth.getUser();
+       if (userRes.data.user) {
+          const { error } = await supabase.from('presupuestos').insert({
+             id: newQuote.id,
+             user_id: userRes.data.user.id,
+             cliente_nombre: newQuote.clientName,
+             total: newQuote.totalPrice,
+             items: newQuote.items,
+             created_at: newQuote.date,
+             estado: 'borrador'
+          });
+          if (error) {
+             console.error("Error saving quote to DB", error);
+             alert("Error al guardar en la nube: " + error.message);
+          }
+       }
+    }
+    
     alert("Obra guardada con éxito.");
   };
 

@@ -219,7 +219,7 @@ CREATE TABLE public.dvh_usuario (
 -- 4. PRESUPUESTOS (DATOS OPERATIVOS)
 -- ==========================================
 CREATE TABLE public.presupuestos (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
     numero_presupuesto SERIAL,
     cliente_nombre TEXT,

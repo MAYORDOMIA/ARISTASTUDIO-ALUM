@@ -110,6 +110,11 @@ const App: React.FC = () => {
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
+    // Safety net: Always clear authLoading after 10 seconds to avoid blank screens
+    const safetyTimer = setTimeout(() => {
+      setAuthLoading(false);
+    }, 10000);
+
     if (!isSupabaseConfigured) {
       // Modo local si Supabase no está configurado
       const localData = localStorage.getItem('maicol_engine_data_data_v2');
@@ -140,29 +145,65 @@ const App: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   // Suscripción en tiempo real para sincronización de activación
   useEffect(() => {
     if (!isSupabaseConfigured || !session?.user?.id || !isDataLoaded) return;
 
-    // Solo nos suscribimos a la tabla profiles para ver si el admin activa/desactiva la cuenta
-    const channel = supabase
-      .channel(`profile_updates_${session.user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'perfiles_usuarios', filter: `id=eq.${session.user.id}` },
-        (payload: any) => {
-          console.log("Cambio en perfil detectado en tiempo real:", payload.new);
-          setProfile(payload.new);
-          if (payload.new.is_active) {
-             // Si lo acaban de activar, volvemos a evaluar acceso y descargar
-             checkDeviceAccess(payload.new);
+    // Suscribirse a cambios en el perfil (para activación) y en presupuestos
+    let channel: any;
+    try {
+      channel = supabase
+        .channel(`sync_${session.user.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'perfiles_usuarios', filter: `id=eq.${session.user.id}` },
+          (payload: any) => {
+            console.log("Cambio en perfil detectado:", payload.new);
+            if (payload.new) {
+               setProfile(payload.new);
+               if (payload.new.is_active) {
+                  // Re-evaluar acceso a nivel local si el admin activó la cuenta
+                  checkDeviceAccess(payload.new);
+               }
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'presupuestos', filter: `user_id=eq.${session.user.id}` },
+          (payload: any) => {
+            console.log("Sync tiempo real presupuesto:", payload);
+            if (payload.eventType === 'DELETE') {
+               setQuotes(prev => prev.filter(q => q.id !== payload.old?.id));
+            } else if (payload.new) {
+               const updatedItem = {
+                 id: payload.new.id,
+                 clientName: payload.new.cliente_nombre || '',
+                 date: payload.new.created_at,
+                 items: payload.new.items || [],
+                 totalPrice: payload.new.total || 0,
+                 tenantId: payload.new.user_id
+               };
+               setQuotes(prev => {
+                  const exists = prev.find(q => q.id === updatedItem.id);
+                  if (exists) return prev.map(q => q.id === updatedItem.id ? updatedItem : q);
+                  return [updatedItem, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+               });
+            }
+          }
+        )
+        .subscribe((status: string) => {
+          console.log("Estado canal sync:", status);
+        });
+    } catch (e) {
+      console.error("Error al suscribirse al canal real-time:", e);
+    }
 
     return () => {
       supabase.removeChannel(channel);
@@ -238,7 +279,14 @@ const App: React.FC = () => {
         blindPanels: cleanData(pnlRes.data).map(x => ({ ...x, id: x.master_ref || x.id })),
         dvhInputs: cleanData(dvhRes.data).map(x => ({ ...x, id: x.master_ref || x.id })),
         recipes: cleanData(recRes.data).map(x => x.data),
-        quotes: cleanData(quoRes.data).map(x => x.items)
+        quotes: cleanData(quoRes.data).map(x => ({
+          id: x.id,
+          clientName: x.cliente_nombre || '',
+          date: x.created_at,
+          items: x.items || [],
+          totalPrice: x.total || 0,
+          tenantId: x.user_id
+        }))
       };
     } catch (e) {
       console.error("Fallo al consultar tablas relacionales industriales:", e);
@@ -307,12 +355,17 @@ const App: React.FC = () => {
       }
 
       // Si llegamos a acá, el usuario es ACTIVO o es ADMIN
-      const dataFromTables = await fetchFromTables(user.id);
-      if (dataFromTables) hydrateData(dataFromTables);
+      try {
+        const dataFromTables = await fetchFromTables(user.id);
+        if (dataFromTables) hydrateData(dataFromTables);
+      } catch (e) {
+        console.error("Error fetching complementary tables:", e);
+      }
       
       setIsDataLoaded(true);
       setProfile(profileCheck);
-      checkDeviceAccess(profileCheck);
+      await checkDeviceAccess(profileCheck);
+      setAuthLoading(false);
 
     } catch (err: any) {
       console.error("Error fatal cargando perfil:", err);
@@ -321,41 +374,27 @@ const App: React.FC = () => {
   };
 
   const checkDeviceAccess = async (profileData: any) => {
-    if (!profileData) {
-      setAuthLoading(false);
-      return;
-    }
+    if (!profileData) return;
 
-    if (profileData.role === 'super_admin') {
-      setProfile(profileData);
-      setAuthLoading(false);
-      return;
-    }
-
-    if (!profileData.is_active) {
-      setProfile(profileData);
-      setAuthLoading(false);
-      return;
-    }
+    if (profileData.role === 'super_admin') return;
+    if (!profileData.is_active) return;
 
     const deviceId = getDeviceId();
     
-    // Nueva lógica: gestion_dispositivos
-    const { data: devices } = await supabase.from('gestion_dispositivos').select('*').eq('user_id', profileData.id);
-    const registeredIds = (devices || []).map(d => d.device_id);
+    try {
+      const { data: devices } = await supabase.from('gestion_dispositivos').select('*').eq('user_id', profileData.id);
+      const registeredIds = (devices || []).map(d => d.device_id);
 
-    if (!registeredIds.includes(deviceId)) {
-      if ((devices || []).length < (profileData.limite_dispositivos || 1)) {
-        await supabase.from('gestion_dispositivos').insert({ user_id: profileData.id, device_id: deviceId });
-        setProfile(profileData);
-      } else {
-        setDeviceLimitReached(true);
-        setProfile(profileData);
+      if (!registeredIds.includes(deviceId)) {
+        if ((devices || []).length < (profileData.limite_dispositivos || 1)) {
+          await supabase.from('gestion_dispositivos').insert({ user_id: profileData.id, device_id: deviceId });
+        } else {
+          setDeviceLimitReached(true);
+        }
       }
-    } else {
-      setProfile(profileData);
+    } catch (e) {
+      console.error("Error checking device access:", e);
     }
-    setAuthLoading(false);
   };
 
   useEffect(() => {
@@ -424,20 +463,23 @@ const App: React.FC = () => {
 
   const [currentWorkItems, setCurrentWorkItems] = useState<QuoteItem[]>([]);
   const [activeQuoteItem, setActiveQuoteItem] = useState<QuoteItem | null>(null);
-  const [currentRecipeName, setCurrentRecipeName] = useState<string | null>(null);
+  const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
 
   const handleEditQuote = (quote: Quote) => {
     setCurrentWorkItems(quote.items);
     setActiveTab('quoter');
   };
 
-  const openingName = useMemo(() => {
-    if (activeTab === 'quoter' && currentRecipeName) return currentRecipeName;
+  const activeRecipe = useMemo(() => {
+    if (activeTab === 'quoter' && currentRecipeId) {
+      return recipes.find(r => r.id === currentRecipeId);
+    }
     if (!activeQuoteItem || !activeQuoteItem.composition.modules.length) return null;
     const firstModule = activeQuoteItem.composition.modules[0];
-    const recipe = recipes.find(r => r.id === firstModule.recipeId);
-    return recipe ? recipe.name : null;
-  }, [activeQuoteItem, recipes, currentRecipeName, activeTab]);
+    return recipes.find(r => r.id === firstModule.recipeId);
+  }, [activeQuoteItem, recipes, currentRecipeId, activeTab]);
+
+  const openingName = activeRecipe ? `${activeRecipe.line} - ${activeRecipe.name}` : null;
 
   useEffect(() => {
     // Force light mode
@@ -679,7 +721,7 @@ const App: React.FC = () => {
              <div className="flex items-center gap-3 lg:gap-4">
                  <div className="flex flex-col items-end">
                     <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">P. ALU</span>
-                    <span className="text-xs lg:text-sm font-mono text-sky-600 dark:text-sky-400 font-black">${config.aluminumPricePerKg.toFixed(2)}</span>
+                    <span className="text-xs lg:text-sm font-mono text-sky-600 dark:text-sky-400 font-black">${(config.aluminumPricePerKg || 0).toFixed(2)}</span>
                  </div>
                  <div className="hidden sm:flex flex-col items-end pl-3 lg:pl-4 border-l border-slate-100 dark:border-slate-800">
                     <span className="text-[7px] lg:text-[8px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">MARGEN</span>
@@ -726,7 +768,7 @@ const App: React.FC = () => {
               quotes={quotes} 
               setQuotes={setQuotes} 
               onUpdateActiveItem={setActiveQuoteItem}
-              onRecipeChange={setCurrentRecipeName}
+              onRecipeChange={setCurrentRecipeId}
               currentWorkItems={currentWorkItems}
               setCurrentWorkItems={setCurrentWorkItems}
             />

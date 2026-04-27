@@ -686,7 +686,7 @@ interface Props {
   quotes: Quote[];
   setQuotes: React.Dispatch<React.SetStateAction<Quote[]>>;
   onUpdateActiveItem?: (item: QuoteItem | null) => void;
-  onRecipeChange?: (name: string | null) => void;
+  onRecipeChange?: (id: string | null) => void;
   currentWorkItems: QuoteItem[];
   setCurrentWorkItems: React.Dispatch<React.SetStateAction<QuoteItem[]>>;
 }
@@ -731,7 +731,7 @@ const QuotingModule: React.FC<Props> = ({
         const firstMod = modules[0];
         if (firstMod) {
             const r = recipes.find(x => x.id === firstMod.recipeId);
-            onRecipeChange(r ? r.name : null);
+            onRecipeChange(r ? r.id : null);
         } else {
             onRecipeChange(null);
         }
