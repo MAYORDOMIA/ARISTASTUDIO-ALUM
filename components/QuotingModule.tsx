@@ -675,6 +675,7 @@ const renderAdaptiveTJ = (
 };
 
 interface Props {
+  triggerAction?: { action: 'cargar' | 'nuevo', ts: number } | null;
   recipes: ProductRecipe[];
   aluminum: AluminumProfile[];
   glasses: Glass[];
@@ -692,6 +693,7 @@ interface Props {
 }
 
 const QuotingModule: React.FC<Props> = ({ 
+    triggerAction,
     recipes, aluminum, glasses, blindPanels, accessories, 
     dvhInputs, treatments, config, quotes, setQuotes, onUpdateActiveItem, onRecipeChange,
     currentWorkItems, setCurrentWorkItems
@@ -1001,6 +1003,44 @@ const QuotingModule: React.FC<Props> = ({
       setTotalHeight(newValue);
     }
   };
+
+  const clearQuoter = () => {
+    setTotalWidth(1500);
+    setTotalHeight(1100);
+    setItemCode('');
+    setCouplingProfileId('');
+    setCouplingDeduction(10);
+    setSelectedColorId('');
+    setQuantity(1);
+    setExtras({ mosquitero: false, tapajuntas: false, tapajuntasSides: { top: true, bottom: true, left: true, right: true } });
+    if (recipes.length > 0) {
+      const defaultGlassId = glasses.length > 0 ? glasses[0].id : '';
+      setModules([{ 
+          id: 'm-' + Date.now(), 
+          recipeId: recipes[0].id, 
+          x: 0, 
+          y: 0, 
+          isDVH: false, 
+          glassOuterId: defaultGlassId, 
+          transoms: [], 
+          blindPanes: [] 
+      }]);
+    }
+    setColSizes([1500]);
+    setRowSizes([1100]);
+    setIsManualDim(false);
+    setSelectedModuleId(null);
+    setEditingModuleId(null);
+  };
+
+  useEffect(() => {
+    if (!triggerAction) return;
+    if (triggerAction.action === 'cargar') {
+      addItemToWork();
+    } else if (triggerAction.action === 'nuevo') {
+      clearQuoter();
+    }
+  }, [triggerAction]);
 
   const addItemToWork = () => {
     const treatment = treatments.find(t => t.id === colorId);

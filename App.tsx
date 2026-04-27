@@ -25,7 +25,8 @@ import {
   Wallet,
   Wind,
   LogOut,
-  MonitorOff
+  MonitorOff,
+  Plus
 } from 'lucide-react';
 import { DATABASE_TABS } from './constants';
 import * as XLSX from 'xlsx';
@@ -464,6 +465,7 @@ const App: React.FC = () => {
   const [currentWorkItems, setCurrentWorkItems] = useState<QuoteItem[]>([]);
   const [activeQuoteItem, setActiveQuoteItem] = useState<QuoteItem | null>(null);
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
+  const [triggerQuoterAction, setTriggerQuoterAction] = useState<{ action: 'cargar' | 'nuevo', ts: number } | null>(null);
 
   const handleEditQuote = (quote: Quote) => {
     setCurrentWorkItems(quote.items);
@@ -710,12 +712,22 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3 lg:gap-6">
-             {activeTab === 'quoter' && openingName && (
-               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-sky-50 dark:bg-sky-900/20 rounded-lg border border-sky-100 dark:border-sky-800 animate-in fade-in slide-in-from-right-2">
-                 <Tag size={12} className="text-sky-500" />
-                 <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-sky-600 dark:text-sky-400">
-                   {openingName}
-                 </span>
+             {activeTab === 'quoter' && (
+               <div className="hidden sm:flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                 {openingName && (
+                   <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 dark:bg-sky-900/20 rounded-lg border border-sky-100 dark:border-sky-800">
+                     <Tag size={12} className="text-sky-500" />
+                     <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-sky-600 dark:text-sky-400">
+                       {openingName}
+                     </span>
+                   </div>
+                 )}
+                 <button onClick={() => setTriggerQuoterAction({ action: 'nuevo', ts: Date.now() })} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-[9px] lg:text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
+                   <div className="w-3 h-3 border-2 border-current rounded-sm"></div> Nuevo
+                 </button>
+                 <button onClick={() => setTriggerQuoterAction({ action: 'cargar', ts: Date.now() })} className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[9px] lg:text-[10px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95 flex items-center gap-1.5">
+                   <Plus size={14} /> A Obra
+                 </button>
                </div>
              )}
              <div className="flex items-center gap-3 lg:gap-4">
@@ -757,6 +769,7 @@ const App: React.FC = () => {
           </div>
           <div className={activeTab === 'quoter' ? 'h-full' : 'hidden'}>
             <QuotingModule 
+              triggerAction={triggerQuoterAction}
               recipes={recipes} 
               aluminum={aluminum} 
               glasses={glasses} 
