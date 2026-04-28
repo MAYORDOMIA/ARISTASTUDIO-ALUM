@@ -728,16 +728,6 @@ const QuotingModule: React.FC<Props> = ({
   const [showHandrailSelector, setShowHandrailSelector] = useState(false);
   const [isGlobalHandrailSelection, setIsGlobalHandrailSelection] = useState(false);
 
-  const [formulaError, setFormulaError] = useState<{ message: string, formula: string, context: string } | null>(null);
-
-  useEffect(() => {
-    const handleFormulaError = (e: any) => {
-      setFormulaError(e.detail);
-    };
-    window.addEventListener('formula-error', handleFormulaError);
-    return () => window.removeEventListener('formula-error', handleFormulaError);
-  }, []);
-
   useEffect(() => {
     if (onRecipeChange) {
         const firstMod = modules[0];
@@ -2210,35 +2200,6 @@ const QuotingModule: React.FC<Props> = ({
               className="w-full bg-slate-900 dark:bg-amber-700 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-amber-600 transition-all"
             >
               Aplicar y Continuar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {formulaError && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl border-2 border-red-500/30 text-center space-y-6">
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center text-red-600 mx-auto shadow-lg">
-              <span className="font-extrabold text-2xl">!</span>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tighter">Atención</h3>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">{formulaError.message}</p>
-            </div>
-            {formulaError.formula && (
-              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 text-left">
-                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">Fórmula Evaluada:</p>
-                <code className="text-sm font-mono text-slate-800 dark:text-sky-300 font-bold break-all bg-white dark:bg-slate-900 p-2 rounded-xl block border border-slate-100 dark:border-slate-800 shadow-sm">{formulaError.formula}</code>
-              </div>
-            )}
-            {formulaError.context && (
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Contexto: {formulaError.context}</p>
-            )}
-            <button 
-              onClick={() => setFormulaError(null)}
-              className="w-full bg-slate-900 dark:bg-red-600 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-slate-800 dark:hover:bg-red-500 transition-all flex items-center justify-center gap-2"
-            >
-              <X size={18} /> Entendido
             </button>
           </div>
         </div>

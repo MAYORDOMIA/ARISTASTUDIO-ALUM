@@ -103,6 +103,9 @@ CREATE TABLE IF NOT EXISTS public.materiales_perfiles_usuario (
     weight_per_meter FLOAT DEFAULT 0,
     bar_length FLOAT DEFAULT 6000,
     is_glazing_bead BOOLEAN DEFAULT false,
+    glazing_bead_style TEXT,
+    min_glass_thickness FLOAT,
+    max_glass_thickness FLOAT,
     treatment_cost FLOAT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(user_id, master_ref)

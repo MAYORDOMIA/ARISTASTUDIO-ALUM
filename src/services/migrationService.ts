@@ -29,11 +29,14 @@ export const saveBulkData = async (userId: string, data: any) => {
       master_ref: a.id,
       code: a.code || '',
       detail: a.detail || '',
-      weight_per_meter: a.weight_per_meter || a.weightPerMeter || 0,
-      bar_length: a.bar_length || a.barLength || 6000,
-      thickness: a.thickness || 0,
-      is_glazing_bead: a.is_glazing_bead || a.isGlazingBead || false,
-      treatment_cost: a.treatment_cost || a.treatmentCost || 0
+      weight_per_meter: a.weightPerMeter !== undefined ? a.weightPerMeter : (a.weight_per_meter || 0),
+      bar_length: a.barLength !== undefined ? a.barLength : (a.bar_length || 6000),
+      thickness: a.thickness !== undefined ? a.thickness : (a.thickness || 0),
+      is_glazing_bead: a.isGlazingBead !== undefined ? a.isGlazingBead : (a.is_glazing_bead || false),
+      glazing_bead_style: a.glazingBeadStyle || a.glazing_bead_style || 'Recto',
+      min_glass_thickness: a.minGlassThickness !== undefined ? a.minGlassThickness : (a.min_glass_thickness || 0),
+      max_glass_thickness: a.maxGlassThickness !== undefined ? a.maxGlassThickness : (a.max_glass_thickness || 0),
+      treatment_cost: a.treatmentCost !== undefined ? a.treatmentCost : (a.treatment_cost || 0)
     }));
     ops.push(supabase.from('materiales_perfiles_usuario').upsert(arr, { onConflict: 'user_id,master_ref' }));
   }
@@ -221,6 +224,9 @@ export const pullUpdatesFromMaster = async (userId: string) => {
                 bar_length: m.bar_length || 6000,
                 thickness: m.thickness || 0,
                 is_glazing_bead: m.is_glazing_bead || false,
+                glazing_bead_style: m.glazing_bead_style || 'Recto',
+                min_glass_thickness: m.min_glass_thickness || 0,
+                max_glass_thickness: m.max_glass_thickness || 0,
                 treatment_cost: m.treatment_cost || 0
             };
         }

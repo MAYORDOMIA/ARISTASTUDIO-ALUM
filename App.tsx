@@ -273,7 +273,7 @@ const App: React.FC = () => {
       const cleanData = (list: any[] | null) => list || [];
 
       return {
-        aluminum: cleanData(aluRes.data).map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, thickness: x.thickness, isGlazingBead: x.is_glazing_bead, id: x.master_ref || x.id })),
+        aluminum: cleanData(aluRes.data).map(x => ({ ...x, weightPerMeter: x.weight_per_meter, barLength: x.bar_length, treatmentCost: x.treatment_cost, thickness: x.thickness, isGlazingBead: x.is_glazing_bead, glazingBeadStyle: x.glazing_bead_style, minGlassThickness: x.min_glass_thickness, maxGlassThickness: x.max_glass_thickness, id: x.master_ref || x.id })),
         glasses: cleanData(glsRes.data).map(x => ({ ...x, pricePerM2: x.price_per_m2, thickness: x.thickness, isMirror: x.is_mirror, id: x.master_ref || x.id })),
         accessories: cleanData(accRes.data).map(x => ({ ...x, unitPrice: x.unit_price, id: x.master_ref || x.id })),
         treatments: cleanData(trtRes.data).map(x => ({ ...x, pricePerKg: x.price_per_kg, hexColor: x.hex_color, id: x.master_ref || x.id })),
