@@ -55,6 +55,7 @@ CREATE TABLE public.maestro_perfiles (
     detail TEXT,
     weight_per_meter FLOAT DEFAULT 0,
     bar_length FLOAT DEFAULT 6000,
+    thickness FLOAT DEFAULT 0,
     is_glazing_bead BOOLEAN DEFAULT false,
     glazing_bead_style TEXT,
     min_glass_thickness FLOAT DEFAULT 0,
@@ -128,6 +129,7 @@ CREATE TABLE public.materiales_perfiles_usuario (
     detail TEXT,
     weight_per_meter FLOAT DEFAULT 0,
     bar_length FLOAT DEFAULT 6000,
+    thickness FLOAT DEFAULT 0,
     is_glazing_bead BOOLEAN DEFAULT false,
     glazing_bead_style TEXT,
     min_glass_thickness FLOAT DEFAULT 0,
@@ -250,8 +252,8 @@ BEGIN
     );
 
     -- 2. Clonar Perfiles Maestros
-    INSERT INTO public.materiales_perfiles_usuario (user_id, master_ref, code, detail, weight_per_meter, bar_length, is_glazing_bead, glazing_bead_style, min_glass_thickness, max_glass_thickness)
-    SELECT NEW.id, id, code, detail, weight_per_meter, bar_length, is_glazing_bead, glazing_bead_style, min_glass_thickness, max_glass_thickness
+    INSERT INTO public.materiales_perfiles_usuario (user_id, master_ref, code, detail, weight_per_meter, bar_length, thickness, is_glazing_bead, glazing_bead_style, min_glass_thickness, max_glass_thickness)
+    SELECT NEW.id, id, code, detail, weight_per_meter, bar_length, thickness, is_glazing_bead, glazing_bead_style, min_glass_thickness, max_glass_thickness
     FROM public.maestro_perfiles;
 
     -- 3. Vidrios

@@ -70,12 +70,13 @@ CREATE TABLE public.maestro_perfiles (
     detail TEXT,
     weight_per_meter FLOAT DEFAULT 0,
     bar_length FLOAT DEFAULT 6000,
+    thickness FLOAT DEFAULT 0,
     is_glazing_bead BOOLEAN DEFAULT false,
     glazing_bead_style TEXT,
     min_glass_thickness FLOAT DEFAULT 0,
     max_glass_thickness FLOAT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now()
-);
+ );
 
 CREATE TABLE public.maestro_vidrios (
     id TEXT PRIMARY KEY,
@@ -142,7 +143,11 @@ CREATE TABLE public.materiales_perfiles_usuario (
     detail TEXT,
     weight_per_meter FLOAT DEFAULT 0,
     bar_length FLOAT DEFAULT 6000,
+    thickness FLOAT DEFAULT 0,
     is_glazing_bead BOOLEAN DEFAULT false,
+    glazing_bead_style TEXT,
+    min_glass_thickness FLOAT DEFAULT 0,
+    max_glass_thickness FLOAT DEFAULT 0,
     treatment_cost FLOAT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(user_id, master_ref)
