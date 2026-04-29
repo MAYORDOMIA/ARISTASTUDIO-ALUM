@@ -680,6 +680,7 @@ const DatabaseCRUD: React.FC<Props> = ({
                        blindPanels, 
                        dvhInputs,
                        recipes, 
+                       config,
                        quotes: [] 
                      };
                      

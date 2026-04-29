@@ -203,6 +203,14 @@ CREATE TABLE IF NOT EXISTS public.gestion_dispositivos (
     UNIQUE(user_id, device_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.configuracion_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    config_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id)
+);
+
 -- 6. SEGURIDAD (RLS)
 ALTER TABLE public.perfiles_usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.materiales_perfiles_usuario ENABLE ROW LEVEL SECURITY;
@@ -214,6 +222,8 @@ ALTER TABLE public.paneles_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dvh_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.presupuestos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gestion_dispositivos ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.configuracion_usuario ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.maestro_perfiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maestro_vidrios ENABLE ROW LEVEL SECURITY;
@@ -234,6 +244,7 @@ CREATE POLICY "trt_poly" ON public.tratamientos_usuario FOR ALL USING (auth.uid(
 CREATE POLICY "pnl_poly" ON public.paneles_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 CREATE POLICY "dvh_poly" ON public.dvh_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 CREATE POLICY "pre_poly" ON public.presupuestos FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "config_poly" ON public.configuracion_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM public.perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 
 -- POLÍTICAS MAESTROS
 CREATE POLICY "maestro_read" ON public.maestro_perfiles FOR SELECT TO authenticated USING (true);

@@ -7,7 +7,7 @@ import { supabase } from './supabaseClient';
 
 // Guardar datos masivos para el usuario activo
 export const saveBulkData = async (userId: string, data: any) => {
-  const { aluminum, glasses, accessories, recipes, treatments, blindPanels, dvhInputs, quotes } = data;
+  const { aluminum, glasses, accessories, recipes, treatments, blindPanels, dvhInputs, quotes, config } = data;
   
   // Helper para preparar datos con user_id
   const prepare = (list: any[]) => {
@@ -126,6 +126,10 @@ export const saveBulkData = async (userId: string, data: any) => {
     // For now we'll do an insert ONLY if this is an explicit migration.
     // Real App: quotes are handled one by one in QuotesHistory.tsx
     // oops.push(supabase.from('presupuestos').insert(preArr));
+  }
+
+  if (config) {
+    ops.push(supabase.from('configuracion_usuario').upsert([{ user_id: userId, config_data: config }], { onConflict: 'user_id' }));
   }
 
   const results = await Promise.all(ops);

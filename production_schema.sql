@@ -45,6 +45,14 @@ CREATE TABLE public.gestion_dispositivos (
     UNIQUE(user_id, device_id)
 );
 
+CREATE TABLE public.configuracion_usuario (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
+    config_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id)
+);
+
 -- ==========================================
 -- 2. TABLAS MAESTRAS (PLANTILLAS GLOBALES)
 -- ==========================================
@@ -302,6 +310,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 ALTER TABLE perfiles_usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gestion_dispositivos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE configuracion_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materiales_perfiles_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materiales_vidrios_usuario ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materiales_accesorios_usuario ENABLE ROW LEVEL SECURITY;
@@ -333,6 +342,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- POLÍTICAS
 CREATE POLICY "perfiles_owner_or_admin" ON perfiles_usuarios FOR ALL USING (auth.uid() = id OR (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 CREATE POLICY "dispositivos_owner_or_admin" ON gestion_dispositivos FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+CREATE POLICY "config_owner_or_admin" ON configuracion_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 
 CREATE POLICY "materials_owner_or_admin" ON materiales_perfiles_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
 CREATE POLICY "glass_owner_or_admin" ON materiales_vidrios_usuario FOR ALL USING (auth.uid() = user_id OR (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');

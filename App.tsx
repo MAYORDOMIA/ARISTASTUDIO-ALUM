@@ -246,7 +246,8 @@ const App: React.FC = () => {
         pnlRes,
         dvhRes,
         recRes,
-        quoRes
+        quoRes,
+        confRes
       ] = await Promise.all([
         supabase.from('materiales_perfiles_usuario').select('*').eq('user_id', userId),
         supabase.from('materiales_vidrios_usuario').select('*').eq('user_id', userId),
@@ -255,7 +256,8 @@ const App: React.FC = () => {
         supabase.from('paneles_usuario').select('*').eq('user_id', userId),
         supabase.from('dvh_usuario').select('*').eq('user_id', userId),
         supabase.from('recetas_usuario').select('*').eq('user_id', userId),
-        supabase.from('presupuestos').select('*').eq('user_id', userId)
+        supabase.from('presupuestos').select('*').eq('user_id', userId),
+        supabase.from('configuracion_usuario').select('config_data').eq('user_id', userId).single()
       ]);
 
       // Verificar si hay errores críticos (como tabla no encontrada)
@@ -280,6 +282,7 @@ const App: React.FC = () => {
         blindPanels: cleanData(pnlRes.data).map(x => ({ ...x, id: x.master_ref || x.id })),
         dvhInputs: cleanData(dvhRes.data).map(x => ({ ...x, id: x.master_ref || x.id })),
         recipes: cleanData(recRes.data).map(x => x.data),
+        config: confRes.data ? confRes.data.config_data : null,
         quotes: cleanData(quoRes.data).map(x => ({
           id: x.id,
           clientName: x.cliente_nombre || '',
@@ -504,13 +507,13 @@ const App: React.FC = () => {
         const stringified = JSON.stringify(data);
         localStorage.setItem(storageKey, stringified);
 
-        // Guardado AUTO en la nube DESACTIVADO PARA EVITAR SOBREESCRITURAS NO DESEADAS
-        /*
+        // Guardar configuración en la nube
         if (isSupabaseConfigured) {
-            const appDataLite = { config, customVisualTypes, currentWorkItems };
-            await supabase.from('perfiles_usuarios').update({ created_at: new Date().toISOString() }).eq('id', session.user.id);
+            await supabase.from('configuracion_usuario').upsert(
+              [{ user_id: session.user.id, config_data: config }],
+              { onConflict: 'user_id' }
+            );
         }
-        */
 
       } catch (e: any) {
         console.error("Error en auto-guardado ligero:", e?.message || e);
