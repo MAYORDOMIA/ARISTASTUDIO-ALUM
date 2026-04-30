@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trash2, 
   CheckCircle, 
@@ -28,11 +28,66 @@ interface Props {
   config: GlobalConfig;
   aluminum: AluminumProfile[];
   onEditItem?: (item: QuoteItem) => void;
+  activeQuote?: Quote | null;
+  setActiveQuote?: (quote: Quote | null) => void;
 }
 
-const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, recipes, config, aluminum, onEditItem }) => {
+const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, recipes, config, aluminum, onEditItem, activeQuote, setActiveQuote }) => {
   const [clientName, setClientName] = useState('');
+  const [localMargin, setLocalMargin] = useState<number | null>(null);
   
+  useEffect(() => {
+    if (activeQuote) {
+      setClientName(activeQuote.clientName);
+    } else if (items.length === 0) {
+      setClientName('');
+    }
+  }, [activeQuote, items.length]);
+
+  useEffect(() => {
+    if (items.length > 0 && localMargin === null) {
+      const firstItem = items[0];
+      if (firstItem.breakdown && firstItem.breakdown.materialCost > 0) {
+        const impliedMargin = Math.round((firstItem.breakdown.laborCost / firstItem.breakdown.materialCost) * 100);
+        setLocalMargin(impliedMargin);
+      } else {
+        setLocalMargin(config.laborPercentage || 0);
+      }
+    } else if (items.length === 0) {
+      setLocalMargin(null);
+    }
+  }, [items, localMargin, config.laborPercentage]);
+
+  const handleMarginChange = (val: string) => {
+    const newMargin = parseFloat(val) || 0;
+    setLocalMargin(newMargin);
+    
+    setItems(prevItems => prevItems.map(item => {
+      if (!item.breakdown) return item;
+      const materialCost = item.breakdown.materialCost || 0;
+      const newLaborCost = materialCost * (newMargin / 100);
+      
+      const hasHandrail = (item.breakdown.handrailExtraCost || 0) > 0;
+      const hasMampara = (item.breakdown.mamparaExtraCost || 0) > 0;
+      
+      const handrailExtraCost = hasHandrail ? (materialCost + newLaborCost) * (Number(config.handrailExtraIncrement || 0) / 100) : 0;
+      const mamparaExtraCost = hasMampara ? (materialCost + newLaborCost) * (Number(config.mamparaExtraIncrement || 0) / 100) : 0;
+      
+      const finalPrice = materialCost + newLaborCost + handrailExtraCost + mamparaExtraCost;
+      
+      return {
+        ...item,
+        calculatedCost: Math.round(finalPrice),
+        breakdown: {
+          ...item.breakdown,
+          laborCost: newLaborCost,
+          handrailExtraCost,
+          mamparaExtraCost
+        }
+      };
+    }));
+  };
+
   const removeItem = (id: string) => setItems(items.filter(item => item.id !== id));
   const updateQuantity = (id: string, qty: number) => setItems(items.map(item => item.id === id ? { ...item, quantity: Math.max(1, qty) } : item));
 
@@ -110,24 +165,34 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
     if (!clientName.trim()) return alert("Asigne un nombre a la obra.");
     const subtotal = items.reduce((acc, i) => acc + (i.calculatedCost * i.quantity), 0);
     const totalPrice = Math.round(subtotal * (1 + config.taxRate / 100));
-    const newQuote: Quote = { id: crypto.randomUUID(), clientName, date: new Date().toISOString(), items: [...items], totalPrice };
     
-    setQuotes([newQuote, ...quotes]); 
+    let quoteToSave: Quote;
+    if (activeQuote) {
+      quoteToSave = { ...activeQuote, clientName, items: [...items], totalPrice, date: new Date().toISOString() };
+      setQuotes(quotes.map(q => q.id === activeQuote.id ? quoteToSave : q));
+    } else {
+      quoteToSave = { id: crypto.randomUUID(), clientName, date: new Date().toISOString(), items: [...items], totalPrice };
+      setQuotes([quoteToSave, ...quotes]); 
+    }
+    
     setItems([]); 
     setClientName('');
+    if (setActiveQuote) setActiveQuote(null);
+    setLocalMargin(null);
     
     if (isSupabaseConfigured) {
        const userRes = await supabase.auth.getUser();
        if (userRes.data.user) {
-          const { error } = await supabase.from('presupuestos').insert({
-             id: newQuote.id,
+          const payload = {
+             id: quoteToSave.id,
              user_id: userRes.data.user.id,
-             cliente_nombre: newQuote.clientName,
-             total: newQuote.totalPrice,
-             items: newQuote.items,
-             created_at: newQuote.date,
+             cliente_nombre: quoteToSave.clientName,
+             total: quoteToSave.totalPrice,
+             items: quoteToSave.items,
+             created_at: quoteToSave.date,
              estado: 'borrador'
-          });
+          };
+          const { error } = await supabase.from('presupuestos').upsert(payload, { onConflict: 'id' });
           if (error) {
              console.error("Error saving quote to DB", error);
              alert("Error al guardar en la nube: " + error.message);
@@ -135,7 +200,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
        }
     }
     
-    alert("Obra guardada con éxito.");
+    alert(`Obra ${activeQuote ? 'actualizada' : 'guardada'} con éxito.`);
   };
 
   const subtotal = items.reduce((acc, i) => acc + (i.calculatedCost * i.quantity), 0);
@@ -249,6 +314,20 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                       value={clientName}
                       onChange={e => setClientName(e.target.value)}
                     />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase px-1">Margen de Obra (%)</label>
+                    <div className="flex bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-inner">
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="w-full bg-transparent p-3.5 text-[11px] font-black uppercase outline-none text-right font-mono"
+                        value={localMargin !== null ? localMargin : ''}
+                        onChange={e => handleMarginChange(e.target.value)}
+                        placeholder="%"
+                      />
+                      <div className="bg-slate-100 px-4 flex items-center justify-center border-l border-slate-200 text-[10px] font-black text-slate-400">%</div>
+                    </div>
                 </div>
             </div>
 

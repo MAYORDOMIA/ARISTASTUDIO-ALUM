@@ -467,11 +467,13 @@ const App: React.FC = () => {
 
   const [currentWorkItems, setCurrentWorkItems] = useState<QuoteItem[]>([]);
   const [activeQuoteItem, setActiveQuoteItem] = useState<QuoteItem | null>(null);
+  const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
   const [triggerQuoterAction, setTriggerQuoterAction] = useState<{ action: 'cargar' | 'nuevo' | 'editar', ts: number, item?: QuoteItem } | null>(null);
 
   const handleEditQuote = (quote: Quote) => {
     setCurrentWorkItems(quote.items);
+    setActiveQuote(quote);
     setActiveTab('obras');
   };
 
@@ -804,6 +806,8 @@ const App: React.FC = () => {
               config={config} 
               aluminum={aluminum}
               onEditItem={handleEditQuoteItem}
+              activeQuote={activeQuote}
+              setActiveQuote={setActiveQuote}
             />
           </div>
           <div className={activeTab === 'history' ? 'h-full' : 'hidden'}>
