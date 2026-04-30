@@ -10,6 +10,7 @@ import {
   Treatment, DVHInput, GlobalConfig
 } from '../types';
 import { generateRecipeTechnicalPDF } from '../services/pdfGenerator';
+import { supabase, isSupabaseConfigured } from '../src/services/supabaseClient';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
   treatments: Treatment[];
   dvhInputs: DVHInput[];
   config: GlobalConfig;
+  userId?: string;
 }
 
 const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
@@ -69,7 +71,7 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
   { id: 'baranda_mini_poste_pasamano', label: 'BARANDA MINI POSTE Y PASAMANO', description: 'Vidrio con dos mini postes inferiores y pasamano superior.' },
 ];
 
-const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config }) => {
+const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config, userId }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [showWarning, setShowWarning] = useState(false);
@@ -104,8 +106,30 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
     }
   };
 
-  const handleSaveManual = () => {
+  const handleSaveManual = async () => {
     setIsSaving(true);
+    
+    if (isSupabaseConfigured && userId) {
+      try {
+        const recetasFormateadas = recipes.map(r => ({
+          user_id: userId,
+          master_ref: r.id,
+          name: r.name || 'Sin nombre',
+          data: r
+        }));
+
+        const { error } = await supabase
+          .from('recetas_usuario')
+          .upsert(recetasFormateadas, { onConflict: 'user_id,master_ref' });
+
+        if (error) throw error;
+        console.log("Recetas sincronizadas con la nube con éxito.");
+      } catch (err: any) {
+        console.error("Error al guardar recetas en la nube:", err?.message || err);
+        alert("Error al sincronizar con la nube: " + (err?.message || "Error desconocido"));
+      }
+    }
+
     setTimeout(() => setIsSaving(false), 2000);
   };
 

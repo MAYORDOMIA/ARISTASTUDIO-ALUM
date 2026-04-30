@@ -775,7 +775,19 @@ const App: React.FC = () => {
             />
           </div>
           <div className={activeTab === 'recipes' ? 'h-full' : 'hidden'}>
-            <ProductRecipeEditor recipes={recipes} setRecipes={setRecipes} aluminum={aluminum} accessories={accessories} customVisualTypes={customVisualTypes} setCustomVisualTypes={setCustomVisualTypes} glasses={glasses} treatments={treatments} dvhInputs={dvhInputs} config={config} />
+            <ProductRecipeEditor 
+              recipes={recipes} 
+              setRecipes={setRecipes} 
+              aluminum={aluminum} 
+              accessories={accessories} 
+              customVisualTypes={customVisualTypes} 
+              setCustomVisualTypes={setCustomVisualTypes} 
+              glasses={glasses} 
+              treatments={treatments} 
+              dvhInputs={dvhInputs} 
+              config={config} 
+              userId={session?.user?.id}
+            />
           </div>
           <div className={activeTab === 'quoter' ? 'h-full' : 'hidden'}>
             <QuotingModule 
