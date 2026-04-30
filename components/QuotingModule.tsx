@@ -675,7 +675,7 @@ const renderAdaptiveTJ = (
 };
 
 interface Props {
-  triggerAction?: { action: 'cargar' | 'nuevo', ts: number } | null;
+  triggerAction?: { action: 'cargar' | 'nuevo' | 'editar', ts: number, item?: QuoteItem } | null;
   recipes: ProductRecipe[];
   aluminum: AluminumProfile[];
   glasses: Glass[];
@@ -727,6 +727,8 @@ const QuotingModule: React.FC<Props> = ({
 
   const [showHandrailSelector, setShowHandrailSelector] = useState(false);
   const [isGlobalHandrailSelection, setIsGlobalHandrailSelection] = useState(false);
+
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     if (onRecipeChange) {
@@ -1031,6 +1033,7 @@ const QuotingModule: React.FC<Props> = ({
     setIsManualDim(false);
     setSelectedModuleId(null);
     setEditingModuleId(null);
+    setEditingItemId(null);
   };
 
   useEffect(() => {
@@ -1039,6 +1042,22 @@ const QuotingModule: React.FC<Props> = ({
       addItemToWork();
     } else if (triggerAction.action === 'nuevo') {
       clearQuoter();
+    } else if (triggerAction.action === 'editar' && triggerAction.item) {
+      const item = triggerAction.item;
+      setEditingItemId(item.id);
+      setTotalWidth(item.width || 1500);
+      setTotalHeight(item.height || 1100);
+      setItemCode(item.itemCode || '');
+      setCouplingProfileId(item.couplingProfileId || '');
+      setCouplingDeduction(item.composition?.couplingDeduction || 10);
+      setSelectedColorId(item.colorId || '');
+      setQuantity(item.quantity || 1);
+      if (item.extras) setExtras(item.extras);
+      if (item.composition?.modules) setModules(item.composition.modules);
+      if (item.composition?.colRatios) setColSizes(item.composition.colRatios);
+      if (item.composition?.rowRatios) setRowSizes(item.composition.rowRatios);
+      if (item.composition?.isManualDim !== undefined) setIsManualDim(item.composition.isManualDim);
+      if (item.glazingBeadStyle) setGlazingBeadStyle(item.glazingBeadStyle);
     }
   }, [triggerAction]);
 
@@ -1066,7 +1085,7 @@ const QuotingModule: React.FC<Props> = ({
       couplingProfileId, extras: { ...extras }, calculatedCost: 0
     }, recipes, aluminum, config, treatment, glasses, accessories, dvhInputs, blindPanels, glazingBeadStyle);
     const tempItem: QuoteItem = {
-      id: Date.now().toString(), itemCode: itemCode || `POS#${currentWorkItems.length + 1}`, width: totalWidth, height: totalHeight, colorId, quantity,
+      id: editingItemId || Date.now().toString(), itemCode: itemCode || `POS#${currentWorkItems.length + 1}`, width: totalWidth, height: totalHeight, colorId, quantity,
       composition: { 
           modules: JSON.parse(JSON.stringify((modules || []).filter(Boolean))), 
           colRatios: [...colSizes], 
@@ -1077,23 +1096,36 @@ const QuotingModule: React.FC<Props> = ({
       couplingProfileId, extras: { ...extras }, calculatedCost: Math.round(finalPrice), previewImage, breakdown,
       glazingBeadStyle
     };
-    setCurrentWorkItems([...currentWorkItems, tempItem]);
-    if (onUpdateActiveItem) onUpdateActiveItem(tempItem);
-    
-    // Autoincremento inteligente de código (V1 -> V2, P-01 -> P-02)
-    const match = (itemCode || '').match(/^([a-zA-Z]+[-_\s]*)(\d+)$/);
-    if (match) {
-        const prefix = match[1];
-        const numStr = match[2];
-        const num = parseInt(numStr);
-        const nextNum = num + 1;
-        // Preservar ceros a la izquierda si existen (ej: 01 -> 02)
-        const nextNumStr = numStr.length > 1 && numStr.startsWith('0') 
-            ? nextNum.toString().padStart(numStr.length, '0') 
-            : nextNum.toString();
-        setItemCode(`${prefix}${nextNumStr}`);
+
+    if (editingItemId) {
+      setCurrentWorkItems(currentWorkItems.map(w => w.id === editingItemId ? tempItem : w));
+      setEditingItemId(null); 
     } else {
-        setItemCode(''); 
+      setCurrentWorkItems([...currentWorkItems, tempItem]);
+    }
+    
+    if (onUpdateActiveItem) onUpdateActiveItem(tempItem);
+
+    // Autoincremento inteligente de código (V1 -> V2, P-01 -> P-02)
+    // Solo incrementar automáticamente si es uno nuevo
+    if (!editingItemId) {
+      const match = (itemCode || '').match(/^([a-zA-Z]+[-_\s]*)(\d+)$/);
+      if (match) {
+          const prefix = match[1];
+          const numStr = match[2];
+          const num = parseInt(numStr);
+          const nextNum = num + 1;
+          // Preservar ceros a la izquierda si existen (ej: 01 -> 02)
+          const nextNumStr = numStr.length > 1 && numStr.startsWith('0') 
+              ? nextNum.toString().padStart(numStr.length, '0') 
+              : nextNum.toString();
+          setItemCode(`${prefix}${nextNumStr}`);
+      } else {
+          setItemCode(''); 
+      }
+    } else {
+      // Limpiar formulario si finalizó la edición (opcional, o mantener con el id reseteado)
+      setItemCode('');
     }
   };
 
@@ -1612,8 +1644,8 @@ const QuotingModule: React.FC<Props> = ({
                 </div>
             </div>
             <div className="pt-4">
-                <button onClick={addItemToWork} className="w-full bg-sky-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-sky-700 hover:shadow-sky-200">
-                    <Plus size={18} /> Cargar a Obra
+                <button onClick={addItemToWork} className={`w-full ${editingItemId ? 'bg-amber-500 hover:bg-amber-600 hover:shadow-amber-200' : 'bg-sky-600 hover:bg-sky-700 hover:shadow-sky-200'} text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all`}>
+                    {editingItemId ? <><Check size={18} /> Guardar Cambios</> : <><Plus size={18} /> Cargar a Obra</>}
                 </button>
             </div>
         </div>

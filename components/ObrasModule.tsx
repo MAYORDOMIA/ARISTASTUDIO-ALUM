@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Database,
   Calculator,
-  Hash
+  Hash,
+  Edit3
 } from 'lucide-react';
 import { QuoteItem, Quote, ProductRecipe, GlobalConfig, AluminumProfile } from '../types';
 import { evaluateFormula } from '../services/calculator';
@@ -26,9 +27,10 @@ interface Props {
   recipes: ProductRecipe[];
   config: GlobalConfig;
   aluminum: AluminumProfile[];
+  onEditItem?: (item: QuoteItem) => void;
 }
 
-const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, recipes, config, aluminum }) => {
+const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, recipes, config, aluminum, onEditItem }) => {
   const [clientName, setClientName] = useState('');
   
   const removeItem = (id: string) => setItems(items.filter(item => item.id !== id));
@@ -188,6 +190,9 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                     <div className="text-right min-w-[80px] sm:min-w-[100px]">
                       <span className="text-[11px] font-black text-slate-900 dark:text-white font-mono">${(item.calculatedCost * item.quantity).toLocaleString()}</span>
                     </div>
+                    {onEditItem && (
+                      <button onClick={() => onEditItem(item)} className="text-slate-200 hover:text-sky-500 p-2 ml-2" title="Editar apertura en Panel de Ingeniería"><Edit3 size={16} /></button>
+                    )}
                     <button onClick={() => removeItem(item.id)} className="text-slate-200 hover:text-red-500 p-2"><Trash2 size={16} /></button>
                   </div>
                 </div>
