@@ -804,6 +804,7 @@ const App: React.FC = () => {
               setQuotes={setQuotes} 
               recipes={recipes} 
               config={config} 
+              setConfig={setConfig}
               aluminum={aluminum}
               onEditItem={handleEditQuoteItem}
               activeQuote={activeQuote}

@@ -26,15 +26,15 @@ interface Props {
   setQuotes: (quotes: Quote[]) => void;
   recipes: ProductRecipe[];
   config: GlobalConfig;
+  setConfig: React.Dispatch<React.SetStateAction<GlobalConfig>>;
   aluminum: AluminumProfile[];
   onEditItem?: (item: QuoteItem) => void;
   activeQuote?: Quote | null;
   setActiveQuote?: (quote: Quote | null) => void;
 }
 
-const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, recipes, config, aluminum, onEditItem, activeQuote, setActiveQuote }) => {
+const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, recipes, config, setConfig, aluminum, onEditItem, activeQuote, setActiveQuote }) => {
   const [clientName, setClientName] = useState('');
-  const [localMargin, setLocalMargin] = useState<number | null>(null);
   
   useEffect(() => {
     if (activeQuote) {
@@ -45,47 +45,49 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
   }, [activeQuote, items.length]);
 
   useEffect(() => {
-    if (items.length > 0 && localMargin === null) {
+    if (items.length > 0) {
+      const currentMargin = config.laborPercentage || 0;
+      
+      // Quick check if the first item's margin already matches to avoid infinite loop
       const firstItem = items[0];
       if (firstItem.breakdown && firstItem.breakdown.materialCost > 0) {
-        const impliedMargin = Math.round((firstItem.breakdown.laborCost / firstItem.breakdown.materialCost) * 100);
-        setLocalMargin(impliedMargin);
-      } else {
-        setLocalMargin(config.laborPercentage || 0);
+        const impliedMargin = (firstItem.breakdown.laborCost / firstItem.breakdown.materialCost) * 100;
+        // Avoid updating if the difference is very small (floating point precision)
+        if (Math.abs(impliedMargin - currentMargin) < 0.1) {
+          return;
+        }
       }
-    } else if (items.length === 0) {
-      setLocalMargin(null);
+
+      setItems(prevItems => prevItems.map(item => {
+        if (!item.breakdown) return item;
+        const materialCost = item.breakdown.materialCost || 0;
+        const newLaborCost = materialCost * (currentMargin / 100);
+        
+        const hasHandrail = (item.breakdown.handrailExtraCost || 0) > 0;
+        const hasMampara = (item.breakdown.mamparaExtraCost || 0) > 0;
+        
+        const handrailExtraCost = hasHandrail ? (materialCost + newLaborCost) * (Number(config.handrailExtraIncrement || 0) / 100) : 0;
+        const mamparaExtraCost = hasMampara ? (materialCost + newLaborCost) * (Number(config.mamparaExtraIncrement || 0) / 100) : 0;
+        
+        const finalPrice = materialCost + newLaborCost + handrailExtraCost + mamparaExtraCost;
+        
+        return {
+          ...item,
+          calculatedCost: Math.round(finalPrice),
+          breakdown: {
+            ...item.breakdown,
+            laborCost: newLaborCost,
+            handrailExtraCost,
+            mamparaExtraCost
+          }
+        };
+      }));
     }
-  }, [items, localMargin, config.laborPercentage]);
+  }, [config.laborPercentage]); // Only when config.laborPercentage changes from settings or elsewhere
 
   const handleMarginChange = (val: string) => {
     const newMargin = parseFloat(val) || 0;
-    setLocalMargin(newMargin);
-    
-    setItems(prevItems => prevItems.map(item => {
-      if (!item.breakdown) return item;
-      const materialCost = item.breakdown.materialCost || 0;
-      const newLaborCost = materialCost * (newMargin / 100);
-      
-      const hasHandrail = (item.breakdown.handrailExtraCost || 0) > 0;
-      const hasMampara = (item.breakdown.mamparaExtraCost || 0) > 0;
-      
-      const handrailExtraCost = hasHandrail ? (materialCost + newLaborCost) * (Number(config.handrailExtraIncrement || 0) / 100) : 0;
-      const mamparaExtraCost = hasMampara ? (materialCost + newLaborCost) * (Number(config.mamparaExtraIncrement || 0) / 100) : 0;
-      
-      const finalPrice = materialCost + newLaborCost + handrailExtraCost + mamparaExtraCost;
-      
-      return {
-        ...item,
-        calculatedCost: Math.round(finalPrice),
-        breakdown: {
-          ...item.breakdown,
-          laborCost: newLaborCost,
-          handrailExtraCost,
-          mamparaExtraCost
-        }
-      };
-    }));
+    setConfig(prev => ({ ...prev, laborPercentage: newMargin }));
   };
 
   const removeItem = (id: string) => setItems(items.filter(item => item.id !== id));
@@ -178,7 +180,6 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
     setItems([]); 
     setClientName('');
     if (setActiveQuote) setActiveQuote(null);
-    setLocalMargin(null);
     
     if (isSupabaseConfigured) {
        const userRes = await supabase.auth.getUser();
@@ -322,7 +323,7 @@ const ObrasModule: React.FC<Props> = ({ items, setItems, quotes, setQuotes, reci
                         type="number" 
                         min="0"
                         className="w-full bg-transparent p-3.5 text-[11px] font-black uppercase outline-none text-right font-mono"
-                        value={localMargin !== null ? localMargin : ''}
+                        value={config.laborPercentage !== undefined ? config.laborPercentage : ''}
                         onChange={e => handleMarginChange(e.target.value)}
                         placeholder="%"
                       />
