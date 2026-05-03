@@ -364,13 +364,52 @@ export const calculateItemPrice = (
     }
   });
 
+  // 2. Travesaños y Contravidrios Extra
   if (transoms && transoms.length > 0) {
+    const transomCount = transoms.length;
+    
+    // Identificar perfiles de contravidrio únicos usados en esta receta
+    const usedGlazingBeadIds = new Set<string>();
+    activeProfiles.forEach(rp => {
+      const role = (rp.role || '').toLowerCase();
+      if (role === 'contravidrio') {
+        // Encontrar qué perfil se usaría para este contravidrio
+        let pId = rp.profileId;
+        if (rp.glazingBeadOptions && rp.glazingBeadOptions.length > 0) {
+            const candidates = profiles.filter(p => rp.glazingBeadOptions?.includes(p.id));
+            let styleMatches = candidates.filter(p => p.glazingBeadStyle === glazingBeadStylePreference);
+            if (styleMatches.length === 0) styleMatches = candidates;
+            const thicknessMatch = styleMatches.find(p => {
+                const min = p.minGlassThickness || 0;
+                const max = p.maxGlassThickness || 100;
+                return calculatedGlassThickness >= min && calculatedGlassThickness <= max;
+            }) || candidates.find(p => {
+                const min = p.minGlassThickness || 0;
+                const max = p.maxGlassThickness || 100;
+                return calculatedGlassThickness >= min && calculatedGlassThickness <= max;
+            });
+            if (thicknessMatch) pId = thicknessMatch.id;
+        }
+        usedGlazingBeadIds.add(pId);
+      }
+    });
+
     transoms.forEach(t => {
       const trProf = profiles.find(p => p.id === t.profileId);
       if (trProf) {
         const f = t.formula || recipeTransomFormula;
         const tCut = evaluateFormula(f, width, height);
         totalAluWeight += ((tCut + Number(config.discWidth || 0)) / 1000) * recipeTransomQty * Number(trProf.weightPerMeter || 0);
+        
+        // Sumar 2 contravidrios extra del mismo largo que el travesaño por cada tipo de contravidrio detectado
+        usedGlazingBeadIds.forEach(gbId => {
+          const gbProf = profiles.find(p => p.id === gbId);
+          if (gbProf) {
+            // El largo debe ser el mismo que el del travesaño (tCut) y a inglete
+            const gbExtraWeight = ((tCut + Number(config.discWidth || 0)) / 1000) * 2 * Number(gbProf.weightPerMeter || 0);
+            totalAluWeight += gbExtraWeight;
+          }
+        });
       }
     });
   }

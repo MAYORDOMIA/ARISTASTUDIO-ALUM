@@ -264,7 +264,9 @@ const App: React.FC = () => {
       const criticalError = [aluRes, glsRes, accRes, trtRes, pnlRes, dvhRes, recRes, quoRes].find(r => r.error);
       if (criticalError && criticalError.error) {
           console.error("Error crítico de base de datos:", criticalError.error);
-          if (criticalError.error.code === '42P01') {
+          if (criticalError.error.message === 'Failed to fetch') {
+              alert("ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado.\n3. Un bloqueador de publicidad está interfiriendo.");
+          } else if (criticalError.error.code === '42P01') {
               alert("BASE DE DATOS NO INICIALIZADA:\nSe detectó que faltan las tablas necesarias en Supabase.\n\nPor favor, ejecuta el contenido del archivo 'supabase_migration.sql' en el SQL Editor de tu Dashboard de Supabase.");
           } else if (criticalError.error.message.includes('permission denied')) {
               alert("ERROR DE PERMISOS:\nSupabase denegó el acceso al esquema public.\n\nPor favor, ejecuta el script de permisos al inicio de 'supabase_migration.sql' para solucionarlo.");
@@ -515,7 +517,7 @@ const App: React.FC = () => {
         localStorage.setItem(storageKey, stringified);
 
         // Guardar configuración en la nube
-        if (isSupabaseConfigured) {
+        if (isSupabaseConfigured && session?.user?.id) {
             await supabase.from('configuracion_usuario').upsert(
               [{ user_id: session.user.id, config_data: config }],
               { onConflict: 'user_id' }

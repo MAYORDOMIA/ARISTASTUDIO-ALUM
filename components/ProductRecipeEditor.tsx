@@ -107,26 +107,37 @@ const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, a
   };
 
   const handleSaveManual = async () => {
+    if (!editingId || !recipe) return;
     setIsSaving(true);
     
     if (isSupabaseConfigured && userId) {
       try {
-        const recetasFormateadas = recipes.map(r => ({
+        const recetaFormateada = {
           user_id: userId,
-          master_ref: r.id,
-          name: r.name || 'Sin nombre',
-          data: r
-        }));
+          receta_id: recipe.id,
+          name: recipe.name || 'Sin nombre',
+          data: recipe
+        };
 
         const { error } = await supabase
           .from('recetas_usuario')
-          .upsert(recetasFormateadas, { onConflict: 'user_id,master_ref' });
+          .upsert([recetaFormateada], { onConflict: 'user_id,receta_id' });
 
         if (error) throw error;
-        console.log("Recetas sincronizadas con la nube con éxito.");
+        console.log("Receta sincronizada con la nube con éxito.");
       } catch (err: any) {
-        console.error("Error al guardar recetas en la nube:", err?.message || err);
-        alert("Error al sincronizar con la nube: " + (err?.message || "Error desconocido"));
+        console.error("Error al guardar receta en la nube:", err?.message || err);
+        
+        let errorMsg = "Error al sincronizar con la nube";
+        if (err?.message === 'Failed to fetch') {
+          errorMsg = "CONEXIÓN FALLIDA:\nNo se pudo contactar con Supabase. Verifica tu conexión a internet o si el proyecto de Supabase está activo.";
+        } else if (err?.code === '42P01') {
+          errorMsg = "TABLA NO ENCONTRADA:\nLa tabla 'recetas_usuario' no existe. Debes ejecutar el script de migración en Supabase.";
+        } else {
+          errorMsg += ": " + (err?.message || "Error desconocido");
+        }
+        
+        alert(errorMsg);
       }
     }
 

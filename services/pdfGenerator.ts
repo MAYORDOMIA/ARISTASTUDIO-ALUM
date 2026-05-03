@@ -169,6 +169,7 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
             const totalGlassThick = getThick(gOuter) + (mod.isDVH ? (getThick(gInner) + camThick) : 0);
             const beadStyle = item.glazingBeadStyle || 'Recto';
 
+            const usedGlazingBeadIds = new Set<string>();
             recipe.profiles.forEach(rp => {
                 if (rp.alternative && rp.alternative !== (mod.leafAlternative || 'A')) return;
                 let pDef = aluminum.find(a => a.id === rp.profileId); 
@@ -197,7 +198,9 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                 }
 
                 if (!pDef) return;
-                const role = rp.role?.toLowerCase() || ''; if (role === 'travesaño') return;
+                const role = rp.role?.toLowerCase() || ''; 
+                if (role === 'contravidrio') usedGlazingBeadIds.add(pDef.id);
+                if (role === 'travesaño') return;
                 
                 // Exclusión centralizada de Tapajuntas en el despiece de receta
                 const isTJ = role.includes('tapa') || String(pDef.code || '').toUpperCase().includes('TJ') || pDef.id === recipe.defaultTapajuntasProfileId;
@@ -243,6 +246,15 @@ export const generateBarOptimizationPDF = (quote: Quote, recipes: ProductRecipe[
                     for(let k=0; k < recipeTransomQty * item.quantity; k++) { list.push({ len: cutLen, type: 'Travesaño', cutStart: '90', cutEnd: '90', label: itemCode }); }
                     cutsByProfile.set(trProf.id, list);
                   }
+
+                  // 2 Contravidrios extra del mismo largo que el travesaño por cada tipo de contravidrio en la receta
+                  usedGlazingBeadIds.forEach(gbId => {
+                      const list = cutsByProfile.get(gbId) || [];
+                      for(let k=0; k < 2 * item.quantity; k++) {
+                          list.push({ len: cutLen, type: 'Contravidrio Extra Travesaño', cutStart: '45', cutEnd: '45', label: itemCode });
+                      }
+                      cutsByProfile.set(gbId, list);
+                  });
                 }
               });
             }
@@ -482,9 +494,10 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
             const totalGlassThick = getThick(gOuter) + (mod.isDVH ? (getThick(gInner) + camThick) : 0);
             const beadStyle = (item as any).glazingBeadStyle || 'Recto';
 
+            const usedGlazingBeadIds = new Set<string>();
             recipe.profiles.forEach(rp => {
                 if (rp.alternative && rp.alternative !== (mod.leafAlternative || 'A')) return;
-                const role = rp.role?.toLowerCase() || ''; if (role === 'travesaño') return;
+                const role = rp.role?.toLowerCase() || ''; 
                 let p = aluminum.find(a => a.id === rp.profileId);
                 
                 // Lógica de Contravidrio Dinámico
@@ -511,6 +524,8 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                 }
 
                 if (!p) return;
+                if (role === 'contravidrio') usedGlazingBeadIds.add(p.id);
+                if (role === 'travesaño') return;
                 
                 // Exclusión centralizada de Tapajuntas en materiales individuales
                 const isTJ = role.includes('tapa') || String(p.code || '').toUpperCase().includes('TJ') || p.id === recipe.defaultTapajuntasProfileId;
@@ -530,6 +545,17 @@ export const generateMaterialsOrderPDF = (quote: Quote, recipes: ProductRecipe[]
                   const totalMm = (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
                   const existing = aluSummary.get(trProf.id) || { code: trProf.code, detail: trProf.detail, totalMm: 0, barLength: trProf.barLength || 6 };
                   existing.totalMm += totalMm; aluSummary.set(trProf.id, existing);
+
+                  // 2 Contravidrios extra del mismo largo que el travesaño por cada tipo de contravidrio en la receta
+                  usedGlazingBeadIds.forEach(gbId => {
+                    const gbProf = aluminum.find(p => p.id === gbId);
+                    if (gbProf) {
+                      const gbTotalMm = (cutLen + config.discWidth) * 2 * item.quantity;
+                      const gbExist = aluSummary.get(gbProf.id) || { code: gbProf.code, detail: gbProf.detail, totalMm: 0, barLength: gbProf.barLength || 6 };
+                      gbExist.totalMm += gbTotalMm; 
+                      aluSummary.set(gbProf.id, gbExist);
+                    }
+                  });
                 }
               });
             }

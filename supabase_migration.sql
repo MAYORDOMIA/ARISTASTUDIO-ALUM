@@ -139,11 +139,15 @@ CREATE TABLE IF NOT EXISTS public.recetas_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE CASCADE,
     master_ref TEXT REFERENCES public.maestro_recetas(id) ON DELETE SET NULL,
+    receta_id TEXT NOT NULL,
     name TEXT NOT NULL,
     data JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE(user_id, master_ref)
+    UNIQUE(user_id, receta_id)
 );
+
+-- Note: If you already had this table, you might need to drop it/recreate it or manually add the receta_id column
+-- and change the UNIQUE constraint.
 
 CREATE TABLE IF NOT EXISTS public.tratamientos_usuario (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
