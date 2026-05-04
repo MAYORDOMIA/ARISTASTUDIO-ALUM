@@ -4,15 +4,15 @@ export const getGoogleDriveAuthUrl = async () => {
   // Por ahora, simulamos la construcción de la URL de autorización.
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const redirectUri = `${window.location.origin}/auth/callback`;
-  const scope = 'https://www.googleapis.com/auth/drive.file';
-  
+  const scope = "https://www.googleapis.com/auth/drive.file";
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
-    response_type: 'code',
+    response_type: "code",
     scope: scope,
-    access_type: 'offline',
-    prompt: 'consent'
+    access_type: "offline",
+    prompt: "consent",
   });
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;

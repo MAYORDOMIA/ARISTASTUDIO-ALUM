@@ -1,13 +1,12 @@
-
 export interface GlobalConfig {
   aluminumPricePerKg: number;
   laborPercentage: number;
-  discWidth: number; 
+  discWidth: number;
   taxRate: number;
   blindPanelPricePerM2: number;
-  meshPricePerM2: number; 
+  meshPricePerM2: number;
   companyName?: string;
-  companyLogo?: string; 
+  companyLogo?: string;
   companyAddress?: string;
   companyPhone?: string;
   handrailExtraIncrement: number;
@@ -18,7 +17,7 @@ export interface GlobalConfig {
 export interface Tenant {
   id: string;
   name: string;
-  status: 'active' | 'suspended';
+  status: "active" | "suspended";
   deviceLimit: number;
   expiresAt: string | null;
   createdAt: string;
@@ -27,7 +26,7 @@ export interface Tenant {
 export interface UserProfile {
   id: string;
   tenantId: string;
-  role: 'owner' | 'sales' | 'superadmin';
+  role: "owner" | "sales" | "superadmin";
   email: string;
   fullName: string;
 }
@@ -48,12 +47,12 @@ export interface AluminumProfile {
   detail: string;
   weightPerMeter: number;
   barLength: number;
-  treatmentCost: number; 
-  thickness: number; 
-  
+  treatmentCost: number;
+  thickness: number;
+
   // Propiedades para Contravidrios Dinámicos
   isGlazingBead?: boolean;
-  glazingBeadStyle?: 'Recto' | 'Curvo';
+  glazingBeadStyle?: "Recto" | "Curvo";
   minGlassThickness?: number;
   maxGlassThickness?: number;
 }
@@ -74,7 +73,7 @@ export interface BlindPanel {
   code: string;
   detail: string;
   price: number;
-  unit: 'm2' | 'ml';
+  unit: "m2" | "ml";
 }
 
 export interface Accessory {
@@ -86,7 +85,7 @@ export interface Accessory {
 
 export interface DVHInput {
   id: string;
-  type: 'Cámara' | 'Butilo' | 'Sales' | 'Escuadras';
+  type: "Cámara" | "Butilo" | "Sales" | "Escuadras";
   detail: string;
   cost: number;
   thickness?: number;
@@ -96,28 +95,39 @@ export interface Treatment {
   id: string;
   name: string;
   pricePerKg: number;
-  hexColor?: string; 
+  hexColor?: string;
 }
 
 export interface RecipeProfile {
   profileId: string;
   quantity: number;
-  formula: string; 
-  cutStart: '45' | '90';
-  cutEnd: '45' | '90';
-  role?: 'Marco' | 'Hoja' | 'Zócalo' | 'Travesaño' | 'Encuentro' | 'Acople' | 'Tapajuntas' | 'Mosquitero' | 'Contravidrio' | 'ContravidrioTravesaño' | 'Otro';
-  alternative?: 'A' | 'B';
-  
+  formula: string;
+  cutStart: "45" | "90";
+  cutEnd: "45" | "90";
+  role?:
+    | "Marco"
+    | "Hoja"
+    | "Zócalo"
+    | "Travesaño"
+    | "Encuentro"
+    | "Acople"
+    | "Tapajuntas"
+    | "Mosquitero"
+    | "Contravidrio"
+    | "ContravidrioTravesaño"
+    | "Otro";
+  alternative?: "A" | "B";
+
   // Para contravidrios dinámicos: lista de IDs de perfiles compatibles
-  glazingBeadOptions?: string[]; 
+  glazingBeadOptions?: string[];
 }
 
 export interface RecipeAccessory {
   accessoryId: string;
   quantity: number;
-  isLinear?: boolean; 
-  formula?: string;   
-  label?: string;       // Nueva etiqueta para agrupar opciones
+  isLinear?: boolean;
+  formula?: string;
+  label?: string; // Nueva etiqueta para agrupar opciones
   isAlternative?: boolean; // Marca si es una opción secundaria (no se suma por defecto)
   isSpaced?: boolean;
   spacingMm?: number;
@@ -134,18 +144,25 @@ export interface CustomVisualType {
 export interface ProductRecipe {
   id: string;
   name: string;
-  line: string; 
-  type: 'Ventana' | 'Puerta' | 'Banderola' | 'Mampara' | 'Paño Fijo' | 'Baranda' | 'Vidriera';
+  line: string;
+  type:
+    | "Ventana"
+    | "Puerta"
+    | "Banderola"
+    | "Mampara"
+    | "Paño Fijo"
+    | "Baranda"
+    | "Vidriera";
   visualType?: VisualOpeningType;
   profiles: RecipeProfile[];
   accessories: RecipeAccessory[];
-  glassFormulaW: string; 
-  glassFormulaH: string; 
+  glassFormulaW: string;
+  glassFormulaH: string;
   dvhFormulaW?: string;
   dvhFormulaH?: string;
   defaultTransomProfileId?: string;
-  transomFormula?: string; 
-  transomThickness?: number; 
+  transomFormula?: string;
+  transomThickness?: number;
   transomGlassDeduction?: number;
   dvhTransomGlassDeduction?: number;
   defaultTransoms?: { height: number; profileId: string }[];
@@ -154,7 +171,7 @@ export interface ProductRecipe {
   image?: string;
   isLocked?: boolean;
   defaultTapajuntas?: boolean;
-  tapajuntasThickness?: number; 
+  tapajuntasThickness?: number;
   defaultTapajuntasProfileId?: string;
   defaultCouplingProfileId?: string;
   defaultCouplingDeduction?: number;
@@ -183,9 +200,9 @@ export interface MeasurementModule {
   overriddenAccessories?: RecipeAccessory[];
   handrailProfileId?: string; // Nuevo: Perfil de pasamano para barandas
   leafProfileId?: string; // Nuevo: Perfil de hoja seleccionado
-  leafAlternative?: 'A' | 'B'; // Nuevo: Alternativa de hoja seleccionada
-  handrailType?: 'recta' | 'inclinada'; // Nuevo: Tipo de baranda
-  hand?: 'left' | 'right'; // Nuevo: Mano de la puerta
+  leafAlternative?: "A" | "B"; // Nuevo: Alternativa de hoja seleccionada
+  handrailType?: "recta" | "inclinada"; // Nuevo: Tipo de baranda
+  hand?: "left" | "right"; // Nuevo: Mano de la puerta
   leafWidths?: number[]; // Nuevo: Ancho individual de hojas para puertas dobles
 }
 
@@ -202,7 +219,7 @@ export interface QuoteItemBreakdown {
 
 export interface QuoteItem {
   id: string;
-  itemCode: string; 
+  itemCode: string;
   clientName?: string;
   width: number;
   height: number;
@@ -211,7 +228,7 @@ export interface QuoteItem {
   calculatedCost: number;
   previewImage?: string;
   breakdown?: QuoteItemBreakdown;
-  
+
   composition: {
     modules: MeasurementModule[];
     colRatios: number[];
@@ -219,7 +236,7 @@ export interface QuoteItem {
     couplingDeduction: number;
     isManualDim?: boolean; // Indica si se deben priorizar medidas individuales
   };
-  
+
   extras: {
     mosquitero: boolean;
     tapajuntas: boolean;
@@ -231,7 +248,7 @@ export interface QuoteItem {
     };
   };
   couplingProfileId?: string;
-  glazingBeadStyle?: 'Recto' | 'Curvo';
+  glazingBeadStyle?: "Recto" | "Curvo";
 }
 
 export interface Quote {

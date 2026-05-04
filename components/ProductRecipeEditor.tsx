@@ -1,21 +1,45 @@
-
-import { 
-  Plus, Trash2, Lock, Unlock, Shapes, Ruler, Box, Wind, 
-  Search, Download, Upload, FileText, Ruler as RulerIcon,
-  ChevronDown, Save, AlertTriangle, Check, Link2, Split, Tag
-} from 'lucide-react';
-import { 
-  ProductRecipe, AluminumProfile, Accessory, RecipeProfile, 
-  RecipeAccessory, CustomVisualType, Glass,
-  Treatment, DVHInput, GlobalConfig
-} from '../types';
-import { generateRecipeTechnicalPDF } from '../services/pdfGenerator';
-import { supabase, isSupabaseConfigured } from '../src/services/supabaseClient';
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-
+import {
+  Plus,
+  Trash2,
+  Lock,
+  Unlock,
+  Shapes,
+  Ruler,
+  Box,
+  Wind,
+  Search,
+  Download,
+  Upload,
+  FileText,
+  Ruler as RulerIcon,
+  ChevronDown,
+  Save,
+  AlertTriangle,
+  Check,
+  Link2,
+  Split,
+  Tag,
+} from "lucide-react";
+import {
+  ProductRecipe,
+  AluminumProfile,
+  Accessory,
+  RecipeProfile,
+  RecipeAccessory,
+  CustomVisualType,
+  Glass,
+  Treatment,
+  DVHInput,
+  GlobalConfig,
+} from "../types";
+import { generateRecipeTechnicalPDF } from "../services/pdfGenerator";
+import { supabase, isSupabaseConfigured } from "../src/services/supabaseClient";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 interface Props {
   recipes: ProductRecipe[];
-  setRecipes: (updater: ProductRecipe[] | ((prev: ProductRecipe[]) => ProductRecipe[])) => void;
+  setRecipes: (
+    updater: ProductRecipe[] | ((prev: ProductRecipe[]) => ProductRecipe[]),
+  ) => void;
   aluminum: AluminumProfile[];
   accessories: Accessory[];
   customVisualTypes: CustomVisualType[];
@@ -26,666 +50,1420 @@ interface Props {
   config: GlobalConfig;
   userId?: string;
 }
-
 const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
-  { id: 'banderola', label: 'BANDEROLA', description: 'Abre arriba (interior). Marco + Hoja.' },
-  { id: 'ventiluz', label: 'VENTILUZ', description: 'Abre abajo (exterior). Marco + Hoja.' },
-  { id: 'tilt_turn', label: 'OSCILOBATIENTE', description: 'Doble apertura. Marco + Hoja.' },
-  { id: 'swing_door', label: 'PUERTA DE REBATIR 1H', description: 'Marco completo con dintel. Hoja rebatible.' },
-  { id: 'double_swing_door', label: 'PUERTA DE REBATIR 2H', description: 'Marco completo con dintel. 2 Hojas rebatibles.' },
-  { id: 'swing_door_45_no_umbral', label: 'PUERTA 1H 45° S/UMBRAL', description: 'Marco 45° sin umbral. Hoja 45° arriba / 90° abajo con Zócalo.' },
-  { id: 'double_swing_door_45_no_umbral', label: 'PUERTA 2H 45° S/UMBRAL', description: 'Marco 45° sin umbral. 2 Hojas 45° arriba / 90° abajo con Zócalo.' },
-  { id: 'swing_door_45_no_dintel', label: 'PUERTA 1H 45° SIN DINTEL', description: 'Marco lateral 45°. Hoja 45° arriba / 90° abajo con Zócalo.' },
-  { id: 'double_swing_door_45_no_dintel', label: 'PUERTA 2H 45° SIN DINTEL', description: 'Marco lateral 45°. 2 Hojas 45° arriba / 90° abajo con Zócalo.' },
-  { id: 'swing_v', label: 'V. DE REBATIR', description: 'Ventana de abrir tradicional.' },
-  { id: 'double_swing_v_45', label: 'V. DE REBATIR 2H 45°', description: 'Ventana de abrir 2 hojas con corte a 45°.' },
-  { id: 'projecting', label: 'DESPLAZABLE', description: 'Apertura proyectante exterior.' },
-  { id: 'fixed', label: 'PAÑO FIJO', description: 'Marco perimetral fijo.' },
-  { id: 'mosquitero', label: 'MOSQUITERO', description: 'Sistema de tela mosquitera.' },
-  { id: 'mampara_fija', label: 'MAMPARA FIJA', description: 'Perfil en L (izquierda y abajo).' },
-  { id: 'mampara_rebatir', label: 'MAMPARA REBATIR', description: 'Perfil vertical lateral únicamente.' },
-  { id: 'vidrio_solo', label: 'VIDRIOS', description: 'Sin perfiles perimetrales (vidrio puro).' },
-  { id: 'puerta_zocalon', label: 'PUERTA ZOCALON', description: 'Zócalos altos arriba/abajo + Lateral vertical.' },
-  { id: 'pf_zocalon', label: 'PAÑO FIJO ZOCALON', description: 'Zócalos altos arriba y abajo.' },
-  { id: 'sliding_2_45', label: 'V.CORREDIZA 2H 45°', description: '2 hojas corte 45°.' },
-  { id: 'sliding_3_45', label: 'V.CORREDIZA 3H 45°', description: '3 hojas corte 45°.' },
-  { id: 'sliding_4_45', label: 'V.CORREDIZA 4H 45°', description: '4 hojas corte 45°.' },
-  { id: 'sliding_2_90_low', label: 'V.CORREDIZA 2H 90° zocalo bajo', description: '2 hojas 90° zócalo bajo.' },
-  { id: 'sliding_2_90_high', label: 'V.CORREDIZA 2H 90° zocalo alto', description: '2 hojas 90° zócalo alto.' },
-  { id: 'sliding_3_90_low', label: 'V.CORREDIZA 3H 90° zocalo bajo', description: '3 hojas 90° zócalo bajo.' },
-  { id: 'sliding_3_90_high', label: 'V.CORREDIZA 3H 90° zocalo alto', description: '3 hojas 90° zócalo alto.' },
-  { id: 'sliding_4_90_low', label: 'V.CORREDIZA 4H 90° zocalo bajo', description: '4 hojas 90° zócalo bajo.' },
-  { id: 'sliding_4_90_high', label: 'V.CORREDIZA 4H 90° zocalo alto', description: '4 hojas 90° zócalo alto.' },
-  { id: 'sliding_2_45_90_low', label: 'V.CORREDIZA 2H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
-  { id: 'sliding_2_45_90_high', label: 'V.CORREDIZA 2H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
-  { id: 'sliding_3_45_90_low', label: 'V.CORREDIZA 3H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
-  { id: 'sliding_3_45_90_high', label: 'V.CORREDIZA 3H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
-  { id: 'sliding_4_45_90_low', label: 'V.CORREDIZA 4H (M45/H90) Z.BAJO', description: 'Marco a 45°, Hojas a 90°. Zócalo bajo.' },
-  { id: 'sliding_4_45_90_high', label: 'V.CORREDIZA 4H (M45/H90) Z.ALTO', description: 'Marco a 45°, Hojas a 90°. Zócalo alto.' },
-  { id: 'mampara_vidrio_corrediza', label: 'MAMPARA VIDRIO CORREDIZA', description: 'Riel superior con hojas de vidrio solapadas sin marco inferior.' },
-  { id: 'tubo_h', label: 'TUBO HORIZONTAL', description: 'Perfil único dispuesto de forma horizontal.' },
-  { id: 'tubo_v', label: 'TUBO VERTICAL', description: 'Perfil único dispuesto de forma vertical.' },
-  { id: 'baranda_poste_alto', label: 'BARANDA POSTE ALTO', description: 'Vidrio con poste alto lateral.' },
-  { id: 'baranda_poste_alto_pasamano', label: 'BARANDA POSTE ALTO PASAMANO', description: 'Vidrio con poste alto lateral y pasamano superior.' },
-  { id: 'baranda_mini_poste', label: 'BARANDA MINI POSTE', description: 'Vidrio con dos mini postes inferiores.' },
-  { id: 'baranda_mini_poste_pasamano', label: 'BARANDA MINI POSTE Y PASAMANO', description: 'Vidrio con dos mini postes inferiores y pasamano superior.' },
+  {
+    id: "banderola",
+    label: "BANDEROLA",
+    description: "Abre arriba (interior). Marco + Hoja.",
+  },
+  {
+    id: "ventiluz",
+    label: "VENTILUZ",
+    description: "Abre abajo (exterior). Marco + Hoja.",
+  },
+  {
+    id: "tilt_turn",
+    label: "OSCILOBATIENTE",
+    description: "Doble apertura. Marco + Hoja.",
+  },
+  {
+    id: "swing_door",
+    label: "PUERTA DE REBATIR 1H",
+    description: "Marco completo con dintel. Hoja rebatible.",
+  },
+  {
+    id: "double_swing_door",
+    label: "PUERTA DE REBATIR 2H",
+    description: "Marco completo con dintel. 2 Hojas rebatibles.",
+  },
+  {
+    id: "swing_door_45_no_umbral",
+    label: "PUERTA 1H 45° S/UMBRAL",
+    description:
+      "Marco 45° sin umbral. Hoja 45° arriba / 90° abajo con Zócalo.",
+  },
+  {
+    id: "double_swing_door_45_no_umbral",
+    label: "PUERTA 2H 45° S/UMBRAL",
+    description:
+      "Marco 45° sin umbral. 2 Hojas 45° arriba / 90° abajo con Zócalo.",
+  },
+  {
+    id: "swing_door_45_no_dintel",
+    label: "PUERTA 1H 45° SIN DINTEL",
+    description: "Marco lateral 45°. Hoja 45° arriba / 90° abajo con Zócalo.",
+  },
+  {
+    id: "double_swing_door_45_no_dintel",
+    label: "PUERTA 2H 45° SIN DINTEL",
+    description:
+      "Marco lateral 45°. 2 Hojas 45° arriba / 90° abajo con Zócalo.",
+  },
+  {
+    id: "swing_v",
+    label: "V. DE REBATIR",
+    description: "Ventana de abrir tradicional.",
+  },
+  {
+    id: "double_swing_v_45",
+    label: "V. DE REBATIR 2H 45°",
+    description: "Ventana de abrir 2 hojas con corte a 45°.",
+  },
+  {
+    id: "projecting",
+    label: "DESPLAZABLE",
+    description: "Apertura proyectante exterior.",
+  },
+  { id: "fixed", label: "PAÑO FIJO", description: "Marco perimetral fijo." },
+  {
+    id: "mosquitero",
+    label: "MOSQUITERO",
+    description: "Sistema de tela mosquitera.",
+  },
+  {
+    id: "mampara_fija",
+    label: "MAMPARA FIJA",
+    description: "Perfil en L (izquierda y abajo).",
+  },
+  {
+    id: "mampara_rebatir",
+    label: "MAMPARA REBATIR",
+    description: "Perfil vertical lateral únicamente.",
+  },
+  {
+    id: "vidrio_solo",
+    label: "VIDRIOS",
+    description: "Sin perfiles perimetrales (vidrio puro).",
+  },
+  {
+    id: "puerta_zocalon",
+    label: "PUERTA ZOCALON",
+    description: "Zócalos altos arriba/abajo + Lateral vertical.",
+  },
+  {
+    id: "pf_zocalon",
+    label: "PAÑO FIJO ZOCALON",
+    description: "Zócalos altos arriba y abajo.",
+  },
+  {
+    id: "sliding_2_45",
+    label: "V.CORREDIZA 2H 45°",
+    description: "2 hojas corte 45°.",
+  },
+  {
+    id: "sliding_3_45",
+    label: "V.CORREDIZA 3H 45°",
+    description: "3 hojas corte 45°.",
+  },
+  {
+    id: "sliding_4_45",
+    label: "V.CORREDIZA 4H 45°",
+    description: "4 hojas corte 45°.",
+  },
+  {
+    id: "sliding_2_90_low",
+    label: "V.CORREDIZA 2H 90° zocalo bajo",
+    description: "2 hojas 90° zócalo bajo.",
+  },
+  {
+    id: "sliding_2_90_high",
+    label: "V.CORREDIZA 2H 90° zocalo alto",
+    description: "2 hojas 90° zócalo alto.",
+  },
+  {
+    id: "sliding_3_90_low",
+    label: "V.CORREDIZA 3H 90° zocalo bajo",
+    description: "3 hojas 90° zócalo bajo.",
+  },
+  {
+    id: "sliding_3_90_high",
+    label: "V.CORREDIZA 3H 90° zocalo alto",
+    description: "3 hojas 90° zócalo alto.",
+  },
+  {
+    id: "sliding_4_90_low",
+    label: "V.CORREDIZA 4H 90° zocalo bajo",
+    description: "4 hojas 90° zócalo bajo.",
+  },
+  {
+    id: "sliding_4_90_high",
+    label: "V.CORREDIZA 4H 90° zocalo alto",
+    description: "4 hojas 90° zócalo alto.",
+  },
+  {
+    id: "sliding_2_45_90_low",
+    label: "V.CORREDIZA 2H (M45/H90) Z.BAJO",
+    description: "Marco a 45°, Hojas a 90°. Zócalo bajo.",
+  },
+  {
+    id: "sliding_2_45_90_high",
+    label: "V.CORREDIZA 2H (M45/H90) Z.ALTO",
+    description: "Marco a 45°, Hojas a 90°. Zócalo alto.",
+  },
+  {
+    id: "sliding_3_45_90_low",
+    label: "V.CORREDIZA 3H (M45/H90) Z.BAJO",
+    description: "Marco a 45°, Hojas a 90°. Zócalo bajo.",
+  },
+  {
+    id: "sliding_3_45_90_high",
+    label: "V.CORREDIZA 3H (M45/H90) Z.ALTO",
+    description: "Marco a 45°, Hojas a 90°. Zócalo alto.",
+  },
+  {
+    id: "sliding_4_45_90_low",
+    label: "V.CORREDIZA 4H (M45/H90) Z.BAJO",
+    description: "Marco a 45°, Hojas a 90°. Zócalo bajo.",
+  },
+  {
+    id: "sliding_4_45_90_high",
+    label: "V.CORREDIZA 4H (M45/H90) Z.ALTO",
+    description: "Marco a 45°, Hojas a 90°. Zócalo alto.",
+  },
+  {
+    id: "mampara_vidrio_corrediza",
+    label: "MAMPARA VIDRIO CORREDIZA",
+    description:
+      "Riel superior con hojas de vidrio solapadas sin marco inferior.",
+  },
+  {
+    id: "tubo_h",
+    label: "TUBO HORIZONTAL",
+    description: "Perfil único dispuesto de forma horizontal.",
+  },
+  {
+    id: "tubo_v",
+    label: "TUBO VERTICAL",
+    description: "Perfil único dispuesto de forma vertical.",
+  },
+  {
+    id: "baranda_poste_alto",
+    label: "BARANDA POSTE ALTO",
+    description: "Vidrio con poste alto lateral.",
+  },
+  {
+    id: "baranda_poste_alto_pasamano",
+    label: "BARANDA POSTE ALTO PASAMANO",
+    description: "Vidrio con poste alto lateral y pasamano superior.",
+  },
+  {
+    id: "baranda_mini_poste",
+    label: "BARANDA MINI POSTE",
+    description: "Vidrio con dos mini postes inferiores.",
+  },
+  {
+    id: "baranda_mini_poste_pasamano",
+    label: "BARANDA MINI POSTE Y PASAMANO",
+    description: "Vidrio con dos mini postes inferiores y pasamano superior.",
+  },
 ];
-
-const ProductRecipeEditor: React.FC<Props> = ({ recipes, setRecipes, aluminum, accessories, config, userId }) => {
+const ProductRecipeEditor: React.FC<Props> = ({
+  recipes,
+  setRecipes,
+  aluminum,
+  accessories,
+  config,
+  userId,
+}) => {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [searchFilter, setSearchFilter] = useState('');
+  const [searchFilter, setSearchFilter] = useState("");
   const [showWarning, setShowWarning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
-  
   const addNewRecipe = () => {
-    const newRecipe: ProductRecipe = { 
-      id: Date.now().toString(), 
-      name: 'NUEVA CARPINTERÍA', 
-      line: 'LÍNEA BASE', 
-      type: 'Ventana', 
-      visualType: 'sliding_2_45', 
-      profiles: [], 
-      accessories: [], 
-      glassFormulaW: 'W - 50', 
-      glassFormulaH: 'H - 50',
+    const newRecipe: ProductRecipe = {
+      id: Date.now().toString(),
+      name: "NUEVA CARPINTERÍA",
+      line: "LÍNEA BASE",
+      type: "Ventana",
+      visualType: "sliding_2_45",
+      profiles: [],
+      accessories: [],
+      glassFormulaW: "W - 50",
+      glassFormulaH: "H - 50",
       isLocked: false,
-      transomThickness: 100
+      transomThickness: 100,
     };
-    setRecipes([...recipes, newRecipe]); 
+    setRecipes([...recipes, newRecipe]);
     setEditingId(newRecipe.id);
   };
-
-  const updateRecipe = (id: string, data: Partial<ProductRecipe>) => setRecipes(recipes.map(r => r.id === id ? { ...r, ...data } : r));
-  
+  const updateRecipe = (id: string, data: Partial<ProductRecipe>) =>
+    setRecipes(recipes.map((r) => (r.id === id ? { ...r, ...data } : r)));
   const handleSelectRecipe = (id: string) => {
-    const recipe = recipes.find(r => r.id === id);
+    const recipe = recipes.find((r) => r.id === id);
     if (recipe) {
       setShowWarning(true);
       setEditingId(id);
     }
   };
-
   const handleSaveManual = async () => {
     if (!editingId || !recipe) return;
     setIsSaving(true);
-    
     if (isSupabaseConfigured && userId) {
       try {
         const recetaFormateada = {
           user_id: userId,
           receta_id: recipe.id,
-          name: recipe.name || 'Sin nombre',
-          data: recipe
+          name: recipe.name || "Sin nombre",
+          data: recipe,
         };
-
         const { error } = await supabase
-          .from('recetas_usuario')
-          .upsert([recetaFormateada], { onConflict: 'user_id,receta_id' });
-
+          .from("recetas_usuario")
+          .upsert([recetaFormateada], { onConflict: "user_id,receta_id" });
         if (error) throw error;
         console.log("Receta sincronizada con la nube con éxito.");
       } catch (err: any) {
-        console.error("Error al guardar receta en la nube:", err?.message || err);
-        
+        console.error(
+          "Error al guardar receta en la nube:",
+          err?.message || err,
+        );
         let errorMsg = "Error al sincronizar con la nube";
-        if (err?.message === 'Failed to fetch') {
-          errorMsg = "CONEXIÓN FALLIDA:\nNo se pudo contactar con Supabase. Verifica tu conexión a internet o si el proyecto de Supabase está activo.";
-        } else if (err?.code === '42P01') {
-          errorMsg = "TABLA NO ENCONTRADA:\nLa tabla 'recetas_usuario' no existe. Debes ejecutar el script de migración en Supabase.";
+        if (err?.message === "Failed to fetch") {
+          errorMsg =
+            "CONEXIÓN FALLIDA:\nNo se pudo contactar con Supabase. Verifica tu conexión a internet o si el proyecto de Supabase está activo.";
+        } else if (err?.code === "42P01") {
+          errorMsg =
+            "TABLA NO ENCONTRADA:\nLa tabla 'recetas_usuario' no existe. Debes ejecutar el script de migración en Supabase.";
         } else {
           errorMsg += ": " + (err?.message || "Error desconocido");
         }
-        
         alert(errorMsg);
       }
     }
-
     setTimeout(() => setIsSaving(false), 2000);
   };
-
-  const recipe = recipes.find(r => r.id === editingId);
-
+  const recipe = recipes.find((r) => r.id === editingId);
   const filteredRecipes = useMemo(() => {
     return [...recipes]
-      .filter(r => 
-        (r.name || '').toLowerCase().includes((searchFilter || '').toLowerCase()) || 
-        (r.line || '').toLowerCase().includes((searchFilter || '').toLowerCase())
+      .filter(
+        (r) =>
+          (r.name || "")
+            .toLowerCase()
+            .includes((searchFilter || "").toLowerCase()) ||
+          (r.line || "")
+            .toLowerCase()
+            .includes((searchFilter || "").toLowerCase()),
       )
       .sort((a, b) => b.id.localeCompare(a.id));
   }, [recipes, searchFilter]);
-
   const handleExportRecipes = () => {
     // Enriquecer las recetas con los códigos de perfiles y accesorios para que al importar en otra cuenta se puedan vincular
-    const enrichedRecipes = recipes.map(r => ({
+    const enrichedRecipes = recipes.map((r) => ({
       ...r,
-      _defaultTransomProfileCode: aluminum.find(a => a.id === r.defaultTransomProfileId)?.code,
-      _defaultTapajuntasProfileCode: aluminum.find(a => a.id === r.defaultTapajuntasProfileId)?.code,
-      _defaultCouplingProfileCode: aluminum.find(a => a.id === r.defaultCouplingProfileId)?.code,
-      _mosquiteroProfileCode: aluminum.find(a => a.id === r.mosquiteroProfileId)?.code,
-      profiles: r.profiles.map(rp => ({
+      _defaultTransomProfileCode: aluminum.find(
+        (a) => a.id === r.defaultTransomProfileId,
+      )?.code,
+      _defaultTapajuntasProfileCode: aluminum.find(
+        (a) => a.id === r.defaultTapajuntasProfileId,
+      )?.code,
+      _defaultCouplingProfileCode: aluminum.find(
+        (a) => a.id === r.defaultCouplingProfileId,
+      )?.code,
+      _mosquiteroProfileCode: aluminum.find(
+        (a) => a.id === r.mosquiteroProfileId,
+      )?.code,
+      profiles: r.profiles.map((rp) => ({
         ...rp,
-        _profileCode: aluminum.find(a => a.id === rp.profileId)?.code,
-        _glazingBeadOptionsCodes: rp.glazingBeadOptions?.map(id => aluminum.find(a => a.id === id)?.code).filter(Boolean)
+        _profileCode: aluminum.find((a) => a.id === rp.profileId)?.code,
+        _glazingBeadOptionsCodes: rp.glazingBeadOptions
+          ?.map((id) => aluminum.find((a) => a.id === id)?.code)
+          .filter(Boolean),
       })),
-      accessories: r.accessories.map(ra => ({
+      accessories: r.accessories.map((ra) => ({
         ...ra,
-        _accessoryCode: accessories.find(a => a.id === ra.accessoryId)?.code
-      }))
+        _accessoryCode: accessories.find((a) => a.id === ra.accessoryId)?.code,
+      })),
     }));
-
     const dataStr = JSON.stringify(enrichedRecipes, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', `Libreria_Arista_${new Date().toISOString().split('T')[0]}.json`);
+    const dataUri =
+      "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", dataUri);
+    linkElement.setAttribute(
+      "download",
+      `Libreria_Arista_${new Date().toISOString().split("T")[0]}.json`,
+    );
     linkElement.click();
   };
-
   const handleImportRecipes = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
-        try {
-            const imported = JSON.parse(evt.target?.result as string) as any[];
-            if (Array.isArray(imported)) { 
-                const missingProfiles = new Set<string>();
-                const missingAccessories = new Set<string>();
-
-                const checkAlu = (code?: string, id?: string) => {
-                    if (!code && !id) return true;
-                    if (code) {
-                        const found = aluminum.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase());
-                        if (found) return true;
-                        missingProfiles.add(code);
-                        return false;
-                    }
-                    if (id) {
-                        const found = aluminum.some(a => a.id === id);
-                        if (found) return true;
-                        missingProfiles.add(`ID:${id}`);
-                        return false;
-                    }
-                    return false;
-                };
-
-                const checkAcc = (code?: string, id?: string) => {
-                    if (!code && !id) return true;
-                    if (code) {
-                        const found = accessories.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase());
-                        if (found) return true;
-                        missingAccessories.add(code);
-                        return false;
-                    }
-                    if (id) {
-                        const found = accessories.some(a => a.id === id);
-                        if (found) return true;
-                        missingAccessories.add(`ID:${id}`);
-                        return false;
-                    }
-                    return false;
-                };
-
-                // 1. Pre-validación estricta
-                imported.forEach(r => {
-                    checkAlu(r._defaultTransomProfileCode, r.defaultTransomProfileId);
-                    checkAlu(r._defaultTapajuntasProfileCode, r.defaultTapajuntasProfileId);
-                    checkAlu(r._defaultCouplingProfileCode, r.defaultCouplingProfileId);
-                    checkAlu(r._mosquiteroProfileCode, r.mosquiteroProfileId);
-                    
-                    r.profiles?.forEach((rp: any) => {
-                        checkAlu(rp._profileCode, rp.profileId);
-                        rp._glazingBeadOptionsCodes?.forEach((c: string) => checkAlu(c));
-                    });
-                    
-                    r.accessories?.forEach((ra: any) => {
-                        checkAcc(ra._accessoryCode, ra.accessoryId);
-                    });
-                });
-
-                if (missingProfiles.size > 0 || missingAccessories.size > 0) {
-                    let errorMsg = "IMPORTACIÓN RECHAZADA.\n\nFaltan los siguientes elementos en tu base de datos local:\n";
-                    if (missingProfiles.size > 0) {
-                        errorMsg += `\nPERFILES DE ALUMINIO FALTANTES:\n- ${Array.from(missingProfiles).join('\n- ')}\n`;
-                    }
-                    if (missingAccessories.size > 0) {
-                        errorMsg += `\nACCESORIOS FALTANTES:\n- ${Array.from(missingAccessories).join('\n- ')}\n`;
-                    }
-                    errorMsg += "\nDebes crear estos códigos exactos en tu base de datos antes de importar las recetas.";
-                    alert(errorMsg);
-                    if (importFileRef.current) importFileRef.current.value = '';
-                    return; // Abortar importación
-                }
-
-                // 2. Mapeo estricto (ya sabemos que todo existe)
-                const getAluId = (code?: string, id?: string) => {
-                    if (code) return aluminum.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase())!.id;
-                    return id;
-                };
-
-                const getAccId = (code?: string, id?: string) => {
-                    if (code) return accessories.find(a => a.code.trim().toUpperCase() === code.trim().toUpperCase())!.id;
-                    return id;
-                };
-
-                const mappedRecipes = imported.map(r => {
-                    const newRecipe = {
-                        ...r,
-                        id: r.id.includes('-imp-') ? r.id : `${r.id}-imp-${Date.now().toString().slice(-4)}`,
-                        defaultTransomProfileId: r._defaultTransomProfileCode ? getAluId(r._defaultTransomProfileCode) : r.defaultTransomProfileId,
-                        defaultTapajuntasProfileId: r._defaultTapajuntasProfileCode ? getAluId(r._defaultTapajuntasProfileCode) : r.defaultTapajuntasProfileId,
-                        defaultCouplingProfileId: r._defaultCouplingProfileCode ? getAluId(r._defaultCouplingProfileCode) : r.defaultCouplingProfileId,
-                        mosquiteroProfileId: r._mosquiteroProfileCode ? getAluId(r._mosquiteroProfileCode) : r.mosquiteroProfileId,
-                        profiles: r.profiles.map((rp: any) => {
-                            const newProfileId = getAluId(rp._profileCode, rp.profileId);
-                            const newGlazingBeadOptions = rp._glazingBeadOptionsCodes 
-                                ? rp._glazingBeadOptionsCodes.map((c: string) => getAluId(c)).filter(Boolean) 
-                                : rp.glazingBeadOptions;
-                            
-                            const { _profileCode, _glazingBeadOptionsCodes, ...cleanRp } = rp;
-                            return {
-                                ...cleanRp,
-                                profileId: newProfileId,
-                                glazingBeadOptions: newGlazingBeadOptions
-                            };
-                        }),
-                        accessories: (r.accessories || []).map((ra: any) => {
-                            const newAccessoryId = getAccId(ra._accessoryCode, ra.accessoryId);
-                            const { _accessoryCode, ...cleanRa } = ra;
-                            return {
-                                ...cleanRa,
-                                accessoryId: newAccessoryId
-                            };
-                        })
-                    };
-
-                    delete newRecipe._defaultTransomProfileCode;
-                    delete newRecipe._defaultTapajuntasProfileCode;
-                    delete newRecipe._defaultCouplingProfileCode;
-                    delete newRecipe._mosquiteroProfileCode;
-
-                    return newRecipe as ProductRecipe;
-                });
-                
-                setRecipes([...recipes, ...mappedRecipes]); 
-                alert("Importación exitosa. Todos los perfiles y accesorios fueron vinculados correctamente.");
+      try {
+        const imported = JSON.parse(evt.target?.result as string) as any[];
+        if (Array.isArray(imported)) {
+          const missingProfiles = new Set<string>();
+          const missingAccessories = new Set<string>();
+          const checkAlu = (code?: string, id?: string) => {
+            if (!code && !id) return true;
+            if (code) {
+              const found = aluminum.find(
+                (a) =>
+                  a.code.trim().toUpperCase() === code.trim().toUpperCase(),
+              );
+              if (found) return true;
+              missingProfiles.add(code);
+              return false;
             }
-        } catch (err: any) { 
-            console.error("Error al importar librería (msg):", err?.message || err);
-            alert("Error al importar librería. El archivo podría estar corrupto."); 
+            if (id) {
+              const found = aluminum.some((a) => a.id === id);
+              if (found) return true;
+              missingProfiles.add(`ID:${id}`);
+              return false;
+            }
+            return false;
+          };
+          const checkAcc = (code?: string, id?: string) => {
+            if (!code && !id) return true;
+            if (code) {
+              const found = accessories.find(
+                (a) =>
+                  a.code.trim().toUpperCase() === code.trim().toUpperCase(),
+              );
+              if (found) return true;
+              missingAccessories.add(code);
+              return false;
+            }
+            if (id) {
+              const found = accessories.some((a) => a.id === id);
+              if (found) return true;
+              missingAccessories.add(`ID:${id}`);
+              return false;
+            }
+            return false;
+          };
+          /* 1. Pre-validación estricta */ imported.forEach((r) => {
+            checkAlu(r._defaultTransomProfileCode, r.defaultTransomProfileId);
+            checkAlu(
+              r._defaultTapajuntasProfileCode,
+              r.defaultTapajuntasProfileId,
+            );
+            checkAlu(r._defaultCouplingProfileCode, r.defaultCouplingProfileId);
+            checkAlu(r._mosquiteroProfileCode, r.mosquiteroProfileId);
+            r.profiles?.forEach((rp: any) => {
+              checkAlu(rp._profileCode, rp.profileId);
+              rp._glazingBeadOptionsCodes?.forEach((c: string) => checkAlu(c));
+            });
+            r.accessories?.forEach((ra: any) => {
+              checkAcc(ra._accessoryCode, ra.accessoryId);
+            });
+          });
+          if (missingProfiles.size > 0 || missingAccessories.size > 0) {
+            let errorMsg =
+              "IMPORTACIÓN RECHAZADA.\n\nFaltan los siguientes elementos en tu base de datos local:\n";
+            if (missingProfiles.size > 0) {
+              errorMsg += `\nPERFILES DE ALUMINIO FALTANTES:\n- ${Array.from(missingProfiles).join("\n- ")}\n`;
+            }
+            if (missingAccessories.size > 0) {
+              errorMsg += `\nACCESORIOS FALTANTES:\n- ${Array.from(missingAccessories).join("\n- ")}\n`;
+            }
+            errorMsg +=
+              "\nDebes crear estos códigos exactos en tu base de datos antes de importar las recetas.";
+            alert(errorMsg);
+            if (importFileRef.current) importFileRef.current.value = "";
+            return; /* Abortar importación */
+          }
+          /* 2. Mapeo estricto */ const getAluId = (
+            code?: string,
+            id?: string,
+          ) => {
+            if (code)
+              return aluminum.find(
+                (a) =>
+                  a.code.trim().toUpperCase() === code.trim().toUpperCase(),
+              )!.id;
+            return id;
+          };
+          const getAccId = (code?: string, id?: string) => {
+            if (code)
+              return accessories.find(
+                (a) =>
+                  a.code.trim().toUpperCase() === code.trim().toUpperCase(),
+              )!.id;
+            return id;
+          };
+          const mappedRecipes = imported.map((r) => {
+            const newRecipe = {
+              ...r,
+              id: r.id.includes("-imp-")
+                ? r.id
+                : `${r.id}-imp-${Date.now().toString().slice(-4)}`,
+              defaultTransomProfileId: r._defaultTransomProfileCode
+                ? getAluId(r._defaultTransomProfileCode)
+                : r.defaultTransomProfileId,
+              defaultTapajuntasProfileId: r._defaultTapajuntasProfileCode
+                ? getAluId(r._defaultTapajuntasProfileCode)
+                : r.defaultTapajuntasProfileId,
+              defaultCouplingProfileId: r._defaultCouplingProfileCode
+                ? getAluId(r._defaultCouplingProfileCode)
+                : r.defaultCouplingProfileId,
+              mosquiteroProfileId: r._mosquiteroProfileCode
+                ? getAluId(r._mosquiteroProfileCode)
+                : r.mosquiteroProfileId,
+              profiles: r.profiles.map((rp: any) => {
+                const newProfileId = getAluId(rp._profileCode, rp.profileId);
+                const newGlazingBeadOptions = rp._glazingBeadOptionsCodes
+                  ? rp._glazingBeadOptionsCodes
+                      .map((c: string) => getAluId(c))
+                      .filter(Boolean)
+                  : rp.glazingBeadOptions;
+                const { _profileCode, _glazingBeadOptionsCodes, ...cleanRp } =
+                  rp;
+                return {
+                  ...cleanRp,
+                  profileId: newProfileId,
+                  glazingBeadOptions: newGlazingBeadOptions,
+                };
+              }),
+              accessories: (r.accessories || []).map((ra: any) => {
+                const newAccessoryId = getAccId(
+                  ra._accessoryCode,
+                  ra.accessoryId,
+                );
+                const { _accessoryCode, ...cleanRa } = ra;
+                return { ...cleanRa, accessoryId: newAccessoryId };
+              }),
+            };
+            delete newRecipe._defaultTransomProfileCode;
+            delete newRecipe._defaultTapajuntasProfileCode;
+            delete newRecipe._defaultCouplingProfileCode;
+            delete newRecipe._mosquiteroProfileCode;
+            return newRecipe as ProductRecipe;
+          });
+          setRecipes([...recipes, ...mappedRecipes]);
+          alert(
+            "Importación exitosa. Todos los perfiles y accesorios fueron vinculados correctamente.",
+          );
         }
-        if (importFileRef.current) importFileRef.current.value = '';
+      } catch (err: any) {
+        console.error("Error al importar librería (msg):", err?.message || err);
+        alert("Error al importar librería. El archivo podría estar corrupto.");
+      }
+      if (importFileRef.current) importFileRef.current.value = "";
     };
     reader.readAsText(file);
   };
-
   const handleDeleteAllRecipes = () => {
-    if (confirm('¿Estás seguro de que deseas eliminar TODAS las ingenierías/recetas? Esta acción no se puede deshacer y borrará toda tu librería actual.')) {
+    if (
+      confirm(
+        "¿Estás seguro de que deseas eliminar TODAS las ingenierías/recetas? Esta acción no se puede deshacer y borrará toda tu librería actual.",
+      )
+    ) {
       setRecipes([]);
       setEditingId(null);
     }
   };
-
-  const isTubeType = recipe?.visualType === 'tubo_h' || recipe?.visualType === 'tubo_v';
-
+  const isTubeType =
+    recipe?.visualType === "tubo_h" || recipe?.visualType === "tubo_v";
   return (
     <div className="flex flex-col lg:flex-row h-full gap-6 animate-in fade-in duration-500 overflow-y-auto lg:overflow-hidden pb-20 lg:pb-0">
+      {" "}
       {showWarning && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-100 dark:border-amber-900/30 text-center space-y-6">
-            <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/50 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-500 mx-auto shadow-lg">
-              <AlertTriangle size={32} />
-            </div>
+          {" "}
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-100 text-center space-y-6">
+            {" "}
+            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 mx-auto shadow-lg">
+              {" "}
+              <AlertTriangle size={32} />{" "}
+            </div>{" "}
             <div className="space-y-2">
-              <h3 className="text-xl font-black uppercase text-slate-800 dark:text-white tracking-tighter">Precaución de Ingeniería</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                Vas a acceder a un sistema con fórmulas de cálculo validadas. <br/>
-                <span className="font-black text-amber-600">Cualquier cambio accidental en las variables afectará la producción y costos.</span>
-              </p>
-            </div>
-            <button 
+              {" "}
+              <h3 className="text-xl font-black uppercase text-slate-800 tracking-tighter">
+                Precaución de Ingeniería
+              </h3>{" "}
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                {" "}
+                Vas a acceder a un sistema con fórmulas de cálculo validadas.{" "}
+                <br />{" "}
+                <span className="font-black text-amber-600">
+                  Cualquier cambio accidental en las variables afectará la
+                  producción y costos.
+                </span>{" "}
+              </p>{" "}
+            </div>{" "}
+            <button
               onClick={() => setShowWarning(false)}
-              className="w-full bg-slate-900 dark:bg-indigo-700 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all"
+              className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all"
             >
-              Entendido, Acceder a Edición
-            </button>
-          </div>
+              {" "}
+              Entendido, Acceder a Edición{" "}
+            </button>{" "}
+          </div>{" "}
         </div>
-      )}
-
+      )}{" "}
       <div className="w-full lg:w-80 flex flex-col gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[1.5rem] p-5 shadow-sm flex flex-col h-auto lg:h-[85vh] transition-colors">
-            <div className="flex items-center gap-3 border-b border-slate-50 dark:border-slate-800 pb-4">
-                <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-lg"><Shapes size={20} /></div>
-                <div>
-                    <h3 className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200 tracking-widest">Sistemas Maestros</h3>
-                </div>
-            </div>
-            <div className="relative mt-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={14} />
-                <input className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 pl-9 pr-3 py-2.5 rounded-xl text-[10px] font-bold uppercase dark:text-white outline-none focus:border-sky-500 shadow-inner" placeholder="Filtrar..." value={searchFilter} onChange={e => setSearchFilter(e.target.value)} />
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 mt-4">
-                {filteredRecipes.map(r => (
-                    <button key={r.id} onClick={() => handleSelectRecipe(r.id)} className={`w-full text-left p-4 rounded-2xl border transition-all ${editingId === r.id ? 'bg-sky-500 border-sky-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800/50 border-slate-50 dark:border-slate-800 hover:border-sky-200 text-slate-600'}`}>
-                        <div className="flex justify-between items-center mb-1">
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${editingId === r.id ? 'text-sky-200' : 'text-sky-600'}`}>{r.line}</span>
-                        </div>
-                        <span className="text-[11px] font-black uppercase truncate block">{r.name}</span>
-                    </button>
-                ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-                <button onClick={handleExportRecipes} className="flex items-center justify-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-[8px] font-black uppercase hover:bg-slate-100 border border-slate-200"><Download size={12} /> Exportar</button>
-                <button onClick={() => importFileRef.current?.click()} className="flex items-center justify-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-[8px] font-black uppercase hover:bg-slate-100 border border-slate-200"><Upload size={12} /> Importar</button>
-                <input type="file" ref={importFileRef} onChange={handleImportRecipes} className="hidden" accept=".json" />
-            </div>
-            <button onClick={addNewRecipe} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl text-[9px] uppercase tracking-widest hover:bg-sky-500 transition-all mt-2"><Plus size={14} /> Nueva Ingeniería</button>
-            <button onClick={handleDeleteAllRecipes} className="w-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-black py-3 rounded-xl text-[8px] uppercase tracking-widest hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-100 dark:border-red-800 transition-all mt-2 flex items-center justify-center gap-2"><Trash2 size={14} /> Eliminar Todas</button>
-        </div>
-      </div>
-
+        {" "}
+        <div className="bg-white border border-slate-200 rounded-[1.5rem] p-5 shadow-sm flex flex-col h-auto lg:h-[85vh] transition-colors">
+          {" "}
+          <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+            {" "}
+            <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <Shapes size={20} />
+            </div>{" "}
+            <div>
+              {" "}
+              <h3 className="text-[10px] font-black uppercase text-slate-800 tracking-widest">
+                Sistemas Maestros
+              </h3>{" "}
+            </div>{" "}
+          </div>{" "}
+          <div className="relative mt-4">
+            {" "}
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300"
+              size={14}
+            />{" "}
+            <input
+              className="w-full bg-slate-50 border border-slate-100 pl-9 pr-3 py-2.5 rounded-xl text-[10px] font-bold uppercase outline-none focus:border-sky-500 shadow-inner"
+              placeholder="Filtrar..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+            />{" "}
+          </div>{" "}
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 mt-4">
+            {" "}
+            {filteredRecipes.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => handleSelectRecipe(r.id)}
+                className={`w-full text-left p-4 rounded-2xl border transition-all ${editingId === r.id ? "bg-sky-500 border-sky-600 text-white shadow-lg" : "bg-white border-slate-50 hover:border-sky-200 text-slate-600"}`}
+              >
+                {" "}
+                <div className="flex justify-between items-center mb-1">
+                  {" "}
+                  <span
+                    className={`text-[8px] font-black uppercase tracking-widest ${editingId === r.id ? "text-sky-200" : "text-sky-600"}`}
+                  >
+                    {r.line}
+                  </span>{" "}
+                </div>{" "}
+                <span className="text-[11px] font-black uppercase truncate block">
+                  {r.name}
+                </span>{" "}
+              </button>
+            ))}{" "}
+          </div>{" "}
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {" "}
+            <button
+              onClick={handleExportRecipes}
+              className="flex items-center justify-center gap-2 p-3 bg-slate-50 rounded-xl text-[8px] font-black uppercase hover:bg-slate-100 border border-slate-200"
+            >
+              <Download size={12} /> Exportar
+            </button>{" "}
+            <button
+              onClick={() => importFileRef.current?.click()}
+              className="flex items-center justify-center gap-2 p-3 bg-slate-50 rounded-xl text-[8px] font-black uppercase hover:bg-slate-100 border border-slate-200"
+            >
+              <Upload size={12} /> Importar
+            </button>{" "}
+            <input
+              type="file"
+              ref={importFileRef}
+              onChange={handleImportRecipes}
+              className="hidden"
+              accept=".json"
+            />{" "}
+          </div>{" "}
+          <button
+            onClick={addNewRecipe}
+            className="w-full bg-slate-900 text-white font-black py-4 rounded-xl text-[9px] uppercase tracking-widest hover:bg-sky-500 transition-all mt-2"
+          >
+            <Plus size={14} /> Nueva Ingeniería
+          </button>{" "}
+          <button
+            onClick={handleDeleteAllRecipes}
+            className="w-full bg-red-50 text-red-600 font-black py-3 rounded-xl text-[8px] uppercase tracking-widest hover:bg-red-100 border border-red-100 transition-all mt-2 flex items-center justify-center gap-2"
+          >
+            <Trash2 size={14} /> Eliminar Todas
+          </button>{" "}
+        </div>{" "}
+      </div>{" "}
       <div className="flex-1 min-w-0">
+        {" "}
         {recipe ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm h-auto lg:h-[85vh] overflow-y-auto custom-scrollbar space-y-6 lg:space-y-8 border-t-8 border-t-sky-500 transition-colors">
+          <div className="bg-white border border-slate-200 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm h-auto lg:h-[85vh] overflow-y-auto custom-scrollbar space-y-6 lg:space-y-8 border-t-8 border-t-sky-500 transition-colors">
+            {" "}
             <div className="flex justify-between items-start gap-6">
-                <div className="flex-1 min-w-0 space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <input 
-                          className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 dark:text-white focus:outline-none bg-transparent w-full`} 
-                          value={recipe.name || ''} 
-                          onChange={e => updateRecipe(recipe.id, { name: e.target.value.toUpperCase() })} 
-                        />
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button 
-                          onClick={() => {
-                            const newId = Date.now().toString();
-                            const newRecipe = { ...recipe, id: newId, name: `${recipe.name} (COPIA)` };
-                            setRecipes([...recipes, newRecipe]);
-                            setEditingId(newId);
-                          }}
-                          className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
-                          title="Duplicar Sistema"
-                        >
-                          <Plus size={16} /> DUPLICAR
-                        </button>
-                        <button 
-                          onClick={() => generateRecipeTechnicalPDF(recipe, aluminum, accessories, config)}
-                          className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
-                          title="Descargar PDF"
-                        >
-                          <FileText size={16} /> PDF
-                        </button>
-                        <button 
-                          onClick={handleSaveManual} 
-                          className={`px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? 'bg-green-600 text-white border-green-700' : 'bg-sky-500 text-white border-sky-600 hover:bg-sky-400'}`}
-                        >
-                          {isSaving ? <Check size={18} /> : <Save size={18} />}
-                          {isSaving ? 'GUARDADO' : 'GUARDAR CAMBIOS'}
-                        </button>
-                      </div>
+              {" "}
+              <div className="flex-1 min-w-0 space-y-4">
+                {" "}
+                <div className="flex items-center gap-4">
+                  {" "}
+                  <div className="flex-1 min-w-0">
+                    {" "}
+                    <input
+                      className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 focus:outline-none bg-transparent w-full`}
+                      value={recipe.name || ""}
+                      onChange={(e) =>
+                        updateRecipe(recipe.id, {
+                          name: e.target.value.toUpperCase(),
+                        })
+                      }
+                    />{" "}
+                  </div>{" "}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {" "}
+                    <button
+                      onClick={() => {
+                        const newId = Date.now().toString();
+                        const newRecipe = {
+                          ...recipe,
+                          id: newId,
+                          name: `${recipe.name} (COPIA)`,
+                        };
+                        setRecipes([...recipes, newRecipe]);
+                        setEditingId(newId);
+                      }}
+                      className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
+                      title="Duplicar Sistema"
+                    >
+                      {" "}
+                      <Plus size={16} /> DUPLICAR{" "}
+                    </button>{" "}
+                    <button
+                      onClick={() =>
+                        generateRecipeTechnicalPDF(
+                          recipe,
+                          aluminum,
+                          accessories,
+                          config,
+                        )
+                      }
+                      className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
+                      title="Descargar PDF"
+                    >
+                      {" "}
+                      <FileText size={16} /> PDF{" "}
+                    </button>{" "}
+                    <button
+                      onClick={handleSaveManual}
+                      className={`px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? "bg-green-600 text-white border-green-700" : "bg-sky-500 text-white border-sky-600 hover:bg-sky-400"}`}
+                    >
+                      {" "}
+                      {isSaving ? <Check size={18} /> : <Save size={18} />}{" "}
+                      {isSaving ? "GUARDADO" : "GUARDAR CAMBIOS"}{" "}
+                    </button>{" "}
+                  </div>{" "}
+                </div>{" "}
+                <div className="flex flex-wrap gap-4 items-center">
+                  {" "}
+                  <select
+                    className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none"
+                    value={recipe.type || ""}
+                    onChange={(e) =>
+                      updateRecipe(recipe.id, { type: e.target.value as any })
+                    }
+                  >
+                    {" "}
+                    {[
+                      "Ventana",
+                      "Puerta",
+                      "Mampara",
+                      "Paño Fijo",
+                      "Banderola",
+                      "Baranda",
+                      "Vidriera",
+                    ].map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}{" "}
+                  </select>{" "}
+                  <select
+                    className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none"
+                    value={recipe.visualType || ""}
+                    onChange={(e) =>
+                      updateRecipe(recipe.id, { visualType: e.target.value })
+                    }
+                  >
+                    {" "}
+                    {DEFAULT_VISUAL_TYPES.map((vt) => (
+                      <option key={vt.id} value={vt.id}>
+                        {vt.label}
+                      </option>
+                    ))}{" "}
+                  </select>{" "}
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 rounded-xl border border-sky-100/50 `}
+                  >
+                    {" "}
+                    <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">
+                      Línea:
+                    </span>{" "}
+                    <input
+                      className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 outline-none w-24"
+                      value={recipe.line || ""}
+                      onChange={(e) =>
+                        updateRecipe(recipe.id, {
+                          line: e.target.value.toUpperCase(),
+                        })
+                      }
+                    />{" "}
+                  </div>{" "}
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-xl border border-emerald-100/50 `}
+                  >
+                    {" "}
+                    <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                      Cant. Hojas:
+                    </span>{" "}
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      placeholder="Auto"
+                      className="bg-transparent border-none text-[10px] font-black uppercase text-emerald-700 outline-none w-12 text-center"
+                      value={recipe.leaves || ""}
+                      onChange={(e) =>
+                        updateRecipe(recipe.id, {
+                          leaves: e.target.value
+                            ? parseInt(e.target.value)
+                            : undefined,
+                        })
+                      }
+                    />{" "}
+                  </div>{" "}
+                  {isTubeType && (
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 rounded-xl border border-amber-200 animate-in zoom-in`}
+                    >
+                      {" "}
+                      <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">
+                        Espesor (mm):
+                      </span>{" "}
+                      <input
+                        type="number"
+                        className="bg-transparent border-none text-[10px] font-black text-amber-700 outline-none w-16 text-center"
+                        value={recipe.transomThickness || 100}
+                        onChange={(e) =>
+                          updateRecipe(recipe.id, {
+                            transomThickness: parseInt(e.target.value) || 0,
+                          })
+                        }
+                      />{" "}
                     </div>
-                    <div className="flex flex-wrap gap-4 items-center">
-                        <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none" value={recipe.type || ''} onChange={e => updateRecipe(recipe.id, { type: e.target.value as any })}>
-                            {['Ventana', 'Puerta', 'Mampara', 'Paño Fijo', 'Banderola', 'Baranda', 'Vidriera'].map(v => <option key={v} value={v}>{v}</option>)}
-                        </select>
-                        <select className="bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none" value={recipe.visualType || ''} onChange={e => updateRecipe(recipe.id, { visualType: e.target.value })}>
-                            {DEFAULT_VISUAL_TYPES.map(vt => <option key={vt.id} value={vt.id}>{vt.label}</option>)}
-                        </select>
-                        <div className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 dark:bg-sky-900/20 rounded-xl border border-sky-100/50 dark:border-sky-800/50`}>
-                          <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">Línea:</span>
-                          <input className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 dark:text-sky-400 outline-none w-24" value={recipe.line || ''} onChange={e => updateRecipe(recipe.id, { line: e.target.value.toUpperCase() })} />
-                        </div>
-                        <div className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100/50 dark:border-emerald-800/50`}>
-                          <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Cant. Hojas:</span>
-                          <input 
-                            type="number" 
-                            min="1" 
-                            max="10"
-                            placeholder="Auto"
-                            className="bg-transparent border-none text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 outline-none w-12 text-center" 
-                            value={recipe.leaves || ''} 
-                            onChange={e => updateRecipe(recipe.id, { leaves: e.target.value ? parseInt(e.target.value) : undefined })} 
-                          />
-                        </div>
-                        {isTubeType && (
-                          <div className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 dark:bg-amber-900/20 rounded-xl border border-amber-200 animate-in zoom-in`}>
-                            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Espesor (mm):</span>
-                            <input 
-                              type="number"
-                              className="bg-transparent border-none text-[10px] font-black text-amber-700 dark:text-amber-400 outline-none w-16 text-center" 
-                              value={recipe.transomThickness || 100} 
-                              onChange={e => updateRecipe(recipe.id, { transomThickness: parseInt(e.target.value) || 0 })} 
-                            />
-                          </div>
-                        )}
-                    </div>
-                </div>
-                <button onClick={() => { if(confirm('¿Eliminar sistema?')) { setRecipes(recipes.filter(r => r.id !== recipe.id)); setEditingId(null); } }} className="shrink-0 p-4 bg-slate-50 dark:bg-slate-800 text-slate-300 rounded-2xl hover:text-red-500 border border-slate-100 dark:border-slate-700 transition-colors"><Trash2 size={20} /></button>
-            </div>
-
+                  )}{" "}
+                </div>{" "}
+              </div>{" "}
+              <button
+                onClick={() => {
+                  if (confirm("¿Eliminar sistema?")) {
+                    setRecipes(recipes.filter((r) => r.id !== recipe.id));
+                    setEditingId(null);
+                  }
+                }}
+                className="shrink-0 p-4 bg-slate-50 text-slate-300 rounded-2xl hover:text-red-500 border border-slate-100 transition-colors"
+              >
+                <Trash2 size={20} />
+              </button>{" "}
+            </div>{" "}
             <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2"><Ruler size={14} className="text-sky-600"/> Despiece de Perfiles Estructurales</h4>
-                    <button onClick={() => updateRecipe(recipe.id, { profiles: [...recipe.profiles, { profileId: aluminum[0]?.id || '', quantity: 1, formula: 'W', cutStart: '45', cutEnd: '45', role: 'Marco' }] })} className="text-[8px] font-black uppercase text-sky-600 bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-100">+ Insertar</button>
-                </div>
-                <div className="space-y-1.5">
-                    {recipe.profiles.map((rp, idx) => (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-slate-50/50 dark:bg-slate-800/30 p-2 rounded-xl border border-slate-100 dark:border-slate-700 group transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-sky-100">
-                            <div className="col-span-2">
-                                <select className="w-full bg-transparent text-[9px] font-black uppercase outline-none dark:text-white" value={rp.role || 'Marco'} onChange={e => { const updated = [...recipe.profiles]; updated[idx].role = e.target.value as any; updateRecipe(recipe.id, { profiles: updated }); }}>
-                                    {['Marco', 'Hoja', 'Zócalo', 'Travesaño', 'Encuentro', 'Acople', 'Tapajuntas', 'Mosquitero', 'Contravidrio', ...((recipe.profiles.some(p => p.role === 'Travesaño') ? ['ContravidrioTravesaño'] : []) as any[]), 'Otro'].map(r => <option key={r} value={r}>{r}</option>)}
-                                </select>
-                            </div>
-                            <div className="col-span-2">
-                                <select className="w-full bg-transparent text-[10px] font-black uppercase outline-none dark:text-white" value={rp.profileId || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].profileId = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }}>{aluminum.map(a => <option key={a.id} value={a.id}>{a.code}</option>)}</select>
-                            </div>
-                            {recipe.visualType?.includes('sliding') && (
-                                <div className="col-span-1">
-                                    <select className="w-full bg-transparent text-[9px] font-black uppercase outline-none dark:text-white" value={rp.alternative || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].alternative = e.target.value as any; updateRecipe(recipe.id, { profiles: updated }); }}>
-                                        <option value="">-</option>
-                                        <option value="A">A</option>
-                                        <option value="B">B</option>
-                                    </select>
-                                </div>
-                            )}
-                            <div className="col-span-1">
-                                <input type="number" className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-1.5 rounded text-center font-black text-[10px] dark:text-white" value={rp.quantity || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].quantity = parseInt(e.target.value) || 0; updateRecipe(recipe.id, { profiles: updated }); }} />
-                            </div>
-                            <div className="col-span-2">
-                                <input className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-1.5 rounded font-mono text-[10px] font-black text-sky-600 dark:text-sky-400" value={rp.formula || ''} onChange={e => { const updated = [...recipe.profiles]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { profiles: updated }); }} />
-                            </div>
-                            <div className="col-span-2 space-y-1">
-                                <div className="flex gap-0.5 bg-slate-200/50 dark:bg-slate-700/50 p-0.5 rounded-md">
-                                    {['45', '90'].map(deg => (
-                                        <button key={deg} onClick={() => { const updated = [...recipe.profiles]; updated[idx].cutStart = deg as any; updateRecipe(recipe.id, { profiles: updated }); }} className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutStart === deg ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400'}`}>{deg}°</button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="col-span-2 space-y-1">
-                                <div className="flex gap-0.5 bg-slate-200/50 dark:bg-slate-700/50 p-0.5 rounded-md">
-                                    {['45', '90'].map(deg => (
-                                        <button key={deg} onClick={() => { const updated = [...recipe.profiles]; updated[idx].cutEnd = deg as any; updateRecipe(recipe.id, { profiles: updated }); }} className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutEnd === deg ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400'}`}>{deg}°</button>
-                                    ))}
-                                </div>
-                                { (rp.role === 'Contravidrio' || rp.role === 'ContravidrioTravesaño') && (
-                                    <div className="relative group/bead">
-                                        <button 
-                                            onClick={() => {
-                                                const currentOptions = rp.glazingBeadOptions || [];
-                                                // Lógica simple: si no tiene opciones, inicializar con el perfil actual
-                                                if (currentOptions.length === 0) {
-                                                    const updated = [...recipe.profiles];
-                                                    updated[idx].glazingBeadOptions = [rp.profileId];
-                                                    updateRecipe(recipe.id, { profiles: updated });
-                                                }
-                                                // Aquí idealmente abriríamos un modal, pero por simplicidad usaremos un prompt o expandiremos la UI
-                                                // Para mantener la UI limpia, usaremos un selector múltiple en línea si se hace clic
-                                                const newOptions = prompt("Ingrese IDs de perfiles compatibles separados por coma (o use el botón de abajo para gestionar mejor):", currentOptions.join(','));
-                                                if (newOptions !== null) {
-                                                    const updated = [...recipe.profiles];
-                                                    updated[idx].glazingBeadOptions = newOptions.split(',').map(s => s.trim()).filter(Boolean);
-                                                    updateRecipe(recipe.id, { profiles: updated });
-                                                }
-                                            }}
-                                            className={`w-full text-[7px] font-black uppercase py-1 rounded border ${rp.glazingBeadOptions?.length ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
-                                        >
-                                            {rp.glazingBeadOptions?.length ? `${rp.glazingBeadOptions.length} OPCIONES` : 'DINÁMICO'}
-                                        </button>
-                                        
-                                        {/* Selector de Opciones de Contravidrio (Dropdown) */}
-                                        <div className="hidden group-hover/bead:block absolute top-full right-0 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-xl p-2 z-50 mt-1">
-                                            <p className="text-[8px] font-black uppercase text-slate-400 mb-2">Seleccionar Compatibles:</p>
-                                            <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
-                                                {aluminum.filter(a => a.isGlazingBead).map(bead => (
-                                                    <label key={bead.id} className="flex items-center gap-2 p-1 hover:bg-slate-50 dark:hover:bg-slate-700 rounded cursor-pointer">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            className="rounded accent-sky-500"
-                                                            checked={(rp.glazingBeadOptions || []).includes(bead.id)}
-                                                            onChange={(e) => {
-                                                                const updated = [...recipe.profiles];
-                                                                const current = updated[idx].glazingBeadOptions || [];
-                                                                if (e.target.checked) {
-                                                                    updated[idx].glazingBeadOptions = [...current, bead.id];
-                                                                } else {
-                                                                    updated[idx].glazingBeadOptions = current.filter(id => id !== bead.id);
-                                                                }
-                                                                updateRecipe(recipe.id, { profiles: updated });
-                                                            }}
-                                                        />
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[9px] font-bold dark:text-white">{bead.code}</span>
-                                                            <span className="text-[7px] text-slate-400">{bead.glazingBeadStyle} | {bead.minGlassThickness}-{bead.maxGlassThickness}mm</span>
-                                                        </div>
-                                                    </label>
-                                                ))}
-                                                {aluminum.filter(a => a.isGlazingBead).length === 0 && (
-                                                    <p className="text-[8px] text-red-400">No hay perfiles marcados como contravidrio en la base de datos.</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="col-span-1 text-right">
-                                <button onClick={() => updateRecipe(recipe.id, { profiles: recipe.profiles.filter((_, i) => i !== idx) })} className="text-slate-300 hover:text-red-500 p-1"><Trash2 size={14} /></button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] shadow-sm space-y-4">
-                    <div className="flex justify-between items-center px-2">
-                        <div className="flex items-center gap-2">
-                            <Wind size={16} className="text-sky-600" />
-                            <h5 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Insumos y Accesorios</h5>
-                        </div>
-                        <button onClick={() => updateRecipe(recipe.id, { accessories: [...recipe.accessories, { accessoryId: accessories[0]?.id || '', quantity: 1, isLinear: false, formula: 'W' }] })} className="px-3 py-1 bg-sky-50 text-sky-600 border border-sky-100 rounded-lg text-[9px] font-black uppercase hover:bg-sky-600 hover:text-white transition-all">Añadir</button>
-                    </div>
-                    
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                        {recipe.accessories.map((ra, idx) => (
-                            <div key={idx} className="bg-slate-50/50 dark:bg-slate-800/40 p-2 rounded-xl border border-slate-100 dark:border-slate-700 space-y-2 group transition-all hover:bg-white dark:hover:bg-slate-800">
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 relative">
-                                        <select className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-8 px-2 pr-6 rounded text-[9px] font-black uppercase outline-none appearance-none dark:text-white" value={ra.accessoryId || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].accessoryId = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }}>
-                                            {accessories.map(a => <option key={a.id} value={a.id}>{a.code} - {a.detail}</option>)}
-                                        </select>
-                                        <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    </div>
-                                    <div className="flex bg-slate-200 dark:bg-slate-700 p-0.5 rounded-lg h-8 items-center min-w-[90px]">
-                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updated[idx].isSpaced = false; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${!ra.isLinear && !ra.isSpaced ? 'bg-white dark:bg-slate-600 text-sky-600 dark:text-white shadow-sm' : 'text-slate-400'}`}>U</button>
-                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = true; updated[idx].isSpaced = false; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isLinear ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400'}`}>ML</button>
-                                        <button onClick={() => { const updated = [...recipe.accessories]; updated[idx].isLinear = false; updated[idx].isSpaced = true; updateRecipe(recipe.id, { accessories: updated }); }} className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isSpaced ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400'}`}>CLIPS</button>
-                                    </div>
-                                    <button 
-                                        onClick={() => { const updated = [...recipe.accessories]; updated[idx].isAlternative = !updated[idx].isAlternative; updateRecipe(recipe.id, { accessories: updated }); }}
-                                        className={`px-2 py-1 rounded text-[7px] font-black border transition-all ${ra.isAlternative ? 'bg-amber-600 border-amber-700 text-white' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
-                                    >
-                                        ALT
-                                    </button>
-                                    <button onClick={() => updateRecipe(recipe.id, { accessories: recipe.accessories.filter((_, i) => i !== idx) })} className="text-slate-300 hover:text-red-500 p-1"><Trash2 size={14} /></button>
-                                </div>
-                                <div className="flex gap-2 items-center">
-                                    <div className="relative flex-1">
-                                        <Tag size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300" />
-                                        <input 
-                                          placeholder="Etiqueta (ej: RUEDAS)" 
-                                          className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 pl-6 pr-2 rounded text-[9px] font-black uppercase text-sky-600 outline-none" 
-                                          value={ra.label || ''} 
-                                          onChange={e => { const updated = [...recipe.accessories]; updated[idx].label = e.target.value.toUpperCase(); updateRecipe(recipe.id, { accessories: updated }); }}
-                                        />
-                                    </div>
-                                    {!ra.isSpaced && (
-                                        <input type="number" className="w-14 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 h-7 rounded text-center font-black text-[10px] dark:text-white" value={ra.quantity || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].quantity = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
-                                    )}
-                                    <span className="text-[8px] font-black text-slate-400 uppercase">{ra.isLinear ? 'ML' : ra.isSpaced ? 'C/MM' : 'UNID'}</span>
-                                    {ra.isLinear && (
-                                        <input className="flex-1 bg-sky-50/50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800 h-7 px-2 rounded font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" placeholder="Fórmula (W/H)" value={ra.formula || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
-                                    )}
-                                    {ra.isSpaced && (
-                                        <div className="flex gap-1 items-center flex-[2]">
-                                            <input className="w-12 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 h-7 px-1 rounded text-center font-mono text-[9px] font-black text-amber-600 outline-none" placeholder="mm" type="number" value={ra.spacingMm || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].spacingMm = parseFloat(e.target.value) || 0; updateRecipe(recipe.id, { accessories: updated }); }} />
-                                            <input className="flex-1 bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 h-7 px-2 rounded font-mono text-[9px] font-black text-amber-600 outline-none" placeholder="Longitud (W/H)" value={ra.formula || ''} onChange={e => { const updated = [...recipe.accessories]; updated[idx].formula = e.target.value; updateRecipe(recipe.id, { accessories: updated }); }} />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+              {" "}
+              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                {" "}
+                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                  <Ruler size={14} className="text-sky-600" /> Despiece de
+                  Perfiles Estructurales
+                </h4>{" "}
+                <button
+                  onClick={() =>
+                    updateRecipe(recipe.id, {
+                      profiles: [
+                        ...recipe.profiles,
+                        {
+                          profileId: aluminum[0]?.id || "",
+                          quantity: 1,
+                          formula: "W",
+                          cutStart: "45",
+                          cutEnd: "45",
+                          role: "Marco",
+                        },
+                      ],
+                    })
+                  }
+                  className="text-[8px] font-black uppercase text-sky-600 bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-100"
+                >
+                  + Insertar
+                </button>{" "}
+              </div>{" "}
+              <div className="space-y-1.5">
+                {" "}
+                {recipe.profiles.map((rp, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-12 gap-2 items-center bg-slate-50/50 p-2 rounded-xl border border-slate-100 group transition-all hover:bg-white hover:border-sky-100"
+                  >
+                    {" "}
+                    <div className="col-span-2">
+                      {" "}
+                      <select
+                        className="w-full bg-transparent text-[9px] font-black uppercase outline-none "
+                        value={rp.role || "Marco"}
+                        onChange={(e) => {
+                          const updated = [...recipe.profiles];
+                          updated[idx].role = e.target.value as any;
+                          updateRecipe(recipe.id, { profiles: updated });
+                        }}
+                      >
+                        {" "}
+                        {[
+                          "Marco",
+                          "Hoja",
+                          "Zócalo",
+                          "Travesaño",
+                          "Encuentro",
+                          "Acople",
+                          "Tapajuntas",
+                          "Mosquitero",
+                          "Contravidrio",
+                          ...((recipe.profiles.some(
+                            (p) => p.role === "Travesaño",
+                          )
+                            ? ["ContravidrioTravesaño"]
+                            : []) as any[]),
+                          "Otro",
+                        ].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}{" "}
+                      </select>{" "}
+                    </div>{" "}
+                    <div className="col-span-2">
+                      {" "}
+                      <select
+                        className="w-full bg-transparent text-[10px] font-black uppercase outline-none "
+                        value={rp.profileId || ""}
+                        onChange={(e) => {
+                          const updated = [...recipe.profiles];
+                          updated[idx].profileId = e.target.value;
+                          updateRecipe(recipe.id, { profiles: updated });
+                        }}
+                      >
+                        {aluminum.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.code}
+                          </option>
                         ))}
-                    </div>
-                </div>
-
-                <div className="bg-slate-50/50 dark:bg-slate-800/20 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">Vidriado Maestro</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <FormulaInput label="Desc. VS Ancho" value={recipe.glassFormulaW || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaW: v })} />
-                        <FormulaInput label="Desc. VS Alto" value={recipe.glassFormulaH || ''} onChange={v => updateRecipe(recipe.id, { glassFormulaH: v })} />
-                        <div className="space-y-1 flex-1">
-                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Desc. VS (Travesaño)</label>
-                            <input 
-                              type="number" 
-                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" 
-                              value={recipe.transomGlassDeduction || 0} 
-                              onChange={e => updateRecipe(recipe.id, { transomGlassDeduction: parseFloat(e.target.value) || 0 })} 
-                            />
+                      </select>{" "}
+                    </div>{" "}
+                    {recipe.visualType?.includes("sliding") && (
+                      <div className="col-span-1">
+                        {" "}
+                        <select
+                          className="w-full bg-transparent text-[9px] font-black uppercase outline-none "
+                          value={rp.alternative || ""}
+                          onChange={(e) => {
+                            const updated = [...recipe.profiles];
+                            updated[idx].alternative = e.target.value as any;
+                            updateRecipe(recipe.id, { profiles: updated });
+                          }}
+                        >
+                          {" "}
+                          <option value="">-</option>{" "}
+                          <option value="A">A</option>{" "}
+                          <option value="B">B</option>{" "}
+                        </select>{" "}
+                      </div>
+                    )}{" "}
+                    <div className="col-span-1">
+                      {" "}
+                      <input
+                        type="number"
+                        className="w-full bg-white border border-slate-200 p-1.5 rounded text-center font-black text-[10px] "
+                        value={rp.quantity || ""}
+                        onChange={(e) => {
+                          const updated = [...recipe.profiles];
+                          updated[idx].quantity = parseInt(e.target.value) || 0;
+                          updateRecipe(recipe.id, { profiles: updated });
+                        }}
+                      />{" "}
+                    </div>{" "}
+                    <div className="col-span-2">
+                      {" "}
+                      <input
+                        className="w-full bg-white border border-slate-200 px-2 py-1.5 rounded font-mono text-[10px] font-black text-sky-600 "
+                        value={rp.formula || ""}
+                        onChange={(e) => {
+                          const updated = [...recipe.profiles];
+                          updated[idx].formula = e.target.value;
+                          updateRecipe(recipe.id, { profiles: updated });
+                        }}
+                      />{" "}
+                    </div>{" "}
+                    <div className="col-span-2 space-y-1">
+                      {" "}
+                      <div className="flex gap-0.5 bg-slate-200/50 p-0.5 rounded-md">
+                        {" "}
+                        {["45", "90"].map((deg) => (
+                          <button
+                            key={deg}
+                            onClick={() => {
+                              const updated = [...recipe.profiles];
+                              updated[idx].cutStart = deg as any;
+                              updateRecipe(recipe.id, { profiles: updated });
+                            }}
+                            className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutStart === deg ? "bg-sky-500 text-white shadow-sm" : "text-slate-400"}`}
+                          >
+                            {deg}°
+                          </button>
+                        ))}{" "}
+                      </div>{" "}
+                    </div>{" "}
+                    <div className="col-span-2 space-y-1">
+                      {" "}
+                      <div className="flex gap-0.5 bg-slate-200/50 p-0.5 rounded-md">
+                        {" "}
+                        {["45", "90"].map((deg) => (
+                          <button
+                            key={deg}
+                            onClick={() => {
+                              const updated = [...recipe.profiles];
+                              updated[idx].cutEnd = deg as any;
+                              updateRecipe(recipe.id, { profiles: updated });
+                            }}
+                            className={`flex-1 py-1 text-[8px] font-black rounded ${rp.cutEnd === deg ? "bg-sky-500 text-white shadow-sm" : "text-slate-400"}`}
+                          >
+                            {deg}°
+                          </button>
+                        ))}{" "}
+                      </div>{" "}
+                      {(rp.role === "Contravidrio" ||
+                        rp.role === "ContravidrioTravesaño") && (
+                        <div className="relative group/bead">
+                          {" "}
+                          <button
+                            onClick={() => {
+                              const currentOptions =
+                                rp.glazingBeadOptions || [];
+                              /* Lógica simple */ if (
+                                currentOptions.length === 0
+                              ) {
+                                const updated = [...recipe.profiles];
+                                updated[idx].glazingBeadOptions = [
+                                  rp.profileId,
+                                ];
+                                updateRecipe(recipe.id, { profiles: updated });
+                              }
+                              /* UI comments */ const newOptions = prompt(
+                                "Ingrese IDs de perfiles compatibles separados por coma (o use el botón de abajo para gestionar mejor):",
+                                currentOptions.join(","),
+                              );
+                              if (newOptions !== null) {
+                                const updated = [...recipe.profiles];
+                                updated[idx].glazingBeadOptions = newOptions
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean);
+                                updateRecipe(recipe.id, { profiles: updated });
+                              }
+                            }}
+                            className={`w-full text-[7px] font-black uppercase py-1 rounded border ${rp.glazingBeadOptions?.length ? "bg-green-50 text-green-600 border-green-200" : "bg-slate-50 text-slate-400 border-slate-200"}`}
+                          >
+                            {" "}
+                            {rp.glazingBeadOptions?.length
+                              ? `${rp.glazingBeadOptions.length} OPCIONES`
+                              : "DINÁMICO"}{" "}
+                          </button>{" "}
+                          {/* Selector de Opciones de Contravidrio (Dropdown) */}{" "}
+                          <div className="hidden group-hover/bead:block absolute top-full right-0 w-64 bg-white border border-slate-200 shadow-xl rounded-xl p-2 z-50 mt-1">
+                            {" "}
+                            <p className="text-[8px] font-black uppercase text-slate-400 mb-2">
+                              Seleccionar Compatibles:
+                            </p>{" "}
+                            <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                              {" "}
+                              {aluminum
+                                .filter((a) => a.isGlazingBead)
+                                .map((bead) => (
+                                  <label
+                                    key={bead.id}
+                                    className="flex items-center gap-2 p-1 hover:bg-slate-50 rounded cursor-pointer"
+                                  >
+                                    {" "}
+                                    <input
+                                      type="checkbox"
+                                      className="rounded accent-sky-500"
+                                      checked={(
+                                        rp.glazingBeadOptions || []
+                                      ).includes(bead.id)}
+                                      onChange={(e) => {
+                                        const updated = [...recipe.profiles];
+                                        const current =
+                                          updated[idx].glazingBeadOptions || [];
+                                        if (e.target.checked) {
+                                          updated[idx].glazingBeadOptions = [
+                                            ...current,
+                                            bead.id,
+                                          ];
+                                        } else {
+                                          updated[idx].glazingBeadOptions =
+                                            current.filter(
+                                              (id) => id !== bead.id,
+                                            );
+                                        }
+                                        updateRecipe(recipe.id, {
+                                          profiles: updated,
+                                        });
+                                      }}
+                                    />{" "}
+                                    <div className="flex flex-col">
+                                      {" "}
+                                      <span className="text-[9px] font-bold ">
+                                        {bead.code}
+                                      </span>{" "}
+                                      <span className="text-[7px] text-slate-400">
+                                        {bead.glazingBeadStyle} |{" "}
+                                        {bead.minGlassThickness}-
+                                        {bead.maxGlassThickness}mm
+                                      </span>{" "}
+                                    </div>{" "}
+                                  </label>
+                                ))}{" "}
+                              {aluminum.filter((a) => a.isGlazingBead)
+                                .length === 0 && (
+                                <p className="text-[8px] text-red-400">
+                                  No hay perfiles marcados como contravidrio en
+                                  la base de datos.
+                                </p>
+                              )}{" "}
+                            </div>{" "}
+                          </div>{" "}
                         </div>
-                        <FormulaInput label="Desc. DVH Ancho" value={recipe.dvhFormulaW || ''} onChange={v => updateRecipe(recipe.id, { dvhFormulaW: v })} />
-                        <FormulaInput label="Desc. DVH Alto" value={recipe.dvhFormulaH || ''} onChange={v => updateRecipe(recipe.id, { dvhFormulaH: v })} />
-                        <div className="space-y-1 flex-1">
-                            <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">Desc. DVH (Travesaño)</label>
-                            <input 
-                              type="number" 
-                              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" 
-                              value={recipe.dvhTransomGlassDeduction || 0} 
-                              onChange={e => updateRecipe(recipe.id, { dvhTransomGlassDeduction: parseFloat(e.target.value) || 0 })} 
-                            />
-                        </div>
+                      )}{" "}
+                    </div>{" "}
+                    <div className="col-span-1 text-right">
+                      {" "}
+                      <button
+                        onClick={() =>
+                          updateRecipe(recipe.id, {
+                            profiles: recipe.profiles.filter(
+                              (_, i) => i !== idx,
+                            ),
+                          })
+                        }
+                        className="text-slate-300 hover:text-red-500 p-1"
+                      >
+                        <Trash2 size={14} />
+                      </button>{" "}
+                    </div>{" "}
+                  </div>
+                ))}{" "}
+              </div>{" "}
+            </div>{" "}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {" "}
+              <div className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm space-y-4">
+                {" "}
+                <div className="flex justify-between items-center px-2">
+                  {" "}
+                  <div className="flex items-center gap-2">
+                    {" "}
+                    <Wind size={16} className="text-sky-600" />{" "}
+                    <h5 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                      Insumos y Accesorios
+                    </h5>{" "}
+                  </div>{" "}
+                  <button
+                    onClick={() =>
+                      updateRecipe(recipe.id, {
+                        accessories: [
+                          ...recipe.accessories,
+                          {
+                            accessoryId: accessories[0]?.id || "",
+                            quantity: 1,
+                            isLinear: false,
+                            formula: "W",
+                          },
+                        ],
+                      })
+                    }
+                    className="px-3 py-1 bg-sky-50 text-sky-600 border border-sky-100 rounded-lg text-[9px] font-black uppercase hover:bg-sky-600 hover:text-white transition-all"
+                  >
+                    Añadir
+                  </button>{" "}
+                </div>{" "}
+                <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                  {" "}
+                  {recipe.accessories.map((ra, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-slate-50/50 p-2 rounded-xl border border-slate-100 space-y-2 group transition-all hover:bg-white "
+                    >
+                      {" "}
+                      <div className="flex items-center gap-2">
+                        {" "}
+                        <div className="flex-1 relative">
+                          {" "}
+                          <select
+                            className="w-full bg-white border border-slate-200 h-8 px-2 pr-6 rounded text-[9px] font-black uppercase outline-none appearance-none "
+                            value={ra.accessoryId || ""}
+                            onChange={(e) => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].accessoryId = e.target.value;
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                          >
+                            {" "}
+                            {accessories.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.code} - {a.detail}
+                              </option>
+                            ))}{" "}
+                          </select>{" "}
+                          <ChevronDown
+                            size={10}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+                          />{" "}
+                        </div>{" "}
+                        <div className="flex bg-slate-200 p-0.5 rounded-lg h-8 items-center min-w-[90px]">
+                          {" "}
+                          <button
+                            onClick={() => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].isLinear = false;
+                              updated[idx].isSpaced = false;
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                            className={`flex-1 h-full text-[8px] font-black rounded transition-all ${!ra.isLinear && !ra.isSpaced ? "bg-white text-sky-600 shadow-sm" : "text-slate-400"}`}
+                          >
+                            U
+                          </button>{" "}
+                          <button
+                            onClick={() => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].isLinear = true;
+                              updated[idx].isSpaced = false;
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                            className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isLinear ? "bg-sky-600 text-white shadow-sm" : "text-slate-400"}`}
+                          >
+                            ML
+                          </button>{" "}
+                          <button
+                            onClick={() => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].isLinear = false;
+                              updated[idx].isSpaced = true;
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                            className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isSpaced ? "bg-amber-500 text-white shadow-sm" : "text-slate-400"}`}
+                          >
+                            CLIPS
+                          </button>{" "}
+                        </div>{" "}
+                        <button
+                          onClick={() => {
+                            const updated = [...recipe.accessories];
+                            updated[idx].isAlternative =
+                              !updated[idx].isAlternative;
+                            updateRecipe(recipe.id, { accessories: updated });
+                          }}
+                          className={`px-2 py-1 rounded text-[7px] font-black border transition-all ${ra.isAlternative ? "bg-amber-600 border-amber-700 text-white" : "bg-slate-50 text-slate-400 border-slate-200"}`}
+                        >
+                          {" "}
+                          ALT{" "}
+                        </button>{" "}
+                        <button
+                          onClick={() =>
+                            updateRecipe(recipe.id, {
+                              accessories: recipe.accessories.filter(
+                                (_, i) => i !== idx,
+                              ),
+                            })
+                          }
+                          className="text-slate-300 hover:text-red-500 p-1"
+                        >
+                          <Trash2 size={14} />
+                        </button>{" "}
+                      </div>{" "}
+                      <div className="flex gap-2 items-center">
+                        {" "}
+                        <div className="relative flex-1">
+                          {" "}
+                          <Tag
+                            size={10}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300"
+                          />{" "}
+                          <input
+                            placeholder="Etiqueta (ej: RUEDAS)"
+                            className="w-full bg-slate-50 border border-slate-200 h-7 pl-6 pr-2 rounded text-[9px] font-black uppercase text-sky-600 outline-none"
+                            value={ra.label || ""}
+                            onChange={(e) => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].label = e.target.value.toUpperCase();
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                          />{" "}
+                        </div>{" "}
+                        {!ra.isSpaced && (
+                          <input
+                            type="number"
+                            className="w-14 bg-white border border-slate-200 h-7 rounded text-center font-black text-[10px] "
+                            value={ra.quantity || ""}
+                            onChange={(e) => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].quantity =
+                                parseFloat(e.target.value) || 0;
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                          />
+                        )}{" "}
+                        <span className="text-[8px] font-black text-slate-400 uppercase">
+                          {ra.isLinear ? "ML" : ra.isSpaced ? "C/MM" : "UNID"}
+                        </span>{" "}
+                        {ra.isLinear && (
+                          <input
+                            className="flex-1 bg-sky-50/50 border border-sky-100 h-7 px-2 rounded font-mono text-[9px] font-black text-sky-600 outline-none"
+                            placeholder="Fórmula (W/H)"
+                            value={ra.formula || ""}
+                            onChange={(e) => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].formula = e.target.value;
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                          />
+                        )}{" "}
+                        {ra.isSpaced && (
+                          <div className="flex gap-1 items-center flex-[2]">
+                            {" "}
+                            <input
+                              className="w-12 bg-amber-50/50 border border-amber-200 h-7 px-1 rounded text-center font-mono text-[9px] font-black text-amber-600 outline-none"
+                              placeholder="mm"
+                              type="number"
+                              value={ra.spacingMm || ""}
+                              onChange={(e) => {
+                                const updated = [...recipe.accessories];
+                                updated[idx].spacingMm =
+                                  parseFloat(e.target.value) || 0;
+                                updateRecipe(recipe.id, {
+                                  accessories: updated,
+                                });
+                              }}
+                            />{" "}
+                            <input
+                              className="flex-1 bg-amber-50/50 border border-amber-200 h-7 px-2 rounded font-mono text-[9px] font-black text-amber-600 outline-none"
+                              placeholder="Longitud (W/H)"
+                              value={ra.formula || ""}
+                              onChange={(e) => {
+                                const updated = [...recipe.accessories];
+                                updated[idx].formula = e.target.value;
+                                updateRecipe(recipe.id, {
+                                  accessories: updated,
+                                });
+                              }}
+                            />{" "}
+                          </div>
+                        )}{" "}
+                      </div>{" "}
                     </div>
-                </div>
-            </div>
+                  ))}{" "}
+                </div>{" "}
+              </div>{" "}
+              <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
+                {" "}
+                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                  Vidriado Maestro
+                </h4>{" "}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {" "}
+                  <FormulaInput
+                    label="Desc. VS Ancho"
+                    value={recipe.glassFormulaW || ""}
+                    onChange={(v) =>
+                      updateRecipe(recipe.id, { glassFormulaW: v })
+                    }
+                  />{" "}
+                  <FormulaInput
+                    label="Desc. VS Alto"
+                    value={recipe.glassFormulaH || ""}
+                    onChange={(v) =>
+                      updateRecipe(recipe.id, { glassFormulaH: v })
+                    }
+                  />{" "}
+                  <div className="space-y-1 flex-1">
+                    {" "}
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
+                      Desc. VS (Travesaño)
+                    </label>{" "}
+                    <input
+                      type="number"
+                      className="w-full bg-white border border-slate-200 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 outline-none"
+                      value={recipe.transomGlassDeduction || 0}
+                      onChange={(e) =>
+                        updateRecipe(recipe.id, {
+                          transomGlassDeduction:
+                            parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />{" "}
+                  </div>{" "}
+                  <FormulaInput
+                    label="Desc. DVH Ancho"
+                    value={recipe.dvhFormulaW || ""}
+                    onChange={(v) =>
+                      updateRecipe(recipe.id, { dvhFormulaW: v })
+                    }
+                  />{" "}
+                  <FormulaInput
+                    label="Desc. DVH Alto"
+                    value={recipe.dvhFormulaH || ""}
+                    onChange={(v) =>
+                      updateRecipe(recipe.id, { dvhFormulaH: v })
+                    }
+                  />{" "}
+                  <div className="space-y-1 flex-1">
+                    {" "}
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
+                      Desc. DVH (Travesaño)
+                    </label>{" "}
+                    <input
+                      type="number"
+                      className="w-full bg-white border border-slate-200 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 outline-none"
+                      value={recipe.dvhTransomGlassDeduction || 0}
+                      onChange={(e) =>
+                        updateRecipe(recipe.id, {
+                          dvhTransomGlassDeduction:
+                            parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />{" "}
+                  </div>{" "}
+                </div>{" "}
+              </div>{" "}
+            </div>{" "}
           </div>
         ) : (
-          <div className="h-[85vh] flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-300 space-y-4 transition-colors">
-            <Shapes size={60} className="opacity-10" />
-            <p className="text-[9px] font-black uppercase tracking-widest">Seleccione un sistema de ingeniería</p>
+          <div className="h-[85vh] flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200 text-slate-300 space-y-4 transition-colors">
+            {" "}
+            <Shapes size={60} className="opacity-10" />{" "}
+            <p className="text-[9px] font-black uppercase tracking-widest">
+              Seleccione un sistema de ingeniería
+            </p>{" "}
           </div>
-        )}
-      </div>
+        )}{" "}
+      </div>{" "}
     </div>
   );
 };
-
-const FormulaInput: React.FC<{ label: string; value?: string; onChange: (v: string) => void }> = ({ label, value, onChange }) => (
-    <div className="space-y-1 flex-1">
-        <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">{label}</label>
-        <input className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 dark:text-sky-400 outline-none" value={value || ''} onChange={e => onChange(e.target.value)} />
-    </div>
+const FormulaInput: React.FC<{
+  label: string;
+  value?: string;
+  onChange: (v: string) => void;
+}> = ({ label, value, onChange }) => (
+  <div className="space-y-1 flex-1">
+    {" "}
+    <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
+      {label}
+    </label>{" "}
+    <input
+      className="w-full bg-white border border-slate-200 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 outline-none"
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+    />{" "}
+  </div>
 );
-
 export default ProductRecipeEditor;
