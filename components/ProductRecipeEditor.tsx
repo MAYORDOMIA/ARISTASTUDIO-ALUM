@@ -554,146 +554,167 @@ const ProductRecipeEditor: React.FC<Props> = ({
       setEditingId(null);
     }
   };
+
+  const handleRemoveDuplicates = async () => {
+    const uniqueRecipes: ProductRecipe[] = [];
+    const seenNames = new Set<string>();
+
+    recipes.forEach((recipe) => {
+      const normalizedName = (recipe.name || "").trim().toLowerCase();
+      if (!seenNames.has(normalizedName)) {
+        seenNames.add(normalizedName);
+        uniqueRecipes.push(recipe);
+      }
+    });
+
+    if (uniqueRecipes.length < recipes.length) {
+      const deletedRecipes = recipes.filter((r) => !uniqueRecipes.includes(r));
+      setRecipes(uniqueRecipes);
+
+      if (isSupabaseConfigured && userId) {
+        for (const recipe of deletedRecipes) {
+          try {
+            await supabase
+              .from("recetas_usuario")
+              .delete()
+              .eq("user_id", userId)
+              .eq("receta_id", recipe.id);
+          } catch (e) {
+            console.error("Error al eliminar duplicado de la BD", e);
+          }
+        }
+      }
+      alert(
+        `Se han eliminado ${recipes.length - uniqueRecipes.length} recetas duplicadas.`,
+      );
+    } else {
+      alert("No se encontraron recetas duplicadas por nombre.");
+    }
+  };
   const isTubeType =
     recipe?.visualType === "tubo_h" || recipe?.visualType === "tubo_v";
   return (
     <div className="flex flex-col lg:flex-row h-full gap-6 animate-in fade-in duration-500 overflow-y-auto lg:overflow-hidden pb-20 lg:pb-0">
-      {" "}
       {showWarning && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
-          {" "}
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-100 text-center space-y-6">
-            {" "}
             <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 mx-auto shadow-lg">
-              {" "}
-              <AlertTriangle size={32} />{" "}
-            </div>{" "}
+              <AlertTriangle size={32} />
+            </div>
             <div className="space-y-2">
-              {" "}
               <h3 className="text-xl font-black uppercase text-slate-800 tracking-tighter">
                 Precaución de Ingeniería
-              </h3>{" "}
+              </h3>
               <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                {" "}
-                Vas a acceder a un sistema con fórmulas de cálculo validadas.{" "}
-                <br />{" "}
+                Vas a acceder a un sistema con fórmulas de cálculo validadas.
+                <br />
                 <span className="font-black text-amber-600">
                   Cualquier cambio accidental en las variables afectará la
                   producción y costos.
-                </span>{" "}
-              </p>{" "}
-            </div>{" "}
+                </span>
+              </p>
+            </div>
             <button
               onClick={() => setShowWarning(false)}
               className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest shadow-xl hover:bg-indigo-600 transition-all"
             >
-              {" "}
-              Entendido, Acceder a Edición{" "}
-            </button>{" "}
-          </div>{" "}
+              Entendido, Acceder a Edición
+            </button>
+          </div>
         </div>
-      )}{" "}
+      )}
       <div className="w-full lg:w-80 flex flex-col gap-4">
-        {" "}
         <div className="bg-white border border-slate-200 rounded-[1.5rem] p-5 shadow-sm flex flex-col h-auto lg:h-[85vh] transition-colors">
-          {" "}
           <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
-            {" "}
             <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-lg">
               <Shapes size={20} />
-            </div>{" "}
+            </div>
             <div>
-              {" "}
               <h3 className="text-[10px] font-black uppercase text-slate-800 tracking-widest">
                 Sistemas Maestros
-              </h3>{" "}
-            </div>{" "}
-          </div>{" "}
+              </h3>
+            </div>
+          </div>
           <div className="relative mt-4">
-            {" "}
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300"
               size={14}
-            />{" "}
+            />
             <input
               className="w-full bg-slate-50 border border-slate-100 pl-9 pr-3 py-2.5 rounded-xl text-[10px] font-bold uppercase outline-none focus:border-sky-500 shadow-inner"
               placeholder="Filtrar..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-            />{" "}
-          </div>{" "}
+            />
+          </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 mt-4">
-            {" "}
             {filteredRecipes.map((r) => (
               <button
                 key={r.id}
                 onClick={() => handleSelectRecipe(r.id)}
                 className={`w-full text-left p-4 rounded-2xl border transition-all ${editingId === r.id ? "bg-sky-500 border-sky-600 text-white shadow-lg" : "bg-white border-slate-50 hover:border-sky-200 text-slate-600"}`}
               >
-                {" "}
                 <div className="flex justify-between items-center mb-1">
-                  {" "}
                   <span
                     className={`text-[8px] font-black uppercase tracking-widest ${editingId === r.id ? "text-sky-200" : "text-sky-600"}`}
                   >
                     {r.line}
-                  </span>{" "}
-                </div>{" "}
+                  </span>
+                </div>
                 <span className="text-[11px] font-black uppercase truncate block">
                   {r.name}
-                </span>{" "}
+                </span>
               </button>
-            ))}{" "}
-          </div>{" "}
+            ))}
+          </div>
           <div className="grid grid-cols-2 gap-2 mt-4">
-            {" "}
             <button
               onClick={handleExportRecipes}
               className="flex items-center justify-center gap-2 p-3 bg-slate-50 rounded-xl text-[8px] font-black uppercase hover:bg-slate-100 border border-slate-200"
             >
               <Download size={12} /> Exportar
-            </button>{" "}
+            </button>
             <button
               onClick={() => importFileRef.current?.click()}
               className="flex items-center justify-center gap-2 p-3 bg-slate-50 rounded-xl text-[8px] font-black uppercase hover:bg-slate-100 border border-slate-200"
             >
               <Upload size={12} /> Importar
-            </button>{" "}
+            </button>
             <input
               type="file"
               ref={importFileRef}
               onChange={handleImportRecipes}
               className="hidden"
               accept=".json"
-            />{" "}
-          </div>{" "}
+            />
+          </div>
           <button
             onClick={addNewRecipe}
             className="w-full bg-slate-900 text-white font-black py-4 rounded-xl text-[9px] uppercase tracking-widest hover:bg-sky-500 transition-all mt-2"
           >
             <Plus size={14} /> Nueva Ingeniería
-          </button>{" "}
+          </button>
           <button
             onClick={handleDeleteAllRecipes}
             className="w-full bg-red-50 text-red-600 font-black py-3 rounded-xl text-[8px] uppercase tracking-widest hover:bg-red-100 border border-red-100 transition-all mt-2 flex items-center justify-center gap-2"
           >
             <Trash2 size={14} /> Eliminar Todas
-          </button>{" "}
-        </div>{" "}
-      </div>{" "}
+          </button>
+          <button
+            onClick={handleRemoveDuplicates}
+            className="w-full bg-amber-50 text-amber-600 font-black py-3 rounded-xl text-[8px] uppercase tracking-widest hover:bg-amber-100 border border-amber-100 transition-all mt-2 flex items-center justify-center gap-2"
+          >
+            <Tag size={14} /> Eliminar Duplicadas
+          </button>
+        </div>
+      </div>
       <div className="flex-1 min-w-0">
-        {" "}
         {recipe ? (
           <div className="bg-white border border-slate-200 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm h-auto lg:h-[85vh] overflow-y-auto custom-scrollbar space-y-6 lg:space-y-8 border-t-8 border-t-sky-500 transition-colors">
-            {" "}
             <div className="flex justify-between items-start gap-6">
-              {" "}
               <div className="flex-1 min-w-0 space-y-4">
-                {" "}
                 <div className="flex items-center gap-4">
-                  {" "}
                   <div className="flex-1 min-w-0">
-                    {" "}
                     <input
                       className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 focus:outline-none bg-transparent w-full`}
                       value={recipe.name || ""}
@@ -702,10 +723,9 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           name: e.target.value.toUpperCase(),
                         })
                       }
-                    />{" "}
-                  </div>{" "}
+                    />
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {" "}
                     <button
                       onClick={() => {
                         const newId = Date.now().toString();
@@ -720,9 +740,8 @@ const ProductRecipeEditor: React.FC<Props> = ({
                       className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
                       title="Duplicar Sistema"
                     >
-                      {" "}
-                      <Plus size={16} /> DUPLICAR{" "}
-                    </button>{" "}
+                      <Plus size={16} /> DUPLICAR
+                    </button>
                     <button
                       onClick={() =>
                         generateRecipeTechnicalPDF(
@@ -735,21 +754,18 @@ const ProductRecipeEditor: React.FC<Props> = ({
                       className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
                       title="Descargar PDF"
                     >
-                      {" "}
-                      <FileText size={16} /> PDF{" "}
-                    </button>{" "}
+                      <FileText size={16} /> PDF
+                    </button>
                     <button
                       onClick={handleSaveManual}
                       className={`px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? "bg-green-600 text-white border-green-700" : "bg-sky-500 text-white border-sky-600 hover:bg-sky-400"}`}
                     >
-                      {" "}
-                      {isSaving ? <Check size={18} /> : <Save size={18} />}{" "}
-                      {isSaving ? "GUARDADO" : "GUARDAR CAMBIOS"}{" "}
-                    </button>{" "}
-                  </div>{" "}
-                </div>{" "}
+                      {isSaving ? <Check size={18} /> : <Save size={18} />}
+                      {isSaving ? "GUARDADO" : "GUARDAR CAMBIOS"}
+                    </button>
+                  </div>
+                </div>
                 <div className="flex flex-wrap gap-4 items-center">
-                  {" "}
                   <select
                     className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none"
                     value={recipe.type || ""}
@@ -757,7 +773,6 @@ const ProductRecipeEditor: React.FC<Props> = ({
                       updateRecipe(recipe.id, { type: e.target.value as any })
                     }
                   >
-                    {" "}
                     {[
                       "Ventana",
                       "Puerta",
@@ -770,8 +785,8 @@ const ProductRecipeEditor: React.FC<Props> = ({
                       <option key={v} value={v}>
                         {v}
                       </option>
-                    ))}{" "}
-                  </select>{" "}
+                    ))}
+                  </select>
                   <select
                     className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none"
                     value={recipe.visualType || ""}
@@ -779,20 +794,18 @@ const ProductRecipeEditor: React.FC<Props> = ({
                       updateRecipe(recipe.id, { visualType: e.target.value })
                     }
                   >
-                    {" "}
                     {DEFAULT_VISUAL_TYPES.map((vt) => (
                       <option key={vt.id} value={vt.id}>
                         {vt.label}
                       </option>
-                    ))}{" "}
-                  </select>{" "}
+                    ))}
+                  </select>
                   <div
                     className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 rounded-xl border border-sky-100/50 `}
                   >
-                    {" "}
                     <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">
                       Línea:
-                    </span>{" "}
+                    </span>
                     <input
                       className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 outline-none w-24"
                       value={recipe.line || ""}
@@ -801,15 +814,14 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           line: e.target.value.toUpperCase(),
                         })
                       }
-                    />{" "}
-                  </div>{" "}
+                    />
+                  </div>
                   <div
                     className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-xl border border-emerald-100/50 `}
                   >
-                    {" "}
                     <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
                       Cant. Hojas:
-                    </span>{" "}
+                    </span>
                     <input
                       type="number"
                       min="1"
@@ -824,16 +836,15 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             : undefined,
                         })
                       }
-                    />{" "}
-                  </div>{" "}
+                    />
+                  </div>
                   {isTubeType && (
                     <div
                       className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 rounded-xl border border-amber-200 animate-in zoom-in`}
                     >
-                      {" "}
                       <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">
                         Espesor (mm):
-                      </span>{" "}
+                      </span>
                       <input
                         type="number"
                         className="bg-transparent border-none text-[10px] font-black text-amber-700 outline-none w-16 text-center"
@@ -843,11 +854,11 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             transomThickness: parseInt(e.target.value) || 0,
                           })
                         }
-                      />{" "}
+                      />
                     </div>
-                  )}{" "}
-                </div>{" "}
-              </div>{" "}
+                  )}
+                </div>
+              </div>
               <button
                 onClick={() => {
                   if (confirm("¿Eliminar sistema?")) {
@@ -858,16 +869,14 @@ const ProductRecipeEditor: React.FC<Props> = ({
                 className="shrink-0 p-4 bg-slate-50 text-slate-300 rounded-2xl hover:text-red-500 border border-slate-100 transition-colors"
               >
                 <Trash2 size={20} />
-              </button>{" "}
-            </div>{" "}
+              </button>
+            </div>
             <div className="space-y-4">
-              {" "}
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                {" "}
                 <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                   <Ruler size={14} className="text-sky-600" /> Despiece de
                   Perfiles Estructurales
-                </h4>{" "}
+                </h4>
                 <button
                   onClick={() =>
                     updateRecipe(recipe.id, {
@@ -887,18 +896,15 @@ const ProductRecipeEditor: React.FC<Props> = ({
                   className="text-[8px] font-black uppercase text-sky-600 bg-sky-50 px-3 py-1.5 rounded-lg border border-sky-100"
                 >
                   + Insertar
-                </button>{" "}
-              </div>{" "}
+                </button>
+              </div>
               <div className="space-y-1.5">
-                {" "}
                 {recipe.profiles.map((rp, idx) => (
                   <div
                     key={idx}
                     className="grid grid-cols-12 gap-2 items-center bg-slate-50/50 p-2 rounded-xl border border-slate-100 group transition-all hover:bg-white hover:border-sky-100"
                   >
-                    {" "}
                     <div className="col-span-2">
-                      {" "}
                       <select
                         className="w-full bg-transparent text-[9px] font-black uppercase outline-none "
                         value={rp.role || "Marco"}
@@ -908,7 +914,6 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           updateRecipe(recipe.id, { profiles: updated });
                         }}
                       >
-                        {" "}
                         {[
                           "Marco",
                           "Hoja",
@@ -929,11 +934,10 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           <option key={r} value={r}>
                             {r}
                           </option>
-                        ))}{" "}
-                      </select>{" "}
-                    </div>{" "}
+                        ))}
+                      </select>
+                    </div>
                     <div className="col-span-2">
-                      {" "}
                       <select
                         className="w-full bg-transparent text-[10px] font-black uppercase outline-none "
                         value={rp.profileId || ""}
@@ -948,11 +952,10 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             {a.code}
                           </option>
                         ))}
-                      </select>{" "}
-                    </div>{" "}
+                      </select>
+                    </div>
                     {recipe.visualType?.includes("sliding") && (
                       <div className="col-span-1">
-                        {" "}
                         <select
                           className="w-full bg-transparent text-[9px] font-black uppercase outline-none "
                           value={rp.alternative || ""}
@@ -962,15 +965,13 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             updateRecipe(recipe.id, { profiles: updated });
                           }}
                         >
-                          {" "}
-                          <option value="">-</option>{" "}
-                          <option value="A">A</option>{" "}
-                          <option value="B">B</option>{" "}
-                        </select>{" "}
+                          <option value="">-</option>
+                          <option value="A">A</option>
+                          <option value="B">B</option>
+                        </select>
                       </div>
-                    )}{" "}
+                    )}
                     <div className="col-span-1">
-                      {" "}
                       <input
                         type="number"
                         className="w-full bg-white border border-slate-200 p-1.5 rounded text-center font-black text-[10px] "
@@ -980,10 +981,9 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           updated[idx].quantity = parseInt(e.target.value) || 0;
                           updateRecipe(recipe.id, { profiles: updated });
                         }}
-                      />{" "}
-                    </div>{" "}
+                      />
+                    </div>
                     <div className="col-span-2">
-                      {" "}
                       <input
                         className="w-full bg-white border border-slate-200 px-2 py-1.5 rounded font-mono text-[10px] font-black text-sky-600 "
                         value={rp.formula || ""}
@@ -992,12 +992,10 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           updated[idx].formula = e.target.value;
                           updateRecipe(recipe.id, { profiles: updated });
                         }}
-                      />{" "}
-                    </div>{" "}
+                      />
+                    </div>
                     <div className="col-span-2 space-y-1">
-                      {" "}
                       <div className="flex gap-0.5 bg-slate-200/50 p-0.5 rounded-md">
-                        {" "}
                         {["45", "90"].map((deg) => (
                           <button
                             key={deg}
@@ -1010,13 +1008,11 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           >
                             {deg}°
                           </button>
-                        ))}{" "}
-                      </div>{" "}
-                    </div>{" "}
+                        ))}
+                      </div>
+                    </div>
                     <div className="col-span-2 space-y-1">
-                      {" "}
                       <div className="flex gap-0.5 bg-slate-200/50 p-0.5 rounded-md">
-                        {" "}
                         {["45", "90"].map((deg) => (
                           <button
                             key={deg}
@@ -1029,12 +1025,11 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           >
                             {deg}°
                           </button>
-                        ))}{" "}
-                      </div>{" "}
+                        ))}
+                      </div>
                       {(rp.role === "Contravidrio" ||
                         rp.role === "ContravidrioTravesaño") && (
                         <div className="relative group/bead">
-                          {" "}
                           <button
                             onClick={() => {
                               const currentOptions =
@@ -1063,19 +1058,16 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             }}
                             className={`w-full text-[7px] font-black uppercase py-1 rounded border ${rp.glazingBeadOptions?.length ? "bg-green-50 text-green-600 border-green-200" : "bg-slate-50 text-slate-400 border-slate-200"}`}
                           >
-                            {" "}
                             {rp.glazingBeadOptions?.length
                               ? `${rp.glazingBeadOptions.length} OPCIONES`
-                              : "DINÁMICO"}{" "}
-                          </button>{" "}
-                          {/* Selector de Opciones de Contravidrio (Dropdown) */}{" "}
+                              : "DINÁMICO"}
+                          </button>
+                          {/* Selector de Opciones de Contravidrio (Dropdown) */}
                           <div className="hidden group-hover/bead:block absolute top-full right-0 w-64 bg-white border border-slate-200 shadow-xl rounded-xl p-2 z-50 mt-1">
-                            {" "}
                             <p className="text-[8px] font-black uppercase text-slate-400 mb-2">
                               Seleccionar Compatibles:
-                            </p>{" "}
+                            </p>
                             <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
-                              {" "}
                               {aluminum
                                 .filter((a) => a.isGlazingBead)
                                 .map((bead) => (
@@ -1083,7 +1075,6 @@ const ProductRecipeEditor: React.FC<Props> = ({
                                     key={bead.id}
                                     className="flex items-center gap-2 p-1 hover:bg-slate-50 rounded cursor-pointer"
                                   >
-                                    {" "}
                                     <input
                                       type="checkbox"
                                       className="rounded accent-sky-500"
@@ -1109,34 +1100,32 @@ const ProductRecipeEditor: React.FC<Props> = ({
                                           profiles: updated,
                                         });
                                       }}
-                                    />{" "}
+                                    />
                                     <div className="flex flex-col">
-                                      {" "}
                                       <span className="text-[9px] font-bold ">
                                         {bead.code}
-                                      </span>{" "}
+                                      </span>
                                       <span className="text-[7px] text-slate-400">
-                                        {bead.glazingBeadStyle} |{" "}
+                                        {bead.glazingBeadStyle} |
                                         {bead.minGlassThickness}-
                                         {bead.maxGlassThickness}mm
-                                      </span>{" "}
-                                    </div>{" "}
+                                      </span>
+                                    </div>
                                   </label>
-                                ))}{" "}
+                                ))}
                               {aluminum.filter((a) => a.isGlazingBead)
                                 .length === 0 && (
                                 <p className="text-[8px] text-red-400">
                                   No hay perfiles marcados como contravidrio en
                                   la base de datos.
                                 </p>
-                              )}{" "}
-                            </div>{" "}
-                          </div>{" "}
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      )}{" "}
-                    </div>{" "}
+                      )}
+                    </div>
                     <div className="col-span-1 text-right">
-                      {" "}
                       <button
                         onClick={() =>
                           updateRecipe(recipe.id, {
@@ -1148,25 +1137,21 @@ const ProductRecipeEditor: React.FC<Props> = ({
                         className="text-slate-300 hover:text-red-500 p-1"
                       >
                         <Trash2 size={14} />
-                      </button>{" "}
-                    </div>{" "}
+                      </button>
+                    </div>
                   </div>
-                ))}{" "}
-              </div>{" "}
-            </div>{" "}
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {" "}
               <div className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm space-y-4">
-                {" "}
                 <div className="flex justify-between items-center px-2">
-                  {" "}
                   <div className="flex items-center gap-2">
-                    {" "}
-                    <Wind size={16} className="text-sky-600" />{" "}
+                    <Wind size={16} className="text-sky-600" />
                     <h5 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
                       Insumos y Accesorios
-                    </h5>{" "}
-                  </div>{" "}
+                    </h5>
+                  </div>
                   <button
                     onClick={() =>
                       updateRecipe(recipe.id, {
@@ -1184,20 +1169,16 @@ const ProductRecipeEditor: React.FC<Props> = ({
                     className="px-3 py-1 bg-sky-50 text-sky-600 border border-sky-100 rounded-lg text-[9px] font-black uppercase hover:bg-sky-600 hover:text-white transition-all"
                   >
                     Añadir
-                  </button>{" "}
-                </div>{" "}
+                  </button>
+                </div>
                 <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                  {" "}
                   {recipe.accessories.map((ra, idx) => (
                     <div
                       key={idx}
                       className="bg-slate-50/50 p-2 rounded-xl border border-slate-100 space-y-2 group transition-all hover:bg-white "
                     >
-                      {" "}
                       <div className="flex items-center gap-2">
-                        {" "}
                         <div className="flex-1 relative">
-                          {" "}
                           <select
                             className="w-full bg-white border border-slate-200 h-8 px-2 pr-6 rounded text-[9px] font-black uppercase outline-none appearance-none "
                             value={ra.accessoryId || ""}
@@ -1207,20 +1188,18 @@ const ProductRecipeEditor: React.FC<Props> = ({
                               updateRecipe(recipe.id, { accessories: updated });
                             }}
                           >
-                            {" "}
                             {accessories.map((a) => (
                               <option key={a.id} value={a.id}>
                                 {a.code} - {a.detail}
                               </option>
-                            ))}{" "}
-                          </select>{" "}
+                            ))}
+                          </select>
                           <ChevronDown
                             size={10}
                             className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
-                          />{" "}
-                        </div>{" "}
+                          />
+                        </div>
                         <div className="flex bg-slate-200 p-0.5 rounded-lg h-8 items-center min-w-[90px]">
-                          {" "}
                           <button
                             onClick={() => {
                               const updated = [...recipe.accessories];
@@ -1231,7 +1210,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             className={`flex-1 h-full text-[8px] font-black rounded transition-all ${!ra.isLinear && !ra.isSpaced ? "bg-white text-sky-600 shadow-sm" : "text-slate-400"}`}
                           >
                             U
-                          </button>{" "}
+                          </button>
                           <button
                             onClick={() => {
                               const updated = [...recipe.accessories];
@@ -1242,7 +1221,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isLinear ? "bg-sky-600 text-white shadow-sm" : "text-slate-400"}`}
                           >
                             ML
-                          </button>{" "}
+                          </button>
                           <button
                             onClick={() => {
                               const updated = [...recipe.accessories];
@@ -1253,8 +1232,8 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             className={`flex-1 h-full text-[8px] font-black rounded transition-all ${ra.isSpaced ? "bg-amber-500 text-white shadow-sm" : "text-slate-400"}`}
                           >
                             CLIPS
-                          </button>{" "}
-                        </div>{" "}
+                          </button>
+                        </div>
                         <button
                           onClick={() => {
                             const updated = [...recipe.accessories];
@@ -1264,9 +1243,8 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           }}
                           className={`px-2 py-1 rounded text-[7px] font-black border transition-all ${ra.isAlternative ? "bg-amber-600 border-amber-700 text-white" : "bg-slate-50 text-slate-400 border-slate-200"}`}
                         >
-                          {" "}
-                          ALT{" "}
-                        </button>{" "}
+                          ALT
+                        </button>
                         <button
                           onClick={() =>
                             updateRecipe(recipe.id, {
@@ -1278,16 +1256,14 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           className="text-slate-300 hover:text-red-500 p-1"
                         >
                           <Trash2 size={14} />
-                        </button>{" "}
-                      </div>{" "}
+                        </button>
+                      </div>
                       <div className="flex gap-2 items-center">
-                        {" "}
                         <div className="relative flex-1">
-                          {" "}
                           <Tag
                             size={10}
                             className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-300"
-                          />{" "}
+                          />
                           <input
                             placeholder="Etiqueta (ej: RUEDAS)"
                             className="w-full bg-slate-50 border border-slate-200 h-7 pl-6 pr-2 rounded text-[9px] font-black uppercase text-sky-600 outline-none"
@@ -1297,8 +1273,8 @@ const ProductRecipeEditor: React.FC<Props> = ({
                               updated[idx].label = e.target.value.toUpperCase();
                               updateRecipe(recipe.id, { accessories: updated });
                             }}
-                          />{" "}
-                        </div>{" "}
+                          />
+                        </div>
                         {!ra.isSpaced && (
                           <input
                             type="number"
@@ -1311,10 +1287,10 @@ const ProductRecipeEditor: React.FC<Props> = ({
                               updateRecipe(recipe.id, { accessories: updated });
                             }}
                           />
-                        )}{" "}
+                        )}
                         <span className="text-[8px] font-black text-slate-400 uppercase">
                           {ra.isLinear ? "ML" : ra.isSpaced ? "C/MM" : "UNID"}
-                        </span>{" "}
+                        </span>
                         {ra.isLinear && (
                           <input
                             className="flex-1 bg-sky-50/50 border border-sky-100 h-7 px-2 rounded font-mono text-[9px] font-black text-sky-600 outline-none"
@@ -1326,10 +1302,9 @@ const ProductRecipeEditor: React.FC<Props> = ({
                               updateRecipe(recipe.id, { accessories: updated });
                             }}
                           />
-                        )}{" "}
+                        )}
                         {ra.isSpaced && (
                           <div className="flex gap-1 items-center flex-[2]">
-                            {" "}
                             <input
                               className="w-12 bg-amber-50/50 border border-amber-200 h-7 px-1 rounded text-center font-mono text-[9px] font-black text-amber-600 outline-none"
                               placeholder="mm"
@@ -1343,7 +1318,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                                   accessories: updated,
                                 });
                               }}
-                            />{" "}
+                            />
                             <input
                               className="flex-1 bg-amber-50/50 border border-amber-200 h-7 px-2 rounded font-mono text-[9px] font-black text-amber-600 outline-none"
                               placeholder="Longitud (W/H)"
@@ -1355,40 +1330,37 @@ const ProductRecipeEditor: React.FC<Props> = ({
                                   accessories: updated,
                                 });
                               }}
-                            />{" "}
+                            />
                           </div>
-                        )}{" "}
-                      </div>{" "}
+                        )}
+                      </div>
                     </div>
-                  ))}{" "}
-                </div>{" "}
-              </div>{" "}
+                  ))}
+                </div>
+              </div>
               <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100 space-y-4">
-                {" "}
                 <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                   Vidriado Maestro
-                </h4>{" "}
+                </h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {" "}
                   <FormulaInput
                     label="Desc. VS Ancho"
                     value={recipe.glassFormulaW || ""}
                     onChange={(v) =>
                       updateRecipe(recipe.id, { glassFormulaW: v })
                     }
-                  />{" "}
+                  />
                   <FormulaInput
                     label="Desc. VS Alto"
                     value={recipe.glassFormulaH || ""}
                     onChange={(v) =>
                       updateRecipe(recipe.id, { glassFormulaH: v })
                     }
-                  />{" "}
+                  />
                   <div className="space-y-1 flex-1">
-                    {" "}
                     <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
                       Desc. VS (Travesaño)
-                    </label>{" "}
+                    </label>
                     <input
                       type="number"
                       className="w-full bg-white border border-slate-200 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 outline-none"
@@ -1399,27 +1371,26 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             parseFloat(e.target.value) || 0,
                         })
                       }
-                    />{" "}
-                  </div>{" "}
+                    />
+                  </div>
                   <FormulaInput
                     label="Desc. DVH Ancho"
                     value={recipe.dvhFormulaW || ""}
                     onChange={(v) =>
                       updateRecipe(recipe.id, { dvhFormulaW: v })
                     }
-                  />{" "}
+                  />
                   <FormulaInput
                     label="Desc. DVH Alto"
                     value={recipe.dvhFormulaH || ""}
                     onChange={(v) =>
                       updateRecipe(recipe.id, { dvhFormulaH: v })
                     }
-                  />{" "}
+                  />
                   <div className="space-y-1 flex-1">
-                    {" "}
                     <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
                       Desc. DVH (Travesaño)
-                    </label>{" "}
+                    </label>
                     <input
                       type="number"
                       className="w-full bg-white border border-slate-200 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 outline-none"
@@ -1430,22 +1401,21 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             parseFloat(e.target.value) || 0,
                         })
                       }
-                    />{" "}
-                  </div>{" "}
-                </div>{" "}
-              </div>{" "}
-            </div>{" "}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="h-[85vh] flex flex-col items-center justify-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200 text-slate-300 space-y-4 transition-colors">
-            {" "}
-            <Shapes size={60} className="opacity-10" />{" "}
+            <Shapes size={60} className="opacity-10" />
             <p className="text-[9px] font-black uppercase tracking-widest">
               Seleccione un sistema de ingeniería
-            </p>{" "}
+            </p>
           </div>
-        )}{" "}
-      </div>{" "}
+        )}
+      </div>
     </div>
   );
 };
@@ -1455,15 +1425,14 @@ const FormulaInput: React.FC<{
   onChange: (v: string) => void;
 }> = ({ label, value, onChange }) => (
   <div className="space-y-1 flex-1">
-    {" "}
     <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
       {label}
-    </label>{" "}
+    </label>
     <input
       className="w-full bg-white border border-slate-200 p-2 rounded-lg font-mono text-[9px] font-black text-sky-600 outline-none"
       value={value || ""}
       onChange={(e) => onChange(e.target.value)}
-    />{" "}
+    />
   </div>
 );
 export default ProductRecipeEditor;

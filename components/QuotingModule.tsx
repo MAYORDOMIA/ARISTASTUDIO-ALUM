@@ -2052,61 +2052,51 @@ const QuotingModule: React.FC<Props> = ({
   }, [aluminum, slatSearch]);
   return (
     <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full">
-      {" "}
       <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4 order-2 lg:order-1">
-        {" "}
         <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-sm space-y-3 h-fit overflow-y-auto max-h-[88vh] custom-scrollbar transition-colors">
-          {" "}
           <h3 className="text-[10px] font-black uppercase text-sky-600 flex items-center gap-3 border-b border-slate-50 pb-2 tracking-[0.2em]">
             <Maximize size={16} /> Parámetros de Conjunto
-          </h3>{" "}
+          </h3>
           <div className="space-y-0.5">
-            {" "}
             <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
               <Hash size={12} className="text-sky-500" /> Código de Abertura
               (V1, P1...)
-            </label>{" "}
+            </label>
             <input
               type="text"
               className="w-full bg-sky-50/50 h-8 px-2 rounded-lg border border-sky-100 font-black text-sky-600 text-xs focus:border-sky-500 transition-all outline-none uppercase"
               placeholder="Ej: V1-ESTAR"
               value={itemCode}
               onChange={(e) => setItemCode(e.target.value)}
-            />{" "}
-          </div>{" "}
-          {/* Selector de Estilo de Contravidrio (Solo si aplica) */}{" "}
+            />
+          </div>
+          {/* Selector de Estilo de Contravidrio (Solo si aplica) */}
           {hasDynamicBeads && (
             <div className="bg-sky-50/50 p-2 rounded-xl border border-sky-100 animate-in slide-in-from-top-2 space-y-1">
-              {" "}
               <label className="text-[9px] font-black uppercase text-sky-600 tracking-widest flex items-center gap-2">
                 <Settings size={12} /> Estilo de Contravidrio
-              </label>{" "}
+              </label>
               <div className="flex bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm">
-                {" "}
                 <button
                   onClick={() => setGlazingBeadStyle("Recto")}
                   className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === "Recto" ? "bg-sky-600 text-white shadow-md" : "text-slate-400 hover:text-sky-600 hover:bg-slate-50 "}`}
                 >
-                  {" "}
-                  Recto{" "}
-                </button>{" "}
+                  Recto
+                </button>
                 <button
                   onClick={() => setGlazingBeadStyle("Curvo")}
                   className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${glazingBeadStyle === "Curvo" ? "bg-sky-600 text-white shadow-md" : "text-slate-400 hover:text-sky-600 hover:bg-slate-50 "}`}
                 >
-                  {" "}
-                  Curvo{" "}
-                </button>{" "}
-              </div>{" "}
+                  Curvo
+                </button>
+              </div>
             </div>
-          )}{" "}
+          )}
           <div className="grid grid-cols-2 gap-2">
-            {" "}
             <div className="space-y-0.5">
-              {" "}
               <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
                 <Lock size={10} className="text-sky-400" /> Ancho Total
-              </label>{" "}
+              </label>
               <input
                 type="number"
                 className="w-full bg-slate-50 h-8 px-2 rounded-lg border border-slate-200 font-mono font-black text-slate-800 text-xs focus:border-sky-500 transition-all outline-none shadow-inner"
@@ -2114,13 +2104,12 @@ const QuotingModule: React.FC<Props> = ({
                 onChange={(e) =>
                   handleTotalChange("width", parseInt(e.target.value) || 0)
                 }
-              />{" "}
-            </div>{" "}
+              />
+            </div>
             <div className="space-y-0.5">
-              {" "}
               <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
                 <Lock size={10} className="text-sky-400" /> Alto Total
-              </label>{" "}
+              </label>
               <input
                 type="number"
                 className="w-full bg-slate-50 h-8 px-2 rounded-lg border border-slate-200 font-mono font-black text-slate-800 text-xs focus:border-sky-500 transition-all outline-none shadow-inner"
@@ -2128,14 +2117,13 @@ const QuotingModule: React.FC<Props> = ({
                 onChange={(e) =>
                   handleTotalChange("height", parseInt(e.target.value) || 0)
                 }
-              />{" "}
-            </div>{" "}
-          </div>{" "}
+              />
+            </div>
+          </div>
           <div className="space-y-0.5">
-            {" "}
             <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
               <Layers size={10} className="text-sky-400" /> Cantidad de Unidades
-            </label>{" "}
+            </label>
             <input
               type="number"
               min="1"
@@ -2144,38 +2132,33 @@ const QuotingModule: React.FC<Props> = ({
               onChange={(e) =>
                 setQuantity(Math.max(1, parseInt(e.target.value) || 1))
               }
-            />{" "}
-          </div>{" "}
+            />
+          </div>
           {hasBaranda && (
             <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 animate-in slide-in-from-top-2 space-y-3">
-              {" "}
               <label className="text-[9px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-2">
                 <Wind size={12} /> Configuración de Baranda
-              </label>{" "}
+              </label>
               <div className="flex bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm">
-                {" "}
                 <button
                   onClick={() => updateAllBarandas({ handrailType: "recta" })}
                   className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${modules.every((m) => m.handrailType !== "inclinada") ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-amber-600 hover:bg-slate-50 "}`}
                 >
-                  {" "}
-                  Recta{" "}
-                </button>{" "}
+                  Recta
+                </button>
                 <button
                   onClick={() =>
                     updateAllBarandas({ handrailType: "inclinada" })
                   }
                   className={`flex-1 py-1 rounded-md text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${modules.some((m) => m.handrailType === "inclinada") ? "bg-amber-600 text-white shadow-md" : "text-slate-400 hover:text-amber-600 hover:bg-slate-50 "}`}
                 >
-                  {" "}
-                  Inclinada{" "}
-                </button>{" "}
-              </div>{" "}
+                  Inclinada
+                </button>
+              </div>
               <div className="flex items-center justify-between px-1">
-                {" "}
                 <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">
                   Incluir Pasamano
-                </span>{" "}
+                </span>
                 <button
                   onClick={() => {
                     const hasAnyHandrail = modules.some(
@@ -2190,12 +2173,11 @@ const QuotingModule: React.FC<Props> = ({
                   }}
                   className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${modules.some((m) => !!m.handrailProfileId) ? "bg-amber-600" : "bg-slate-200 "}`}
                 >
-                  {" "}
                   <span
                     className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${modules.some((m) => !!m.handrailProfileId) ? "translate-x-6" : "translate-x-1"}`}
-                  />{" "}
-                </button>{" "}
-              </div>{" "}
+                  />
+                </button>
+              </div>
               {modules.some((m) => !!m.handrailProfileId) && (
                 <button
                   onClick={() => {
@@ -2204,10 +2186,8 @@ const QuotingModule: React.FC<Props> = ({
                   }}
                   className="w-full bg-white border border-amber-200 p-2 rounded-lg text-[8px] font-black text-amber-600 uppercase tracking-widest hover:bg-amber-50 transition-all flex items-center justify-between"
                 >
-                  {" "}
                   <div className="flex items-center gap-2">
-                    {" "}
-                    <Wind size={12} />{" "}
+                    <Wind size={12} />
                     <span>
                       {aluminum.find(
                         (a) =>
@@ -2215,13 +2195,13 @@ const QuotingModule: React.FC<Props> = ({
                           modules.find((m) => !!m.handrailProfileId)
                             ?.handrailProfileId,
                       )?.code || "Seleccionar Perfil"}
-                    </span>{" "}
-                  </div>{" "}
-                  <ChevronRight size={12} />{" "}
+                    </span>
+                  </div>
+                  <ChevronRight size={12} />
                 </button>
-              )}{" "}
+              )}
             </div>
-          )}{" "}
+          )}
           {liveBreakdown && (
             <button
               onClick={() => {
@@ -2230,118 +2210,104 @@ const QuotingModule: React.FC<Props> = ({
               }}
               className="w-full bg-slate-900 rounded-xl p-2.5 group hover:bg-sky-600 transition-all text-left shadow-xl border border-slate-800/50 flex flex-col gap-0.5"
             >
-              {" "}
               <div className="flex items-center justify-between">
-                {" "}
                 <span className="text-[8px] font-black uppercase tracking-[0.2em] text-sky-400 group-hover:text-white flex items-center gap-2">
                   <DollarSign size={12} /> Cotización Técnica
-                </span>{" "}
+                </span>
                 <TrendingUp
                   size={14}
                   className="text-sky-500 group-hover:text-white"
-                />{" "}
-              </div>{" "}
+                />
+              </div>
               <div className="flex items-baseline gap-2">
-                {" "}
                 <span className="text-lg font-mono font-black text-white leading-none tracking-tighter">
-                  {" "}
                   $
                   {Math.round(
                     (liveBreakdown.materialCost + liveBreakdown.laborCost) *
                       quantity,
-                  ).toLocaleString()}{" "}
-                </span>{" "}
+                  ).toLocaleString()}
+                </span>
                 <span className="text-[8px] font-bold text-slate-500 group-hover:text-sky-200 uppercase tracking-tighter italic">
                   Ver Análisis
-                </span>{" "}
-              </div>{" "}
+                </span>
+              </div>
             </button>
-          )}{" "}
+          )}
           <div className="space-y-0.5 pt-2 border-t border-slate-100 ">
-            {" "}
             <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest block px-1">
               Terminación Superficial
-            </label>{" "}
+            </label>
             <select
               className="w-full bg-slate-50 h-8 px-2 rounded-lg border border-slate-200 text-[10px] font-black uppercase outline-none focus:border-sky-500 transition-all shadow-inner"
               value={colorId}
               onChange={(e) => setSelectedColorId(e.target.value)}
             >
-              {" "}
-              <option value="">(SELECCIONE ACABADO)</option>{" "}
+              <option value="">(SELECCIONE ACABADO)</option>
               {treatments.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
-              ))}{" "}
-            </select>{" "}
-          </div>{" "}
+              ))}
+            </select>
+          </div>
           <div className="space-y-1 pt-2 border-t border-sky-100/50 bg-sky-50/30 p-2 rounded-lg">
-            {" "}
             <h4 className="text-[9px] font-black text-sky-900 uppercase tracking-widest flex items-center gap-2">
               <Settings size={12} /> Ingeniería de Extras
-            </h4>{" "}
+            </h4>
             <div className="space-y-1">
-              {" "}
               <div
                 className="flex items-center gap-2 cursor-pointer group bg-white p-1.5 rounded-lg border border-sky-100/50 shadow-sm transition-all hover:border-sky-200"
                 onClick={() =>
                   setExtras({ ...extras, mosquitero: !extras.mosquitero })
                 }
               >
-                {" "}
                 <Bug
                   size={14}
                   className={
                     extras.mosquitero ? "text-sky-600" : "text-slate-400"
                   }
-                />{" "}
+                />
                 <span
                   className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.mosquitero ? "text-sky-600 " : "text-slate-500"}`}
                 >
                   Mosquitero Perimetral
-                </span>{" "}
+                </span>
                 <button
                   className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.mosquitero ? "bg-sky-600 shadow-lg shadow-sky-100 " : "bg-slate-300 "}`}
                 >
-                  {" "}
                   <div
                     className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.mosquitero ? "translate-x-4" : "translate-x-0"}`}
-                  />{" "}
-                </button>{" "}
-              </div>{" "}
+                  />
+                </button>
+              </div>
               <div className="space-y-1">
-                {" "}
                 <div
                   className="flex items-center gap-2 cursor-pointer group bg-white p-1.5 rounded-lg border border-sky-100/50 shadow-sm transition-all hover:border-sky-200"
                   onClick={() =>
                     setExtras({ ...extras, tapajuntas: !extras.tapajuntas })
                   }
                 >
-                  {" "}
                   <Frame
                     size={14}
                     className={
                       extras.tapajuntas ? "text-sky-600" : "text-slate-400"
                     }
-                  />{" "}
+                  />
                   <span
                     className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.tapajuntas ? "text-sky-600 " : "text-slate-500"}`}
                   >
                     Sistema de Tapajuntas
-                  </span>{" "}
+                  </span>
                   <button
                     className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.tapajuntas ? "bg-sky-600 shadow-lg shadow-sky-100 " : "bg-slate-300 "}`}
                   >
-                    {" "}
                     <div
                       className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.tapajuntas ? "translate-x-4" : "translate-x-0"}`}
-                    />{" "}
-                  </button>{" "}
-                </div>{" "}
+                    />
+                  </button>
+                </div>
                 {extras.tapajuntas && (
                   <div className="grid grid-cols-4 gap-2 mt-0.5 animate-in fade-in slide-in-from-top-1">
-                    {" "}
                     {["top", "bottom", "left", "right"].map((side) => (
                       <button
                         key={side}
@@ -2350,19 +2316,17 @@ const QuotingModule: React.FC<Props> = ({
                       >
                         {side.substring(0, 3)}
                       </button>
-                    ))}{" "}
+                    ))}
                   </div>
-                )}{" "}
-              </div>{" "}
-            </div>{" "}
-          </div>{" "}
+                )}
+              </div>
+            </div>
+          </div>
           <div className="space-y-2 pt-2 border-t border-slate-100 ">
-            {" "}
             <div className="flex items-center justify-between px-1">
-              {" "}
               <h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                 <Grid3X3 size={12} /> Estructura del Conjunto
-              </h4>{" "}
+              </h4>
               <button
                 onClick={() => setIsManualDim(!isManualDim)}
                 className={`flex items-center gap-2 p-1 rounded-lg border-2 transition-all ${isManualDim ? "bg-amber-600 border-amber-700 text-white shadow-md" : "bg-slate-50 border-slate-200 text-slate-400"}`}
@@ -2372,72 +2336,58 @@ const QuotingModule: React.FC<Props> = ({
                     : "Modo Proporcional: El total define las partes"
                 }
               >
-                {" "}
-                {isManualDim ? (
-                  <Unlock size={12} />
-                ) : (
-                  <LinkIcon size={12} />
-                )}{" "}
+                {isManualDim ? <Unlock size={12} /> : <LinkIcon size={12} />}
                 <span className="text-[8px] font-black uppercase">
                   {isManualDim ? "Manual" : "Propor."}
-                </span>{" "}
-              </button>{" "}
-            </div>{" "}
+                </span>
+              </button>
+            </div>
             <div className="px-1 space-y-2">
-              {" "}
               <div className="space-y-1">
-                {" "}
                 <div className="flex items-center justify-between">
-                  {" "}
                   <div className="flex items-center gap-3">
-                    {" "}
-                    <Columns size={16} className="text-sky-600" />{" "}
+                    <Columns size={16} className="text-sky-600" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 ">
                       Medidas de Ancho
-                    </span>{" "}
-                  </div>{" "}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-3 bg-slate-100 p-1 rounded-full shadow-inner border border-slate-200 ">
-                    {" "}
                     <button
                       onClick={removeColumn}
                       className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"
                     >
                       <Minus size={12} />
-                    </button>{" "}
+                    </button>
                     <span className="text-[10px] font-black text-sky-600 min-w-[20px] text-center">
                       {colSizes.length}
-                    </span>{" "}
+                    </span>
                     <button
                       onClick={addColumn}
                       className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-sky-600 shadow-sm transition-all active:scale-90"
                     >
                       <Plus size={12} />
-                    </button>{" "}
-                  </div>{" "}
-                </div>{" "}
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-2 pl-7 border-l-2 border-sky-100 ">
-                  {" "}
                   {colSizes.map((size, idx) => (
                     <div
                       key={idx}
                       className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? "bg-sky-50/30 border-sky-200 shadow-sm" : "bg-slate-50/50 border-transparent hover:border-sky-200"}`}
                     >
-                      {" "}
                       <div className="flex flex-col">
-                        {" "}
                         <span
                           className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? "text-sky-600 " : "text-slate-400"}`}
                         >
                           Ancho C{idx + 1}
-                        </span>{" "}
+                        </span>
                         <span
                           className={`text-[6px] font-bold uppercase ${isManualDim ? "text-amber-600" : "text-sky-500"}`}
                         >
                           {isManualDim ? "Manual" : "Ajustable"}
-                        </span>{" "}
-                      </div>{" "}
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2">
-                        {" "}
                         <input
                           type="number"
                           className={`w-20 bg-white border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? "border-amber-400 text-amber-600 focus:ring-2 ring-amber-100" : "border-slate-200 text-sky-600 focus:border-sky-500"}`}
@@ -2449,70 +2399,62 @@ const QuotingModule: React.FC<Props> = ({
                               parseInt(e.target.value) || 0,
                             )
                           }
-                        />{" "}
+                        />
                         <span
                           className={`text-[7px] font-black ${isManualDim ? "text-amber-500" : "text-slate-300 "}`}
                         >
                           mm
-                        </span>{" "}
-                      </div>{" "}
+                        </span>
+                      </div>
                     </div>
-                  ))}{" "}
-                </div>{" "}
-              </div>{" "}
+                  ))}
+                </div>
+              </div>
               <div className="space-y-4">
-                {" "}
                 <div className="flex items-center justify-between">
-                  {" "}
                   <div className="flex items-center gap-3">
-                    {" "}
-                    <Rows size={16} className="text-sky-600" />{" "}
+                    <Rows size={16} className="text-sky-600" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 ">
                       Medidas de Alto
-                    </span>{" "}
-                  </div>{" "}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-3 bg-slate-100 p-1 rounded-full shadow-inner border border-slate-200 ">
-                    {" "}
                     <button
                       onClick={removeRow}
                       className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-red-500 shadow-sm transition-all active:scale-90"
                     >
                       <Minus size={12} />
-                    </button>{" "}
+                    </button>
                     <span className="text-[10px] font-black text-sky-600 min-w-[20px] text-center">
                       {rowSizes.length}
-                    </span>{" "}
+                    </span>
                     <button
                       onClick={addRow}
                       className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-sky-600 shadow-sm transition-all active:scale-90"
                     >
                       <Plus size={12} />
-                    </button>{" "}
-                  </div>{" "}
-                </div>{" "}
+                    </button>
+                  </div>
+                </div>
                 <div className="space-y-2 pl-7 border-l-2 border-sky-100 ">
-                  {" "}
                   {rowSizes.map((size, idx) => (
                     <div
                       key={idx}
                       className={`flex items-center justify-between group p-2 rounded-xl border transition-all ${isManualDim ? "bg-sky-50/30 border-sky-200 shadow-sm" : "bg-slate-50/50 border-transparent hover:border-sky-200"}`}
                     >
-                      {" "}
                       <div className="flex flex-col">
-                        {" "}
                         <span
                           className={`text-[7px] font-black uppercase tracking-tighter italic ${isManualDim ? "text-sky-600 " : "text-slate-400"}`}
                         >
                           Alto R{idx + 1}
-                        </span>{" "}
+                        </span>
                         <span
                           className={`text-[6px] font-bold uppercase ${isManualDim ? "text-amber-600" : "text-sky-500"}`}
                         >
                           {isManualDim ? "Manual" : "Ajustable"}
-                        </span>{" "}
-                      </div>{" "}
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2">
-                        {" "}
                         <input
                           type="number"
                           className={`w-20 bg-white border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? "border-amber-400 text-amber-600 focus:ring-2 ring-amber-100" : "border-slate-200 text-sky-600 focus:border-sky-500"}`}
@@ -2524,26 +2466,24 @@ const QuotingModule: React.FC<Props> = ({
                               parseInt(e.target.value) || 0,
                             )
                           }
-                        />{" "}
+                        />
                         <span
                           className={`text-[7px] font-black ${isManualDim ? "text-amber-500" : "text-slate-300 "}`}
                         >
                           mm
-                        </span>{" "}
-                      </div>{" "}
+                        </span>
+                      </div>
                     </div>
-                  ))}{" "}
-                </div>{" "}
-              </div>{" "}
-            </div>{" "}
-          </div>{" "}
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="pt-4">
-            {" "}
             <button
               onClick={addItemToWork}
               className={`w-full ${editingItemId ? "bg-amber-500 hover:bg-amber-600 hover:shadow-amber-200" : "bg-sky-600 hover:bg-sky-700 hover:shadow-sky-200"} text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all`}
             >
-              {" "}
               {editingItemId ? (
                 <>
                   <Check size={18} /> Guardar Cambios
@@ -2552,21 +2492,19 @@ const QuotingModule: React.FC<Props> = ({
                 <>
                   <Plus size={18} /> Cargar a Obra
                 </>
-              )}{" "}
-            </button>{" "}
-          </div>{" "}
-        </div>{" "}
-      </div>{" "}
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="col-span-12 lg:col-span-8 xl:col-span-9 bg-white border border-slate-200 rounded-[2.5rem] shadow-sm relative overflow-hidden flex items-center justify-center min-h-[400px] lg:min-h-[600px] transition-colors order-1 lg:order-2">
-        {" "}
         <canvas
           ref={mainCanvasRef}
           width={2400}
           height={1800}
           className="w-full h-full max-h-[60vh] lg:max-h-[88vh] object-contain p-4 lg:p-12"
-        />{" "}
+        />
         <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center p-4 lg:p-12">
-          {" "}
           <div
             style={{
               display: "grid",
@@ -2579,7 +2517,6 @@ const QuotingModule: React.FC<Props> = ({
               height: "100%",
             }}
           >
-            {" "}
             {(modules || [])
               .filter(
                 (mod) =>
@@ -2591,9 +2528,7 @@ const QuotingModule: React.FC<Props> = ({
                   onClick={() => setSelectedModuleId(mod.id)}
                   className="relative pointer-events-auto group transition-all flex items-center justify-center cursor-pointer"
                 >
-                  {" "}
                   <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[0px] group-hover:backdrop-blur-[2px] transition-all opacity-0 group-hover:opacity-100">
-                    {" "}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2603,33 +2538,28 @@ const QuotingModule: React.FC<Props> = ({
                       className="p-4 bg-sky-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"
                     >
                       <Settings size={18} /> Ingeniería
-                    </button>{" "}
-                  </div>{" "}
+                    </button>
+                  </div>
                 </div>
-              ))}{" "}
-          </div>{" "}
-        </div>{" "}
-      </div>{" "}
+              ))}
+          </div>
+        </div>
+      </div>
       {showCouplingModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
-          {" "}
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-sky-100 text-center space-y-6">
-            {" "}
             <div className="w-16 h-16 bg-sky-100 rounded-2xl flex items-center justify-center text-sky-600 mx-auto shadow-lg">
-              {" "}
-              <Link2 size={32} />{" "}
-            </div>{" "}
+              <Link2 size={32} />
+            </div>
             <div className="space-y-2">
-              {" "}
               <h3 className="text-xl font-black uppercase text-slate-800 tracking-tighter">
                 Ingeniería de Acople
-              </h3>{" "}
+              </h3>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                 Seleccione el perfil de unión para el conjunto
-              </p>{" "}
-            </div>{" "}
+              </p>
+            </div>
             <div className="space-y-4">
-              {" "}
               <select
                 className="w-full bg-slate-50 h-12 px-4 rounded-xl border border-slate-200 text-[11px] font-black uppercase outline-none focus:border-sky-500"
                 value={couplingProfileId}
@@ -2647,32 +2577,29 @@ const QuotingModule: React.FC<Props> = ({
                   }
                 }}
               >
-                {" "}
-                <option value="">(SIN ACOPLE / UNIÓN DIRECTA)</option>{" "}
+                <option value="">(SIN ACOPLE / UNIÓN DIRECTA)</option>
                 {couplingProfiles.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.code} - {p.detail} ({p.thickness}mm)
                   </option>
-                ))}{" "}
-              </select>{" "}
-            </div>{" "}
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => setShowCouplingModal(false)}
               className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-sky-600 transition-all"
             >
-              {" "}
-              Aplicar y Continuar{" "}
-            </button>{" "}
-          </div>{" "}
+              Aplicar y Continuar
+            </button>
+          </div>
         </div>
-      )}{" "}
+      )}
       {showBreakdownModal && liveBreakdown && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          {" "}
           <div
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
             onClick={() => setShowBreakdownModal(false)}
-          />{" "}
+          />
           <div
             style={{
               transform:
@@ -2685,158 +2612,137 @@ const QuotingModule: React.FC<Props> = ({
             }}
             className="bg-white w-full lg:max-w-xl rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-2xl space-y-6 border-2 border-white flex flex-col pointer-events-auto relative ring-1 ring-black/5 max-h-[90vh] overflow-y-auto"
           >
-            {" "}
             <div
               onMouseDown={(e) => startDragging(e, "breakdown")}
               className={`flex justify-between items-center border-b border-slate-100 pb-5 select-none ${isDraggingBreakdown ? "cursor-grabbing" : "cursor-grab"} group`}
             >
-              {" "}
               <div className="flex items-center gap-4">
-                {" "}
                 <div className="w-12 h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-sky-100">
                   <Receipt size={24} />
-                </div>{" "}
+                </div>
                 <div>
-                  {" "}
                   <div className="flex items-center gap-2">
-                    {" "}
                     <h3 className="text-slate-900 font-black uppercase tracking-tighter text-xl leading-none italic">
                       Análisis Técnico
-                    </h3>{" "}
+                    </h3>
                     <GripHorizontal
                       size={16}
                       className="text-slate-300 animate-pulse"
-                    />{" "}
-                  </div>{" "}
+                    />
+                  </div>
                   <p className="text-[10px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">
                     Desglose de Costos de Ingeniería
-                  </p>{" "}
-                </div>{" "}
-              </div>{" "}
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowBreakdownModal(false)}
                 className="text-slate-300 hover:text-red-500 transition-all p-2 hover:bg-slate-50 rounded-xl"
               >
                 <X size={24} />
-              </button>{" "}
-            </div>{" "}
+              </button>
+            </div>
             <div className="space-y-6">
-              {" "}
               <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 space-y-4">
-                {" "}
                 <div className="flex justify-between items-center group">
-                  {" "}
                   <div className="flex items-center gap-3">
-                    {" "}
                     <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center text-sky-600">
                       <Package size={14} />
-                    </div>{" "}
+                    </div>
                     <span className="text-[11px] text-slate-500 font-black uppercase tracking-tighter">
                       1. Aluminio + Acabado
-                    </span>{" "}
-                  </div>{" "}
+                    </span>
+                  </div>
                   <span className="font-mono font-bold text-slate-900 text-sm">
                     ${Math.round(liveBreakdown.aluCost).toLocaleString()}
-                  </span>{" "}
-                </div>{" "}
+                  </span>
+                </div>
                 <div className="flex justify-between items-center group">
-                  {" "}
                   <div className="flex items-center gap-3">
-                    {" "}
                     <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center text-sky-600">
                       <Layers size={14} />
-                    </div>{" "}
+                    </div>
                     <span className="text-[11px] text-slate-500 font-black uppercase tracking-tighter">
                       2. Vidrio / Rellenos
-                    </span>{" "}
-                  </div>{" "}
+                    </span>
+                  </div>
                   <span className="font-mono font-bold text-slate-900 text-sm">
                     ${Math.round(liveBreakdown.glassCost).toLocaleString()}
-                  </span>{" "}
-                </div>{" "}
+                  </span>
+                </div>
                 <div className="flex justify-between items-center group">
-                  {" "}
                   <div className="flex items-center gap-3">
-                    {" "}
                     <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center text-sky-600">
                       <Wind size={14} />
-                    </div>{" "}
+                    </div>
                     <span className="text-[11px] text-slate-500 font-black uppercase tracking-tighter">
                       3. Herrajes y Gomas
-                    </span>{" "}
-                  </div>{" "}
+                    </span>
+                  </div>
                   <span className="font-mono font-bold text-slate-900 text-sm">
                     ${Math.round(liveBreakdown.accCost).toLocaleString()}
-                  </span>{" "}
-                </div>{" "}
+                  </span>
+                </div>
                 <div className="pt-4 mt-2 border-t border-slate-200 flex justify-between items-center">
-                  {" "}
                   <div className="flex items-center gap-3">
-                    {" "}
                     <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white">
                       <Hammer size={14} />
-                    </div>{" "}
+                    </div>
                     <span className="text-[11px] text-sky-600 font-black uppercase tracking-tighter">
                       4. Mano de Obra ({config.laborPercentage}%)
-                    </span>{" "}
-                  </div>{" "}
+                    </span>
+                  </div>
                   <span className="font-mono font-black text-sky-600 text-sm">
                     ${Math.round(liveBreakdown.laborCost).toLocaleString()}
-                  </span>{" "}
-                </div>{" "}
+                  </span>
+                </div>
                 {liveBreakdown.handrailExtraCost &&
                   liveBreakdown.handrailExtraCost > 0 && (
                     <div className="pt-4 mt-2 border-t border-slate-200 flex justify-between items-center animate-in slide-in-from-top-2">
-                      {" "}
                       <div className="flex items-center gap-3">
-                        {" "}
                         <div className="w-8 h-8 rounded-lg bg-amber-600 flex items-center justify-center text-white">
                           <TrendingUp size={14} />
-                        </div>{" "}
+                        </div>
                         <span className="text-[11px] text-amber-600 font-black uppercase tracking-tighter">
                           5. Incremento Baranda ({config.handrailExtraIncrement}
                           %)
-                        </span>{" "}
-                      </div>{" "}
+                        </span>
+                      </div>
                       <span className="font-mono font-black text-amber-600 text-sm">
                         $
                         {Math.round(
                           liveBreakdown.handrailExtraCost,
                         ).toLocaleString()}
-                      </span>{" "}
+                      </span>
                     </div>
-                  )}{" "}
+                  )}
                 {liveBreakdown.mamparaExtraCost &&
                   liveBreakdown.mamparaExtraCost > 0 && (
                     <div className="pt-4 mt-2 border-t border-slate-200 flex justify-between items-center animate-in slide-in-from-top-2">
-                      {" "}
                       <div className="flex items-center gap-3">
-                        {" "}
                         <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
                           <TrendingUp size={14} />
-                        </div>{" "}
+                        </div>
                         <span className="text-[11px] text-indigo-600 font-black uppercase tracking-tighter">
                           5. Incremento Mampara ({config.mamparaExtraIncrement}
                           %)
-                        </span>{" "}
-                      </div>{" "}
+                        </span>
+                      </div>
                       <span className="font-mono font-black text-indigo-600 text-sm">
                         $
                         {Math.round(
                           liveBreakdown.mamparaExtraCost,
                         ).toLocaleString()}
-                      </span>{" "}
+                      </span>
                     </div>
-                  )}{" "}
-              </div>{" "}
+                  )}
+              </div>
               <div className="bg-slate-900 rounded-[2rem] p-8 text-center space-y-2 shadow-2xl relative overflow-hidden group">
-                {" "}
-                <div className="absolute inset-0 bg-sky-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />{" "}
+                <div className="absolute inset-0 bg-sky-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <span className="text-[10px] font-black text-sky-400 uppercase tracking-[0.4em] relative z-10">
                   Total Final de Ingeniería
-                </span>{" "}
+                </span>
                 <div className="text-4xl font-mono font-black text-white tracking-tighter relative z-10">
-                  {" "}
                   $
                   {Math.round(
                     (liveBreakdown.materialCost +
@@ -2844,33 +2750,30 @@ const QuotingModule: React.FC<Props> = ({
                       (liveBreakdown.handrailExtraCost || 0) +
                       (liveBreakdown.mamparaExtraCost || 0)) *
                       quantity,
-                  ).toLocaleString()}{" "}
-                </div>{" "}
+                  ).toLocaleString()}
+                </div>
                 <p className="text-[9px] text-slate-400 uppercase font-bold italic pt-2 relative z-10">
                   Incluye {quantity} unidad(es) • {totalWidth}x{totalHeight} mm
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
+                </p>
+              </div>
+            </div>
             <div className="pt-4 flex justify-center">
-              {" "}
               <button
                 onClick={() => setShowBreakdownModal(false)}
                 className="px-10 py-4 bg-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-sky-50 hover:text-sky-600 transition-all border border-slate-200 "
               >
-                {" "}
-                Cerrar Análisis de Costos{" "}
-              </button>{" "}
-            </div>{" "}
-          </div>{" "}
+                Cerrar Análisis de Costos
+              </button>
+            </div>
+          </div>
         </div>
-      )}{" "}
+      )}
       {editingModuleId && currentModForEdit && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 lg:p-4">
-          {" "}
           <div
             className="absolute inset-0 bg-slate-900/10 backdrop-blur-[1px]"
             onClick={() => setEditingModuleId(null)}
-          />{" "}
+          />
           <div
             ref={modalContainerRef}
             style={{
@@ -2882,67 +2785,55 @@ const QuotingModule: React.FC<Props> = ({
             }}
             className="bg-white w-full lg:max-w-5xl rounded-[1.5rem] lg:rounded-[2rem] p-4 lg:p-6 shadow-2xl space-y-4 lg:space-y-6 overflow-hidden max-h-[95vh] border-2 border-white flex flex-col transition-colors pointer-events-auto relative ring-1 ring-black/5"
           >
-            {" "}
             <div
               onMouseDown={(e) => startDragging(e, "inge")}
               className={`flex justify-between items-center border-b border-slate-100 pb-4 select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"} group`}
             >
-              {" "}
               <div className="flex items-center gap-4">
-                {" "}
                 <div className="w-11 h-11 bg-sky-600 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
                   <LayoutGrid size={22} />
-                </div>{" "}
+                </div>
                 <div>
-                  {" "}
                   <div className="flex items-center gap-2">
-                    {" "}
                     <h3 className="text-slate-900 font-black uppercase tracking-tighter text-lg leading-none italic">
-                      {" "}
                       {currentModForEdit.recipeId
                         ? recipes.find(
                             (r) => r.id === currentModForEdit.recipeId,
                           )?.name
-                        : "Terminal de Ingeniería"}{" "}
-                    </h3>{" "}
+                        : "Terminal de Ingeniería"}
+                    </h3>
                     <GripHorizontal
                       size={16}
                       className="text-slate-300 animate-pulse"
-                    />{" "}
-                  </div>{" "}
+                    />
+                  </div>
                   <p className="text-[9px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">
                     Módulo {currentModForEdit.id.substring(0, 8)} • Arrastre
                     para mover
-                  </p>{" "}
-                </div>{" "}
-              </div>{" "}
+                  </p>
+                </div>
+              </div>
               <button
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => setEditingModuleId(null)}
                 className="text-slate-300 hover:text-red-500 transition-all p-2 hover:bg-slate-50 rounded-xl"
               >
-                {" "}
-                <X size={24} />{" "}
-              </button>{" "}
-            </div>{" "}
+                <X size={24} />
+              </button>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 flex-1 overflow-y-auto lg:overflow-hidden">
-              {" "}
-              {/* PANEL IZQUIERDO CON SCROLL MEJORADO PARA MODO MANUAL */}{" "}
+              {/* PANEL IZQUIERDO CON SCROLL MEJORADO PARA MODO MANUAL */}
               <div className="col-span-1 lg:col-span-5 flex flex-col gap-4 lg:overflow-y-auto custom-scrollbar lg:border-r border-slate-50 lg:pr-6 pb-4">
-                {" "}
                 {isManualDim && (
                   <div className="flex flex-col gap-4 p-5 bg-amber-50 rounded-2xl border border-amber-100 shrink-0 animate-in slide-in-from-top-2">
-                    {" "}
                     <h4 className="text-[9px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-2">
                       <Maximize2 size={12} /> Medidas Individuales (Manual)
-                    </h4>{" "}
+                    </h4>
                     <div className="grid grid-cols-2 gap-4">
-                      {" "}
                       <div className="space-y-1.5">
-                        {" "}
                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                           Ancho Módulo (mm)
-                        </label>{" "}
+                        </label>
                         <input
                           type="number"
                           className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-amber-500 shadow-sm"
@@ -2956,13 +2847,12 @@ const QuotingModule: React.FC<Props> = ({
                               width: parseInt(e.target.value) || 0,
                             })
                           }
-                        />{" "}
-                      </div>{" "}
+                        />
+                      </div>
                       <div className="space-y-1.5">
-                        {" "}
                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                           Alto Módulo (mm)
-                        </label>{" "}
+                        </label>
                         <input
                           type="number"
                           className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-amber-500 shadow-sm"
@@ -2976,41 +2866,36 @@ const QuotingModule: React.FC<Props> = ({
                               height: parseInt(e.target.value) || 0,
                             })
                           }
-                        />{" "}
-                      </div>{" "}
-                    </div>{" "}
+                        />
+                      </div>
+                    </div>
                   </div>
-                )}{" "}
+                )}
                 <div className="flex flex-col gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 shrink-0">
-                  {" "}
                   <h4 className="text-[9px] font-black text-sky-600 uppercase tracking-widest flex items-center gap-2">
                     <Tag size={12} /> Sistema y Tipología
-                  </h4>{" "}
+                  </h4>
                   <div className="space-y-4">
-                    {" "}
                     <div className="space-y-1.5">
-                      {" "}
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                         Línea Técnica
-                      </label>{" "}
+                      </label>
                       <select
                         className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
                         value={recipeFilter}
                         onChange={(e) => setRecipeFilter(e.target.value)}
                       >
-                        {" "}
                         {uniqueLines.map((line) => (
                           <option key={line} value={line}>
                             {line}
                           </option>
-                        ))}{" "}
-                      </select>{" "}
-                    </div>{" "}
+                        ))}
+                      </select>
+                    </div>
                     <div className="space-y-1.5">
-                      {" "}
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                         Tipología
-                      </label>{" "}
+                      </label>
                       <select
                         className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
                         value={currentModForEdit.recipeId || ""}
@@ -3034,8 +2919,7 @@ const QuotingModule: React.FC<Props> = ({
                           }
                         }}
                       >
-                        {" "}
-                        <option value="">(SELECCIONE)</option>{" "}
+                        <option value="">(SELECCIONE)</option>
                         {recipes
                           .filter(
                             (r) =>
@@ -3046,18 +2930,16 @@ const QuotingModule: React.FC<Props> = ({
                             <option key={r.id} value={r.id}>
                               {r.name}
                             </option>
-                          ))}{" "}
-                      </select>{" "}
-                    </div>{" "}
+                          ))}
+                      </select>
+                    </div>
                     {recipes.find((r) => r.id === currentModForEdit.recipeId)
                       ?.leaves === 2 && (
                       <div className="space-y-1.5 p-4 bg-sky-50 rounded-xl border border-sky-100 ">
-                        {" "}
                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                           Ancho de Hojas (mm)
-                        </label>{" "}
+                        </label>
                         <div className="flex items-center gap-2">
-                          {" "}
                           <input
                             type="number"
                             className="w-full bg-white border border-slate-200 h-10 px-3 rounded-lg text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
@@ -3078,8 +2960,8 @@ const QuotingModule: React.FC<Props> = ({
                                 ],
                               });
                             }}
-                          />{" "}
-                          <span className="text-slate-400 font-black">/</span>{" "}
+                          />
+                          <span className="text-slate-400 font-black">/</span>
                           <input
                             type="number"
                             className="w-full bg-white border border-slate-200 h-10 px-3 rounded-lg text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
@@ -3100,17 +2982,16 @@ const QuotingModule: React.FC<Props> = ({
                                 ],
                               });
                             }}
-                          />{" "}
-                        </div>{" "}
+                          />
+                        </div>
                       </div>
-                    )}{" "}
+                    )}
                     {recipes.find((r) => r.id === currentModForEdit.recipeId)
                       ?.type === "Puerta" && (
                       <div className="space-y-1.5">
-                        {" "}
                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                           Mano de la Puerta
-                        </label>{" "}
+                        </label>
                         <select
                           className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
                           value={currentModForEdit.hand || "left"}
@@ -3120,62 +3001,53 @@ const QuotingModule: React.FC<Props> = ({
                             })
                           }
                         >
-                          {" "}
-                          <option value="left">Izquierda</option>{" "}
-                          <option value="right">Derecha</option>{" "}
-                        </select>{" "}
+                          <option value="left">Izquierda</option>
+                          <option value="right">Derecha</option>
+                        </select>
                       </div>
-                    )}{" "}
-                  </div>{" "}
+                    )}
+                  </div>
                   <div className="min-h-[160px] bg-slate-50/50 rounded-2xl p-6 border border-dashed border-slate-200 flex flex-col items-center justify-center text-center shrink-0">
-                    {" "}
                     {currentModForEdit.recipeId ? (
                       <>
-                        {" "}
                         <div className="w-16 h-16 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-xl animate-in zoom-in">
                           <Check size={32} />
-                        </div>{" "}
+                        </div>
                         <div className="mt-4">
-                          {" "}
                           <h5 className="text-[11px] font-black uppercase text-slate-800 tracking-widest">
                             {
                               recipes.find(
                                 (r) => r.id === currentModForEdit.recipeId,
                               )?.name
                             }
-                          </h5>{" "}
+                          </h5>
                           <p className="text-[8px] font-bold text-sky-500 uppercase mt-1 tracking-widest">
                             SISTEMA VALIDADO
-                          </p>{" "}
-                        </div>{" "}
+                          </p>
+                        </div>
                       </>
                     ) : (
                       <div className="opacity-20 flex flex-col items-center">
-                        {" "}
                         <Settings
                           size={50}
                           className="animate-spin-slow mb-4 text-slate-400"
-                        />{" "}
+                        />
                         <p className="text-[8px] font-black uppercase tracking-widest">
                           Esperando Selección...
-                        </p>{" "}
+                        </p>
                       </div>
-                    )}{" "}
-                  </div>{" "}
-                </div>{" "}
-              </div>{" "}
+                    )}
+                  </div>
+                </div>
+              </div>
               <div className="col-span-1 lg:col-span-7 flex flex-col gap-6 lg:overflow-y-auto custom-scrollbar pr-2">
-                {" "}
                 <div className="space-y-4">
-                  {" "}
                   <div className="flex justify-between items-center border-l-4 border-sky-600 pl-3">
-                    {" "}
                     <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
                       <Split size={14} className="rotate-90" /> Divisiones
                       Técnicas
-                    </h4>{" "}
+                    </h4>
                     <div className="flex gap-2">
-                      {" "}
                       <button
                         onClick={() =>
                           centerTransomsForModule(editingModuleId!)
@@ -3183,17 +3055,16 @@ const QuotingModule: React.FC<Props> = ({
                         className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase shadow hover:bg-slate-200 transition-all flex items-center gap-1.5"
                       >
                         Equidistar
-                      </button>{" "}
+                      </button>
                       <button
                         onClick={addTransomToModule}
                         className="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-sky-700 transition-all flex items-center gap-1.5"
                       >
                         <Plus size={12} /> Nueva División
-                      </button>{" "}
-                    </div>{" "}
-                  </div>{" "}
+                      </button>
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    {" "}
                     {(currentModForEdit.transoms || []).map((_, i, arr) => {
                       const idx = arr.length - 1 - i;
                       const t = arr[idx];
@@ -3202,20 +3073,16 @@ const QuotingModule: React.FC<Props> = ({
                           key={idx}
                           className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 group/item"
                         >
-                          {" "}
                           <div className="flex-1 space-y-1">
-                            {" "}
                             <div className="flex justify-between items-center">
-                              {" "}
                               <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
                                 Altura desde Base (mm)
-                              </label>{" "}
+                              </label>
                               <span className="text-[7px] font-black text-sky-500 uppercase">
                                 Travesaño {idx + 1}
-                              </span>{" "}
-                            </div>{" "}
+                              </span>
+                            </div>
                             <div className="relative">
-                              {" "}
                               <input
                                 type="number"
                                 className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none pr-12"
@@ -3230,11 +3097,11 @@ const QuotingModule: React.FC<Props> = ({
                                     transoms: newTransoms,
                                   });
                                 }}
-                              />{" "}
+                              />
                               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">
                                 MM
-                              </div>{" "}
-                            </div>{" "}
+                              </div>
+                            </div>
                             <select
                               className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none mt-1 uppercase"
                               value={t.profileId || ""}
@@ -3248,8 +3115,7 @@ const QuotingModule: React.FC<Props> = ({
                                 });
                               }}
                             >
-                              {" "}
-                              <option value="">(SELECCIONE PERFIL)</option>{" "}
+                              <option value="">(SELECCIONE PERFIL)</option>
                               {aluminum
                                 .filter((p) => {
                                   const r = recipes.find(
@@ -3271,27 +3137,25 @@ const QuotingModule: React.FC<Props> = ({
                                   <option key={p.id} value={p.id}>
                                     {p.code} - {p.detail}
                                   </option>
-                                ))}{" "}
-                            </select>{" "}
-                          </div>{" "}
+                                ))}
+                            </select>
+                          </div>
                           <button
                             onClick={() => removeTransomFromModule(idx)}
                             className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"
                           >
                             <Trash2 size={16} />
-                          </button>{" "}
+                          </button>
                         </div>
                       );
-                    })}{" "}
-                  </div>{" "}
-                </div>{" "}
+                    })}
+                  </div>
+                </div>
                 <div className="space-y-4">
-                  {" "}
                   <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest border-l-4 border-sky-600 pl-3 flex items-center gap-2">
                     <Layers size={14} /> Paños y Llenado
-                  </h4>{" "}
+                  </h4>
                   <div className="space-y-3">
-                    {" "}
                     {Array.from({
                       length: (currentModForEdit.transoms?.length || 0) + 1,
                     }).map((_, i, arr) => {
@@ -3309,19 +3173,16 @@ const QuotingModule: React.FC<Props> = ({
                           key={paneIdx}
                           className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm space-y-4"
                         >
-                          {" "}
                           <div className="flex items-center justify-between border-b border-slate-50 pb-3">
-                            {" "}
                             <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
-                              Paño{" "}
+                              Paño
                               {paneIdx === 0
                                 ? "Inferior"
                                 : paneIdx === currentModForEdit.transoms?.length
                                   ? "Superior"
                                   : `Medio ${paneIdx}`}
-                            </span>{" "}
+                            </span>
                             <div className="flex gap-1 bg-slate-50 p-1 rounded-xl">
-                              {" "}
                               <button
                                 onClick={() => {
                                   const recipe = recipes.find(
@@ -3343,7 +3204,7 @@ const QuotingModule: React.FC<Props> = ({
                                 className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === "vs" ? "bg-sky-600 text-white" : "text-slate-400"}`}
                               >
                                 VS
-                              </button>{" "}
+                              </button>
                               <button
                                 onClick={() => {
                                   const recipe = recipes.find(
@@ -3374,7 +3235,7 @@ const QuotingModule: React.FC<Props> = ({
                                 className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === "dvh" ? "bg-sky-600 text-white" : "text-slate-400"}`}
                               >
                                 DVH
-                              </button>{" "}
+                              </button>
                               <button
                                 onClick={() => {
                                   const recipe = recipes.find(
@@ -3402,14 +3263,12 @@ const QuotingModule: React.FC<Props> = ({
                                 className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase transition-all ${infillType === "ciego" ? "bg-sky-600 text-white" : "text-slate-400"}`}
                               >
                                 CIEGO
-                              </button>{" "}
-                            </div>{" "}
-                          </div>{" "}
+                              </button>
+                            </div>
+                          </div>
                           <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                            {" "}
                             {infillType === "ciego" ? (
                               <div className="space-y-3">
-                                {" "}
                                 <select
                                   className="w-full bg-slate-50 border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none"
                                   value={
@@ -3437,16 +3296,13 @@ const QuotingModule: React.FC<Props> = ({
                                     });
                                   }}
                                 >
-                                  {" "}
-                                  <option value="">
-                                    (SELECCIONE PANEL)
-                                  </option>{" "}
+                                  <option value="">(SELECCIONE PANEL)</option>
                                   {blindPanels.map((p) => (
                                     <option key={p.id} value={p.id}>
                                       {p.code} - {p.detail}
                                     </option>
-                                  ))}{" "}
-                                </select>{" "}
+                                  ))}
+                                </select>
                                 <button
                                   onClick={() => {
                                     setSlatPaneIdx(paneIdx);
@@ -3454,18 +3310,15 @@ const QuotingModule: React.FC<Props> = ({
                                   }}
                                   className="w-full bg-sky-50 border border-sky-100 text-sky-600 p-2 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sky-600 hover:text-white transition-all"
                                 >
-                                  {" "}
-                                  <Box size={14} />{" "}
+                                  <Box size={14} />
                                   {currentModForEdit.slatProfileIds?.[paneIdx]
                                     ? `Tablilla: ${aluminum.find((a) => a.id === currentModForEdit.slatProfileIds?.[paneIdx])?.code || "S/D"}`
-                                    : "Configurar Tablillas"}{" "}
-                                </button>{" "}
+                                    : "Configurar Tablillas"}
+                                </button>
                               </div>
                             ) : infillType === "dvh" ? (
                               <div className="grid grid-cols-2 gap-3">
-                                {" "}
                                 <div className="col-span-2">
-                                  {" "}
                                   <select
                                     className="w-full bg-sky-50/50 border border-sky-100 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none"
                                     value={currentModForEdit.dvhCameraId || ""}
@@ -3475,17 +3328,16 @@ const QuotingModule: React.FC<Props> = ({
                                       })
                                     }
                                   >
-                                    {" "}
-                                    <option value="">(CÁMARA)</option>{" "}
+                                    <option value="">(CÁMARA)</option>
                                     {dvhInputs
                                       .filter((i) => i.type === "Cámara")
                                       .map((c) => (
                                         <option key={c.id} value={c.id}>
                                           {c.detail}
                                         </option>
-                                      ))}{" "}
-                                  </select>{" "}
-                                </div>{" "}
+                                      ))}
+                                  </select>
+                                </div>
                                 <select
                                   className="w-full bg-white border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none"
                                   value={currentModForEdit.glassOuterId || ""}
@@ -3500,7 +3352,7 @@ const QuotingModule: React.FC<Props> = ({
                                       {g.detail}
                                     </option>
                                   ))}
-                                </select>{" "}
+                                </select>
                                 <select
                                   className="w-full bg-white border border-slate-200 h-9 px-3 rounded-lg text-[9px] font-black uppercase outline-none"
                                   value={currentModForEdit.glassInnerId || ""}
@@ -3515,7 +3367,7 @@ const QuotingModule: React.FC<Props> = ({
                                       {g.detail}
                                     </option>
                                   ))}
-                                </select>{" "}
+                                </select>
                               </div>
                             ) : (
                               <select
@@ -3533,23 +3385,21 @@ const QuotingModule: React.FC<Props> = ({
                                   </option>
                                 ))}
                               </select>
-                            )}{" "}
-                          </div>{" "}
+                            )}
+                          </div>
                         </div>
                       );
-                    })}{" "}
-                  </div>{" "}
-                </div>{" "}
+                    })}
+                  </div>
+                </div>
                 <div className="space-y-4 pt-4 border-t border-slate-50 ">
-                  {" "}
                   <h4 className="text-[10px] font-black text-sky-600 uppercase tracking-widest border-l-4 border-sky-600 pl-3">
                     <Wind size={14} /> Herrajes del Módulo
-                  </h4>{" "}
+                  </h4>
                   <p className="text-[8px] text-slate-400 font-bold uppercase px-3 italic">
                     Active o desactive las opciones de herraje según el tamaño.
-                  </p>{" "}
+                  </p>
                   <div className="grid grid-cols-1 gap-2">
-                    {" "}
                     {(() => {
                       const modAccs =
                         currentModForEdit.overriddenAccessories &&
@@ -3569,11 +3419,8 @@ const QuotingModule: React.FC<Props> = ({
                             key={idx}
                             className={`flex flex-col gap-2 p-3 border-2 rounded-xl transition-all ${ra.isAlternative ? "bg-slate-50/40 border-slate-100 opacity-60" : "bg-white border-sky-600/20 shadow-sm"}`}
                           >
-                            {" "}
                             <div className="flex items-center justify-between">
-                              {" "}
                               <div className="flex items-center gap-2">
-                                {" "}
                                 {ra.label ? (
                                   <span className="px-2 py-0.5 bg-sky-100 text-sky-700 text-[8px] font-black rounded-md uppercase">
                                     {ra.label}
@@ -3582,16 +3429,15 @@ const QuotingModule: React.FC<Props> = ({
                                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">
                                     Posición #{idx + 1}
                                   </span>
-                                )}{" "}
+                                )}
                                 <span className="text-[9px] font-black text-slate-500 uppercase">
                                   x{ra.quantity} {ra.isLinear ? "ML" : "UN"}
-                                </span>{" "}
-                              </div>{" "}
+                                </span>
+                              </div>
                               <button
                                 onClick={() => toggleAccessoryActive(idx)}
                                 className={`flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black transition-all ${ra.isAlternative ? "text-slate-400 hover:text-sky-600" : "bg-sky-600 text-white shadow-md"}`}
                               >
-                                {" "}
                                 {ra.isAlternative ? (
                                   <>
                                     <ToggleLeft size={14} /> DESACTIVADO
@@ -3600,9 +3446,9 @@ const QuotingModule: React.FC<Props> = ({
                                   <>
                                     <ToggleRight size={14} /> ACTIVO
                                   </>
-                                )}{" "}
-                              </button>{" "}
-                            </div>{" "}
+                                )}
+                              </button>
+                            </div>
                             <select
                               className={`w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black outline-none focus:border-sky-500 shadow-sm ${ra.isAlternative ? "text-slate-400" : "text-slate-800 "}`}
                               value={ra.accessoryId || ""}
@@ -3610,80 +3456,70 @@ const QuotingModule: React.FC<Props> = ({
                                 handleAccessorySubstitute(idx, e.target.value)
                               }
                             >
-                              {" "}
-                              <option value="">(SIN ACCESORIO)</option>{" "}
+                              <option value="">(SIN ACCESORIO)</option>
                               {accessories.map((a) => (
                                 <option key={a.id} value={a.id}>
                                   {a.code} - {a.detail}
                                 </option>
-                              ))}{" "}
-                            </select>{" "}
+                              ))}
+                            </select>
                           </div>
                         );
                       });
-                    })()}{" "}
-                  </div>{" "}
-                </div>{" "}
-              </div>{" "}
-            </div>{" "}
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="pt-4 border-t border-slate-100 ">
-              {" "}
               <button
                 onClick={() => setEditingModuleId(null)}
                 className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-sky-600 transition-all flex items-center justify-center gap-3"
               >
-                {" "}
-                <CheckCircle size={18} /> Validar Ingeniería de Módulo{" "}
-              </button>{" "}
-            </div>{" "}
-          </div>{" "}
+                <CheckCircle size={18} /> Validar Ingeniería de Módulo
+              </button>
+            </div>
+          </div>
         </div>
-      )}{" "}
+      )}
       {showSlatSelector && slatPaneIdx !== null && currentModForEdit && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 lg:p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
-          {" "}
           <div className="bg-white w-full lg:max-w-xl rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-2xl border-2 border-sky-100 flex flex-col max-h-[90vh] transition-colors relative">
-            {" "}
             <div className="flex justify-between items-center border-b border-slate-50 pb-5 mb-6">
-              {" "}
               <div className="flex items-center gap-4">
-                {" "}
                 <div className="w-12 h-12 bg-sky-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
                   <Box size={24} />
-                </div>{" "}
+                </div>
                 <div>
-                  {" "}
                   <h3 className="text-xl font-black uppercase text-slate-800 tracking-tighter leading-none italic">
                     Selector de Tablillas
-                  </h3>{" "}
+                  </h3>
                   <p className="text-[10px] text-slate-400 font-black uppercase mt-1.5 tracking-widest">
                     Paño #{slatPaneIdx + 1} • Cálculo Dinámico
-                  </p>{" "}
-                </div>{" "}
-              </div>{" "}
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowSlatSelector(false)}
                 className="text-slate-300 hover:text-red-500 transition-all p-2 bg-slate-50 bg-slate-800 rounded-xl"
               >
                 <X size={24} />
-              </button>{" "}
-            </div>{" "}
+              </button>
+            </div>
             <div className="relative mb-6">
-              {" "}
               <Search
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
                 size={18}
-              />{" "}
+              />
               <input
                 type="text"
                 placeholder="Buscar perfil tablilla por código o detalle..."
                 className="w-full bg-slate-50 border-2 border-slate-200 pl-12 pr-6 py-4 rounded-2xl text-[11px] font-black uppercase focus:outline-none focus:border-sky-600 transition-all shadow-inner"
                 value={slatSearch}
                 onChange={(e) => setSlatSearch(e.target.value)}
-              />{" "}
-            </div>{" "}
+              />
+            </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
-              {" "}
               {filteredSlats.length > 0 ? (
                 filteredSlats.map((p) => (
                   <button
@@ -3699,47 +3535,42 @@ const QuotingModule: React.FC<Props> = ({
                     }}
                     className={`w-full text-left p-5 rounded-[1.5rem] border-2 transition-all group flex items-center justify-between ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? "bg-sky-600 border-sky-700 text-white shadow-xl scale-[1.01]" : "bg-white border-slate-100 hover:border-sky-200"}`}
                   >
-                    {" "}
                     <div className="flex flex-col gap-1">
-                      {" "}
                       <span
                         className={`text-sm font-black uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? "text-white" : "text-slate-800 group-hover:text-sky-600"}`}
                       >
                         {p.code}
-                      </span>{" "}
+                      </span>
                       <span
                         className={`text-[10px] font-bold uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? "text-sky-200" : "text-slate-400"}`}
                       >
                         {p.detail}
-                      </span>{" "}
-                    </div>{" "}
+                      </span>
+                    </div>
                     <div className="text-right">
-                      {" "}
                       <div
                         className={`text-[9px] font-black uppercase ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? "text-white" : "text-slate-400"}`}
                       >
                         Espesor: {p.thickness}mm
-                      </div>{" "}
+                      </div>
                       <div
                         className={`text-[8px] font-bold uppercase mt-1 ${currentModForEdit.slatProfileIds?.[slatPaneIdx] === p.id ? "text-sky-200" : "text-sky-500"}`}
                       >
                         {p.weightPerMeter} kg/m
-                      </div>{" "}
-                    </div>{" "}
+                      </div>
+                    </div>
                   </button>
                 ))
               ) : (
                 <div className="py-12 text-center text-slate-300 opacity-20 flex flex-col items-center">
-                  {" "}
-                  <Box size={60} className="mb-4" />{" "}
+                  <Box size={60} className="mb-4" />
                   <p className="text-[10px] font-black uppercase tracking-widest">
                     No hay perfiles disponibles
-                  </p>{" "}
+                  </p>
                 </div>
-              )}{" "}
-            </div>{" "}
+              )}
+            </div>
             <div className="mt-8 pt-6 border-t border-slate-100 ">
-              {" "}
               <button
                 onClick={() => {
                   const newIds = {
@@ -3751,33 +3582,27 @@ const QuotingModule: React.FC<Props> = ({
                 }}
                 className="w-full bg-slate-50 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-all border border-slate-200 "
               >
-                {" "}
-                Limpiar Selección{" "}
-              </button>{" "}
-            </div>{" "}
-          </div>{" "}
+                Limpiar Selección
+              </button>
+            </div>
+          </div>
         </div>
-      )}{" "}
+      )}
       {showHandrailSelector && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
-          {" "}
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-100 text-center space-y-6">
-            {" "}
             <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 mx-auto shadow-lg">
-              {" "}
-              <Wind size={32} />{" "}
-            </div>{" "}
+              <Wind size={32} />
+            </div>
             <div className="space-y-2">
-              {" "}
               <h3 className="text-xl font-black uppercase text-slate-800 tracking-tighter">
                 Ingeniería de Pasamano
-              </h3>{" "}
+              </h3>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                 Seleccione el perfil superior para la baranda
-              </p>{" "}
-            </div>{" "}
+              </p>
+            </div>
             <div className="space-y-4">
-              {" "}
               <select
                 className="w-full bg-slate-50 h-12 px-4 rounded-xl border border-slate-200 text-[11px] font-black uppercase outline-none focus:border-amber-500"
                 value={
@@ -3797,15 +3622,14 @@ const QuotingModule: React.FC<Props> = ({
                   }
                 }}
               >
-                {" "}
-                <option value="">(SIN PASAMANO)</option>{" "}
+                <option value="">(SIN PASAMANO)</option>
                 {handrailProfiles.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.code} - {p.detail}
                   </option>
-                ))}{" "}
-              </select>{" "}
-            </div>{" "}
+                ))}
+              </select>
+            </div>
             <button
               onClick={() => {
                 setShowHandrailSelector(false);
@@ -3813,12 +3637,11 @@ const QuotingModule: React.FC<Props> = ({
               }}
               className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-widest shadow-xl hover:bg-amber-600 transition-all"
             >
-              {" "}
-              Aplicar y Continuar{" "}
-            </button>{" "}
-          </div>{" "}
+              Aplicar y Continuar
+            </button>
+          </div>
         </div>
-      )}{" "}
+      )}
     </div>
   );
 };
