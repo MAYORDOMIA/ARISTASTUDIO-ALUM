@@ -303,13 +303,13 @@ const ProductRecipeEditor: React.FC<Props> = ({
       try {
         const recetaFormateada = {
           user_id: userId,
-          receta_id: recipe.id,
+          master_ref: recipe.id,
           name: recipe.name || "Sin nombre",
           data: recipe,
         };
         const { error } = await supabase
           .from("recetas_usuario")
-          .upsert([recetaFormateada], { onConflict: "user_id,receta_id" });
+          .upsert([recetaFormateada], { onConflict: "user_id,master_ref" });
         if (error) throw error;
         console.log("Receta sincronizada con la nube con éxito.");
       } catch (err: any) {
@@ -572,16 +572,18 @@ const ProductRecipeEditor: React.FC<Props> = ({
       setRecipes(uniqueRecipes);
 
       if (isSupabaseConfigured && userId) {
-        for (const recipe of deletedRecipes) {
-          try {
-            await supabase
-              .from("recetas_usuario")
-              .delete()
-              .eq("user_id", userId)
-              .eq("receta_id", recipe.id);
-          } catch (e) {
-            console.error("Error al eliminar duplicado de la BD", e);
-          }
+        const idsToDelete = deletedRecipes.map((r) => r.id);
+        try {
+          const { error } = await supabase
+            .from("recetas_usuario")
+            .delete()
+            .eq("user_id", userId)
+            .in("master_ref", idsToDelete);
+
+          if (error) throw error;
+        } catch (e) {
+          console.error("Error al eliminar duplicados de la BD", e);
+          alert("Hubo un error al sincronizar la eliminación con la base de datos.");
         }
       }
       alert(
