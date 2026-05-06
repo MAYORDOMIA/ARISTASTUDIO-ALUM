@@ -115,6 +115,8 @@ export interface RecipeProfile {
     | "Mosquitero"
     | "Contravidrio"
     | "ContravidrioTravesaño"
+    | "Columna"
+    | "Viga"
     | "Otro";
   alternative?: "A" | "B";
 

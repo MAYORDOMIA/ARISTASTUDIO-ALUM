@@ -926,6 +926,8 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           "Tapajuntas",
                           "Mosquitero",
                           "Contravidrio",
+                          "Columna",
+                          "Viga",
                           ...((recipe.profiles.some(
                             (p) => p.role === "Travesaño",
                           )

@@ -211,6 +211,8 @@ export const calculateCompositePrice = (
       mod.handrailType,
       undefined,
       mod.leafAlternative,
+      !!validModules.find((m) => m.x === mod.x - 1 && m.y === mod.y), // isRightModule
+      !!validModules.find((m) => m.x === mod.x && m.y === mod.y - 1), // isBottomModule
     );
 
     totalAluCost += result.aluCost;
@@ -403,6 +405,8 @@ export const calculateItemPrice = (
   handrailType?: "recta" | "inclinada",
   leafWidths?: number[],
   leafAlternative?: "A" | "B",
+  isRightModule?: boolean,
+  isBottomModule?: boolean,
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -480,12 +484,14 @@ export const calculateItemPrice = (
   const baseAluPrice =
     Number(config.aluminumPricePerKg || 0) + Number(treatment.pricePerKg || 0);
 
+  let removedColumna = false;
+  let removedViga = false;
   activeProfiles.forEach((rp) => {
     let profile = profiles.find((p) => p.id === rp.profileId);
 
     // Lógica de Contravidrio Dinámico
     if (rp.glazingBeadOptions && rp.glazingBeadOptions.length > 0) {
-      // Buscar candidatos
+      // ... (code for glazing bead, kept same) ...
       const candidates = profiles.filter((p) =>
         rp.glazingBeadOptions?.includes(p.id),
       );
@@ -521,12 +527,34 @@ export const calculateItemPrice = (
     }
 
     if (profile) {
-      const cutMeasure = evaluateFormula(rp.formula, width, height);
-      const weight =
-        ((cutMeasure + Number(config.discWidth || 0)) / 1000) *
-        Number(rp.quantity || 0) *
-        Number(profile.weightPerMeter || 0);
-      totalAluWeight += weight;
+      let shouldRemove = false;
+      const profileRole = (rp.role || "").toLowerCase();
+      console.log(`[DEBUG] Final verification: isRight=${!!isRightModule}, isBottom=${!!isBottomModule}, ProfileRole: ${profileRole}`);
+      
+      if (recipe.name.toLowerCase() === "frente integral") {
+        // Remove 1 'columna' for each right-coupled module
+        if (isRightModule && profileRole === "columna" && !removedColumna) {
+          console.log(`[DEBUG] REMOVING: Column for RIGHT coupled module. Profile role: ${profileRole}`);
+          shouldRemove = true;
+          removedColumna = true;
+        } 
+        // Remove 1 'viga' for each bottom-coupled module
+        else if (isBottomModule && profileRole === "viga" && !removedViga) {
+          console.log(`[DEBUG] REMOVING: Beam for BOTTOM coupled module. Profile role: ${profileRole}`);
+          shouldRemove = true;
+          removedViga = true;
+        }
+      }
+
+
+      if (!shouldRemove) {
+        const cutMeasure = evaluateFormula(rp.formula, width, height);
+        const weight =
+          ((cutMeasure + Number(config.discWidth || 0)) / 1000) *
+          Number(rp.quantity || 0) *
+          Number(profile.weightPerMeter || 0);
+        totalAluWeight += weight;
+      }
     }
   });
 

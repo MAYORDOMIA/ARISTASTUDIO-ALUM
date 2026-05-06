@@ -1170,6 +1170,8 @@ const QuotingModule: React.FC<Props> = ({
   const [isDraggingBreakdown, setIsDraggingBreakdown] = useState(false);
   const breakdownDragOffset = useRef({ x: 0, y: 0 });
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
+  const moduleBoxesRef = useRef<{ id: string; x: number; y: number; w: number; h: number }[]>([]);
+  const [hoveredModuleId, setHoveredModuleId] = useState<string | null>(null);
   const ensureOneActivePerLabel = (accs: RecipeAccessory[]) => {
     if (!accs) return [];
     const result = accs.map((a) => ({ ...a }));
@@ -1681,6 +1683,13 @@ const QuotingModule: React.FC<Props> = ({
       assemblyMaxY = Math.max(assemblyMaxY, mY + mH);
       return { mod, mX, mY, mW, mH };
     });
+    moduleBoxesRef.current = preparedModules.map(pm => ({
+      id: pm.mod.id,
+      x: pm.mX,
+      y: pm.mY,
+      w: pm.mW,
+      h: pm.mH
+    }));
     preparedModules.forEach(({ mod, mX, mY, mW, mH }) => {
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe) return; // Lógica de sustracción de intervalos para detectar partes expuestas (sin vecino)
@@ -1856,6 +1865,32 @@ const QuotingModule: React.FC<Props> = ({
         mod.hand,
         mod.leafWidths,
       );
+      
+      // Draw Engineering Button indicator on Canvas
+      if (mod.id === hoveredModuleId) {
+        ctx.save();
+        const s = 120; // 120px in 2400x1800 canvas space
+        const cenX = mX + mW / 2;
+        const cenY = mY + mH / 2;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(cenX - s/2, cenY - s/2, s, s, 20);
+        } else {
+          ctx.rect(cenX - s/2, cenY - s/2, s, s);
+        }
+        ctx.fillStyle = "rgba(2, 132, 199, 0.85)";
+        ctx.shadowColor = "rgba(0,0,0,0.3)";
+        ctx.shadowBlur = 20;
+        ctx.fill();
+        ctx.font = "60px sans-serif";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("⚙", cenX, cenY + 4);
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText("INGENIERÍA", cenX, cenY + 40);
+        ctx.restore();
+      }
     });
     if (extras.tapajuntas) {
       renderAdaptiveTJ(ctx, perimeterSegments, tjSizePx, aluColor);
@@ -1876,6 +1911,7 @@ const QuotingModule: React.FC<Props> = ({
     blindPanels,
     aluminum,
     isManualDim,
+    hoveredModuleId,
   ]);
   const currentModForEdit = (modules || []).find(
     (m) => m && m.id === editingModuleId,
@@ -2502,48 +2538,85 @@ const QuotingModule: React.FC<Props> = ({
           ref={mainCanvasRef}
           width={2400}
           height={1800}
-          className="w-full h-full max-h-[60vh] lg:max-h-[88vh] object-contain p-4 lg:p-12"
+          className="w-full h-full max-h-[60vh] lg:max-h-[88vh] object-contain p-4 lg:p-12 cursor-pointer transition-all"
+          onClick={(e) => {
+            const canvas = mainCanvasRef.current;
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            
+            const styles = window.getComputedStyle(canvas);
+            const pTop = parseFloat(styles.paddingTop);
+            const pRight = parseFloat(styles.paddingRight);
+            const pBottom = parseFloat(styles.paddingBottom);
+            const pLeft = parseFloat(styles.paddingLeft);
+
+            const contentW = rect.width - pLeft - pRight;
+            const contentH = rect.height - pTop - pBottom;
+            
+            if (contentW <= 0 || contentH <= 0) return;
+            
+            const scale = Math.min(contentW / canvas.width, contentH / canvas.height);
+            
+            const displayedW = canvas.width * scale;
+            const displayedH = canvas.height * scale;
+            
+            const offsetX = pLeft + (contentW - displayedW) / 2;
+            const offsetY = pTop + (contentH - displayedH) / 2;
+            
+            const cssX = e.clientX - rect.left - offsetX;
+            const cssY = e.clientY - rect.top - offsetY;
+            
+            const canvasX = cssX / scale;
+            const canvasY = cssY / scale;
+            
+            for (const box of moduleBoxesRef.current) {
+              if (canvasX >= box.x && canvasX <= box.x + box.w && 
+                  canvasY >= box.y && canvasY <= box.y + box.h) {
+                setSelectedModuleId(box.id);
+                setEditingModuleId(box.id);
+                setModalPos({ x: 0, y: 0 }); // reset modal pos to default
+                return;
+              }
+            }
+          }}
+          onMouseMove={(e) => {
+            const canvas = mainCanvasRef.current;
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            const styles = window.getComputedStyle(canvas);
+            const pTop = parseFloat(styles.paddingTop);
+            const pRight = parseFloat(styles.paddingRight);
+            const pBottom = parseFloat(styles.paddingBottom);
+            const pLeft = parseFloat(styles.paddingLeft);
+            const contentW = rect.width - pLeft - pRight;
+            const contentH = rect.height - pTop - pBottom;
+            if (contentW <= 0 || contentH <= 0) return;
+            const scale = Math.min(contentW / canvas.width, contentH / canvas.height);
+            const displayedW = canvas.width * scale;
+            const displayedH = canvas.height * scale;
+            const offsetX = pLeft + (contentW - displayedW) / 2;
+            const offsetY = pTop + (contentH - displayedH) / 2;
+            
+            const cssX = e.clientX - rect.left - offsetX;
+            const cssY = e.clientY - rect.top - offsetY;
+            
+            const canvasX = cssX / scale;
+            const canvasY = cssY / scale;
+            
+            let foundId: string | null = null;
+            for (const box of moduleBoxesRef.current) {
+              if (canvasX >= box.x && canvasX <= box.x + box.w && 
+                  canvasY >= box.y && canvasY <= box.y + box.h) {
+                foundId = box.id;
+                break;
+              }
+            }
+            if (foundId !== hoveredModuleId) {
+              setHoveredModuleId(foundId);
+            }
+          }}
+          onMouseLeave={() => setHoveredModuleId(null)}
         />
-        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center p-4 lg:p-12">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: (colSizes || [])
-                .map((s) => `${s}fr`)
-                .join(" "),
-              gridTemplateRows: (rowSizes || []).map((s) => `${s}fr`).join(" "),
-              aspectRatio: `${totalWidth || 1} / ${totalHeight || 1}`,
-              width: "100%",
-              height: "100%",
-            }}
-          >
-            {(modules || [])
-              .filter(
-                (mod) =>
-                  mod && typeof mod.x === "number" && typeof mod.y === "number",
-              )
-              .map((mod) => (
-                <div
-                  key={mod.id}
-                  onClick={() => setSelectedModuleId(mod.id)}
-                  className="relative pointer-events-auto group transition-all flex items-center justify-center cursor-pointer"
-                >
-                  <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[0px] group-hover:backdrop-blur-[2px] transition-all opacity-0 group-hover:opacity-100">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingModuleId(mod.id);
-                        setModalPos({ x: 0, y: 0 });
-                      }}
-                      className="p-4 bg-sky-600 text-white rounded-[1.2rem] shadow-2xl hover:scale-110 active:scale-90 transition-all border-2 border-white/20 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest"
-                    >
-                      <Settings size={18} /> Ingeniería
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
       </div>
       {showCouplingModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
