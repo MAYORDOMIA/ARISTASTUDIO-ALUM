@@ -1514,11 +1514,12 @@ export const generateClientDetailedPDF = (
       .map((m) => recipes.find((r) => r.id === m.recipeId))
       .filter(Boolean);
     const moduleNames = moduleRecipes.map((r) => r?.name);
+    const recipeLine = moduleRecipes[0]?.line || "No especificada";
+    const isFrenteIntegral = recipeLine.toLowerCase() === "frente integral";
     const compositeName =
       moduleNames.length > 1
-        ? `CONJUNTO: ${moduleNames.join(" + ")}`
+        ? (isFrenteIntegral ? `CONJUNTO: FRENTE INTEGRAL` : `CONJUNTO: ${moduleNames.join(" + ")}`)
         : moduleNames[0] || "Abertura";
-    const recipeLine = moduleRecipes[0]?.line || "No especificada";
     let glassDetailStr = "No definido";
     const firstMod = item.composition.modules?.[0];
     if (firstMod) {
@@ -1772,11 +1773,12 @@ export const generateAssemblyOrderPDF = (
       .map((m) => recipes.find((r) => r.id === m.recipeId))
       .filter(Boolean);
     const moduleNames = moduleRecipes.map((r) => r?.name);
+    const recipeLine = moduleRecipes[0]?.line || "-";
+    const isFrenteIntegral = recipeLine.toLowerCase() === "frente integral";
     const compositeName =
       moduleNames.length > 1
-        ? `CONJUNTO: ${moduleNames.join(" + ")}`
+        ? (isFrenteIntegral ? `CONJUNTO: FRENTE INTEGRAL` : `CONJUNTO: ${moduleNames.join(" + ")}`)
         : moduleNames[0] || "Abertura";
-    const recipeLine = moduleRecipes[0]?.line || "-";
     const isSet = item.composition.modules.length > 1;
     const cProfile = item.couplingProfileId
       ? aluminum.find((p) => p.id === item.couplingProfileId)
@@ -2245,12 +2247,14 @@ export const generateCostsPDF = (
   doc.text("AUDITORÍA DE COSTOS INTERNOS", 15, 15);
   const tableData = quote.items.map((item, idx) => {
     const b = item.breakdown;
+    const firstRecipe = recipes.find((r) => r.id === item.composition.modules?.[0]?.recipeId);
+    const isFrenteIntegral = firstRecipe?.line?.toLowerCase() === "frente integral";
     const moduleNames = item.composition.modules
       .map((m) => recipes.find((r) => r.id === m.recipeId)?.name)
       .filter(Boolean);
     const compositeName =
       moduleNames.length > 1
-        ? `CONJUNTO: ${moduleNames.join(" + ")}`
+        ? (isFrenteIntegral ? `CONJUNTO: FRENTE INTEGRAL` : `CONJUNTO: ${moduleNames.join(" + ")}`)
         : moduleNames[0] || "-";
     return [
       item.itemCode || `POS#${idx + 1}`,

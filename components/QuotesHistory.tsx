@@ -393,12 +393,14 @@ const QuotesHistory: React.FC<Props> = ({
                   Desglose de Ítems ({selectedQuote.items.length})
                 </h4>
                 {selectedQuote.items.map((item, idx) => {
+                  const firstRecipe = recipes.find((r) => r.id === item.composition.modules?.[0]?.recipeId);
+                  const isFrenteIntegral = firstRecipe?.line?.toLowerCase() === "frente integral";
                   const moduleNames = item.composition.modules
                     .map((m) => recipes.find((r) => r.id === m.recipeId)?.name)
                     .filter(Boolean);
                   const compositeName =
                     moduleNames.length > 1
-                      ? `CONJUNTO: ${moduleNames.join(" + ")}`
+                      ? (isFrenteIntegral ? `CONJUNTO: FRENTE INTEGRAL` : `CONJUNTO: ${moduleNames.join(" + ")}`)
                       : moduleNames[0] || "Producto";
                   return (
                     <div
