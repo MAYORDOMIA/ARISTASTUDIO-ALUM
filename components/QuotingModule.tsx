@@ -1448,6 +1448,15 @@ const QuotingModule: React.FC<Props> = ({
       if (currentSum > 0) {
         const ratio = newValue / currentSum;
         setColSizes(colSizes.map((s) => Math.round(s * ratio)));
+      } else if (newValue > 0) {
+        const parts = colSizes.length || 1;
+        const base = Math.floor(newValue / parts);
+        const remainder = newValue % parts;
+        const newSizes = Array(parts).fill(base);
+        for (let i = 0; i < remainder; i++) newSizes[i]++;
+        setColSizes(newSizes);
+      } else {
+        setColSizes(colSizes.map(() => 0));
       }
       setTotalWidth(newValue);
     } else {
@@ -1455,6 +1464,15 @@ const QuotingModule: React.FC<Props> = ({
       if (currentSum > 0) {
         const ratio = newValue / currentSum;
         setRowSizes(rowSizes.map((s) => Math.round(s * ratio)));
+      } else if (newValue > 0) {
+        const parts = rowSizes.length || 1;
+        const base = Math.floor(newValue / parts);
+        const remainder = newValue % parts;
+        const newSizes = Array(parts).fill(base);
+        for (let i = 0; i < remainder; i++) newSizes[i]++;
+        setRowSizes(newSizes);
+      } else {
+        setRowSizes(rowSizes.map(() => 0));
       }
       setTotalHeight(newValue);
     }
@@ -1621,9 +1639,11 @@ const QuotingModule: React.FC<Props> = ({
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const padding = 140;
+    const realW = Math.max(totalWidth, colSizes.reduce((a, b) => a + b, 0));
+    const realH = Math.max(totalHeight, rowSizes.reduce((a, b) => a + b, 0));
     const pxPerMm = Math.min(
-      (canvas.width - padding * 2) / (totalWidth || 1),
-      (canvas.height - padding * 2) / (totalHeight || 1),
+      (canvas.width - padding * 2) / (realW || 1),
+      (canvas.height - padding * 2) / (realH || 1),
     );
     const startX = (canvas.width - totalWidth * pxPerMm) / 2;
     const startY = (canvas.height - totalHeight * pxPerMm) / 2;
@@ -2145,12 +2165,14 @@ const QuotingModule: React.FC<Props> = ({
                 <Lock size={10} className="text-sky-400" /> Ancho Total
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 className="w-full bg-slate-50 h-8 px-2 rounded-lg border border-slate-200 font-mono font-black text-slate-800 text-xs focus:border-sky-500 transition-all outline-none shadow-inner"
-                value={totalWidth}
-                onChange={(e) =>
-                  handleTotalChange("width", parseInt(e.target.value) || 0)
-                }
+                value={totalWidth || ""}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  handleTotalChange("width", parseInt(val) || 0);
+                }}
               />
             </div>
             <div className="space-y-0.5">
@@ -2158,12 +2180,14 @@ const QuotingModule: React.FC<Props> = ({
                 <Lock size={10} className="text-sky-400" /> Alto Total
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 className="w-full bg-slate-50 h-8 px-2 rounded-lg border border-slate-200 font-mono font-black text-slate-800 text-xs focus:border-sky-500 transition-all outline-none shadow-inner"
-                value={totalHeight}
-                onChange={(e) =>
-                  handleTotalChange("height", parseInt(e.target.value) || 0)
-                }
+                value={totalHeight || ""}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  handleTotalChange("height", parseInt(val) || 0);
+                }}
               />
             </div>
           </div>
@@ -2436,16 +2460,18 @@ const QuotingModule: React.FC<Props> = ({
                       </div>
                       <div className="flex items-center gap-2">
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           className={`w-20 bg-white border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? "border-amber-400 text-amber-600 focus:ring-2 ring-amber-100" : "border-slate-200 text-sky-600 focus:border-sky-500"}`}
-                          value={size}
-                          onChange={(e) =>
+                          value={size || ""}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "");
                             handleBodySizeChange(
                               "width",
                               idx,
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
+                              parseInt(val) || 0,
+                            );
+                          }}
                         />
                         <span
                           className={`text-[7px] font-black ${isManualDim ? "text-amber-500" : "text-slate-300 "}`}
@@ -2503,16 +2529,18 @@ const QuotingModule: React.FC<Props> = ({
                       </div>
                       <div className="flex items-center gap-2">
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           className={`w-20 bg-white border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? "border-amber-400 text-amber-600 focus:ring-2 ring-amber-100" : "border-slate-200 text-sky-600 focus:border-sky-500"}`}
-                          value={size}
-                          onChange={(e) =>
+                          value={size || ""}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, "");
                             handleBodySizeChange(
                               "height",
                               idx,
-                              parseInt(e.target.value) || 0,
-                            )
-                          }
+                              parseInt(val) || 0,
+                            );
+                          }}
                         />
                         <span
                           className={`text-[7px] font-black ${isManualDim ? "text-amber-500" : "text-slate-300 "}`}
