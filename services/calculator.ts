@@ -70,7 +70,7 @@ export const evaluateFormula = (
 };
 
 export const calculateModuleDimensions = (
-  mod: MeasurementModule,
+  mod: { x: number; y: number; width?: number; height?: number; [key: string]: any },
   colRatios: number[],
   rowRatios: number[],
   minX: number,
@@ -80,22 +80,27 @@ export const calculateModuleDimensions = (
   realDeduction: number,
   isManualDim?: boolean,
 ): { modW: number; modH: number } => {
-  let modW =
-    isManualDim && mod.width && mod.width > 0
-      ? mod.width
-      : Number(colRatios[mod.x - minX] || 0);
-  let modH =
-    isManualDim && mod.height && mod.height > 0
-      ? mod.height
-      : Number(rowRatios[mod.y - minY] || 0);
+  let modW = 0;
+  let modH = 0;
 
-  if (colRatios.length > 1) {
-    if (mod.x !== minX) modW -= realDeduction / 2;
-    if (mod.x !== maxX) modW -= realDeduction / 2;
-  }
-  if (rowRatios.length > 1) {
-    if (mod.y !== minY) modH -= realDeduction / 2;
-    if (mod.y !== maxY) modH -= realDeduction / 2;
+  if (isManualDim && mod.width && mod.height) {
+    modW = mod.width;
+    modH = mod.height;
+  } else {
+    const totalW = colRatios.reduce((a, b) => a + b, 0);
+    const totalH = rowRatios.reduce((a, b) => a + b, 0);
+
+    const numCols = colRatios.length;
+    const numRows = rowRatios.length;
+
+    const netW = totalW - (numCols > 1 ? (numCols - 1) * realDeduction : 0);
+    const netH = totalH - (numRows > 1 ? (numRows - 1) * realDeduction : 0);
+
+    const ratioW = totalW > 0 ? (colRatios[mod.x - minX] || 0) / totalW : 0;
+    const ratioH = totalH > 0 ? (rowRatios[mod.y - minY] || 0) / totalH : 0;
+
+    modW = netW * ratioW;
+    modH = netH * ratioH;
   }
 
   return { modW, modH };
@@ -601,14 +606,48 @@ export const calculateItemPrice = (
     });
 
     transoms.forEach((t) => {
+      const isFrenteIntegral = recipe.name.toLowerCase().includes("frente integral");
       const trProf = profiles.find((p) => p.id === t.profileId);
       if (trProf) {
         const f = t.formula || recipeTransomFormula;
         const tCut = evaluateFormula(f, width, height);
+        
+        // 1. Calculate the profile explicitly selected by the user
         totalAluWeight +=
           ((tCut + Number(config.discWidth || 0)) / 1000) *
           recipeTransomQty *
           Number(trProf.weightPerMeter || 0);
+
+        // 2. Extra for Frente Integral: Sum any other profiles in the recipe with the "Travesaño" role
+        if (isFrenteIntegral) {
+          const transomRecipeProfiles = (recipe.profiles || []).filter(
+            (rp) =>
+              rp.role === "Travesaño" ||
+              (rp.role && rp.role.toLowerCase().includes("trave")),
+          );
+
+          // Identify if the selected profile is one of the recipe profiles to avoid double counting
+          const alreadySummed = transomRecipeProfiles.some(rp => rp.profileId === t.profileId);
+
+          transomRecipeProfiles.forEach((rp, idx) => {
+            // Already added as trProf
+            if (rp.profileId === t.profileId) return;
+            
+            // If the selected profile was an alternative (not in recipe), 
+            // we assume it replaces the first profile of that role in the recipe.
+            if (!alreadySummed && idx === 0) return;
+
+            const otherProf = profiles.find((p) => p.id === rp.profileId);
+            if (otherProf) {
+              const rf = rp.formula || f;
+              const rCut = evaluateFormula(rf, width, height);
+              totalAluWeight +=
+                ((rCut + Number(config.discWidth || 0)) / 1000) *
+                Number(rp.quantity || 1) *
+                Number(otherProf.weightPerMeter || 0);
+            }
+          });
+        }
 
         // Sumar 2 contravidrios extra del mismo largo que el travesaño por cada tipo de contravidrio detectado
         usedGlazingBeadIds.forEach((gbId) => {

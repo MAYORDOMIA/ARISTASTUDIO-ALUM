@@ -1651,30 +1651,41 @@ const QuotingModule: React.FC<Props> = ({
     const preparedModules = validModules.map((mod) => {
       const modIdxX = mod.x - bounds.minX;
       const modIdxY = mod.y - bounds.minY;
+      const numCols = colSizes.length;
+      const numRows = rowSizes.length;
+      const totalW = colSizes.reduce((a, b) => a + b, 0);
+      const totalH = rowSizes.reduce((a, b) => a + b, 0);
+      
+      const netW = totalW - (numCols > 1 ? (numCols - 1) * currentDeduction : 0);
+      const netH = totalH - (numRows > 1 ? (numRows - 1) * currentDeduction : 0);
+
+      const ratioW = totalW > 0 ? (colSizes[modIdxX] || 0) / totalW : 0;
+      const ratioH = totalH > 0 ? (rowSizes[modIdxY] || 0) / totalH : 0;
+
       let modW =
-        isManualDim && mod.width && mod.width > 0
+        isManualDim && mod.width && mod.height
           ? mod.width
-          : Number(colSizes[modIdxX] || 0);
+          : netW * ratioW;
       let modH =
-        isManualDim && mod.height && mod.height > 0
+        isManualDim && mod.width && mod.height
           ? mod.height
-          : Number(rowSizes[modIdxY] || 0);
-      if (colSizes.length > 1) {
-        if (mod.x > bounds.minX) modW -= currentDeduction / 2;
-        if (mod.x < bounds.maxX) modW -= currentDeduction / 2;
+          : netH * ratioH;
+          
+      // Calculate true physical offsets taking into account exact preceding module sizes and couplings
+      let trueOffsetX_mm = 0;
+      for (let i = 0; i < modIdxX; i++) {
+        let prevW = isManualDim ? colSizes[i] : netW * (totalW > 0 ? colSizes[i] / totalW : 0);
+        trueOffsetX_mm += prevW + currentDeduction;
       }
-      if (rowSizes.length > 1) {
-        if (mod.y > bounds.minY) modH -= currentDeduction / 2;
-        if (mod.y < bounds.maxY) modH -= currentDeduction / 2;
+      
+      let trueOffsetY_mm = 0;
+      for (let j = 0; j < modIdxY; j++) {
+        let prevH = isManualDim ? rowSizes[j] : netH * (totalH > 0 ? rowSizes[j] / totalH : 0);
+        trueOffsetY_mm += prevH + currentDeduction;
       }
-      let ox_mm = 0;
-      for (let i = 0; i < modIdxX; i++) ox_mm += Number(colSizes[i] || 0);
-      let oy_mm = 0;
-      for (let j = 0; j < modIdxY; j++) oy_mm += Number(rowSizes[j] || 0);
-      const xOffset = mod.x > bounds.minX ? currentDeduction / 2 : 0;
-      const yOffset = mod.y > bounds.minY ? currentDeduction / 2 : 0;
-      const mX = startX + (ox_mm + xOffset) * pxPerMm;
-      const mY = startY + (oy_mm + yOffset) * pxPerMm;
+
+      const mX = startX + (trueOffsetX_mm) * pxPerMm;
+      const mY = startY + (trueOffsetY_mm) * pxPerMm;
       const mW = modW * pxPerMm;
       const mH = modH * pxPerMm;
       assemblyMinX = Math.min(assemblyMinX, mX);
