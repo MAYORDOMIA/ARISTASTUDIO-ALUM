@@ -301,7 +301,7 @@ const drawDetailedOpening = (
       ctx.strokeStyle = isML
         ? "rgba(15, 23, 42, 0.2)"
         : "rgba(255,255,255,0.05)";
-      const step = 12 * pxPerMm;
+      const step = Math.max(1, 12 * pxPerMm);
       for (let i = 0; i < ph; i += step) {
         ctx.beginPath();
         ctx.moveTo(px, py + i);
@@ -314,7 +314,7 @@ const drawDetailedOpening = (
       ctx.save();
       ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
       ctx.lineWidth = 0.4;
-      const meshStep = 3.5 * pxPerMm;
+      const meshStep = Math.max(1.5, 3.5 * pxPerMm);
       for (let i = 0; i <= ph; i += meshStep) {
         ctx.beginPath();
         ctx.moveTo(px, py + i);
@@ -1406,10 +1406,18 @@ const QuotingModule: React.FC<Props> = ({
   ) => {
     const sizes = dim === "width" ? [...colSizes] : [...rowSizes];
     const total = dim === "width" ? totalWidth : totalHeight;
+    const numParts = sizes.length;
+    const cProfile = aluminum.find(p => p.id === couplingProfileId);
+    const currentDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
+    const totalDeductions = numParts > 1 ? (numParts - 1) * currentDeduction : 0;
+    
+    // Ensure newValue is not negative
+    const safeNewValue = Math.max(0, newValue);
+
     const oldValue = sizes[index];
     if (isManualDim) {
-      sizes[index] = newValue;
-      const newTotal = sizes.reduce((a, b) => a + b, 0);
+      sizes[index] = safeNewValue;
+      const newTotal = sizes.reduce((a, b) => a + b, 0) + totalDeductions;
       if (dim === "width") {
         setColSizes(sizes);
         setTotalWidth(newTotal);
@@ -1418,8 +1426,8 @@ const QuotingModule: React.FC<Props> = ({
         setTotalHeight(newTotal);
       }
     } else {
-      const diff = newValue - oldValue;
-      sizes[index] = newValue;
+      const diff = safeNewValue - oldValue;
+      sizes[index] = safeNewValue;
       const otherIndices = sizes.map((_, i) => i).filter((i) => i !== index);
       if (otherIndices.length > 0) {
         const othersSum = otherIndices.reduce((acc, i) => acc + sizes[i], 0);
@@ -1435,23 +1443,31 @@ const QuotingModule: React.FC<Props> = ({
           });
         }
       }
+      
+      const netTotal = total - totalDeductions;
       const currentSum = sizes.reduce((a, b) => a + b, 0);
-      const scale = total / currentSum;
+      const scale = netTotal / (currentSum || 1);
       const finalSizes = sizes.map((s) => Math.round(s * scale));
       if (dim === "width") setColSizes(finalSizes);
       else setRowSizes(finalSizes);
     }
   };
   const handleTotalChange = (dim: "width" | "height", newValue: number) => {
+    const cProfile = aluminum.find(p => p.id === couplingProfileId);
+    const currentDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
+    const numParts = dim === "width" ? colSizes.length : rowSizes.length;
+    const totalDeductions = numParts > 1 ? (numParts - 1) * currentDeduction : 0;
+    const netValue = Math.max(0, newValue - totalDeductions);
+
     if (dim === "width") {
       const currentSum = colSizes.reduce((a, b) => a + b, 0);
       if (currentSum > 0) {
-        const ratio = newValue / currentSum;
+        const ratio = netValue / currentSum;
         setColSizes(colSizes.map((s) => Math.round(s * ratio)));
-      } else if (newValue > 0) {
+      } else if (netValue > 0) {
         const parts = colSizes.length || 1;
-        const base = Math.floor(newValue / parts);
-        const remainder = newValue % parts;
+        const base = Math.floor(netValue / parts);
+        const remainder = netValue % parts;
         const newSizes = Array(parts).fill(base);
         for (let i = 0; i < remainder; i++) newSizes[i]++;
         setColSizes(newSizes);
@@ -1462,12 +1478,12 @@ const QuotingModule: React.FC<Props> = ({
     } else {
       const currentSum = rowSizes.reduce((a, b) => a + b, 0);
       if (currentSum > 0) {
-        const ratio = newValue / currentSum;
+        const ratio = netValue / currentSum;
         setRowSizes(rowSizes.map((s) => Math.round(s * ratio)));
-      } else if (newValue > 0) {
+      } else if (netValue > 0) {
         const parts = rowSizes.length || 1;
-        const base = Math.floor(newValue / parts);
-        const remainder = newValue % parts;
+        const base = Math.floor(netValue / parts);
+        const remainder = netValue % parts;
         const newSizes = Array(parts).fill(base);
         for (let i = 0; i < remainder; i++) newSizes[i]++;
         setRowSizes(newSizes);
@@ -1645,8 +1661,12 @@ const QuotingModule: React.FC<Props> = ({
       (canvas.width - padding * 2) / (realW || 1),
       (canvas.height - padding * 2) / (realH || 1),
     );
-    const startX = (canvas.width - totalWidth * pxPerMm) / 2;
-    const startY = (canvas.height - totalHeight * pxPerMm) / 2;
+    
+    // Safety guard: if pxPerMm is too small, it will cause infinite loops in mesh drawing
+    const safePxPerMm = Math.max(pxPerMm, 0.001);
+    
+    const startX = (canvas.width - totalWidth * safePxPerMm) / 2;
+    const startY = (canvas.height - totalHeight * safePxPerMm) / 2;
     const aluColor =
       treatments.find((t) => t.id === colorId)?.hexColor || "#334155";
     const validModules = (modules || []).filter(
@@ -1662,7 +1682,7 @@ const QuotingModule: React.FC<Props> = ({
     const tjProfile = aluminum.find(
       (p) => p.id === firstRecipe?.defaultTapajuntasProfileId,
     );
-    const tjSizePx = Number(tjProfile?.thickness || 40) * pxPerMm; // 1. Recolección de segmentos de contorno real
+    const tjSizePx = Number(tjProfile?.thickness || 40) * safePxPerMm; // 1. Recolección de segmentos de contorno real
     const perimeterSegments: Segment[] = []; // Calculamos los límites absolutos del conjunto para identificar los extremos globales
     let assemblyMinX = Infinity,
       assemblyMaxX = -Infinity,
@@ -1704,10 +1724,10 @@ const QuotingModule: React.FC<Props> = ({
         trueOffsetY_mm += prevH + currentDeduction;
       }
 
-      const mX = startX + (trueOffsetX_mm) * pxPerMm;
-      const mY = startY + (trueOffsetY_mm) * pxPerMm;
-      const mW = modW * pxPerMm;
-      const mH = modH * pxPerMm;
+      const mX = startX + (trueOffsetX_mm) * safePxPerMm;
+      const mY = startY + (trueOffsetY_mm) * safePxPerMm;
+      const mW = modW * safePxPerMm;
+      const mH = modH * safePxPerMm;
       assemblyMinX = Math.min(assemblyMinX, mX);
       assemblyMaxX = Math.max(assemblyMaxX, mX + mW);
       assemblyMinY = Math.min(assemblyMinY, mY);
@@ -1754,7 +1774,7 @@ const QuotingModule: React.FC<Props> = ({
           const oY = other.mY;
           const oW = other.mW;
           const oH = other.mH;
-          const tol = currentDeduction * pxPerMm + 10;
+          const tol = currentDeduction * safePxPerMm + 10;
           if (dx === 0 && dy === -1) {
             // Top
             if (
@@ -1885,7 +1905,7 @@ const QuotingModule: React.FC<Props> = ({
         mod.isDVH,
         aluColor,
         extras,
-        pxPerMm,
+        safePxPerMm,
         mod.transoms,
         mod.blindPanes,
         mod.blindPaneIds || {},
@@ -2168,7 +2188,7 @@ const QuotingModule: React.FC<Props> = ({
                 type="text"
                 inputMode="numeric"
                 className="w-full bg-slate-50 h-8 px-2 rounded-lg border border-slate-200 font-mono font-black text-slate-800 text-xs focus:border-sky-500 transition-all outline-none shadow-inner"
-                value={totalWidth || ""}
+                value={totalWidth === 0 ? "0" : totalWidth || ""}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, "");
                   handleTotalChange("width", parseInt(val) || 0);
@@ -2183,7 +2203,7 @@ const QuotingModule: React.FC<Props> = ({
                 type="text"
                 inputMode="numeric"
                 className="w-full bg-slate-50 h-8 px-2 rounded-lg border border-slate-200 font-mono font-black text-slate-800 text-xs focus:border-sky-500 transition-all outline-none shadow-inner"
-                value={totalHeight || ""}
+                value={totalHeight === 0 ? "0" : totalHeight || ""}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, "");
                   handleTotalChange("height", parseInt(val) || 0);
@@ -2463,7 +2483,7 @@ const QuotingModule: React.FC<Props> = ({
                           type="text"
                           inputMode="numeric"
                           className={`w-20 bg-white border px-2 py-1.5 rounded-lg font-mono font-black text-right text-[10px] outline-none shadow-sm transition-all ${isManualDim ? "border-amber-400 text-amber-600 focus:ring-2 ring-amber-100" : "border-slate-200 text-sky-600 focus:border-sky-500"}`}
-                          value={size || ""}
+                          value={size === 0 ? "0" : size || ""}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9]/g, "");
                             handleBodySizeChange(

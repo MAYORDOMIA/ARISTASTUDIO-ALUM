@@ -862,10 +862,25 @@ const ProductRecipeEditor: React.FC<Props> = ({
                 </div>
               </div>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (confirm("¿Eliminar sistema?")) {
-                    setRecipes(recipes.filter((r) => r.id !== recipe.id));
+                    const idToDelete = recipe.id;
+                    setRecipes(recipes.filter((r) => r.id !== idToDelete));
                     setEditingId(null);
+
+                    if (isSupabaseConfigured && userId) {
+                      try {
+                        const { error } = await supabase
+                          .from("recetas_usuario")
+                          .delete()
+                          .eq("user_id", userId)
+                          .eq("master_ref", idToDelete);
+                        if (error) throw error;
+                        console.log("Receta eliminada de la nube con éxito.");
+                      } catch (err: any) {
+                        console.error("Error al eliminar receta de la nube:", err);
+                      }
+                    }
                   }
                 }}
                 className="shrink-0 p-4 bg-slate-50 text-slate-300 rounded-2xl hover:text-red-500 border border-slate-100 transition-colors"

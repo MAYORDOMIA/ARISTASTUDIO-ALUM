@@ -488,69 +488,7 @@ const App: React.FC = () => {
       console.error("Error checking device access:", e);
     }
   };
-  useEffect(() => {
-    if (!isDataLoaded) return;
-    const barandaRecipes: ProductRecipe[] = [
-      {
-        id: "std_baranda_1",
-        name: "BARANDA POSTE ALTO",
-        line: "ESTÁNDAR",
-        type: "Baranda",
-        visualType: "baranda_poste_alto",
-        profiles: [],
-        accessories: [],
-        glassFormulaW: "W - 40",
-        glassFormulaH: "H - 10",
-        isLocked: false,
-      },
-      {
-        id: "std_baranda_2",
-        name: "BARANDA POSTE ALTO PASAMANO",
-        line: "ESTÁNDAR",
-        type: "Baranda",
-        visualType: "baranda_poste_alto_pasamano",
-        profiles: [],
-        accessories: [],
-        glassFormulaW: "W - 40",
-        glassFormulaH: "H - 50",
-        isLocked: false,
-      },
-      {
-        id: "std_baranda_3",
-        name: "BARANDA MINI POSTE",
-        line: "ESTÁNDAR",
-        type: "Baranda",
-        visualType: "baranda_mini_poste",
-        profiles: [],
-        accessories: [],
-        glassFormulaW: "W - 10",
-        glassFormulaH: "H - 10",
-        isLocked: false,
-      },
-      {
-        id: "std_baranda_4",
-        name: "BARANDA MINI POSTE Y PASAMANO",
-        line: "ESTÁNDAR",
-        type: "Baranda",
-        visualType: "baranda_mini_poste_pasamano",
-        profiles: [],
-        accessories: [],
-        glassFormulaW: "W - 10",
-        glassFormulaH: "H - 50",
-        isLocked: false,
-      },
-    ];
-    setRecipes((prev) => {
-      const uniqueRecipes = Array.from(
-        new Map<string, ProductRecipe>(prev.map((r) => [r.id, r])).values(),
-      );
-      const existingIds = uniqueRecipes.map((r) => r.id);
-      const missing = barandaRecipes.filter((r) => !existingIds.includes(r.id));
-      if (missing.length === 0 && uniqueRecipes.length === prev.length)
-        return prev;
-      return [...uniqueRecipes, ...missing];
-    });
-  }, [isDataLoaded]);
+
   const [customVisualTypes, setCustomVisualTypes] = useState<
     CustomVisualType[]
   >([]);
