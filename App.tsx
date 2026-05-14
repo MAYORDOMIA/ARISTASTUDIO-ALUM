@@ -560,6 +560,23 @@ const App: React.FC = () => {
     // Si no hay datos, sesión o no está migrado no tocamos nada del auto-save a nivel nube-masivo.
     if (!isDataLoaded || !session?.user?.id) return;
     setIsSaving(true); // Guardado local de TODO (Como seguro de vida instantáneo en el navegador)
+    const cleanQuotes = quotes.map((q) => ({
+      ...q,
+      items: q.items.map((i) => ({
+        ...i,
+        previewImage: i.previewImage && i.previewImage.length > 50000 
+          ? undefined 
+          : i.previewImage,
+      })),
+    }));
+
+    const cleanCurrentWorkItems = currentWorkItems.map((i) => ({
+      ...i,
+      previewImage: i.previewImage && i.previewImage.length > 50000 
+        ? undefined 
+        : i.previewImage,
+    }));
+
     const data = {
       aluminum,
       glasses,
@@ -569,9 +586,9 @@ const App: React.FC = () => {
       treatments,
       recipes,
       config,
-      quotes,
+      quotes: cleanQuotes,
       customVisualTypes,
-      currentWorkItems,
+      currentWorkItems: cleanCurrentWorkItems,
     };
     const timer = setTimeout(async () => {
       try {

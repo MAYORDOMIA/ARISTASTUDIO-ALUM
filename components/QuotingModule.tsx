@@ -1608,17 +1608,21 @@ const QuotingModule: React.FC<Props> = ({
   const addItemToWork = () => {
     const treatment = treatments.find((t) => t.id === colorId);
     if (!treatment) return alert("Seleccione un acabado para cotizar.");
+    let previewImage: string | undefined;
     const canvas = mainCanvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (ctx && canvas) {
-      const currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.putImageData(currentData, 0, 0);
+    if (canvas) {
+      const tempCanvas = document.createElement("canvas");
+      const scale = Math.min(600 / canvas.width, 600 / canvas.height);
+      tempCanvas.width = canvas.width * scale;
+      tempCanvas.height = canvas.height * scale;
+      const tCtx = tempCanvas.getContext("2d");
+      if (tCtx) {
+        tCtx.fillStyle = "#ffffff";
+        tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+        previewImage = tempCanvas.toDataURL("image/jpeg", 0.5);
+      }
     }
-    const previewImage = canvas
-      ? canvas.toDataURL("image/jpeg", 0.8)
-      : undefined;
     const { finalPrice, breakdown } = calculateCompositePrice(
       {
         id: "temp",

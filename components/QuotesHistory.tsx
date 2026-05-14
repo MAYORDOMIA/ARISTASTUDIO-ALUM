@@ -483,6 +483,13 @@ const QuotesHistory: React.FC<Props> = ({
                             );
                             if (isSupabaseConfigured) {
                               const userRes = await supabase.auth.getUser();
+                              const cleanItemsForDb = updatedQuote.items.map((i) => ({
+                                ...i,
+                                previewImage: i.previewImage && i.previewImage.length > 50000 
+                                  ? undefined 
+                                  : i.previewImage,
+                              }));
+
                               if (userRes.data.user) {
                                 const { error } = await supabase
                                   .from("presupuestos")
@@ -492,7 +499,7 @@ const QuotesHistory: React.FC<Props> = ({
                                       user_id: userRes.data.user.id,
                                       cliente_nombre: updatedQuote.clientName,
                                       total: updatedQuote.totalPrice,
-                                      items: updatedQuote.items,
+                                      items: cleanItemsForDb,
                                       created_at: updatedQuote.date,
                                       estado: "borrador",
                                     },

@@ -223,12 +223,19 @@ const ObrasModule: React.FC<Props> = ({
     if (isSupabaseConfigured) {
       const userRes = await supabase.auth.getUser();
       if (userRes.data.user) {
+        const cleanItemsForDb = quoteToSave.items.map((i) => ({
+          ...i,
+          previewImage: i.previewImage && i.previewImage.length > 50000 
+            ? undefined 
+            : i.previewImage,
+        }));
+        
         const payload = {
           id: quoteToSave.id,
           user_id: userRes.data.user.id,
           cliente_nombre: quoteToSave.clientName,
           total: quoteToSave.totalPrice,
-          items: quoteToSave.items,
+          items: cleanItemsForDb,
           created_at: quoteToSave.date,
           estado: "borrador",
         };
