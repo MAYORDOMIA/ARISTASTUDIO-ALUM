@@ -523,28 +523,37 @@ const App: React.FC = () => {
       const allowedDeviceIds = allowedDevices.map((d) => d.device_id);
       const registeredIds = sortedDevices.map((d) => d.device_id);
 
+      console.log(`[device-check] deviceId: ${deviceId}, limite: ${limite}, registrados: ${registeredIds.length}`, registeredIds);
+
       if (allowedDeviceIds.includes(deviceId)) {
-        // Dispositivo ya registrado y dentro del límite permitido
+        console.log(`[device-check] Dispositivo ya permitido.`);
         setDeviceLimitReached(false);
       } else if (!registeredIds.includes(deviceId) && sortedDevices.length < limite) {
-        // Dispositivo nuevo y hay espacio
+        console.log(`[device-check] Intentando registrar nuevo dispositivo: ${deviceId}`);
         const { error: insertError } = await supabase
           .from("gestion_dispositivos")
           .insert({ user_id: profileData.id, device_id: deviceId });
         
         if (insertError) {
           console.error("Error inserting device:", insertError);
-          setDeviceLimitReached(true);
+          // Verificar si el error es porque ya se insertó (condición de carrera en React Strict Mode)
+          if (insertError.code === "23505" || insertError.message.includes("duplicate key") || insertError.message.includes("unique")) {
+            console.log(`[device-check] El dispositivo ya fue registrado por otra llamada paralela.`);
+            setDeviceLimitReached(false);
+          } else {
+            // Permitir el acceso temporal por si las RLS fallan pero el backend avisa
+            setDeviceLimitReached(false);
+          }
         } else {
           setDeviceLimitReached(false);
         }
       } else {
-        // Dispositivo nuevo y sin espacio, o dispositivo registrado pero que excede el límite
+        console.warn(`[device-check] Dispositivo rechazado. Registrados:`, registeredIds, `Total permitido: ${limite}`);
         setDeviceLimitReached(true);
       }
     } catch (e) {
       console.error("Error checking device access:", e);
-      setDeviceLimitReached(true);
+      setDeviceLimitReached(false); // Para no dejarlo afuera si falla por red
     }
   };
 
@@ -690,7 +699,7 @@ const App: React.FC = () => {
             onClick={() => {
               setDeviceLimitReached(false);
               setAuthLoading(true);
-              checkProfileAndData(session.user);
+              fetchProfile(session.user);
             }}
             className="w-full bg-sky-500 hover:bg-sky-600 text-white font-black uppercase tracking-widest py-3 rounded-xl transition-colors mb-2"
           >

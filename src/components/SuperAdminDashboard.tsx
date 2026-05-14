@@ -86,6 +86,10 @@ const SuperAdminDashboard: React.FC = () => {
       setProfiles((prev) =>
         prev.map((p) => (p.id === id ? { ...p, registered_count: 0 } : p)),
       );
+      alert("Dispositivos reseteados correctamente.");
+    } else {
+      console.error("Error resetting devices:", error);
+      alert("Error al resetear dispositivos: " + error.message);
     }
     setToggling(null);
   };
