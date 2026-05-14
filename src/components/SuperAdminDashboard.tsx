@@ -94,15 +94,22 @@ const SuperAdminDashboard: React.FC = () => {
     setToggling(null);
   };
   const deleteUser = async (id: string, email: string) => {
-    if (!confirm(`PELIGRO: ¿Borrar permanentemente el perfil de ${email}?`))
+    if (!confirm(`PELIGRO: ¿Borrar permanentemente el perfil de ${email}?\n\nRequiere que hayas ejecutado el script SQL RPC "delete_user_by_admin".`))
       return;
     setToggling(id);
-    const { error } = await supabase
-      .from("perfiles_usuarios")
-      .delete()
-      .eq("id", id);
+    
+    // Call the custom RPC function to delete from auth.users (cascades automatically)
+    const { error } = await supabase.rpc('delete_user_by_admin', { target_user_id: id });
+    
     if (!error) {
       setProfiles((prev) => prev.filter((p) => p.id !== id));
+      alert("Usuario eliminado correctamente del sistema.");
+    } else {
+      console.error("Error deleting user via RPC:", error);
+      alert(
+        "No se pudo eliminar el usuario completamente.\n\n" +
+        "SISTEMA ROBUSTO: Para poder borrar usuarios, debes ir a Supabase -> SQL Editor y ejecutar el código que está en el archivo delete_user_rpc.sql de este proyecto.\n\nDetalle: " + error.message
+      );
     }
     setToggling(null);
   };
