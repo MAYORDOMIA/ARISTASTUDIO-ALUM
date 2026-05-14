@@ -470,22 +470,49 @@ const App: React.FC = () => {
     if (!profileData.is_active) return;
     const deviceId = getDeviceId();
     try {
-      const { data: devices } = await supabase
+      if (!isSupabaseConfigured) return;
+      const { data: devices, error: getDevicesError } = await supabase
         .from("gestion_dispositivos")
         .select("*")
         .eq("user_id", profileData.id);
-      const registeredIds = (devices || []).map((d) => d.device_id);
-      if (!registeredIds.includes(deviceId)) {
-        if ((devices || []).length < (profileData.limite_dispositivos || 1)) {
-          await supabase
-            .from("gestion_dispositivos")
-            .insert({ user_id: profileData.id, device_id: deviceId });
-        } else {
+
+      if (getDevicesError) {
+        console.error("Error fetching devices:", getDevicesError);
+        setDeviceLimitReached(true);
+        return;
+      }
+
+      const sortedDevices = (devices || []).sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      
+      const limite = profileData.limite_dispositivos || 2;
+      const allowedDevices = sortedDevices.slice(0, limite);
+      const allowedDeviceIds = allowedDevices.map((d) => d.device_id);
+      const registeredIds = sortedDevices.map((d) => d.device_id);
+
+      if (allowedDeviceIds.includes(deviceId)) {
+        // Dispositivo ya registrado y dentro del límite permitido
+        setDeviceLimitReached(false);
+      } else if (!registeredIds.includes(deviceId) && sortedDevices.length < limite) {
+        // Dispositivo nuevo y hay espacio
+        const { error: insertError } = await supabase
+          .from("gestion_dispositivos")
+          .insert({ user_id: profileData.id, device_id: deviceId });
+        
+        if (insertError) {
+          console.error("Error inserting device:", insertError);
           setDeviceLimitReached(true);
+        } else {
+          setDeviceLimitReached(false);
         }
+      } else {
+        // Dispositivo nuevo y sin espacio, o dispositivo registrado pero que excede el límite
+        setDeviceLimitReached(true);
       }
     } catch (e) {
       console.error("Error checking device access:", e);
+      setDeviceLimitReached(true);
     }
   };
 
@@ -605,11 +632,21 @@ const App: React.FC = () => {
           <h2 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-widest">
             Límite de Dispositivos
           </h2>
-          <p className="text-slate-500 text-sm mb-8">
+          <p className="text-slate-500 text-sm mb-6">
             Has alcanzado el límite máximo de dispositivos permitidos para tu
             cuenta. Contacta al administrador si necesitas acceder desde este
             nuevo dispositivo.
           </p>
+          <button
+            onClick={() => {
+              setDeviceLimitReached(false);
+              setAuthLoading(true);
+              checkProfileAndData(session.user);
+            }}
+            className="w-full bg-sky-500 hover:bg-sky-600 text-white font-black uppercase tracking-widest py-3 rounded-xl transition-colors mb-2"
+          >
+            Reintentar
+          </button>
           <button
             onClick={() => {
               if (isSupabaseConfigured) supabase.auth.signOut();

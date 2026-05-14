@@ -606,15 +606,18 @@ export const generateBarOptimizationPDF = (
               const mL = validModules.find((m) => m.x === x && m.y === y);
               const mR = validModules.find((m) => m.x === x + 1 && m.y === y);
               if (mL && mR) {
-                const hL =
-                  isManualDim && mL.height
-                    ? mL.height
-                    : Number(rowRatios[y - minY] || 0);
-                const hR =
-                  isManualDim && mR.height
-                    ? mR.height
-                    : Number(rowRatios[y - minY] || 0);
-                const diff = Math.abs(hL - hR);
+                let diff = 0;
+                if (isManualDim && mL.manualOffsetY !== undefined && mR.manualOffsetY !== undefined && mL.height !== undefined && mR.height !== undefined) {
+                  const y1 = mL.manualOffsetY;
+                  const h1 = mL.height;
+                  const y2 = mR.manualOffsetY;
+                  const h2 = mR.height;
+                  diff = Math.abs(y1 - y2) + Math.abs((y1 + h1) - (y2 + h2));
+                } else {
+                  const hL = isManualDim && mL.height ? mL.height : Number(rowRatios[y - minY] || 0);
+                  const hR = isManualDim && mR.height ? mR.height : Number(rowRatios[y - minY] || 0);
+                  diff = Math.abs(hL - hR);
+                }
                 if (diff > 5) {
                   for (let k = 0; k < item.quantity; k++) {
                     list.push({
@@ -636,15 +639,18 @@ export const generateBarOptimizationPDF = (
               const mT = validModules.find((m) => m.x === x && m.y === y);
               const mB = validModules.find((m) => m.x === x && m.y === y + 1);
               if (mT && mB) {
-                const wT =
-                  isManualDim && mT.width
-                    ? mT.width
-                    : Number(colRatios[x - minX] || 0);
-                const wB =
-                  isManualDim && mB.width
-                    ? mB.width
-                    : Number(colRatios[x - minX] || 0);
-                const diff = Math.abs(wT - wB);
+                let diff = 0;
+                if (isManualDim && mT.manualOffsetX !== undefined && mB.manualOffsetX !== undefined && mT.width !== undefined && mB.width !== undefined) {
+                  const x1 = mT.manualOffsetX;
+                  const w1 = mT.width;
+                  const x2 = mB.manualOffsetX;
+                  const w2 = mB.width;
+                  diff = Math.abs(x1 - x2) + Math.abs((x1 + w1) - (x2 + w2));
+                } else {
+                  const wT = isManualDim && mT.width ? mT.width : Number(colRatios[x - minX] || 0);
+                  const wB = isManualDim && mB.width ? mB.width : Number(colRatios[x - minX] || 0);
+                  diff = Math.abs(wT - wB);
+                }
                 if (diff > 5) {
                   for (let k = 0; k < item.quantity; k++) {
                     list.push({
@@ -1148,15 +1154,38 @@ export const generateMaterialsOrderPDF = (
               const mL = validModules.find((m) => m.x === x && m.y === y);
               const mR = validModules.find((m) => m.x === x + 1 && m.y === y);
               if (mL && mR) {
-                const hL =
-                  isManualDim && mL.height
-                    ? mL.height
-                    : Number(rowRatios[y - minY] || 0);
-                const hR =
-                  isManualDim && mR.height
-                    ? mR.height
-                    : Number(rowRatios[y - minY] || 0);
-                tjLenTotal += Math.abs(hL - hR);
+                if (isManualDim && mL.manualOffsetY !== undefined && mR.manualOffsetY !== undefined && mL.height !== undefined && mR.height !== undefined) {
+                  const y1 = mL.manualOffsetY;
+                  const h1 = mL.height;
+                  const y2 = mR.manualOffsetY;
+                  const h2 = mR.height;
+                  tjLenTotal += Math.abs(y1 - y2) + Math.abs((y1 + h1) - (y2 + h2));
+                } else {
+                  const hL = isManualDim && mL.height ? mL.height : Number(rowRatios[y - minY] || 0);
+                  const hR = isManualDim && mR.height ? mR.height : Number(rowRatios[y - minY] || 0);
+                  tjLenTotal += Math.abs(hL - hR);
+                }
+              }
+            }
+          }
+        }
+        if (isSet && item.composition.rowRatios.length > 1) {
+          for (let y = minY; y < maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+              const mT = validModules.find((m) => m.x === x && m.y === y);
+              const mB = validModules.find((m) => m.x === x && m.y === y + 1);
+              if (mT && mB) {
+                if (isManualDim && mT.manualOffsetX !== undefined && mB.manualOffsetX !== undefined && mT.width !== undefined && mB.width !== undefined) {
+                  const x1 = mT.manualOffsetX;
+                  const w1 = mT.width;
+                  const x2 = mB.manualOffsetX;
+                  const w2 = mB.width;
+                  tjLenTotal += Math.abs(x1 - x2) + Math.abs((x1 + w1) - (x2 + w2));
+                } else {
+                  const wT = isManualDim && mT.width ? mT.width : Number(colRatios[x - minX] || 0);
+                  const wB = isManualDim && mB.width ? mB.width : Number(colRatios[x - minX] || 0);
+                  tjLenTotal += Math.abs(wT - wB);
+                }
               }
             }
           }
@@ -1182,15 +1211,19 @@ export const generateMaterialsOrderPDF = (
               const mL = validModules.find((m) => m.x === x && m.y === y);
               const mR = validModules.find((m) => m.x === x + 1 && m.y === y);
               if (mL && mR) {
-                const hL =
-                  isManualDim && mL.height
-                    ? mL.height
-                    : Number(rowRatios[y - minY] || 0);
-                const hR =
-                  isManualDim && mR.height
-                    ? mR.height
-                    : Number(rowRatios[y - minY] || 0);
-                totalC += Math.min(hL, hR);
+                let overlap = 0;
+                if (isManualDim && mL.manualOffsetY !== undefined && mR.manualOffsetY !== undefined && mL.height !== undefined && mR.height !== undefined) {
+                  const y1 = mL.manualOffsetY;
+                  const h1 = mL.height;
+                  const y2 = mR.manualOffsetY;
+                  const h2 = mR.height;
+                  overlap = Math.max(0, Math.min(y1 + h1, y2 + h2) - Math.max(y1, y2));
+                } else {
+                  const hL = isManualDim && mL.height ? mL.height : Number(rowRatios[y - minY] || 0);
+                  const hR = isManualDim && mR.height ? mR.height : Number(rowRatios[y - minY] || 0);
+                  overlap = Math.min(hL, hR);
+                }
+                totalC += overlap;
               }
             }
           }
@@ -1201,15 +1234,19 @@ export const generateMaterialsOrderPDF = (
               const mT = validModules.find((m) => m.x === x && m.y === y);
               const mB = validModules.find((m) => m.x === x && m.y === y + 1);
               if (mT && mB) {
-                const wT =
-                  isManualDim && mT.width
-                    ? mT.width
-                    : Number(colRatios[x - minX] || 0);
-                const wB =
-                  isManualDim && mB.width
-                    ? mB.width
-                    : Number(colRatios[x - minX] || 0);
-                totalC += Math.min(wT, wB);
+                let overlap = 0;
+                if (isManualDim && mT.manualOffsetX !== undefined && mB.manualOffsetX !== undefined && mT.width !== undefined && mB.width !== undefined) {
+                  const x1 = mT.manualOffsetX;
+                  const w1 = mT.width;
+                  const x2 = mB.manualOffsetX;
+                  const w2 = mB.width;
+                  overlap = Math.max(0, Math.min(x1 + w1, x2 + w2) - Math.max(x1, x2));
+                } else {
+                  const wT = isManualDim && mT.width ? mT.width : Number(colRatios[x - minX] || 0);
+                  const wB = isManualDim && mB.width ? mB.width : Number(colRatios[x - minX] || 0);
+                  overlap = Math.min(wT, wB);
+                }
+                totalC += overlap;
               }
             }
           }

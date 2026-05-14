@@ -239,15 +239,19 @@ export const calculateCompositePrice = (
           const modL = validModules.find((m) => m.x === x && m.y === y);
           const modR = validModules.find((m) => m.x === x + 1 && m.y === y);
           if (modL && modR) {
-            const hL =
-              isManualDim && modL.height
-                ? modL.height
-                : Number(rowRatios[y - minY] || 0);
-            const hR =
-              isManualDim && modR.height
-                ? modR.height
-                : Number(rowRatios[y - minY] || 0);
-            totalCouplingMm += Math.min(hL, hR);
+            let overlap = 0;
+            if (isManualDim && modL.manualOffsetY !== undefined && modR.manualOffsetY !== undefined && modL.height !== undefined && modR.height !== undefined) {
+              const y1 = modL.manualOffsetY;
+              const h1 = modL.height;
+              const y2 = modR.manualOffsetY;
+              const h2 = modR.height;
+              overlap = Math.max(0, Math.min(y1 + h1, y2 + h2) - Math.max(y1, y2));
+            } else {
+              const hL = isManualDim && modL.height ? modL.height : Number(rowRatios[y - minY] || 0);
+              const hR = isManualDim && modR.height ? modR.height : Number(rowRatios[y - minY] || 0);
+              overlap = Math.min(hL, hR);
+            }
+            totalCouplingMm += overlap;
           }
         }
       }
@@ -258,15 +262,19 @@ export const calculateCompositePrice = (
           const modT = validModules.find((m) => m.x === x && m.y === y);
           const modB = validModules.find((m) => m.x === x && m.y === y + 1);
           if (modT && modB) {
-            const wT =
-              isManualDim && modT.width
-                ? modT.width
-                : Number(colRatios[x - minX] || 0);
-            const wB =
-              isManualDim && modB.width
-                ? modB.width
-                : Number(colRatios[x - minX] || 0);
-            totalCouplingMm += Math.min(wT, wB);
+            let overlap = 0;
+            if (isManualDim && modT.manualOffsetX !== undefined && modB.manualOffsetX !== undefined && modT.width !== undefined && modB.width !== undefined) {
+              const x1 = modT.manualOffsetX;
+              const w1 = modT.width;
+              const x2 = modB.manualOffsetX;
+              const w2 = modB.width;
+              overlap = Math.max(0, Math.min(x1 + w1, x2 + w2) - Math.max(x1, x2));
+            } else {
+              const wT = isManualDim && modT.width ? modT.width : Number(colRatios[x - minX] || 0);
+              const wB = isManualDim && modB.width ? modB.width : Number(colRatios[x - minX] || 0);
+              overlap = Math.min(wT, wB);
+            }
+            totalCouplingMm += overlap;
           }
         }
       }
@@ -304,15 +312,19 @@ export const calculateCompositePrice = (
             const mL = validModules.find((m) => m.x === x && m.y === y);
             const mR = validModules.find((m) => m.x === x + 1 && m.y === y);
             if (mL && mR) {
-              const hL =
-                isManualDim && mL.height
-                  ? mL.height
-                  : Number(rowRatios[y - minY] || 0);
-              const hR =
-                isManualDim && mR.height
-                  ? mR.height
-                  : Number(rowRatios[y - minY] || 0);
-              totalTjMm += Math.abs(hL - hR);
+              if (isManualDim && mL.manualOffsetY !== undefined && mR.manualOffsetY !== undefined && mL.height !== undefined && mR.height !== undefined) {
+                // El desnivel arriba (diferencia de Ys) y el desnivel abajo (diferencia de Y+Hs)
+                const y1 = mL.manualOffsetY;
+                const h1 = mL.height;
+                const y2 = mR.manualOffsetY;
+                const h2 = mR.height;
+                // Calculamos cuánto perfil queda descubierto
+                totalTjMm += Math.abs(y1 - y2) + Math.abs((y1 + h1) - (y2 + h2));
+              } else {
+                const hL = isManualDim && mL.height ? mL.height : Number(rowRatios[y - minY] || 0);
+                const hR = isManualDim && mR.height ? mR.height : Number(rowRatios[y - minY] || 0);
+                totalTjMm += Math.abs(hL - hR);
+              }
             }
           }
         }
@@ -325,15 +337,17 @@ export const calculateCompositePrice = (
             const mT = validModules.find((m) => m.x === x && m.y === y);
             const mB = validModules.find((m) => m.x === x && m.y === y + 1);
             if (mT && mB) {
-              const wT =
-                isManualDim && mT.width
-                  ? mT.width
-                  : Number(colRatios[x - minX] || 0);
-              const wB =
-                isManualDim && mB.width
-                  ? mB.width
-                  : Number(colRatios[x - minX] || 0);
-              totalTjMm += Math.abs(wT - wB);
+              if (isManualDim && mT.manualOffsetX !== undefined && mB.manualOffsetX !== undefined && mT.width !== undefined && mB.width !== undefined) {
+                const x1 = mT.manualOffsetX;
+                const w1 = mT.width;
+                const x2 = mB.manualOffsetX;
+                const w2 = mB.width;
+                totalTjMm += Math.abs(x1 - x2) + Math.abs((x1 + w1) - (x2 + w2));
+              } else {
+                const wT = isManualDim && mT.width ? mT.width : Number(colRatios[x - minX] || 0);
+                const wB = isManualDim && mB.width ? mB.width : Number(colRatios[x - minX] || 0);
+                totalTjMm += Math.abs(wT - wB);
+              }
             }
           }
         }

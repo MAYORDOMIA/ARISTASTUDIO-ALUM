@@ -169,11 +169,11 @@ const SuperAdminDashboard: React.FC = () => {
                       <input
                         type="number"
                         min="1"
-                        value={profile.limite_dispositivos || 1}
+                        value={profile.limite_dispositivos || 2}
                         onChange={(e) =>
                           updateMaxDevices(
                             profile.id,
-                            parseInt(e.target.value) || 1,
+                            parseInt(e.target.value) || 2,
                           )
                         }
                         className="w-16 p-1 text-xs font-bold text-center border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500"

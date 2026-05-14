@@ -37,7 +37,7 @@ const Auth: React.FC = () => {
                   email === "aristastudiouno@gmail.com"
                     ? "super_admin"
                     : "user",
-                limite_dispositivos: 1,
+                limite_dispositivos: 2,
               },
             ]);
           if (profileError) {

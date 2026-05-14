@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.perfiles_usuarios (
     email TEXT UNIQUE NOT NULL,
     role TEXT DEFAULT 'user' CHECK (role IN ('user', 'super_admin')),
     is_active BOOLEAN DEFAULT false,
-    limite_dispositivos INTEGER DEFAULT 1,
+    limite_dispositivos INTEGER DEFAULT 2,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 

@@ -191,6 +191,8 @@ export interface MeasurementModule {
   y: number;
   width?: number; // Medida individual para Modo Manual
   height?: number; // Medida individual para Modo Manual
+  manualOffsetX?: number; // Desplazamiento manual en X
+  manualOffsetY?: number; // Desplazamiento manual en Y
   isDVH: boolean;
   glassOuterId: string;
   glassInnerId?: string;

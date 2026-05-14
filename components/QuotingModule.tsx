@@ -1399,6 +1399,58 @@ const QuotingModule: React.FC<Props> = ({
       setCouplingDeduction(0);
     }
   };
+  const handleToggleManualMode = () => {
+    const nextManualState = !isManualDim;
+    if (nextManualState) {
+      // Al cambiar a modo manual, inicializamos las medidas de los módulos individuales
+      // a las que correspondían a su tamaño en grilla si están vacías,
+      // para evitar que todo salte o se desordene.
+      const totalW = colSizes.reduce((a, b) => a + b, 0);
+      const totalH = rowSizes.reduce((a, b) => a + b, 0);
+      const numCols = colSizes.length;
+      const numRows = rowSizes.length;
+      const currentDeduction = Number(
+        aluminum.find((p) => p.id === couplingProfileId)?.thickness ??
+          couplingDeduction ??
+          0,
+      );
+      const netW = totalW - (numCols > 1 ? (numCols - 1) * currentDeduction : 0);
+      const netH = totalH - (numRows > 1 ? (numRows - 1) * currentDeduction : 0);
+
+      const computedModules = (modules || []).map((mod) => {
+        if (!mod) return mod;
+        let newMod = { ...mod };
+        const modIdxX = mod.x - bounds.minX;
+        const modIdxY = mod.y - bounds.minY;
+
+        if (newMod.width === undefined || newMod.height === undefined) {
+          const ratioW = totalW > 0 ? (colSizes[modIdxX] || 0) / totalW : 0;
+          const ratioH = totalH > 0 ? (rowSizes[modIdxY] || 0) / totalH : 0;
+          newMod.width = Math.round(netW * ratioW);
+          newMod.height = Math.round(netH * ratioH);
+        }
+
+        if (newMod.manualOffsetX === undefined || newMod.manualOffsetY === undefined) {
+          let gridOffsetX_mm = 0;
+          for (let i = 0; i < modIdxX; i++) {
+            let prevW = netW * (totalW > 0 ? colSizes[i] / totalW : 0);
+            gridOffsetX_mm += prevW + currentDeduction;
+          }
+          let gridOffsetY_mm = 0;
+          for (let j = 0; j < modIdxY; j++) {
+            let prevH = netH * (totalH > 0 ? rowSizes[j] / totalH : 0);
+            gridOffsetY_mm += prevH + currentDeduction;
+          }
+          newMod.manualOffsetX = Math.round(gridOffsetX_mm);
+          newMod.manualOffsetY = Math.round(gridOffsetY_mm);
+        }
+        return newMod;
+      });
+      setModules(computedModules);
+    }
+    setIsManualDim(nextManualState);
+  };
+
   const handleBodySizeChange = (
     dim: "width" | "height",
     index: number,
@@ -1711,17 +1763,30 @@ const QuotingModule: React.FC<Props> = ({
           ? mod.height
           : netH * ratioH;
           
-      // Calculate true physical offsets taking into account exact preceding module sizes and couplings
       let trueOffsetX_mm = 0;
+      let trueOffsetY_mm = 0;
+      
+      let gridOffsetX_mm = 0;
       for (let i = 0; i < modIdxX; i++) {
-        let prevW = isManualDim ? colSizes[i] : netW * (totalW > 0 ? colSizes[i] / totalW : 0);
-        trueOffsetX_mm += prevW + currentDeduction;
+        let prevW = netW * (totalW > 0 ? colSizes[i] / totalW : 0);
+        gridOffsetX_mm += prevW + currentDeduction;
+      }
+      let gridOffsetY_mm = 0;
+      for (let j = 0; j < modIdxY; j++) {
+        let prevH = netH * (totalH > 0 ? rowSizes[j] / totalH : 0);
+        gridOffsetY_mm += prevH + currentDeduction;
+      }
+
+      if (isManualDim && mod.manualOffsetX !== undefined) {
+        trueOffsetX_mm = mod.manualOffsetX;
+      } else {
+        trueOffsetX_mm = gridOffsetX_mm;
       }
       
-      let trueOffsetY_mm = 0;
-      for (let j = 0; j < modIdxY; j++) {
-        let prevH = isManualDim ? rowSizes[j] : netH * (totalH > 0 ? rowSizes[j] / totalH : 0);
-        trueOffsetY_mm += prevH + currentDeduction;
+      if (isManualDim && mod.manualOffsetY !== undefined) {
+        trueOffsetY_mm = mod.manualOffsetY;
+      } else {
+        trueOffsetY_mm = gridOffsetY_mm;
       }
 
       const mX = startX + (trueOffsetX_mm) * safePxPerMm;
@@ -2419,7 +2484,7 @@ const QuotingModule: React.FC<Props> = ({
                 <Grid3X3 size={12} /> Estructura del Conjunto
               </h4>
               <button
-                onClick={() => setIsManualDim(!isManualDim)}
+                onClick={handleToggleManualMode}
                 className={`flex items-center gap-2 p-1 rounded-lg border-2 transition-all ${isManualDim ? "bg-amber-600 border-amber-700 text-white shadow-md" : "bg-slate-50 border-slate-200 text-slate-400"}`}
                 title={
                   isManualDim
@@ -2970,9 +3035,9 @@ const QuotingModule: React.FC<Props> = ({
                           type="number"
                           className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-amber-500 shadow-sm"
                           value={
-                            currentModForEdit.width ||
-                            colSizes[currentModForEdit.x - bounds.minX] ||
-                            ""
+                            currentModForEdit.width !== undefined
+                              ? currentModForEdit.width
+                              : colSizes[currentModForEdit.x - bounds.minX] || ""
                           }
                           onChange={(e) =>
                             updateModule(editingModuleId, {
@@ -2989,13 +3054,43 @@ const QuotingModule: React.FC<Props> = ({
                           type="number"
                           className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-amber-500 shadow-sm"
                           value={
-                            currentModForEdit.height ||
-                            rowSizes[currentModForEdit.y - bounds.minY] ||
-                            ""
+                            currentModForEdit.height !== undefined
+                              ? currentModForEdit.height
+                              : rowSizes[currentModForEdit.y - bounds.minY] || ""
                           }
                           onChange={(e) =>
                             updateModule(editingModuleId, {
                               height: parseInt(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                          Posición X (mm)
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-amber-500 shadow-sm"
+                          value={currentModForEdit.manualOffsetX !== undefined ? currentModForEdit.manualOffsetX : 0}
+                          onChange={(e) =>
+                            updateModule(editingModuleId, {
+                              manualOffsetX: parseInt(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5 cursor-help" title="0 significa desde la pared superior">
+                          Posición Y (mm)
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-amber-500 shadow-sm"
+                          value={currentModForEdit.manualOffsetY !== undefined ? currentModForEdit.manualOffsetY : 0}
+                          onChange={(e) =>
+                            updateModule(editingModuleId, {
+                              manualOffsetY: parseInt(e.target.value) || 0,
                             })
                           }
                         />

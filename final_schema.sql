@@ -30,7 +30,7 @@ CREATE TABLE public.perfiles_usuarios (
     email TEXT UNIQUE NOT NULL,
     full_name TEXT,
     role TEXT DEFAULT 'user' CHECK (role IN ('user', 'super_admin')),
-    limite_dispositivos INTEGER DEFAULT 1,
+    limite_dispositivos INTEGER DEFAULT 2,
     is_active BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now()
 );
