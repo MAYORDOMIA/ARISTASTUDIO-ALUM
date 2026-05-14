@@ -376,6 +376,25 @@ const App: React.FC = () => {
       return null;
     }
   };
+  const forceSignOut = async () => {
+    console.log("Forzando cierre de sesión y limpieza de storage...");
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+    // Limpiar claves específicas de Supabase y de la app, excepto el arista_device_id
+    Object.keys(localStorage).forEach((key) => {
+      if (key === "arista_device_id") return;
+      if (key.startsWith("sb-") || key.includes("supabase") || key.includes("arista") || key.includes("maicol")) {
+        localStorage.removeItem(key);
+      }
+    });
+    setSession(null);
+    setProfile(null);
+    setAuthLoading(false);
+    setDeviceLimitReached(false);
+    window.location.reload(); // Recargar para asegurar estado limpio
+  };
+
   const fetchProfile = async (user: any) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -385,7 +404,16 @@ const App: React.FC = () => {
         .from("perfiles_usuarios")
         .select("*")
         .eq("id", user.id)
-        .single(); // Asegurar que el email de super admin tenga el rol correcto si ya existía
+        .single();
+      
+      // Si el error indica que no hay sesión válida o el usuario no existe
+      if (checkError && (checkError.message.includes("JWT") || checkError.code === "PGRST116")) {
+        // Podría ser un usuario eliminado pero con sesión local persistente
+        console.warn("Sesión inválida detectada, cerrando sesión...");
+        // No forzamos aquí inmediatamente para evitar bucles, pero si checkError es persistente lo haremos
+      }
+
+      // Asegurar que el email de super admin tenga el rol correcto si ya existía
       if (
         profileCheck &&
         profileCheck.email === "aristastudiouno@gmail.com" &&
@@ -432,6 +460,10 @@ const App: React.FC = () => {
             .single();
           if (createError) {
             console.error("Error al crear perfil manualmente:", createError);
+            // Si no podemos crear el perfil y no existe, la sesión es huérfana
+            if (createError.message.includes("permission denied")) {
+               console.error("Permisos denegados, posiblemente el usuario Auth ya no existe en el sistema.");
+            }
           } else {
             profileCheck = created;
           }
@@ -652,7 +684,7 @@ const App: React.FC = () => {
           <p className="text-slate-500 text-sm mb-6">
             Has alcanzado el límite máximo de dispositivos permitidos para tu
             cuenta. Contacta al administrador si necesitas acceder desde este
-            nuevo dispositivo.
+            nuevo dispositivo, o limpia tus sesiones anteriores para entrar desde este.
           </p>
           <button
             onClick={() => {
@@ -665,14 +697,10 @@ const App: React.FC = () => {
             Reintentar
           </button>
           <button
-            onClick={() => {
-              if (isSupabaseConfigured) supabase.auth.signOut();
-              else setSession(null);
-              setDeviceLimitReached(false);
-            }}
+            onClick={forceSignOut}
             className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
           >
-            Cerrar sesión
+            Cerrar y Limpiar
           </button>
         </div>
       </div>
@@ -697,13 +725,10 @@ const App: React.FC = () => {
             Revisar estado
           </button>
           <button
-            onClick={() => {
-              if (isSupabaseConfigured) supabase.auth.signOut();
-              else setSession(null);
-            }}
+            onClick={forceSignOut}
             className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
           >
-            Cerrar sesión
+            Cerrar y Limpiar
           </button>
         </div>
       </div>
@@ -734,13 +759,10 @@ const App: React.FC = () => {
               Reintentar
             </button>
             <button
-              onClick={() => {
-                if (isSupabaseConfigured) supabase.auth.signOut();
-                else setSession(null);
-              }}
+              onClick={forceSignOut}
               className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase tracking-widest py-3 rounded-xl transition-colors"
             >
-              Cerrar sesión
+              Cerrar y Limpiar
             </button>
           </div>
         </div>
