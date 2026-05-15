@@ -233,35 +233,22 @@ export const pullUpdatesFromMaster = async (userId: string) => {
   let addedCount = 0;
   const errors: string[] = [];
 
-  const fetchAllFromTable = async (table: string, sel: string, eqCol?: string, eqVal?: string) => {
-    let allData: any[] = [];
-    let page = 0;
-    const pageSize = 1000;
-    while (true) {
-      let query = supabase.from(table).select(sel).order("id").range(page * pageSize, (page + 1) * pageSize - 1);
-      if (eqCol && eqVal) { query = query.eq(eqCol, eqVal); }
-      const { data, error } = await query;
-      if (error) return { data: null, error };
-      if (!data || data.length === 0) break;
-      allData = [...allData, ...data];
-      if (data.length < pageSize || allData.length >= 20000) break;
-      page++;
-    }
-    // ensure uniqueness via master_ref or id
-    const keyFn = (x: any) => x.id || x.master_ref || JSON.stringify(x);
-    const uniqueData = Array.from(new Map(allData.map(item => [keyFn(item), item])).values());
-    return { data: uniqueData, error: null };
-  };
-
   for (const t of masterTables) {
-    const { data: masters, error: fetchErr } = await fetchAllFromTable(t.master, "*");
+    const { data: masters, error: fetchErr } = await supabase
+      .from(t.master)
+      .select("*")
+      .limit(50000);
     if (fetchErr) {
       errors.push(fetchErr.message);
       continue;
     }
 
     if (masters && masters.length > 0) {
-      const { data: existingUserItems } = await fetchAllFromTable(t.user, "master_ref", "user_id", userId);
+      const { data: existingUserItems } = await supabase
+        .from(t.user)
+        .select("master_ref")
+        .eq("user_id", userId)
+        .limit(50000);
       const existingRefs = new Set(
         (existingUserItems || []).map((ei) => ei.master_ref),
       );
