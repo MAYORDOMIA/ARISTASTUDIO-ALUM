@@ -254,6 +254,29 @@ const App: React.FC = () => {
       setCustomVisualTypes(parsed.customVisualTypes);
     if (parsed.currentWorkItems) setCurrentWorkItems(parsed.currentWorkItems);
   };
+  const fetchAllFromTable = async (table: string, userId: string) => {
+    let allData: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .eq("user_id", userId)
+        .order("id")
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (error) return { data: null, error };
+      if (!data || data.length === 0) break;
+      allData = [...allData, ...data];
+      if (data.length < pageSize || allData.length >= 20000) break; // hard limit to 20k to avoid loops
+      page++;
+    }
+    // ensure uniqueness based on master_ref to avoid duplicate React keys later
+    const keyFn = (x: any) => x.master_ref || x.id;
+    const uniqueData = Array.from(new Map(allData.map(item => [keyFn(item), item])).values());
+    return { data: uniqueData, error: null };
+  };
+
   const fetchFromTables = async (userId: string) => {
     console.log(
       "Intentando cargar datos desde tablas relacionales industriales...",
@@ -270,26 +293,14 @@ const App: React.FC = () => {
         quoRes,
         confRes,
       ] = await Promise.all([
-        supabase
-          .from("materiales_perfiles_usuario")
-          .select("*")
-          .eq("user_id", userId)
-          .limit(50000),
-        supabase
-          .from("materiales_vidrios_usuario")
-          .select("*")
-          .eq("user_id", userId)
-          .limit(50000),
-        supabase
-          .from("materiales_accesorios_usuario")
-          .select("*")
-          .eq("user_id", userId)
-          .limit(50000),
-        supabase.from("tratamientos_usuario").select("*").eq("user_id", userId).limit(50000),
-        supabase.from("paneles_usuario").select("*").eq("user_id", userId).limit(50000),
-        supabase.from("dvh_usuario").select("*").eq("user_id", userId).limit(50000),
-        supabase.from("recetas_usuario").select("*").eq("user_id", userId).limit(50000),
-        supabase.from("presupuestos").select("*").eq("user_id", userId).limit(50000),
+        fetchAllFromTable("materiales_perfiles_usuario", userId),
+        fetchAllFromTable("materiales_vidrios_usuario", userId),
+        fetchAllFromTable("materiales_accesorios_usuario", userId),
+        fetchAllFromTable("tratamientos_usuario", userId),
+        fetchAllFromTable("paneles_usuario", userId),
+        fetchAllFromTable("dvh_usuario", userId),
+        fetchAllFromTable("recetas_usuario", userId),
+        fetchAllFromTable("presupuestos", userId),
         supabase
           .from("configuracion_usuario")
           .select("config_data")
@@ -308,19 +319,11 @@ const App: React.FC = () => {
       ].find((r) => r.error);
       if (criticalError && criticalError.error) {
         console.error("Error crítico de base de datos:", criticalError.error);
-        if (criticalError.error.message === "Failed to fetch") {
-          alert(
-            "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado.\n3. Un bloqueador de publicidad está interfiriendo.",
-          );
-        } else if (criticalError.error.code === "42P01") {
-          alert(
-            "BASE DE DATOS NO INICIALIZADA:\nSe detectó que faltan las tablas necesarias en Supabase.\n\nPor favor, ejecuta el contenido del archivo 'supabase_migration.sql' en el SQL Editor de tu Dashboard de Supabase.",
-          );
-        } else if (criticalError.error.message.includes("permission denied")) {
-          alert(
-            "ERROR DE PERMISOS:\nSupabase denegó el acceso al esquema public.\n\nPor favor, ejecuta el script de permisos al inicio de 'supabase_migration.sql' para solucionarlo.",
-          );
-        }
+        alert(
+          "ERROR EN LA LECTURA DE BASE DE DATOS:\n" + 
+          JSON.stringify(criticalError.error) + 
+          "\nMensaje: " + criticalError.error.message
+        );
         return null;
       }
       const cleanData = (list: any[] | null) => list || [];
