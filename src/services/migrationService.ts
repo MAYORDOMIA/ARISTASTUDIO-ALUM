@@ -236,7 +236,8 @@ export const pullUpdatesFromMaster = async (userId: string) => {
   for (const t of masterTables) {
     const { data: masters, error: fetchErr } = await supabase
       .from(t.master)
-      .select("*");
+      .select("*")
+      .limit(50000);
     if (fetchErr) {
       errors.push(fetchErr.message);
       continue;
@@ -246,7 +247,8 @@ export const pullUpdatesFromMaster = async (userId: string) => {
       const { data: existingUserItems } = await supabase
         .from(t.user)
         .select("master_ref")
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .limit(50000);
       const existingRefs = new Set(
         (existingUserItems || []).map((ei) => ei.master_ref),
       );

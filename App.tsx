@@ -273,20 +273,23 @@ const App: React.FC = () => {
         supabase
           .from("materiales_perfiles_usuario")
           .select("*")
-          .eq("user_id", userId),
+          .eq("user_id", userId)
+          .limit(50000),
         supabase
           .from("materiales_vidrios_usuario")
           .select("*")
-          .eq("user_id", userId),
+          .eq("user_id", userId)
+          .limit(50000),
         supabase
           .from("materiales_accesorios_usuario")
           .select("*")
-          .eq("user_id", userId),
-        supabase.from("tratamientos_usuario").select("*").eq("user_id", userId),
-        supabase.from("paneles_usuario").select("*").eq("user_id", userId),
-        supabase.from("dvh_usuario").select("*").eq("user_id", userId),
-        supabase.from("recetas_usuario").select("*").eq("user_id", userId),
-        supabase.from("presupuestos").select("*").eq("user_id", userId),
+          .eq("user_id", userId)
+          .limit(50000),
+        supabase.from("tratamientos_usuario").select("*").eq("user_id", userId).limit(50000),
+        supabase.from("paneles_usuario").select("*").eq("user_id", userId).limit(50000),
+        supabase.from("dvh_usuario").select("*").eq("user_id", userId).limit(50000),
+        supabase.from("recetas_usuario").select("*").eq("user_id", userId).limit(50000),
+        supabase.from("presupuestos").select("*").eq("user_id", userId).limit(50000),
         supabase
           .from("configuracion_usuario")
           .select("config_data")
