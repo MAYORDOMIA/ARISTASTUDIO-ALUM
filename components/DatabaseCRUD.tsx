@@ -1654,7 +1654,13 @@ const DatabaseCRUD: React.FC<Props> = ({
                       ? errors.join("\n")
                       : "Error desconocido en el servidor";
                   console.error("Errores reportados por el servicio:", errors);
-                  alert("ERROR EN LA SINCRONIZACIÓN:\n" + errorMsg);
+                  
+                  let extraHint = "";
+                  if (errorMsg.includes("foreign key constraint") || errorMsg.includes("violates foreign key")) {
+                    extraHint = "\n\nSISTEMA PROFESIONAL: Al parece, tu base de datos todavía requiere que los materiales existan en el sistema central para poder guardarlos. Para hacer la app escalable y que cada usuario pueda crear los suyos libremente, DEBES ejecutar el script SQL que quita esa restricción. Por favor, revisa las instrucciones del chat.";
+                  }
+
+                  alert("ERROR EN LA SINCRONIZACIÓN:\n" + errorMsg + extraHint);
                   if (btn) {
                     btn.innerHTML = "Error (Reintentar)";
                     btn.classList.remove("opacity-50", "cursor-not-allowed");
