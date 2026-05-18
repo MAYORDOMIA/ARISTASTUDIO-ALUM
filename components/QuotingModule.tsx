@@ -2860,7 +2860,7 @@ const QuotingModule: React.FC<Props> = ({
                       <Package size={14} />
                     </div>
                     <span className="text-[11px] text-slate-500 font-black uppercase tracking-tighter">
-                      1. Aluminio + Acabado
+                      1. Aluminio + Acabado ({liveBreakdown.totalWeight.toFixed(2)} Kg)
                     </span>
                   </div>
                   <span className="font-mono font-bold text-slate-900 text-sm">

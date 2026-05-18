@@ -1003,6 +1003,7 @@ export const generateMaterialsOrderPDF = (
           detail: p.detail,
           totalMm: 0,
           barLength: p.barLength || 6,
+          weightPerMeter: p.weightPerMeter || 0,
         };
         existing.totalMm += totalMm;
         aluSummary.set(p.id, existing);
@@ -1020,6 +1021,7 @@ export const generateMaterialsOrderPDF = (
               detail: trProf.detail,
               totalMm: 0,
               barLength: trProf.barLength || 6,
+              weightPerMeter: trProf.weightPerMeter || 0,
             };
             existing.totalMm += totalMm;
             aluSummary.set(trProf.id, existing);
@@ -1035,6 +1037,7 @@ export const generateMaterialsOrderPDF = (
                   detail: gbProf.detail,
                   totalMm: 0,
                   barLength: gbProf.barLength || 6,
+                  weightPerMeter: gbProf.weightPerMeter || 0,
                 };
                 gbExist.totalMm += gbTotalMm;
                 aluSummary.set(gbProf.id, gbExist);
@@ -1096,6 +1099,7 @@ export const generateMaterialsOrderPDF = (
                 detail: slatProf.detail,
                 totalMm: 0,
                 barLength: slatProf.barLength || 6,
+                weightPerMeter: slatProf.weightPerMeter || 0,
               };
               existing.totalMm += totalMm;
               aluSummary.set(slatId, existing);
@@ -1113,6 +1117,7 @@ export const generateMaterialsOrderPDF = (
             detail: hrProfile.detail,
             totalMm: 0,
             barLength: hrProfile.barLength || 6,
+            weightPerMeter: hrProfile.weightPerMeter || 0,
           };
           existing.totalMm += (modW + config.discWidth) * item.quantity;
           aluSummary.set(hrProfile.id, existing);
@@ -1208,6 +1213,7 @@ export const generateMaterialsOrderPDF = (
           detail: tjProfile.detail,
           totalMm: 0,
           barLength: tjProfile.barLength || 6,
+          weightPerMeter: tjProfile.weightPerMeter || 0,
         };
         existing.totalMm += (tjLenTotal + config.discWidth) * item.quantity;
         aluSummary.set(tjProfile.id, existing);
@@ -1270,21 +1276,26 @@ export const generateMaterialsOrderPDF = (
           detail: p.detail,
           totalMm: 0,
           barLength: bl,
+          weightPerMeter: p.weightPerMeter || 0,
         };
         existing.totalMm += (totalC + config.discWidth) * item.quantity;
         aluSummary.set(p.id, existing);
       }
     }
   });
+  let totalAluWeight = 0;
   const aluBody = Array.from(aluSummary.values()).map((s) => {
     const barLenMm = s.barLength > 100 ? s.barLength : s.barLength * 1000;
     const totalBars = Math.ceil(s.totalMm / barLenMm);
+    const weight = (s.totalMm / 1000) * (s.weightPerMeter || 0);
+    totalAluWeight += weight;
     return [
       s.code,
       s.detail,
       `${(s.totalMm / 1000).toFixed(2)} m`,
       `${s.barLength} m`,
       totalBars,
+      `${weight.toFixed(2)} Kg`,
     ];
   });
   autoTable(doc, {
@@ -1295,16 +1306,24 @@ export const generateMaterialsOrderPDF = (
         "DESCRIPCIÓN",
         "METROS TOTALES",
         "LARGO BARRA",
-        "BARRAS A COMPRAR",
+        "BARRAS",
+        "PESO (Kg)",
       ],
     ],
     body: aluBody,
     theme: "grid",
     headStyles: { fillColor: [51, 65, 85] },
     styles: { fontSize: 8 },
-    columnStyles: { 4: { halign: "center", fontStyle: "bold" } },
+    columnStyles: { 
+      4: { halign: "center", fontStyle: "bold" },
+      5: { halign: "right" }
+    },
   });
-  currentY = (doc as any).lastAutoTable.finalY + 15;
+  currentY = (doc as any).lastAutoTable.finalY + 5;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text(`PESO TOTAL ESTRUCTURAL: ${totalAluWeight.toFixed(2)} Kg`, 15, currentY + 5);
+  currentY += 15;
   if (currentY > 250) {
     doc.addPage();
     currentY = 20;

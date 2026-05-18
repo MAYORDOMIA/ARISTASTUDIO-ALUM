@@ -183,7 +183,90 @@ const ObrasModule: React.FC<Props> = ({
             }
           });
         }
+        // Lógica de Tablillas
+        if (mod.slatProfileIds) {
+          Object.entries(mod.slatProfileIds).forEach(([_, slatId]) => {
+            const slatProf = aluminum.find((a) => a.id === slatId);
+            if (slatProf && slatProf.thickness > 0) {
+              const numSlats = Math.ceil(modH / slatProf.thickness);
+              const totalCutLen =
+                (modW + config.discWidth) * numSlats * item.quantity;
+              const weight =
+                (totalCutLen / 1000) * (slatProf.weightPerMeter || 0);
+              const existing = summary.get(slatProf.id) || {
+                code: slatProf.code,
+                detail: slatProf.detail,
+                totalLength: 0,
+                totalWeight: 0,
+              };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(slatId, existing);
+            }
+          });
+        }
+        // Lógica de Pasamano (Baranda)
+        if (mod.handrailProfileId) {
+          const hrProfile = aluminum.find((p) => p.id === mod.handrailProfileId);
+          if (hrProfile) {
+            const totalCutLen = (modW + config.discWidth) * item.quantity;
+            const weight = (totalCutLen / 1000) * (hrProfile.weightPerMeter || 0);
+            const existing = summary.get(hrProfile.id) || {
+              code: hrProfile.code,
+              detail: hrProfile.detail,
+              totalLength: 0,
+              totalWeight: 0,
+            };
+            existing.totalLength += totalCutLen;
+            existing.totalWeight += weight;
+            summary.set(hrProfile.id, existing);
+          }
+        }
       });
+      // Lógica de Tapajuntas
+      if (item.extras.tapajuntas && validModules.length > 0) {
+        const firstRecipe = recipes.find(
+          (r) => r.id === validModules[0].recipeId,
+        );
+        let tjProfile = aluminum.find(
+          (p) => p.id === firstRecipe?.defaultTapajuntasProfileId,
+        );
+        if (!tjProfile && firstRecipe) {
+          const tjRef = firstRecipe.profiles.find((p) => p.role === "Tapajuntas");
+          if (tjRef) tjProfile = aluminum.find((p) => p.id === tjRef.profileId);
+        }
+        if (!tjProfile) {
+          tjProfile = aluminum.find(
+            (p) =>
+              p.code.toUpperCase().includes("TJ") ||
+              p.detail.toLowerCase().includes("tapajunta"),
+          );
+        }
+        if (tjProfile) {
+          const tjThick = Number(tjProfile.thickness || 30);
+          const { top, bottom, left, right } = item.extras.tapajuntasSides;
+          let tjLenTotal = 0;
+          if (top)
+            tjLenTotal += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+          if (bottom)
+            tjLenTotal += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+          if (left)
+            tjLenTotal += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+          if (right)
+            tjLenTotal += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+
+          const weight = (tjLenTotal / 1000) * (tjProfile.weightPerMeter || 0);
+          const existing = summary.get(tjProfile.id) || {
+            code: tjProfile.code,
+            detail: tjProfile.detail,
+            totalLength: 0,
+            totalWeight: 0,
+          };
+          existing.totalLength += tjLenTotal * item.quantity;
+          existing.totalWeight += weight * item.quantity;
+          summary.set(tjProfile.id, existing);
+        }
+      }
     });
     return Array.from(summary.values()).sort(
       (a, b) => b.totalWeight - a.totalWeight,
