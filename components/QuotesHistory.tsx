@@ -420,9 +420,11 @@ const QuotesHistory: React.FC<Props> = ({
                           <div className="text-[10px] font-black text-slate-800 uppercase">
                             {compositeName}
                           </div>
-                          <div className="text-[9px] text-slate-500 font-mono font-bold">
-                            {item.width} x {item.height} mm | {item.quantity}
-                            UNID.
+                          <div className="text-[9px] text-slate-500 font-mono font-bold flex gap-2 items-center">
+                            <span>{item.width} x {item.height} mm | {item.quantity} UNID.</span>
+                            {item.quotingMode && item.quotingMode !== "Completa" && (
+                              <span className="bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded text-[7px] font-black">{item.quotingMode}</span>
+                            )}
                           </div>
                         </div>
                       </div>

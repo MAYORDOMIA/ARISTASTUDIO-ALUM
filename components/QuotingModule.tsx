@@ -1116,6 +1116,9 @@ const QuotingModule: React.FC<Props> = ({
   const [isGlobalHandrailSelection, setIsGlobalHandrailSelection] =
     useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [quotingMode, setQuotingMode] = useState<
+    "Completa" | "Solo Marcos" | "Solo Hojas"
+  >("Completa");
   useEffect(() => {
     if (onRecipeChange) {
       const firstMod = modules[0];
@@ -1255,6 +1258,7 @@ const QuotingModule: React.FC<Props> = ({
         couplingProfileId,
         extras: { ...extras },
         calculatedCost: 0,
+        quotingMode,
       };
       const { breakdown } = calculateCompositePrice(
         tempItem,
@@ -1294,6 +1298,7 @@ const QuotingModule: React.FC<Props> = ({
     quantity,
     isManualDim,
     glazingBeadStyle,
+    quotingMode,
   ]);
   const updateModule = (id: string, data: Partial<MeasurementModule>) => {
     setModules((prev) =>
@@ -1553,6 +1558,7 @@ const QuotingModule: React.FC<Props> = ({
     setCouplingDeduction(10);
     setSelectedColorId("");
     setQuantity(1);
+    setQuotingMode("Completa");
     setExtras({
       mosquitero: false,
       tapajuntas: false,
@@ -1603,6 +1609,7 @@ const QuotingModule: React.FC<Props> = ({
       if (item.composition?.isManualDim !== undefined)
         setIsManualDim(item.composition.isManualDim);
       if (item.glazingBeadStyle) setGlazingBeadStyle(item.glazingBeadStyle);
+      setQuotingMode(item.quotingMode || "Completa");
     }
   }, [triggerAction]);
   const addItemToWork = () => {
@@ -1641,6 +1648,7 @@ const QuotingModule: React.FC<Props> = ({
         couplingProfileId,
         extras: { ...extras },
         calculatedCost: 0,
+        quotingMode,
       },
       recipes,
       aluminum,
@@ -1672,6 +1680,7 @@ const QuotingModule: React.FC<Props> = ({
       previewImage,
       breakdown,
       glazingBeadStyle,
+      quotingMode,
     };
     if (editingItemId) {
       setCurrentWorkItems(
@@ -3107,6 +3116,20 @@ const QuotingModule: React.FC<Props> = ({
                     <Tag size={12} /> Sistema y Tipología
                   </h4>
                   <div className="space-y-4">
+                    <div className="space-y-1.5 pt-2 border-t border-slate-200">
+                      <label className="text-[8px] font-black text-rose-500 uppercase tracking-widest ml-0.5">
+                        ⚙ Modo de Presupuesto (Global)
+                      </label>
+                      <select
+                        className="w-full bg-white border border-rose-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-rose-500 shadow-sm text-rose-700"
+                        value={quotingMode}
+                        onChange={(e) => setQuotingMode(e.target.value as any)}
+                      >
+                        <option value="Completa">Abertura Completa</option>
+                        <option value="Solo Marcos">Solo Marcos (Sin Hojas ni Vidrio)</option>
+                        <option value="Solo Hojas">Solo Hojas (Sin Marcos perimetrales)</option>
+                      </select>
+                    </div>
                     <div className="space-y-1.5">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                         Línea Técnica

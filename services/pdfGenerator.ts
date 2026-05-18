@@ -385,6 +385,12 @@ export const generateBarOptimizationPDF = (
           role.includes("mosquitero") || pDef.id === recipe.mosquiteroProfileId;
         if (isMosq && !item.extras.mosquitero) return;
 
+        if (item.quotingMode === "Solo Marcos") {
+           if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return;
+        } else if (item.quotingMode === "Solo Hojas") {
+           if (role.includes("marco") || role.includes("zócalo") || role.includes("zocalo") || role.includes("acople") || role.includes("columna") || role.includes("viga") || role.includes("encuentro") || role.includes("travesaño") || role.includes("travesano")) return;
+        }
+
         const isLeafWidthDependent =
           role.includes("hoja") ||
           role.includes("zócalo") ||
@@ -983,6 +989,13 @@ export const generateMaterialsOrderPDF = (
         const isMosq =
           role.includes("mosquitero") || p.id === recipe.mosquiteroProfileId;
         if (isMosq && !item.extras.mosquitero) return;
+
+        if (item.quotingMode === "Solo Marcos") {
+           if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return;
+        } else if (item.quotingMode === "Solo Hojas") {
+           if (role.includes("marco") || role.includes("zócalo") || role.includes("zocalo") || role.includes("acople") || role.includes("columna") || role.includes("viga") || role.includes("encuentro") || role.includes("travesaño") || role.includes("travesano")) return;
+        }
+
         const len = evaluateFormula(rp.formula, modW, modH);
         const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
         const existing = aluSummary.get(p.id) || {
@@ -1304,6 +1317,8 @@ export const generateMaterialsOrderPDF = (
     { spec: string; w: number; h: number; qty: number }
   >();
   quote.items.forEach((item) => {
+    if (item.quotingMode === "Solo Marcos") return;
+    
     item.composition.modules.forEach((mod) => {
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe) return;
@@ -1947,6 +1962,13 @@ export const generateAssemblyOrderPDF = (
         const isMosq =
           role.includes("mosquitero") || p?.id === recipe.mosquiteroProfileId;
         if (isMosq && !item.extras.mosquitero) return;
+
+        if (item.quotingMode === "Solo Marcos") {
+           if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return;
+        } else if (item.quotingMode === "Solo Hojas") {
+           if (role.includes("marco") || role.includes("zócalo") || role.includes("zocalo") || role.includes("acople") || role.includes("columna") || role.includes("viga") || role.includes("encuentro") || role.includes("travesaño") || role.includes("travesano")) return;
+        }
+
         const cutLen = evaluateFormula(rp.formula, modW, modH);
         profileCuts.push([
           p?.code || "S/D",
@@ -1999,24 +2021,29 @@ export const generateAssemblyOrderPDF = (
         )
           numLeaves = 2;
       }
-      panes.forEach((p, pIdx) => {
-        if (p.isBlind) {
-          const slatId = mod.slatProfileIds?.[pIdx];
-          if (slatId) {
-            const slatProf = aluminum.find((a) => a.id === slatId);
-            if (slatProf && slatProf.thickness > 0) {
-              const numSlats = Math.ceil(p.h / slatProf.thickness);
-              profileCuts.push([
-                slatProf.code,
-                `Tablilla (${pIdx + 1})`,
-                Math.round(p.w),
-                numSlats,
-                "90° / 90°",
-              ]);
+      
+      if (item.quotingMode === "Solo Marcos") {
+         // Do not show glasses if Solo Marcos
+      } else {
+        panes.forEach((p, pIdx) => {
+          if (p.isBlind) {
+            const slatId = mod.slatProfileIds?.[pIdx];
+            if (slatId) {
+              const slatProf = aluminum.find((a) => a.id === slatId);
+              if (slatProf && slatProf.thickness > 0) {
+                const numSlats = Math.ceil(p.h / slatProf.thickness);
+                profileCuts.push([
+                  slatProf.code,
+                  `Tablilla (${pIdx + 1})`,
+                  Math.round(p.w),
+                  numSlats,
+                  "90° / 90°",
+                ]);
+              }
             }
           }
-        }
-      });
+        });
+      }
     });
     if (item.couplingProfileId && isSet) {
       const trProf = aluminum.find((p) => p.id === item.couplingProfileId);
@@ -2184,10 +2211,11 @@ export const generateAssemblyOrderPDF = (
     });
     currentY = (doc as any).lastAutoTable.finalY + 5;
     const glassPieces: any[] = [];
-    validModules.forEach((mod) => {
-      const recipe = recipes.find((r) => r.id === mod.recipeId);
-      if (!recipe) return;
-      const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+    if (item.quotingMode !== "Solo Marcos") {
+      validModules.forEach((mod) => {
+        const recipe = recipes.find((r) => r.id === mod.recipeId);
+        if (!recipe) return;
+        const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
       let spec = "S/D";
       if (recipe.visualType === "mosquitero") {
         spec = "TELA MOSQUITERA (ALUMINIO)";
@@ -2249,6 +2277,7 @@ export const generateAssemblyOrderPDF = (
         }
       });
     });
+    }
     autoTable(doc, {
       startY: currentY,
       head: [
@@ -2396,6 +2425,8 @@ export const generateGlassOptimizationPDF = (
   const allPieces: GlassPiece[] = [];
   const listTableData: any[] = [];
   quote.items.forEach((item, itemIdx) => {
+    if (item.quotingMode === "Solo Marcos") return;
+    
     item.composition.modules.forEach((mod) => {
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe || recipe.visualType === "mosquitero") return;

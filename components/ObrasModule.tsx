@@ -296,7 +296,7 @@ const ObrasModule: React.FC<Props> = ({
                 key={item.id}
                 className="bg-white border-b border-slate-100 p-4 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 hover:bg-slate-50 transition-all group"
               >
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div className="w-16 h-12 bg-sky-50 rounded-lg flex flex-col items-center justify-center border border-sky-100 shrink-0">
                     <span className="text-[8px] font-black text-sky-400 uppercase">
                       ABER.
@@ -310,10 +310,10 @@ const ObrasModule: React.FC<Props> = ({
                       {compositeName}
                     </h3>
                     <div className="flex gap-4 mt-1">
-                      <span className="text-[9px] font-mono text-slate-500">
+                      <span className="text-[9px] font-mono text-slate-500 whitespace-nowrap">
                         {item.width} x {item.height} mm
                       </span>
-                      <span className="text-[9px] font-black text-sky-500 uppercase">
+                      <span className="text-[9px] font-black text-sky-500 uppercase truncate">
                         {moduleNames.length > 1
                           ? "CONJUNTO"
                           : recipes.find(

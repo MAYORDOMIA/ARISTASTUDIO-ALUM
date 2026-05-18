@@ -218,6 +218,7 @@ export const calculateCompositePrice = (
       mod.leafAlternative,
       !!validModules.find((m) => m.x === mod.x - 1 && m.y === mod.y), // isRightModule
       !!validModules.find((m) => m.x === mod.x && m.y === mod.y - 1), // isBottomModule
+      item.quotingMode,
     );
 
     totalAluCost += result.aluCost;
@@ -426,6 +427,7 @@ export const calculateItemPrice = (
   leafAlternative?: "A" | "B",
   isRightModule?: boolean,
   isBottomModule?: boolean,
+  quotingMode?: "Completa" | "Solo Marcos" | "Solo Hojas",
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -496,6 +498,12 @@ export const calculateItemPrice = (
     const isMosq =
       role.includes("mosquitero") || p.id === recipe.mosquiteroProfileId;
     if (isMosq && !extras?.mosquitero) return false;
+
+    if (quotingMode === "Solo Marcos") {
+      if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return false;
+    } else if (quotingMode === "Solo Hojas") {
+      if (role.includes("marco") || role.includes("zócalo") || role.includes("zocalo") || role.includes("acople") || role.includes("columna") || role.includes("viga") || role.includes("encuentro")) return false;
+    }
 
     return true;
   });
@@ -918,62 +926,64 @@ export const calculateItemPrice = (
       ? dvhInputs.find((i) => i.id === dvhCameraId && i.type === "Cámara")
       : null;
 
-  glassPanes.forEach((pane, index) => {
-    const areaM2 = (pane.w * pane.h) / 1000000;
-    const billingAreaPerPiece = Math.max(areaM2, 0.5);
-    const totalBillingArea = billingAreaPerPiece * numLeaves;
+  if (quotingMode !== "Solo Marcos") {
+    glassPanes.forEach((pane, index) => {
+      const areaM2 = (pane.w * pane.h) / 1000000;
+      const billingAreaPerPiece = Math.max(areaM2, 0.5);
+      const totalBillingArea = billingAreaPerPiece * numLeaves;
 
-    if (visualType === "mosquitero") {
-      glassCost += Number(config.meshPricePerM2 || 25.0) * totalBillingArea;
-      return;
-    }
-
-    if (blindPanes.includes(index)) {
-      if (slatProfileIds[index]) {
+      if (visualType === "mosquitero") {
+        glassCost += Number(config.meshPricePerM2 || 25.0) * totalBillingArea;
         return;
       }
-      const specificBlind = blindPanels.find(
-        (bp) => bp.id === blindPaneIds[index],
-      );
-      if (specificBlind) {
-        const unitValue =
-          specificBlind.unit === "ml" ? pane.w / 1000 : billingAreaPerPiece;
-        glassCost += Number(specificBlind.price || 0) * unitValue * numLeaves;
-      } else {
-        glassCost +=
-          Number(config.blindPanelPricePerM2 || 0) * totalBillingArea;
-      }
-    } else {
-      if (outerGlass)
-        glassCost += Number(outerGlass.pricePerM2 || 0) * totalBillingArea;
-      if (innerGlass)
-        glassCost += Number(innerGlass.pricePerM2 || 0) * totalBillingArea;
-      if (isDVH) {
-        if (dvhCamera)
-          glassCost +=
-            Number(dvhCamera.cost || 0) *
-            (((pane.w + pane.h) * 2) / 1000) *
-            numLeaves;
-        dvhInputs
-          .filter((i) => i.type !== "Cámara")
-          .forEach(
-            (input) =>
-              (glassCost += Number(input.cost || 0) * areaM2 * numLeaves),
-          );
-      }
-    }
-  });
 
-  // Lógica de Tela Mosquitera como Extra (Costo de Malla)
-  if (extras?.mosquitero && visualType !== "mosquitero") {
-    let meshArea = (width * height) / 1000000;
-    // Ajuste para corredizas (generalmente la mitad)
-    if (visualType.includes("sliding")) {
-      meshArea = meshArea / 2;
+      if (blindPanes.includes(index)) {
+        if (slatProfileIds[index]) {
+          return;
+        }
+        const specificBlind = blindPanels.find(
+          (bp) => bp.id === blindPaneIds[index],
+        );
+        if (specificBlind) {
+          const unitValue =
+            specificBlind.unit === "ml" ? pane.w / 1000 : billingAreaPerPiece;
+          glassCost += Number(specificBlind.price || 0) * unitValue * numLeaves;
+        } else {
+          glassCost +=
+            Number(config.blindPanelPricePerM2 || 0) * totalBillingArea;
+        }
+      } else {
+        if (outerGlass)
+          glassCost += Number(outerGlass.pricePerM2 || 0) * totalBillingArea;
+        if (innerGlass)
+          glassCost += Number(innerGlass.pricePerM2 || 0) * totalBillingArea;
+        if (isDVH) {
+          if (dvhCamera)
+            glassCost +=
+              Number(dvhCamera.cost || 0) *
+              (((pane.w + pane.h) * 2) / 1000) *
+              numLeaves;
+          dvhInputs
+            .filter((i) => i.type !== "Cámara")
+            .forEach(
+              (input) =>
+                (glassCost += Number(input.cost || 0) * areaM2 * numLeaves),
+            );
+        }
+      }
+    });
+
+    // Lógica de Tela Mosquitera como Extra (Costo de Malla)
+    if (extras?.mosquitero && visualType !== "mosquitero") {
+      let meshArea = (width * height) / 1000000;
+      // Ajuste para corredizas (generalmente la mitad)
+      if (visualType.includes("sliding")) {
+        meshArea = meshArea / 2;
+      }
+      // Mínimo de facturación
+      const billingArea = Math.max(meshArea, 0.5);
+      glassCost += Number(config.meshPricePerM2 || 25.0) * billingArea;
     }
-    // Mínimo de facturación
-    const billingArea = Math.max(meshArea, 0.5);
-    glassCost += Number(config.meshPricePerM2 || 25.0) * billingArea;
   }
 
   const materialCost = aluCost + glassCost + accCost;

@@ -232,6 +232,7 @@ export interface QuoteItem {
   calculatedCost: number;
   previewImage?: string;
   breakdown?: QuoteItemBreakdown;
+  quotingMode?: "Completa" | "Solo Marcos" | "Solo Hojas";
 
   composition: {
     modules: MeasurementModule[];
