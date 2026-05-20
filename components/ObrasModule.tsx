@@ -146,6 +146,16 @@ const ObrasModule: React.FC<Props> = ({
         const recipeTransomFormula =
           transomTemplate?.formula || recipe.transomFormula || "W";
         const recipeTransomQty = transomTemplate?.quantity || 1;
+        
+        const visualType = (recipe.visualType || "").toLowerCase();
+        let numLeaves = recipe.leaves || 1;
+        if (!recipe.leaves) {
+          if (visualType.includes("sliding_3") || visualType.includes("corrediza_3")) numLeaves = 3;
+          else if (visualType.includes("sliding_4") || visualType.includes("corrediza_4")) numLeaves = 4;
+          else if (visualType.includes("sliding") || visualType.includes("corrediza")) numLeaves = 2;
+          else if (visualType.includes("double") || visualType.includes("doble") || visualType.includes("2h")) numLeaves = 2;
+        }
+
         recipe.profiles.forEach((rp) => {
           const role = rp.role?.toLowerCase() || "";
           if (role.includes("trave")) return;
@@ -188,12 +198,21 @@ const ObrasModule: React.FC<Props> = ({
         }
         // Lógica de Tablillas
         if (mod.slatProfileIds) {
-          Object.entries(mod.slatProfileIds).forEach(([_, slatId]) => {
+          Object.entries(mod.slatProfileIds).forEach(([paneIdxStr, slatId]) => {
             const slatProf = aluminum.find((a) => a.id === slatId);
+            const paneIdx = parseInt(paneIdxStr);
             if (slatProf && slatProf.thickness > 0) {
-              const numSlats = Math.ceil(modH / slatProf.thickness);
+              let paneH = modH;
+              if (mod.transoms && mod.transoms.length > 0) {
+                const sortedT = [...mod.transoms].sort((a,b)=>a.height-b.height);
+                if (paneIdx === 0) paneH = Number(sortedT[0].height);
+                else if (paneIdx < sortedT.length) paneH = Number(sortedT[paneIdx].height) - Number(sortedT[paneIdx-1].height);
+                else paneH = modH - Number(sortedT[sortedT.length-1].height);
+              }
+              const numSlats = Math.ceil(paneH / slatProf.thickness);
+              const leafW = visualType.includes("sliding") || numLeaves > 1 ? modW / numLeaves : modW;
               const totalCutLen =
-                (modW + config.discWidth) * numSlats * item.quantity;
+                (leafW + config.discWidth) * numSlats * numLeaves * item.quantity;
               const weight =
                 (totalCutLen / 1000) * (slatProf.weightPerMeter || 0);
               const existing = summary.get(slatProf.id) || {
@@ -217,7 +236,8 @@ const ObrasModule: React.FC<Props> = ({
               // Ignore if it's already counted as a slat OR not an "ml" panel.
               const slatId = mod.slatProfileIds?.[pIdx];
               if (bp && bp.unit === "ml" && !slatId) {
-                const totalCutLen = (modW + config.discWidth) * item.quantity;
+                const leafW = visualType.includes("sliding") || numLeaves > 1 ? modW / numLeaves : modW;
+                const totalCutLen = (leafW + config.discWidth) * numLeaves * item.quantity;
                 const weight = (totalCutLen / 1000) * (bp.weightPerMeter || 0);
                 const existing = summary.get(bp.id) || {
                   code: bp.code,
