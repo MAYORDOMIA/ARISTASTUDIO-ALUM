@@ -1412,6 +1412,8 @@ const DatabaseCRUD: React.FC<Props> = ({
               "Descripción",
               "Costo",
               "Unidad",
+              "Peso (Kg/ml)",
+              "Largo Barra",
               "Acciones",
             ]}
             onAdd={() =>
@@ -1423,6 +1425,8 @@ const DatabaseCRUD: React.FC<Props> = ({
                   detail: "Nuevo Panel",
                   price: 0,
                   unit: "m2",
+                  weightPerMeter: 0,
+                  barLength: 6,
                 },
               ])
             }
@@ -1495,6 +1499,43 @@ const DatabaseCRUD: React.FC<Props> = ({
                       <option value="m2">M2</option>
                       <option value="ml">ML</option>
                     </select>
+                  </td>
+                  <td className="cell-style">
+                    {item.unit === "ml" && (
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="input-technical font-mono text-[10px] w-16"
+                        value={item.weightPerMeter || 0}
+                        onChange={(e) =>
+                          setBlindPanels(
+                            blindPanels.map((x) =>
+                              x.id === item.id
+                                ? { ...x, weightPerMeter: parseFloat(e.target.value) || 0 }
+                                : x,
+                            ),
+                          )
+                        }
+                      />
+                    )}
+                  </td>
+                  <td className="cell-style">
+                    {item.unit === "ml" && (
+                      <input
+                        type="number"
+                        className="input-technical font-mono text-[10px] w-14"
+                        value={item.barLength || 0}
+                        onChange={(e) =>
+                          setBlindPanels(
+                            blindPanels.map((x) =>
+                              x.id === item.id
+                                ? { ...x, barLength: parseFloat(e.target.value) || 0 }
+                                : x,
+                            ),
+                          )
+                        }
+                      />
+                    )}
                   </td>
                   <td className="cell-style text-right">
                     <button

@@ -19,6 +19,7 @@ import {
   ProductRecipe,
   GlobalConfig,
   AluminumProfile,
+  BlindPanel,
 } from "../types";
 import { evaluateFormula } from "../services/calculator";
 import { supabase, isSupabaseConfigured } from "../src/services/supabaseClient";
@@ -31,6 +32,7 @@ interface Props {
   config: GlobalConfig;
   setConfig: React.Dispatch<React.SetStateAction<GlobalConfig>>;
   aluminum: AluminumProfile[];
+  blindPanels: BlindPanel[];
   onEditItem?: (item: QuoteItem) => void;
   activeQuote?: Quote | null;
   setActiveQuote?: (quote: Quote | null) => void;
@@ -44,6 +46,7 @@ const ObrasModule: React.FC<Props> = ({
   config,
   setConfig,
   aluminum,
+  blindPanels,
   onEditItem,
   activeQuote,
   setActiveQuote,
@@ -202,6 +205,30 @@ const ObrasModule: React.FC<Props> = ({
               existing.totalLength += totalCutLen;
               existing.totalWeight += weight;
               summary.set(slatId, existing);
+            }
+          });
+        }
+        // Lógica de Paneles Ciegos (ML)
+        if (mod.blindPaneIds && mod.blindPanes) {
+          mod.blindPanes.forEach((pIdx) => {
+            const bpId = mod.blindPaneIds![pIdx];
+            if (bpId) {
+              const bp = blindPanels.find((x) => x.id === bpId);
+              // Ignore if it's already counted as a slat OR not an "ml" panel.
+              const slatId = mod.slatProfileIds?.[pIdx];
+              if (bp && bp.unit === "ml" && !slatId) {
+                const totalCutLen = (modW + config.discWidth) * item.quantity;
+                const weight = (totalCutLen / 1000) * (bp.weightPerMeter || 0);
+                const existing = summary.get(bp.id) || {
+                  code: bp.code,
+                  detail: bp.detail,
+                  totalLength: 0,
+                  totalWeight: 0,
+                };
+                existing.totalLength += totalCutLen;
+                existing.totalWeight += weight;
+                summary.set(bp.id, existing);
+              }
             }
           });
         }

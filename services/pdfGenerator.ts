@@ -1083,9 +1083,10 @@ export const generateMaterialsOrderPDF = (
               code: bp.code,
               detail: bp.detail,
               totalMm: 0,
-              barLength: 6,
+              barLength: bp.barLength || 6,
+              weightPerMeter: bp.weightPerMeter || 0,
             };
-            existing.totalMm += p.w * item.quantity;
+            existing.totalMm += p.w * numLeaves * item.quantity;
             aluSummary.set(bp.id, existing);
           }
           if (slatId) {

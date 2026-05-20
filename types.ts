@@ -74,6 +74,8 @@ export interface BlindPanel {
   detail: string;
   price: number;
   unit: "m2" | "ml";
+  weightPerMeter?: number;
+  barLength?: number;
 }
 
 export interface Accessory {

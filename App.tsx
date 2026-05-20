@@ -1019,6 +1019,7 @@ const App: React.FC = () => {
               config={config}
               setConfig={setConfig}
               aluminum={aluminum}
+              blindPanels={blindPanels}
               onEditItem={handleEditQuoteItem}
               activeQuote={activeQuote}
               setActiveQuote={setActiveQuote}

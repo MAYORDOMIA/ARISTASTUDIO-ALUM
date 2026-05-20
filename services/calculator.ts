@@ -948,6 +948,11 @@ export const calculateItemPrice = (
           const unitValue =
             specificBlind.unit === "ml" ? pane.w / 1000 : billingAreaPerPiece;
           glassCost += Number(specificBlind.price || 0) * unitValue * numLeaves;
+          
+          if (specificBlind.unit === "ml" && specificBlind.weightPerMeter) {
+            const bpWeight = (pane.w / 1000) * specificBlind.weightPerMeter * numLeaves;
+            totalAluWeight += bpWeight;
+          }
         } else {
           glassCost +=
             Number(config.blindPanelPricePerM2 || 0) * totalBillingArea;
