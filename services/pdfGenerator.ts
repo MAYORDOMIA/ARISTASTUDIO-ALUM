@@ -864,7 +864,7 @@ export const generateMaterialsOrderPDF = (
   currentY += 5;
   const aluSummary = new Map<
     string,
-    { code: string; detail: string; totalMm: number; barLength: number }
+    { code: string; detail: string; totalMm: number; barLength: number; weightPerMeter?: number }
   >();
   quote.items.forEach((item) => {
     const { isManualDim, colRatios, rowRatios, couplingDeduction } =

@@ -223,7 +223,7 @@ const ObrasModule: React.FC<Props> = ({
               };
               existing.totalLength += totalCutLen;
               existing.totalWeight += weight;
-              summary.set(slatId, existing);
+              summary.set(slatId as string, existing);
             }
           });
         }
