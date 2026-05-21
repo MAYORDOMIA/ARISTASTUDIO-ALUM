@@ -822,8 +822,9 @@ export const calculateItemPrice = (
     if (slatId) {
       const slatProfile = profiles.find((p) => p.id === slatId);
       const pH = panesHeights[paneIdx];
-      if (slatProfile && slatProfile.thickness > 0 && pH > 0) {
-        const numSlats = Math.ceil(pH / slatProfile.thickness);
+      const slatCoverage = slatProfile && slatProfile.thickness > 0 ? slatProfile.thickness : 120;
+      if (slatProfile && slatCoverage > 0 && pH > 0) {
+        const numSlats = Math.ceil(pH / slatCoverage);
         const totalLinealMm =
           (gW + Number(config.discWidth || 0)) * numSlats * numLeaves;
         const slatWeight =

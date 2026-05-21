@@ -2050,8 +2050,9 @@ export const generateAssemblyOrderPDF = (
             const slatId = mod.slatProfileIds?.[pIdx];
             if (slatId) {
               const slatProf = aluminum.find((a) => a.id === slatId);
-              if (slatProf && slatProf.thickness > 0) {
-                const numSlats = Math.ceil(p.h / slatProf.thickness);
+              const slatCoverage = slatProf && slatProf.thickness > 0 ? slatProf.thickness : 120;
+              if (slatProf && slatCoverage > 0) {
+                const numSlats = Math.ceil(p.h / slatCoverage);
                 profileCuts.push([
                   slatProf.code,
                   `Tablilla (${pIdx + 1})`,

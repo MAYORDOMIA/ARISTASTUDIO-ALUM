@@ -196,34 +196,78 @@ const ObrasModule: React.FC<Props> = ({
             }
           });
         }
+        // Pre-cálculo de dimensiones de vidrio para Tablillas
+        const adjustedW = modW - Number(recipe.glassDeductionW || 0);
+        const adjustedH = modH - Number(recipe.glassDeductionH || 0);
+        let leafBaseW = adjustedW;
+        if (visualType.includes("sliding") || numLeaves > 1) leafBaseW = adjustedW / numLeaves;
+        const gW = evaluateFormula(
+          mod.dvhCameraId ? (recipe.dvhFormulaW || recipe.glassFormulaW || "W") : (recipe.glassFormulaW || "W"),
+          leafBaseW,
+          adjustedH
+        );
+
+        const isDVH = mod.dvhCameraId !== undefined;
+        const transomGlassDeduction =
+          isDVH && recipe.dvhTransomGlassDeduction !== undefined
+            ? Number(recipe.dvhTransomGlassDeduction)
+            : Number(recipe.transomGlassDeduction || 0);
+
+        const panesHeights: number[] = [];
+        if (!mod.transoms || mod.transoms.length === 0) {
+          const gHForm = mod.dvhCameraId ? (recipe.dvhFormulaH || recipe.glassFormulaH || "H") : (recipe.glassFormulaH || "H");
+          panesHeights.push(evaluateFormula(gHForm, adjustedW, adjustedH));
+        } else {
+          const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
+          let lastY = 0;
+          sorted.forEach((t, idx) => {
+            const trProf = aluminum.find((p) => p.id === t.profileId);
+            const transomThickness = Number(trProf?.thickness || recipe.transomThickness || 40);
+            let ph =
+              idx === 0
+                ? Number(t.height) -
+                  transomThickness / 2 -
+                  Number(recipe.glassDeductionH || 0) / (mod.transoms.length + 1) -
+                  transomGlassDeduction
+                : Number(t.height) - lastY - transomThickness - transomGlassDeduction;
+            panesHeights.push(ph);
+            lastY = Number(t.height);
+          });
+          const lastTrProf = aluminum.find((p) => p.id === sorted[sorted.length - 1].profileId);
+          const lastTransomThickness = Number(lastTrProf?.thickness || recipe.transomThickness || 40);
+          panesHeights.push(
+            modH -
+              lastY -
+              (lastTrProf ? lastTransomThickness / 2 : 0) -
+              Number(recipe.glassDeductionH || 0) / (mod.transoms.length + 1) -
+              transomGlassDeduction
+          );
+        }
+
         // Lógica de Tablillas
         if (mod.slatProfileIds) {
           Object.entries(mod.slatProfileIds).forEach(([paneIdxStr, slatId]) => {
             const slatProf = aluminum.find((a) => a.id === slatId);
             const paneIdx = parseInt(paneIdxStr);
-            if (slatProf && slatProf.thickness > 0) {
-              let paneH = modH;
-              if (mod.transoms && mod.transoms.length > 0) {
-                const sortedT = [...mod.transoms].sort((a,b)=>a.height-b.height);
-                if (paneIdx === 0) paneH = Number(sortedT[0].height);
-                else if (paneIdx < sortedT.length) paneH = Number(sortedT[paneIdx].height) - Number(sortedT[paneIdx-1].height);
-                else paneH = modH - Number(sortedT[sortedT.length-1].height);
+            if (slatProf) {
+              const slatCoverage = slatProf.thickness > 0 ? slatProf.thickness : 120;
+              const paneH = panesHeights[paneIdx] || panesHeights[0];
+              
+              if (paneH > 0 && slatCoverage > 0) {
+                const numSlats = Math.ceil(paneH / slatCoverage);
+                const totalCutLen =
+                  (gW + config.discWidth) * numSlats * numLeaves * item.quantity;
+                const weight = (totalCutLen / 1000) * (slatProf.weightPerMeter || 0);
+                const existing = summary.get(slatProf.id) || {
+                  code: slatProf.code,
+                  detail: slatProf.detail,
+                  totalLength: 0,
+                  totalWeight: 0,
+                };
+                existing.totalLength += totalCutLen;
+                existing.totalWeight += weight;
+                summary.set(slatId as string, existing);
               }
-              const numSlats = Math.ceil(paneH / slatProf.thickness);
-              const leafW = visualType.includes("sliding") || numLeaves > 1 ? modW / numLeaves : modW;
-              const totalCutLen =
-                (leafW + config.discWidth) * numSlats * numLeaves * item.quantity;
-              const weight =
-                (totalCutLen / 1000) * (slatProf.weightPerMeter || 0);
-              const existing = summary.get(slatProf.id) || {
-                code: slatProf.code,
-                detail: slatProf.detail,
-                totalLength: 0,
-                totalWeight: 0,
-              };
-              existing.totalLength += totalCutLen;
-              existing.totalWeight += weight;
-              summary.set(slatId as string, existing);
             }
           });
         }
