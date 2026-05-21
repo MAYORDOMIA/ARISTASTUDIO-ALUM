@@ -829,7 +829,8 @@ export const calculateItemPrice = (
           (gW + Number(config.discWidth || 0)) * numSlats * numLeaves;
         const slatWeight =
           (totalLinealMm / 1000) * Number(slatProfile.weightPerMeter || 0);
-        totalAluWeight += slatWeight;
+        const extraFactor = (Number(config.blindPanelExtraIncrement || 0) / 100);
+        totalAluWeight += slatWeight * (1 + extraFactor);
       }
     }
   });
@@ -945,18 +946,22 @@ export const calculateItemPrice = (
         const specificBlind = blindPanels.find(
           (bp) => bp.id === blindPaneIds[index],
         );
+        const extraFactor = (Number(config.blindPanelExtraIncrement || 0) / 100);
         if (specificBlind) {
           const unitValue =
             specificBlind.unit === "ml" ? pane.w / 1000 : billingAreaPerPiece;
-          glassCost += Number(specificBlind.price || 0) * unitValue * numLeaves;
+          glassCost += Number(specificBlind.price || 0) * unitValue * numLeaves * (1 + extraFactor);
           
           if (specificBlind.unit === "ml" && specificBlind.weightPerMeter) {
+            // Se asume que en el caso de ML, al ser ciego, el costo va al vidrio, pero el peso al aluminio (para despunte).
+            // Omitimos sumar el incremento al peso para evitar distorsiones del peso técnico,
+            // ya que el recargo económico para "paneles ciegos" se aplicó en el `glassCost` arriba (como quería el usuario).
             const bpWeight = (pane.w / 1000) * specificBlind.weightPerMeter * numLeaves;
             totalAluWeight += bpWeight;
           }
         } else {
           glassCost +=
-            Number(config.blindPanelPricePerM2 || 0) * totalBillingArea;
+            Number(config.blindPanelPricePerM2 || 0) * totalBillingArea * (1 + extraFactor);
         }
       } else {
         if (outerGlass)

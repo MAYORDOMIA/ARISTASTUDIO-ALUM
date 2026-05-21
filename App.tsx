@@ -82,6 +82,7 @@ const App: React.FC = () => {
     dvhDiscount: 0,
     taxRate: 21,
     blindPanelPricePerM2: 85.0,
+    blindPanelExtraIncrement: 0,
     meshPricePerM2: 25.0,
     companyName: "ARISTASTUDIO ALUM",
     companyAddress: "Planta Industrial Central",
@@ -1138,6 +1139,23 @@ const App: React.FC = () => {
                           setConfig({
                             ...config,
                             blindPanelPricePerM2:
+                              parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">
+                        Incremento Ciego %
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border p-1 rounded-lg font-mono text-xs font-bold "
+                        value={config.blindPanelExtraIncrement ?? ""}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            blindPanelExtraIncrement:
                               parseFloat(e.target.value) || 0,
                           })
                         }

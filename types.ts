@@ -4,6 +4,7 @@ export interface GlobalConfig {
   discWidth: number;
   taxRate: number;
   blindPanelPricePerM2: number;
+  blindPanelExtraIncrement?: number;
   meshPricePerM2: number;
   companyName?: string;
   companyLogo?: string;
