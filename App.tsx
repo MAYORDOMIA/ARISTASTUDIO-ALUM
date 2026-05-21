@@ -323,7 +323,18 @@ const App: React.FC = () => {
         }
         return null;
       }
-      const cleanData = (list: any[] | null) => list || [];
+      const cleanData = (list: any[] | null) => {
+        if (!list) return [];
+        // Ordenar descendentemente por master_ref para que los NUEVOS (172... timestamp)
+        // se muestren arriba, y los industriales (1134...) queden abajo.
+        return list.sort((a, b) => {
+          const idA = a.master_ref || a.id;
+          const idB = b.master_ref || b.id;
+          if (idA > idB) return -1;
+          if (idA < idB) return 1;
+          return 0;
+        });
+      };
       return {
         aluminum: cleanData(aluRes.data).map((x) => ({
           ...x,

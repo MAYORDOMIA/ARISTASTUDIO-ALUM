@@ -19,155 +19,94 @@ export const saveBulkData = async (userId: string, data: any) => {
     config,
   } = data;
 
-  // Realizamos pre-fetch de los IDs existentes para poder hacer upsert 
-  // usando la llave principal (Primary Key 'id') en lugar de depender
-  // de la restricción UNIQUE(user_id, master_ref) que pudimos haber borrado.
-  const [aluRes, glsRes, accRes, trtRes, pnlRes, dvhRes, recRes] = await Promise.all([
-    supabase.from("materiales_perfiles_usuario").select("id, master_ref").eq("user_id", userId),
-    supabase.from("materiales_vidrios_usuario").select("id, master_ref").eq("user_id", userId),
-    supabase.from("materiales_accesorios_usuario").select("id, master_ref").eq("user_id", userId),
-    supabase.from("tratamientos_usuario").select("id, master_ref").eq("user_id", userId),
-    supabase.from("paneles_usuario").select("id, master_ref").eq("user_id", userId),
-    supabase.from("dvh_usuario").select("id, master_ref").eq("user_id", userId),
-    supabase.from("recetas_usuario").select("id, master_ref").eq("user_id", userId),
-  ]);
-
-  const mapIds = (res: any) => {
-    const map = new Map<string, string>();
-    if (res?.data) {
-      res.data.forEach((r: any) => {
-        if (r.master_ref) map.set(r.master_ref, r.id);
-      });
-    }
-    return map;
-  };
-
-  const maps = {
-    alu: mapIds(aluRes),
-    gls: mapIds(glsRes),
-    acc: mapIds(accRes),
-    trt: mapIds(trtRes),
-    pnl: mapIds(pnlRes),
-    dvh: mapIds(dvhRes),
-    rec: mapIds(recRes)
-  };
-
   const ops = [];
 
   // Mapeos a las tablas que definimos en SQL
   if (aluminum) {
-    const arr = aluminum.map((a: any) => {
-      const payload: any = {
-        user_id: userId,
-        master_ref: a.id,
-        code: a.code || "",
-        detail: a.detail || "",
-        weight_per_meter: a.weightPerMeter !== undefined ? a.weightPerMeter : a.weight_per_meter || 0,
-        bar_length: a.barLength !== undefined ? a.barLength : a.bar_length || 6000,
-        thickness: a.thickness !== undefined ? a.thickness : a.thickness || 0,
-        is_glazing_bead: a.isGlazingBead !== undefined ? a.isGlazingBead : a.is_glazing_bead || false,
-        glazing_bead_style: a.glazingBeadStyle || a.glazing_bead_style || "Recto",
-        min_glass_thickness: a.minGlassThickness !== undefined ? a.minGlassThickness : a.min_glass_thickness || 0,
-        max_glass_thickness: a.maxGlassThickness !== undefined ? a.maxGlassThickness : a.max_glass_thickness || 0,
-        treatment_cost: a.treatmentCost !== undefined ? a.treatmentCost : a.treatment_cost || 0,
-      };
-      if (maps.alu.has(a.id)) payload.id = maps.alu.get(a.id);
-      return payload;
-    });
-    ops.push(supabase.from("materiales_perfiles_usuario").upsert(arr));
+    const arr = aluminum.map((a: any) => ({
+      user_id: userId,
+      master_ref: a.id,
+      code: a.code || "",
+      detail: a.detail || "",
+      weight_per_meter: a.weightPerMeter !== undefined ? a.weightPerMeter : a.weight_per_meter || 0,
+      bar_length: a.barLength !== undefined ? a.barLength : a.bar_length || 6000,
+      thickness: a.thickness !== undefined ? a.thickness : a.thickness || 0,
+      is_glazing_bead: a.isGlazingBead !== undefined ? a.isGlazingBead : a.is_glazing_bead || false,
+      glazing_bead_style: a.glazingBeadStyle || a.glazing_bead_style || "Recto",
+      min_glass_thickness: a.minGlassThickness !== undefined ? a.minGlassThickness : a.min_glass_thickness || 0,
+      max_glass_thickness: a.maxGlassThickness !== undefined ? a.maxGlassThickness : a.max_glass_thickness || 0,
+      treatment_cost: a.treatmentCost !== undefined ? a.treatmentCost : a.treatment_cost || 0,
+    }));
+    ops.push(supabase.from("materiales_perfiles_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (glasses) {
-    const arr = glasses.map((g: any) => {
-      const payload: any = {
-        user_id: userId,
-        master_ref: g.id,
-        code: g.code || g.name || "",
-        detail: g.detail || "",
-        thickness: g.thickness || 0,
-        is_mirror: g.is_mirror || g.isMirror || false,
-        price_per_m2: g.price_per_m2 || g.pricePerM2 || 0,
-      };
-      if (maps.gls.has(g.id)) payload.id = maps.gls.get(g.id);
-      return payload;
-    });
-    ops.push(supabase.from("materiales_vidrios_usuario").upsert(arr));
+    const arr = glasses.map((g: any) => ({
+      user_id: userId,
+      master_ref: g.id,
+      code: g.code || g.name || "",
+      detail: g.detail || "",
+      thickness: g.thickness || 0,
+      is_mirror: g.is_mirror || g.isMirror || false,
+      price_per_m2: g.price_per_m2 || g.pricePerM2 || 0,
+    }));
+    ops.push(supabase.from("materiales_vidrios_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (accessories) {
-    const arr = accessories.map((a: any) => {
-      const payload: any = {
-        user_id: userId,
-        master_ref: a.id,
-        code: a.code || "",
-        detail: a.detail || "",
-        unit_price: a.unit_price || a.unitPrice || 0,
-      };
-      if (maps.acc.has(a.id)) payload.id = maps.acc.get(a.id);
-      return payload;
-    });
-    ops.push(supabase.from("materiales_accesorios_usuario").upsert(arr));
+    const arr = accessories.map((a: any) => ({
+      user_id: userId,
+      master_ref: a.id,
+      code: a.code || "",
+      detail: a.detail || "",
+      unit_price: a.unit_price || a.unitPrice || 0,
+    }));
+    ops.push(supabase.from("materiales_accesorios_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (treatments) {
-    const arr = treatments.map((t: any) => {
-      const payload: any = {
-        user_id: userId,
-        master_ref: t.id,
-        name: t.name || "Sin nombre",
-        price_per_kg: t.pricePerKg || 0,
-        hex_color: t.hexColor || "",
-      };
-      if (maps.trt.has(t.id)) payload.id = maps.trt.get(t.id);
-      return payload;
-    });
-    ops.push(supabase.from("tratamientos_usuario").upsert(arr));
+    const arr = treatments.map((t: any) => ({
+      user_id: userId,
+      master_ref: t.id,
+      name: t.name || "Sin nombre",
+      price_per_kg: t.pricePerKg || 0,
+      hex_color: t.hexColor || "",
+    }));
+    ops.push(supabase.from("tratamientos_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (blindPanels) {
-    const arr = blindPanels.map((p: any) => {
-      const payload: any = {
-        user_id: userId,
-        master_ref: p.id,
-        code: p.code || "",
-        detail: p.detail || "",
-        price: p.price || 0,
-        unit: p.unit || "m2",
-      };
-      if (maps.pnl.has(p.id)) payload.id = maps.pnl.get(p.id);
-      return payload;
-    });
-    ops.push(supabase.from("paneles_usuario").upsert(arr));
+    const arr = blindPanels.map((p: any) => ({
+      user_id: userId,
+      master_ref: p.id,
+      code: p.code || "",
+      detail: p.detail || "",
+      price: p.price || 0,
+      unit: p.unit || "m2",
+    }));
+    ops.push(supabase.from("paneles_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (dvhInputs) {
-    const arr = dvhInputs.map((d: any) => {
-      const payload: any = {
-        user_id: userId,
-        master_ref: d.id,
-        type: d.type || "Cámara",
-        detail: d.detail || "",
-        cost: d.cost || 0,
-        thickness: d.thickness || 0,
-      };
-      if (maps.dvh.has(d.id)) payload.id = maps.dvh.get(d.id);
-      return payload;
-    });
-    ops.push(supabase.from("dvh_usuario").upsert(arr));
+    const arr = dvhInputs.map((d: any) => ({
+      user_id: userId,
+      master_ref: d.id,
+      type: d.type || "Cámara",
+      detail: d.detail || "",
+      cost: d.cost || 0,
+      thickness: d.thickness || 0,
+    }));
+    ops.push(supabase.from("dvh_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (recipes) {
-    const recetasFormateadas = recipes.map((r: any) => {
-      const payload: any = {
-        user_id: userId,
-        master_ref: r.id,
-        name: r.name || "Sin nombre",
-        data: r,
-      };
-      if (maps.rec.has(r.id)) payload.id = maps.rec.get(r.id);
-      return payload;
-    });
-    ops.push(supabase.from("recetas_usuario").upsert(recetasFormateadas));
+    const recetasFormateadas = recipes.map((r: any) => ({
+      user_id: userId,
+      master_ref: r.id,
+      name: r.name || "Sin nombre",
+      data: r,
+    }));
+    ops.push(supabase.from("recetas_usuario").upsert(recetasFormateadas, { onConflict: "user_id,master_ref" }));
   }
 
   if (quotes && quotes.length > 0) {
@@ -334,7 +273,7 @@ export const pullUpdatesFromMaster = async (userId: string) => {
       if (newItems.length > 0) {
         const { error: upsertErr } = await supabase
           .from(t.user)
-          .insert(newItems);
+          .upsert(newItems, { onConflict: "user_id,master_ref" });
         if (upsertErr) {
           errors.push(upsertErr.message);
         } else {
