@@ -225,6 +225,57 @@ export const calculateCompositePrice = (
     totalGlassCost += result.glassCost;
     totalAccCost += result.accCost;
     totalAluWeight += result.totalAluWeight;
+    
+    // Si tiene mosquitero y una receta de mosquitero seleccionada
+    if (item.extras?.mosquitero && item.extras?.mosquiteroRecipeId) {
+      const mosqRecipe = recipes.find(r => r.id === item.extras!.mosquiteroRecipeId);
+      if (mosqRecipe) {
+        let mosqW = modW;
+        const visualTypeLower = (recipe.visualType || "").toLowerCase();
+        let numLeaves = recipe.leaves || 1;
+        if (!recipe.leaves) {
+          if (visualTypeLower.includes("sliding_3") || visualTypeLower.includes("corrediza_3")) numLeaves = 3;
+          else if (visualTypeLower.includes("sliding_4") || visualTypeLower.includes("corrediza_4")) numLeaves = 4;
+          else if (visualTypeLower.includes("sliding") || visualTypeLower.includes("corrediza")) numLeaves = 2;
+          else if (visualTypeLower.includes("double") || visualTypeLower.includes("doble")) numLeaves = 2;
+        }
+
+        if (visualTypeLower.includes("sliding") || numLeaves > 1) {
+            mosqW = modW / Math.max(1, numLeaves);
+        }
+        
+        const mosqResult = calculateItemPrice(
+           mosqRecipe,
+           mosqW,
+           modH,
+           profiles,
+           config,
+           treatment,
+           glasses,
+           accessories,
+           dvhInputs,
+           false, // isDVH
+           mod.glassOuterId,
+           undefined,
+           undefined,
+           undefined, // extras
+           undefined, // coupling
+           [], // transoms
+           [], // overridden
+           [],
+           {},
+           blindPanels,
+           false, // isSet
+           {},
+           glazingBeadStylePreference,
+        );
+
+        totalAluCost += mosqResult.aluCost;
+        totalGlassCost += mosqResult.glassCost;
+        totalAccCost += mosqResult.accCost;
+        totalAluWeight += mosqResult.totalAluWeight;
+      }
+    }
   });
 
   const baseAluPrice =
@@ -404,6 +455,7 @@ export const calculateItemPrice = (
   dvhCameraId?: string,
   extras?: {
     mosquitero: boolean;
+    mosquiteroRecipeId?: string;
     tapajuntas: boolean;
     tapajuntasSides: {
       top: boolean;
@@ -497,7 +549,7 @@ export const calculateItemPrice = (
 
     const isMosq =
       role.includes("mosquitero") || p.id === recipe.mosquiteroProfileId;
-    if (isMosq && !extras?.mosquitero) return false;
+    if (isMosq && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return false;
 
     if (quotingMode === "Solo Marcos") {
       if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return false;
@@ -859,6 +911,9 @@ export const calculateItemPrice = (
       (a) => a.id === ra.accessoryId || a.code === ra.accessoryId,
     );
     if (acc) {
+      const isMosqAcc = acc.detail.toLowerCase().includes("mosquitero") || acc.code.toLowerCase().includes("mosquitero");
+      if (isMosqAcc && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return;
+
       const uPrice = Number(acc.unitPrice || 0);
       if (ra.isLinear && ra.formula) {
         const lengthMm = evaluateFormula(ra.formula, width, height);
@@ -934,7 +989,7 @@ export const calculateItemPrice = (
       const billingAreaPerPiece = Math.max(areaM2, 0.5);
       const totalBillingArea = billingAreaPerPiece * numLeaves;
 
-      if (visualType === "mosquitero") {
+      if (visualType.includes("mosquitero") || recipe.type === "Mosquitero") {
         glassCost += Number(config.meshPricePerM2 || 25.0) * totalBillingArea;
         return;
       }
@@ -985,7 +1040,7 @@ export const calculateItemPrice = (
     });
 
     // Lógica de Tela Mosquitera como Extra (Costo de Malla)
-    if (extras?.mosquitero && visualType !== "mosquitero") {
+    if (extras?.mosquitero && visualType !== "mosquitero" && !extras?.mosquiteroRecipeId) {
       let meshArea = (width * height) / 1000000;
       // Ajuste para corredizas (generalmente la mitad)
       if (visualType.includes("sliding")) {

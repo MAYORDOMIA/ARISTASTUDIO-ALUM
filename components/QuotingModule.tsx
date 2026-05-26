@@ -1104,6 +1104,7 @@ const QuotingModule: React.FC<Props> = ({
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [showBreakdownModal, setShowBreakdownModal] = useState(false);
   const [showCouplingModal, setShowCouplingModal] = useState(false);
+  const [showMosquiteroModal, setShowMosquiteroModal] = useState(false);
   const [recipeFilter, setRecipeFilter] = useState<string>("TODOS");
   const [isManualDim, setIsManualDim] = useState(false);
   const [showSlatSelector, setShowSlatSelector] = useState(false);
@@ -2426,9 +2427,13 @@ const QuotingModule: React.FC<Props> = ({
             <div className="space-y-1">
               <div
                 className="flex items-center gap-2 cursor-pointer group bg-white p-1.5 rounded-lg border border-sky-100/50 shadow-sm transition-all hover:border-sky-200"
-                onClick={() =>
-                  setExtras({ ...extras, mosquitero: !extras.mosquitero })
-                }
+                onClick={() => {
+                  if (extras.mosquitero) {
+                    setExtras({ ...extras, mosquitero: false, mosquiteroRecipeId: undefined });
+                  } else {
+                    setShowMosquiteroModal(true);
+                  }
+                }}
               >
                 <Bug
                   size={14}
@@ -2755,6 +2760,80 @@ const QuotingModule: React.FC<Props> = ({
           onMouseLeave={() => setHoveredModuleId(null)}
         />
       </div>
+      {showMosquiteroModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl border-2 border-sky-100 text-center space-y-6 max-h-[80vh] overflow-y-auto">
+            <div className="w-16 h-16 bg-sky-100 rounded-2xl flex items-center justify-center text-sky-600 mx-auto shadow-lg">
+              <Bug size={32} />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black uppercase text-slate-800 tracking-tighter">
+                Elegir Mosquitero
+              </h3>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">
+                Seleccione la línea de mosquitero a aplicar
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button
+                className="w-full text-left bg-slate-50 border-2 border-slate-200 hover:border-sky-500 p-4 rounded-2xl transition-all shadow-sm hover:bg-sky-50 group flex items-center gap-3"
+                onClick={() => {
+                  setExtras({ ...extras, mosquitero: true, mosquiteroRecipeId: undefined });
+                  setShowMosquiteroModal(false);
+                }}
+              >
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-sky-600 shadow-sm transition-colors border border-slate-100">
+                  <Package size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 group-hover:text-sky-700">
+                    Estándar
+                  </h4>
+                  <p className="text-[9px] font-bold text-slate-500 mt-0.5 max-w-[200px]">
+                    Usa perfiles y mallas de la tipología base
+                  </p>
+                </div>
+              </button>
+
+              {recipes
+                .filter(
+                  (r) =>
+                    r.type === "Mosquitero" ||
+                    r.visualType?.toLowerCase().includes("mosquitero") ||
+                    r.name.toLowerCase().includes("mosquitero"),
+                )
+                .map((r) => (
+                  <button
+                    key={r.id}
+                    className="w-full text-left bg-slate-50 border-2 border-slate-200 hover:border-sky-500 p-4 rounded-2xl transition-all shadow-sm hover:bg-sky-50 group flex items-center gap-3"
+                    onClick={() => {
+                      setExtras({ ...extras, mosquitero: true, mosquiteroRecipeId: r.id });
+                      setShowMosquiteroModal(false);
+                    }}
+                  >
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-sky-600 shadow-sm transition-colors border border-slate-100">
+                      <LayoutGrid size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 group-hover:text-sky-700">
+                        {r.line}
+                      </h4>
+                      <p className="text-[9px] font-bold text-slate-500 mt-0.5 truncate">
+                        {r.name}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+            </div>
+            <button
+              onClick={() => setShowMosquiteroModal(false)}
+              className="w-full py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
       {showCouplingModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border-2 border-sky-100 text-center space-y-6">

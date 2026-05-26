@@ -157,7 +157,8 @@ export interface ProductRecipe {
     | "Mampara"
     | "Paño Fijo"
     | "Baranda"
-    | "Vidriera";
+    | "Vidriera"
+    | "Mosquitero";
   visualType?: VisualOpeningType;
   profiles: RecipeProfile[];
   accessories: RecipeAccessory[];
@@ -247,6 +248,7 @@ export interface QuoteItem {
 
   extras: {
     mosquitero: boolean;
+    mosquiteroRecipeId?: string;
     tapajuntas: boolean;
     tapajuntasSides: {
       top: boolean;

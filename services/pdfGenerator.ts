@@ -1124,6 +1124,29 @@ export const generateMaterialsOrderPDF = (
           aluSummary.set(hrProfile.id, existing);
         }
       }
+
+      // Lógica de Mosquitero Independiente (Aluminio)
+      if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
+        const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
+        if (mosqRecipe) {
+          let mosqW = modW;
+          if (visualType.includes("sliding") || numLeaves > 1) {
+             mosqW = modW / Math.max(1, numLeaves);
+          }
+          mosqRecipe.profiles.forEach(rp => {
+            const mp = aluminum.find(a => a.id === rp.profileId);
+            if (!mp) return;
+            const len = evaluateFormula(rp.formula, mosqW, modH);
+            const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
+            const existing = aluSummary.get(mp.id) || {
+              code: mp.code, detail: mp.detail, totalMm: 0,
+              barLength: mp.barLength || 6, weightPerMeter: mp.weightPerMeter || 0
+            };
+            existing.totalMm += totalMm;
+            aluSummary.set(mp.id, existing);
+          });
+        }
+      }
     });
 
     // Sumatoria Unificada de Tapajuntas en el pedido de materiales
@@ -1387,7 +1410,10 @@ export const generateMaterialsOrderPDF = (
           }
           return;
         }
-        if (recipe.visualType === "mosquitero") {
+        if (
+          recipe.type === "Mosquitero" || 
+          visualType.includes("mosquitero")
+        ) {
           const spec = "TELA MOSQUITERA";
           const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
           const existing = fillSummary.get(key) || {
@@ -1441,6 +1467,23 @@ export const generateMaterialsOrderPDF = (
           }
         }
       });
+      
+      if (item.extras?.mosquitero) {
+        const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
+        let telaW = item.width;
+        if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
+          telaW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
+        }
+        let specName = "TELA MOSQUITERA";
+        if (item.extras.mosquiteroRecipeId) {
+           const mosqRecipe = recipes.find(r => r.id === item.extras!.mosquiteroRecipeId);
+           specName = "TELA MOSQUITERA (" + (mosqRecipe?.name || "ADICIONAL") + ")";
+        }
+        const key = `${specName}-${telaW}-${item.height}`;
+        const existing = fillSummary.get(key) || { spec: specName, w: telaW, h: item.height, qty: 0 };
+        existing.qty += item.quantity;
+        fillSummary.set(key, existing);
+      }
     });
   });
   const glassBody = Array.from(fillSummary.values()).map((g) => [
@@ -1517,6 +1560,37 @@ export const generateMaterialsOrderPDF = (
         accSummary.set(acc.id, existing);
       });
     });
+
+    if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
+       const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
+       if (mosqRecipe) {
+           let mosqW = item.width;
+           const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
+           if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
+             mosqW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
+           }
+           
+           (mosqRecipe.accessories || []).forEach(ra => {
+             if (ra.isAlternative) return;
+             if ((ra.quantity || 0) <= 0) return;
+             const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
+             if (!acc) return;
+             const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
+             
+             if (ra.isLinear && ra.formula) {
+                 const lengthMm = evaluateFormula(ra.formula, mosqW, item.height);
+                 existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+             } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
+                 const lengthMm = evaluateFormula(ra.formula, mosqW, item.height);
+                 const count = Math.ceil(lengthMm / ra.spacingMm);
+                 existing.qty += count * (ra.quantity || 1) * item.quantity;
+             } else {
+                 existing.qty += ra.quantity * item.quantity;
+             }
+             accSummary.set(acc.id, existing);
+           });
+       }
+    }
   });
   const accBody = Array.from(accSummary.values()).map((a) => [
     a.code,
@@ -2220,6 +2294,30 @@ export const generateAssemblyOrderPDF = (
         }
       }
     }
+
+    if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
+      const mosqRecipe = recipes.find((r) => r.id === item.extras.mosquiteroRecipeId);
+      if (mosqRecipe) {
+        let mosqW = item.width;
+        const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
+        if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
+          mosqW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
+        }
+        mosqRecipe.profiles.forEach(rp => {
+          const p = aluminum.find(a => a.id === rp.profileId);
+          if (!p) return;
+          const cutLen = evaluateFormula(rp.formula, mosqW, item.height);
+          profileCuts.push([
+             p.code,
+             "MOSQ: " + p.detail,
+             Math.round(cutLen),
+             rp.quantity,
+             `${rp.cutStart}° / ${rp.cutEnd}°`
+          ]);
+        });
+      }
+    }
+
     autoTable(doc, {
       startY: currentY,
       margin: { left: 80 },
@@ -2238,8 +2336,8 @@ export const generateAssemblyOrderPDF = (
         if (!recipe) return;
         const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
       let spec = "S/D";
-      if (recipe.visualType === "mosquitero") {
-        spec = "TELA MOSQUITERA (ALUMINIO)";
+      if (recipe.type === "Mosquitero" || (recipe.visualType || "").toLowerCase().includes("mosquitero")) {
+        spec = "TELA MOSQUITERA";
       } else {
         const gOuter = glasses.find((g) => g.id === mod.glassOuterId);
         if (mod.isDVH) {
@@ -2299,6 +2397,26 @@ export const generateAssemblyOrderPDF = (
       });
     });
     }
+    
+    if (item.extras.mosquitero) {
+      let telaW = item.width;
+      const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
+      if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
+        telaW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
+      }
+      let specName = "TELA MOSQUITERA";
+      if (item.extras.mosquiteroRecipeId) {
+         const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
+         specName = "TELA MOSQUITERA (" + (mosqRecipe?.name || "ADICIONAL") + ")";
+      }
+      glassPieces.push([
+         "Mosquitero",
+         specName,
+         `${telaW} x ${item.height}`,
+         1
+      ]);
+    }
+
     autoTable(doc, {
       startY: currentY,
       head: [

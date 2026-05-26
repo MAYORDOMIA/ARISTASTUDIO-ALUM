@@ -159,6 +159,9 @@ const ObrasModule: React.FC<Props> = ({
         recipe.profiles.forEach((rp) => {
           const role = rp.role?.toLowerCase() || "";
           if (role.includes("trave")) return;
+          const isMosq = role.includes("mosquitero") || rp.profileId === recipe.mosquiteroProfileId;
+          if (isMosq && (!item.extras?.mosquitero || item.extras?.mosquiteroRecipeId)) return;
+          
           const pDef = aluminum.find((a) => a.id === rp.profileId);
           if (!pDef) return;
           const cutLen = evaluateFormula(rp.formula, modW, modH);
@@ -174,7 +177,37 @@ const ObrasModule: React.FC<Props> = ({
           existing.totalLength += totalCutLen;
           existing.totalWeight += weight;
           summary.set(pDef.id, existing);
-        }); // SUMAR TRAVESAÑOS AL CONSOLIDADO TÉCNICO
+        }); 
+
+        // SUMAR MOSQUITERO INDEPENDIENTE
+        if (item.extras?.mosquitero && item.extras?.mosquiteroRecipeId) {
+          const mosqRecipe = recipes.find(r => r.id === item.extras!.mosquiteroRecipeId);
+          if (mosqRecipe) {
+            let mosqW = modW;
+            if (visualType.includes("sliding") || numLeaves > 1) {
+                mosqW = modW / Math.max(1, numLeaves);
+            }
+            mosqRecipe.profiles.forEach((rp) => {
+              const pDef = aluminum.find((a) => a.id === rp.profileId);
+              if (!pDef) return;
+              const cutLen = evaluateFormula(rp.formula, mosqW, modH);
+              const totalCutLen =
+                (cutLen + config.discWidth) * rp.quantity * item.quantity;
+              const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
+              const existing = summary.get(pDef.id) || {
+                code: pDef.code,
+                detail: pDef.detail,
+                totalLength: 0,
+                totalWeight: 0,
+              };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(pDef.id, existing);
+            });
+          }
+        }
+        
+        // SUMAR TRAVESAÑOS AL CONSOLIDADO TÉCNICO
         if (mod.transoms && mod.transoms.length > 0) {
           mod.transoms.forEach((t) => {
             const trProf = aluminum.find((p) => p.id === t.profileId);
