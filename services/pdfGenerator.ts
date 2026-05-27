@@ -438,6 +438,36 @@ export const generateBarOptimizationPDF = (
           }
         }
       });
+      
+      // Calculate independent mosquito recipe profiles
+      if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
+        const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
+        if (mosqRecipe) {
+          let mosqW = modW;
+          if (visualType.includes("sliding") || numLeaves > 1) {
+            mosqW = modW / Math.max(1, numLeaves);
+          }
+          mosqRecipe.profiles.forEach(rp => {
+            const pDef = aluminum.find(a => a.id === rp.profileId);
+            if (!pDef) return;
+            const cutLen = evaluateFormula(rp.formula, mosqW, modH);
+            if (cutLen > 0) {
+              const list = cutsByProfile.get(pDef.id) || [];
+              for (let k = 0; k < rp.quantity * item.quantity; k++) {
+                list.push({
+                  len: cutLen,
+                  type: mosqRecipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+              cutsByProfile.set(pDef.id, list);
+            }
+          });
+        }
+      }
+
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
           const trProf = aluminum.find((p) => p.id === t.profileId);
@@ -2664,6 +2694,37 @@ export const generateGlassOptimizationPDF = (
         }
       });
     });
+    
+    if (item.extras?.mosquitero) {
+      let telaW = item.width;
+      const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
+      if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
+        telaW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
+      }
+      let specName = "TELA MOSQUITERA";
+      if (item.extras.mosquiteroRecipeId) {
+         const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
+         if (mosqRecipe) {
+           specName = "TELA MOSQUITERA (" + mosqRecipe.name + ")";
+         }
+      }
+      listTableData.push([
+         item.itemCode || `POS#${itemIdx + 1}`,
+         specName,
+         `${telaW} x ${Math.round(item.height)}`,
+         item.quantity,
+      ]);
+      for (let i = 0; i < item.quantity; i++) {
+        allPieces.push({
+          id: `${item.id}-mosq-${i}-${Math.random()}`,
+          itemCode: item.itemCode || `POS#${itemIdx + 1}`,
+          spec: specName,
+          w: telaW,
+          h: Math.round(item.height),
+          glassId: item.extras.mosquiteroRecipeId || "mosquitero-generico",
+        });
+      }
+    }
   });
   if (allPieces.length === 0) return;
   doc.setFillColor(30, 41, 59);

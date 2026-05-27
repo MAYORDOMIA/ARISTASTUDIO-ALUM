@@ -549,7 +549,8 @@ export const calculateItemPrice = (
 
     const isMosq =
       role.includes("mosquitero") || p.id === recipe.mosquiteroProfileId;
-    if (isMosq && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return false;
+    const isMosqRecipe = recipe.type === "Mosquitero" || (recipe.visualType || "").toLowerCase().includes("mosquitero") || (recipe.name || "").toLowerCase().includes("mosq");
+    if (!isMosqRecipe && isMosq && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return false;
 
     if (quotingMode === "Solo Marcos") {
       if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return false;
@@ -911,8 +912,9 @@ export const calculateItemPrice = (
       (a) => a.id === ra.accessoryId || a.code === ra.accessoryId,
     );
     if (acc) {
-      const isMosqAcc = acc.detail.toLowerCase().includes("mosquitero") || acc.code.toLowerCase().includes("mosquitero");
-      if (isMosqAcc && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return;
+      const isMosqAcc = acc.detail.toLowerCase().includes("mosquitero") || acc.code.toLowerCase().includes("mosquitero") || acc.detail.toLowerCase().includes("malla");
+      const isMosqRecipe = recipe.type === "Mosquitero" || (recipe.visualType || "").toLowerCase().includes("mosquitero") || (recipe.name || "").toLowerCase().includes("mosq");
+      if (!isMosqRecipe && isMosqAcc && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return;
 
       const uPrice = Number(acc.unitPrice || 0);
       if (ra.isLinear && ra.formula) {
