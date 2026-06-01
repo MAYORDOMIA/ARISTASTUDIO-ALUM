@@ -13,6 +13,7 @@ import {
   BlindPanel,
 } from "../types";
 import { evaluateFormula, calculateModuleDimensions } from "./calculator";
+import { filterDVHProfiles, calculateSalesGrams } from "./dvhHelper";
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
   Ventana: [79, 70, 229],
@@ -331,7 +332,8 @@ export const generateBarOptimizationPDF = (
       const beadStyle = item.glazingBeadStyle || "Recto";
 
       const usedGlazingBeadIds = new Set<string>();
-      recipe.profiles.forEach((rp) => {
+      const filteredProfiles1 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+      filteredProfiles1.forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         let pDef = aluminum.find((a) => a.id === rp.profileId);
@@ -966,7 +968,8 @@ export const generateMaterialsOrderPDF = (
       const beadStyle = (item as any).glazingBeadStyle || "Recto";
 
       const usedGlazingBeadIds = new Set<string>();
-      recipe.profiles.forEach((rp) => {
+      const filteredProfiles2 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+      filteredProfiles2.forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         const role = rp.role?.toLowerCase() || "";
@@ -1545,47 +1548,68 @@ export const generateMaterialsOrderPDF = (
     item.composition.modules.forEach((mod) => {
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe) return;
-      const activeAccs =
+      let activeAccs =
         mod.overriddenAccessories && mod.overriddenAccessories.length > 0
           ? mod.overriddenAccessories
           : recipe.accessories || [];
+          
+      activeAccs = filterDVHProfiles(activeAccs, mod.isDVH, mod.dvhCameraId, dvhInputs, accessories) as any[];
 
       activeAccs.forEach((ra) => {
         if (ra.isAlternative) return;
-        if ((ra.quantity || 0) <= 0) return;
         const acc = accessories.find(
           (a) => a.id === ra.accessoryId || a.code === ra.accessoryId,
         );
         if (!acc) return;
+        
+        // Calculate sales quantity if it's SALES
+        let calculatedQty = Number(ra.quantity || 0);
+        if (mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'))) {
+           let camInput = dvhInputs.find(c => c.id === mod.dvhCameraId);
+           let camThick = camInput?.thickness || 12;
+           if (!camInput?.thickness && typeof camInput?.detail === 'string') {
+             const m = camInput.detail.match(/(\d+)\s*mm/i);
+             if (m) camThick = parseInt(m[1], 10);
+           }
+           const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+           const totalPerimeterMeters = panes.reduce((acc, pane) => acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2) / 1000, 0);
+           calculatedQty = calculateSalesGrams(totalPerimeterMeters, camThick);
+        }
+        
+        if (calculatedQty <= 0 && ra.quantity > 0) return; // Ignore if calculated to 0
+
+        const isSal = mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'));
+
         const existing = accSummary.get(acc.id) || {
           code: acc.code,
           detail: acc.detail,
           qty: 0,
           isLinear: ra.isLinear || false,
+          isSal: isSal,
         };
         if (ra.isLinear && ra.formula) {
-          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-          panes.forEach((pane) => {
-            const lengthMm = evaluateFormula(
-              ra.formula,
-              pane.w || 1000,
-              pane.h || 1000,
-            );
-            existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
-          });
+           const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+           panes.forEach((pane) => {
+             const lengthMm = evaluateFormula(
+               ra.formula,
+               pane.w || 1000,
+               pane.h || 1000,
+             );
+             existing.qty += (lengthMm / 1000) * calculatedQty * item.quantity;
+           });
         } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
-          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-          panes.forEach((pane) => {
-            const lengthMm = evaluateFormula(
-              ra.formula,
-              pane.w || 1000,
-              pane.h || 1000,
-            );
-            const count = Math.ceil(lengthMm / ra.spacingMm);
-            existing.qty += count * (ra.quantity || 1) * item.quantity;
-          });
+           const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+           panes.forEach((pane) => {
+             const lengthMm = evaluateFormula(
+               ra.formula,
+               pane.w || 1000,
+               pane.h || 1000,
+             );
+             const count = Math.ceil(lengthMm / ra.spacingMm);
+             existing.qty += count * (calculatedQty === 0 ? 1 : calculatedQty) * item.quantity;
+           });
         } else {
-          existing.qty += ra.quantity * item.quantity;
+           existing.qty += calculatedQty * item.quantity;
         }
         accSummary.set(acc.id, existing);
       });
@@ -1622,10 +1646,10 @@ export const generateMaterialsOrderPDF = (
        }
     }
   });
-  const accBody = Array.from(accSummary.values()).map((a) => [
+  const accBody = Array.from(accSummary.values()).map((a: any) => [
     a.code,
     a.detail,
-    a.isLinear ? `${a.qty.toFixed(2)} m` : a.qty,
+    a.isSal ? `${a.qty.toFixed(0)} g` : (a.isLinear ? `${a.qty.toFixed(2)} m` : a.qty),
   ]);
   autoTable(doc, {
     startY: currentY,
@@ -2036,7 +2060,8 @@ export const generateAssemblyOrderPDF = (
         getThick(gOuter) + (mod.isDVH ? getThick(gInner) + camThick : 0);
       const beadStyle = item.glazingBeadStyle || "Recto";
 
-      recipe.profiles.forEach((rp) => {
+      const filteredProfiles3 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+      filteredProfiles3.forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         const role = rp.role?.toLowerCase() || "";

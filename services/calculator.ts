@@ -12,6 +12,7 @@ import {
   QuoteItemBreakdown,
   MeasurementModule,
 } from "../types";
+import { filterDVHProfiles, calculateSalesGrams } from "./dvhHelper";
 
 export const evaluateFormula = (
   formula: string,
@@ -523,7 +524,9 @@ export const calculateItemPrice = (
     getGlassThick(outerGlassObj) +
     (isDVH ? getGlassThick(innerGlassObj) + cameraThickness : 0);
 
-  const transomTemplate = (recipe.profiles || []).find(
+  const filteredRecipeProfiles = filterDVHProfiles(recipe.profiles || [], isDVH, dvhCameraId, dvhInputs, profiles) as any[];
+
+  const transomTemplate = filteredRecipeProfiles.find(
     (rp) =>
       rp.role === "Travesaño" ||
       (rp.role && rp.role.toLowerCase().includes("trave")),
@@ -532,7 +535,7 @@ export const calculateItemPrice = (
     transomTemplate?.formula || recipe.transomFormula || "W";
   const recipeTransomQty = Number(transomTemplate?.quantity || 1);
 
-  const activeProfiles = (recipe.profiles || []).filter((rp) => {
+  const activeProfiles = filteredRecipeProfiles.filter((rp) => {
     const role = (rp.role || "").toLowerCase();
     const p = profiles.find((x) => x.id === rp.profileId);
     if (!p) return true;
@@ -904,36 +907,12 @@ export const calculateItemPrice = (
     }
   }
 
-  const activeAccessories =
+  let activeAccessories =
     overriddenAccessories && overriddenAccessories.length > 0
       ? overriddenAccessories
       : recipe.accessories || [];
-
-  activeAccessories.forEach((ra) => {
-    if (ra.isAlternative) return;
-
-    const acc = accessories.find(
-      (a) => a.id === ra.accessoryId || a.code === ra.accessoryId,
-    );
-    if (acc) {
-      const isMosqAcc = acc.detail.toLowerCase().includes("mosquitero") || acc.code.toLowerCase().includes("mosquitero") || acc.detail.toLowerCase().includes("malla");
-      const isMosqRecipe = recipe.type === "Mosquitero" || (recipe.visualType || "").toLowerCase().includes("mosquitero") || (recipe.name || "").toLowerCase().includes("mosq");
-      if (!isMosqRecipe && isMosqAcc && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return;
-
-      const uPrice = Number(acc.unitPrice || 0);
-      if (ra.isLinear && ra.formula) {
-        const lengthMm = evaluateFormula(ra.formula, width, height);
-        const totalMeters = (lengthMm / 1000) * Number(ra.quantity || 0);
-        accCost += uPrice * totalMeters;
-      } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
-        const lengthMm = evaluateFormula(ra.formula, width, height);
-        const count = Math.ceil(lengthMm / ra.spacingMm);
-        accCost += uPrice * count * Number(ra.quantity || 1);
-      } else {
-        accCost += uPrice * Number(ra.quantity || 0);
-      }
-    }
-  });
+      
+  activeAccessories = filterDVHProfiles(activeAccessories, isDVH, dvhCameraId, dvhInputs, accessories) as any[];
 
   const glassPanes: { w: number; h: number }[] = [];
 
@@ -980,6 +959,52 @@ export const calculateItemPrice = (
       );
     }
   }
+
+  activeAccessories.forEach((ra) => {
+    if (ra.isAlternative) return;
+
+    const acc = accessories.find(
+      (a) => a.id === ra.accessoryId || a.code === ra.accessoryId,
+    );
+    if (acc) {
+      // Calculate sales quantity if it's SALES
+      let calculatedQty = Number(ra.quantity || 0);
+      if (isDVH && dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'))) {
+         let camInput = dvhInputs.find(c => c.id === dvhCameraId);
+         let camThick = camInput?.thickness || 12;
+         if (!camInput?.thickness && typeof camInput?.detail === 'string') {
+           const m = camInput.detail.match(/(\d+)\s*mm/i);
+           if (m) camThick = parseInt(m[1], 10);
+         }
+         // Sum perimeter of all glass panes in this module
+         const totalPerimeterMeters = glassPanes.reduce((acc, pane) => acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2) / 1000, 0);
+         calculatedQty = calculateSalesGrams(totalPerimeterMeters, camThick);
+      }
+
+      const isMosqAcc = acc.detail.toLowerCase().includes("mosquitero") || acc.code.toLowerCase().includes("mosquitero") || acc.detail.toLowerCase().includes("malla");
+      const isMosqRecipe = recipe.type === "Mosquitero" || (recipe.visualType || "").toLowerCase().includes("mosquitero") || (recipe.name || "").toLowerCase().includes("mosq");
+      if (!isMosqRecipe && isMosqAcc && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return;
+
+      const uPrice = Number(acc.unitPrice || 0);
+      let calcPrice = uPrice;
+      if (isDVH && dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'))) {
+         // uPrice is per KG, so we need to divide by 1000 since we have grams
+         calcPrice = uPrice / 1000;
+      }
+      
+      if (ra.isLinear && ra.formula) {
+        const lengthMm = evaluateFormula(ra.formula, width, height);
+        const totalMeters = (lengthMm / 1000) * calculatedQty;
+        accCost += calcPrice * totalMeters;
+      } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
+        const lengthMm = evaluateFormula(ra.formula, width, height);
+        const count = Math.ceil(lengthMm / ra.spacingMm);
+        accCost += calcPrice * count * (calculatedQty === 0 ? 1 : calculatedQty);
+      } else {
+        accCost += calcPrice * calculatedQty;
+      }
+    }
+  });
 
   const outerGlass = glasses.find((g) => g.id === glassOuterId);
   const innerGlass =
