@@ -258,7 +258,11 @@ export const calculateCompositePrice = (
            mod.glassOuterId,
            undefined,
            undefined,
-           undefined, // extras
+           { 
+             mosquitero: true, 
+             tapajuntas: false, 
+             tapajuntasSides: { top: false, bottom: false, left: false, right: false } 
+           }, // extras
            undefined, // coupling
            [], // transoms
            [], // overridden
