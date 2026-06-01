@@ -19,10 +19,17 @@ export const saveBulkData = async (userId: string, data: any) => {
     config,
   } = data;
 
+  const deleteOps = [];
   const ops = [];
 
   // Mapeos a las tablas que definimos en SQL
   if (aluminum) {
+    const validRefs = aluminum.map((a: any) => a.id).filter(Boolean);
+    if (validRefs.length > 0) {
+      deleteOps.push(supabase.from("materiales_perfiles_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
+    } else {
+      deleteOps.push(supabase.from("materiales_perfiles_usuario").delete().eq("user_id", userId));
+    }
     const arr = aluminum.map((a: any) => ({
       user_id: userId,
       master_ref: a.id,
@@ -41,6 +48,12 @@ export const saveBulkData = async (userId: string, data: any) => {
   }
 
   if (glasses) {
+    const validRefs = glasses.map((a: any) => a.id).filter(Boolean);
+    if (validRefs.length > 0) {
+      deleteOps.push(supabase.from("materiales_vidrios_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
+    } else {
+      deleteOps.push(supabase.from("materiales_vidrios_usuario").delete().eq("user_id", userId));
+    }
     const arr = glasses.map((g: any) => ({
       user_id: userId,
       master_ref: g.id,
@@ -54,6 +67,12 @@ export const saveBulkData = async (userId: string, data: any) => {
   }
 
   if (accessories) {
+    const validRefs = accessories.map((a: any) => a.id).filter(Boolean);
+    if (validRefs.length > 0) {
+      deleteOps.push(supabase.from("materiales_accesorios_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
+    } else {
+      deleteOps.push(supabase.from("materiales_accesorios_usuario").delete().eq("user_id", userId));
+    }
     const arr = accessories.map((a: any) => ({
       user_id: userId,
       master_ref: a.id,
@@ -65,6 +84,12 @@ export const saveBulkData = async (userId: string, data: any) => {
   }
 
   if (treatments) {
+    const validRefs = treatments.map((a: any) => a.id).filter(Boolean);
+    if (validRefs.length > 0) {
+      deleteOps.push(supabase.from("tratamientos_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
+    } else {
+      deleteOps.push(supabase.from("tratamientos_usuario").delete().eq("user_id", userId));
+    }
     const arr = treatments.map((t: any) => ({
       user_id: userId,
       master_ref: t.id,
@@ -76,6 +101,12 @@ export const saveBulkData = async (userId: string, data: any) => {
   }
 
   if (blindPanels) {
+    const validRefs = blindPanels.map((a: any) => a.id).filter(Boolean);
+    if (validRefs.length > 0) {
+      deleteOps.push(supabase.from("paneles_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
+    } else {
+      deleteOps.push(supabase.from("paneles_usuario").delete().eq("user_id", userId));
+    }
     const arr = blindPanels.map((p: any) => ({
       user_id: userId,
       master_ref: p.id,
@@ -88,6 +119,12 @@ export const saveBulkData = async (userId: string, data: any) => {
   }
 
   if (dvhInputs) {
+    const validRefs = dvhInputs.map((a: any) => a.id).filter(Boolean);
+    if (validRefs.length > 0) {
+      deleteOps.push(supabase.from("dvh_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
+    } else {
+      deleteOps.push(supabase.from("dvh_usuario").delete().eq("user_id", userId));
+    }
     const arr = dvhInputs.map((d: any) => ({
       user_id: userId,
       master_ref: d.id,
@@ -100,6 +137,13 @@ export const saveBulkData = async (userId: string, data: any) => {
   }
 
   if (recipes) {
+    // Recipes might not be cleanly synced this way if they are large, but let's do it
+    const validRefs = recipes.map((a: any) => a.id).filter(Boolean);
+    if (validRefs.length > 0) {
+      deleteOps.push(supabase.from("recetas_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
+    } else {
+      deleteOps.push(supabase.from("recetas_usuario").delete().eq("user_id", userId));
+    }
     const recetasFormateadas = recipes.map((r: any) => ({
       user_id: userId,
       master_ref: r.id,
@@ -122,6 +166,9 @@ export const saveBulkData = async (userId: string, data: any) => {
         }),
     );
   }
+
+  // Ejecutamos primero los borrados para evitar duplicados residuales o conflictos max limit
+  await Promise.all(deleteOps);
 
   const results = await Promise.all(ops);
   const errors = results
