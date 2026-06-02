@@ -14,13 +14,17 @@ export const filterDVHProfiles = <T extends { profileId?: string; accessoryId?: 
   dvhInputs: any[],
   lookupArray: any[] // aluminum for profiles, accessories for accessories
 ): T[] => {
-  if (!isDVH || !dvhCameraId) return items.filter(i => {
-     // If not DVH, remove any profile/accessory that looks like a DVH item
-     const def = lookupArray.find(a => a.id === (i.profileId || i.accessoryId));
-     if (!def) return true;
-     const isDvhItem = extractsDVHThickness(def.code || "") !== null || extractsDVHThickness(def.detail || "") !== null;
-     return !isDvhItem;
-  });
+  if (!isDVH || !dvhCameraId) {
+    return items.filter(item => {
+       const def = lookupArray.find(a => a.id === (item.profileId || item.accessoryId));
+       if (!def) return true;
+       // Only filter out items that EXPLICITLY state they are for DVH.
+       const codeDetail = (`${def.code || ""} ${def.detail || ""}`).toUpperCase();
+       const isDvhExclusive = codeDetail.includes("DVH") || codeDetail.includes("CAMARA") || codeDetail.includes("CÁMARA") || codeDetail.match(/CMRA/);
+       // We only want to remove DVH-exclusive items if isDVH is false
+       return !isDvhExclusive;
+    });
+  }
 
   const camInput = dvhInputs.find((i) => i.id === dvhCameraId);
   if (!camInput) return items;
