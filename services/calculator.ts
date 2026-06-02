@@ -12,7 +12,7 @@ import {
   QuoteItemBreakdown,
   MeasurementModule,
 } from "../types";
-import { filterDVHProfiles, calculateSalesGrams } from "./dvhHelper";
+import { filterDVHProfiles, calculateSalesGrams, getDVHExtras } from "./dvhHelper";
 
 export const evaluateFormula = (
   formula: string,
@@ -191,6 +191,7 @@ export const calculateCompositePrice = (
 
     const result = calculateItemPrice(
       recipe,
+      recipes,
       modW,
       modH,
       profiles,
@@ -247,6 +248,7 @@ export const calculateCompositePrice = (
         
         const mosqResult = calculateItemPrice(
            mosqRecipe,
+           recipes,
            mosqW,
            modH,
            profiles,
@@ -446,6 +448,7 @@ export const calculateCompositePrice = (
 
 export const calculateItemPrice = (
   recipe: ProductRecipe,
+  recipes: ProductRecipe[],
   width: number,
   height: number,
   profiles: AluminumProfile[],
@@ -912,6 +915,11 @@ export const calculateItemPrice = (
       ? overriddenAccessories
       : recipe.accessories || [];
       
+  if (isDVH && dvhCameraId) {
+     const { accessories: dvhAccs } = getDVHExtras(recipes, isDVH);
+     activeAccessories = [...activeAccessories, ...dvhAccs.map((a: any) => ({ ...a, isAlternative: false }))];
+  }
+      
   activeAccessories = filterDVHProfiles(activeAccessories, isDVH, dvhCameraId, dvhInputs, accessories) as any[];
 
   const glassPanes: { w: number; h: number }[] = [];
@@ -969,16 +977,24 @@ export const calculateItemPrice = (
     if (acc) {
       // Calculate sales quantity if it's SALES
       let calculatedQty = Number(ra.quantity || 0);
-      if (isDVH && dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'))) {
-         let camInput = dvhInputs.find(c => c.id === dvhCameraId);
-         let camThick = camInput?.thickness || 12;
-         if (!camInput?.thickness && typeof camInput?.detail === 'string') {
-           const m = camInput.detail.match(/(\d+)\s*mm/i);
-           if (m) camThick = parseInt(m[1], 10);
+      if (isDVH && dvhCameraId) {
+         if (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL')) {
+            let camInput = dvhInputs.find(c => c.id === dvhCameraId);
+            let camThick = camInput?.thickness || 12;
+            if (!camInput?.thickness && typeof camInput?.detail === 'string') {
+              const m = camInput.detail.match(/(\d+)\s*mm/i);
+              if (m) camThick = parseInt(m[1], 10);
+            }
+            // Sum perimeter of all glass panes in this module
+            const totalPerimeterMeters = glassPanes.reduce((acc, pane, index) => {
+               if (blindPanes.includes(index)) return acc;
+               return acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2) / 1000;
+            }, 0);
+            calculatedQty = calculateSalesGrams(totalPerimeterMeters, camThick);
+         } else if (acc.detail.toUpperCase().includes('ESCUADRA') || acc.code.toUpperCase().includes('ESCUADRA')) {
+            const panesCount = glassPanes.filter((_, index) => !blindPanes.includes(index)).length;
+            calculatedQty = Number(ra.quantity || 4) * panesCount;
          }
-         // Sum perimeter of all glass panes in this module
-         const totalPerimeterMeters = glassPanes.reduce((acc, pane) => acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2) / 1000, 0);
-         calculatedQty = calculateSalesGrams(totalPerimeterMeters, camThick);
       }
 
       const isMosqAcc = acc.detail.toLowerCase().includes("mosquitero") || acc.code.toLowerCase().includes("mosquitero") || acc.detail.toLowerCase().includes("malla");
@@ -1066,6 +1082,21 @@ export const calculateItemPrice = (
               (input) =>
                 (glassCost += Number(input.cost || 0) * areaM2 * numLeaves),
             );
+          
+          if (!blindPanes.includes(index) && dvhCameraId) {
+             const { profiles: rawDvhProfs } = getDVHExtras(recipes, isDVH);
+             const dvhProfs = filterDVHProfiles(rawDvhProfs, isDVH, dvhCameraId, dvhInputs, profiles) as any[];
+             const wasteFactor = 1.1; // Default 10% waste for DVH profiles
+             dvhProfs.forEach(rp => {
+                 const p = profiles.find((x) => x.id === rp.profileId);
+                 if (p) {
+                     const lenMm = evaluateFormula(rp.formula, pane.w, pane.h);
+                     const totalMeters = (lenMm / 1000) * Number(rp.quantity || 1) * numLeaves * wasteFactor;
+                     totalAluWeight += totalMeters * p.weightPerMeter;
+                     aluCost += totalMeters * p.weightPerMeter * baseAluPrice;
+                 }
+             });
+          }
         }
       }
     });

@@ -45,6 +45,16 @@ export const filterDVHProfiles = <T extends { profileId?: string; accessoryId?: 
   });
 };
 
+export const getDVHExtras = (recipes: any[], isDVH: boolean) => {
+  if (!isDVH || !recipes) return { profiles: [], accessories: [] };
+  const dvhRecipe = recipes.find((r) => r.name.toUpperCase().includes('DVH'));
+  if (!dvhRecipe) return { profiles: [], accessories: [] };
+  return {
+    profiles: dvhRecipe.profiles || [],
+    accessories: dvhRecipe.accessories || [],
+  };
+};
+
 export const calculateSalesGrams = (perimeterMeters: number, camThick: number): number => {
   let gramsPerMeter = 37.5;
   if (camThick <= 6) gramsPerMeter = 22.5;

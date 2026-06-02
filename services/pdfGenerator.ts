@@ -13,7 +13,7 @@ import {
   BlindPanel,
 } from "../types";
 import { evaluateFormula, calculateModuleDimensions } from "./calculator";
-import { filterDVHProfiles, calculateSalesGrams } from "./dvhHelper";
+import { filterDVHProfiles, calculateSalesGrams, getDVHExtras } from "./dvhHelper";
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
   Ventana: [79, 70, 229],
@@ -506,6 +506,31 @@ export const generateBarOptimizationPDF = (
             });
           }
         });
+      }
+
+      if (mod.isDVH && mod.dvhCameraId) {
+         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
+         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+         const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+         panes.forEach(pane => {
+             if (pane.isBlind) return;
+             dvhProfs.forEach(rp => {
+                 let pDef = aluminum.find((a) => a.id === rp.profileId);
+                 if (!pDef) return;
+                 let length = evaluateFormula(rp.formula, pane.w, pane.h);
+                 const list = cutsByProfile.get(pDef.id) || [];
+                 for (let k = 0; k < item.quantity * Number(rp.quantity || 1); k++) {
+                     list.push({
+                         len: length,
+                         type: pDef.detail,
+                         cutStart: rp.cutStart?.toString() || "90",
+                         cutEnd: rp.cutEnd?.toString() || "90",
+                         label: itemCode,
+                     });
+                 }
+                 cutsByProfile.set(pDef.id, list);
+             });
+         });
       }
 
       const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
@@ -1080,6 +1105,30 @@ export const generateMaterialsOrderPDF = (
         });
       }
 
+      if (mod.isDVH && mod.dvhCameraId) {
+         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
+         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+         const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+         panes.forEach(pane => {
+             if (pane.isBlind) return;
+             dvhProfs.forEach(rp => {
+                 let pDef = aluminum.find((a) => a.id === rp.profileId);
+                 if (!pDef) return;
+                 let length = evaluateFormula(rp.formula, pane.w, pane.h);
+                 const totalMm = (length + config.discWidth) * Number(rp.quantity || 1) * item.quantity;
+                 const existing = aluSummary.get(pDef.id) || {
+                     code: pDef.code,
+                     detail: pDef.detail,
+                     totalMm: 0,
+                     barLength: pDef.barLength || 6,
+                     weightPerMeter: pDef.weightPerMeter || 0,
+                 };
+                 existing.totalMm += totalMm;
+                 aluSummary.set(pDef.id, existing);
+             });
+         });
+      }
+
       const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
       const visualType = (recipe.visualType || "").toLowerCase();
       let numLeaves = recipe.leaves || 1;
@@ -1548,12 +1597,19 @@ export const generateMaterialsOrderPDF = (
     item.composition.modules.forEach((mod) => {
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe) return;
+      const { accessories: dvhAccs } = getDVHExtras(recipes, mod.isDVH || false);
       let activeAccs =
         mod.overriddenAccessories && mod.overriddenAccessories.length > 0
           ? mod.overriddenAccessories
           : recipe.accessories || [];
           
+      activeAccs = [...activeAccs, ...dvhAccs.map((a: any) => ({ ...a, isAlternative: false }))];
       activeAccs = filterDVHProfiles(activeAccs, mod.isDVH, mod.dvhCameraId, dvhInputs, accessories) as any[];
+      const uniqueAccs: any[] = [];
+      activeAccs.forEach(a => {
+         if (!uniqueAccs.some(u => u.accessoryId === a.accessoryId)) uniqueAccs.push(a);
+      });
+      activeAccs = uniqueAccs;
 
       activeAccs.forEach((ra) => {
         if (ra.isAlternative) return;
@@ -1564,16 +1620,25 @@ export const generateMaterialsOrderPDF = (
         
         // Calculate sales quantity if it's SALES
         let calculatedQty = Number(ra.quantity || 0);
-        if (mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'))) {
-           let camInput = dvhInputs.find(c => c.id === mod.dvhCameraId);
-           let camThick = camInput?.thickness || 12;
-           if (!camInput?.thickness && typeof camInput?.detail === 'string') {
-             const m = camInput.detail.match(/(\d+)\s*mm/i);
-             if (m) camThick = parseInt(m[1], 10);
+        if (mod.isDVH && mod.dvhCameraId) {
+           if (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL')) {
+              let camInput = dvhInputs.find(c => c.id === mod.dvhCameraId);
+              let camThick = camInput?.thickness || 12;
+              if (!camInput?.thickness && typeof camInput?.detail === 'string') {
+                const m = camInput.detail.match(/(\d+)\s*mm/i);
+                if (m) camThick = parseInt(m[1], 10);
+              }
+              const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+              const totalPerimeterMeters = panes.reduce((acc, pane) => {
+                 if (pane.isBlind) return acc;
+                 return acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2) / 1000;
+              }, 0);
+              calculatedQty = calculateSalesGrams(totalPerimeterMeters, camThick);
+           } else if (acc.detail.toUpperCase().includes('ESCUADRA') || acc.code.toUpperCase().includes('ESCUADRA')) {
+              const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+              const panesCount = panes.filter((p) => !p.isBlind).length;
+              calculatedQty = Number(ra.quantity || 4) * panesCount;
            }
-           const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
-           const totalPerimeterMeters = panes.reduce((acc, pane) => acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2) / 1000, 0);
-           calculatedQty = calculateSalesGrams(totalPerimeterMeters, camThick);
         }
         
         if (calculatedQty <= 0 && ra.quantity > 0) return; // Ignore if calculated to 0
@@ -2142,6 +2207,27 @@ export const generateAssemblyOrderPDF = (
             ]);
           }
         });
+      }
+
+      if (mod.isDVH && mod.dvhCameraId) {
+         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
+         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+         const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+         panes.forEach(pane => {
+             if (pane.isBlind) return;
+             dvhProfs.forEach(rp => {
+                 let pDef = aluminum.find((a) => a.id === rp.profileId);
+                 if (!pDef) return;
+                 let length = evaluateFormula(rp.formula, pane.w, pane.h);
+                 profileCuts.push([
+                     pDef.code || "S/D",
+                     pDef.detail || "-",
+                     Math.round(length),
+                     rp.quantity,
+                     `${rp.cutStart || 90}° / ${rp.cutEnd || 90}°`,
+                 ]);
+             });
+         });
       }
 
       const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
