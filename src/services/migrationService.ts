@@ -26,81 +26,33 @@ export const saveBulkData = async (userId: string, data: any) => {
   if (aluminum) {
     const validRefs = aluminum.map((a: any) => a.id).filter(Boolean);
     if (validRefs.length > 0) {
-      deleteOps.push(
-        supabase
-          .from("materiales_perfiles_usuario")
-          .delete()
-          .eq("user_id", userId)
-          .not(
-            "master_ref",
-            "in",
-            `(${validRefs.map((v) => `'${v}'`).join(",")})`,
-          ),
-      );
+      deleteOps.push(supabase.from("materiales_perfiles_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
     } else {
-      deleteOps.push(
-        supabase
-          .from("materiales_perfiles_usuario")
-          .delete()
-          .eq("user_id", userId),
-      );
+      deleteOps.push(supabase.from("materiales_perfiles_usuario").delete().eq("user_id", userId));
     }
     const arr = aluminum.map((a: any) => ({
       user_id: userId,
       master_ref: a.id,
       code: a.code || "",
       detail: a.detail || "",
-      weight_per_meter:
-        a.weightPerMeter !== undefined
-          ? a.weightPerMeter
-          : a.weight_per_meter || 0,
-      bar_length:
-        a.barLength !== undefined ? a.barLength : a.bar_length || 6000,
+      weight_per_meter: a.weightPerMeter !== undefined ? a.weightPerMeter : a.weight_per_meter || 0,
+      bar_length: a.barLength !== undefined ? a.barLength : a.bar_length || 6000,
       thickness: a.thickness !== undefined ? a.thickness : a.thickness || 0,
-      is_glazing_bead:
-        a.isGlazingBead !== undefined
-          ? a.isGlazingBead
-          : a.is_glazing_bead || false,
+      is_glazing_bead: a.isGlazingBead !== undefined ? a.isGlazingBead : a.is_glazing_bead || false,
       glazing_bead_style: a.glazingBeadStyle || a.glazing_bead_style || "Recto",
-      min_glass_thickness:
-        a.minGlassThickness !== undefined
-          ? a.minGlassThickness
-          : a.min_glass_thickness || 0,
-      max_glass_thickness:
-        a.maxGlassThickness !== undefined
-          ? a.maxGlassThickness
-          : a.max_glass_thickness || 0,
-      treatment_cost:
-        a.treatmentCost !== undefined ? a.treatmentCost : a.treatment_cost || 0,
+      min_glass_thickness: a.minGlassThickness !== undefined ? a.minGlassThickness : a.min_glass_thickness || 0,
+      max_glass_thickness: a.maxGlassThickness !== undefined ? a.maxGlassThickness : a.max_glass_thickness || 0,
+      treatment_cost: a.treatmentCost !== undefined ? a.treatmentCost : a.treatment_cost || 0,
     }));
-    ops.push(
-      supabase
-        .from("materiales_perfiles_usuario")
-        .upsert(arr, { onConflict: "user_id,master_ref" }),
-    );
+    ops.push(supabase.from("materiales_perfiles_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (glasses) {
     const validRefs = glasses.map((a: any) => a.id).filter(Boolean);
     if (validRefs.length > 0) {
-      deleteOps.push(
-        supabase
-          .from("materiales_vidrios_usuario")
-          .delete()
-          .eq("user_id", userId)
-          .not(
-            "master_ref",
-            "in",
-            `(${validRefs.map((v) => `'${v}'`).join(",")})`,
-          ),
-      );
+      deleteOps.push(supabase.from("materiales_vidrios_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
     } else {
-      deleteOps.push(
-        supabase
-          .from("materiales_vidrios_usuario")
-          .delete()
-          .eq("user_id", userId),
-      );
+      deleteOps.push(supabase.from("materiales_vidrios_usuario").delete().eq("user_id", userId));
     }
     const arr = glasses.map((g: any) => ({
       user_id: userId,
@@ -111,34 +63,15 @@ export const saveBulkData = async (userId: string, data: any) => {
       is_mirror: g.is_mirror || g.isMirror || false,
       price_per_m2: g.price_per_m2 || g.pricePerM2 || 0,
     }));
-    ops.push(
-      supabase
-        .from("materiales_vidrios_usuario")
-        .upsert(arr, { onConflict: "user_id,master_ref" }),
-    );
+    ops.push(supabase.from("materiales_vidrios_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (accessories) {
     const validRefs = accessories.map((a: any) => a.id).filter(Boolean);
     if (validRefs.length > 0) {
-      deleteOps.push(
-        supabase
-          .from("materiales_accesorios_usuario")
-          .delete()
-          .eq("user_id", userId)
-          .not(
-            "master_ref",
-            "in",
-            `(${validRefs.map((v) => `'${v}'`).join(",")})`,
-          ),
-      );
+      deleteOps.push(supabase.from("materiales_accesorios_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
     } else {
-      deleteOps.push(
-        supabase
-          .from("materiales_accesorios_usuario")
-          .delete()
-          .eq("user_id", userId),
-      );
+      deleteOps.push(supabase.from("materiales_accesorios_usuario").delete().eq("user_id", userId));
     }
     const arr = accessories.map((a: any) => ({
       user_id: userId,
@@ -147,31 +80,15 @@ export const saveBulkData = async (userId: string, data: any) => {
       detail: a.detail || "",
       unit_price: a.unit_price || a.unitPrice || 0,
     }));
-    ops.push(
-      supabase
-        .from("materiales_accesorios_usuario")
-        .upsert(arr, { onConflict: "user_id,master_ref" }),
-    );
+    ops.push(supabase.from("materiales_accesorios_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (treatments) {
     const validRefs = treatments.map((a: any) => a.id).filter(Boolean);
     if (validRefs.length > 0) {
-      deleteOps.push(
-        supabase
-          .from("tratamientos_usuario")
-          .delete()
-          .eq("user_id", userId)
-          .not(
-            "master_ref",
-            "in",
-            `(${validRefs.map((v) => `'${v}'`).join(",")})`,
-          ),
-      );
+      deleteOps.push(supabase.from("tratamientos_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
     } else {
-      deleteOps.push(
-        supabase.from("tratamientos_usuario").delete().eq("user_id", userId),
-      );
+      deleteOps.push(supabase.from("tratamientos_usuario").delete().eq("user_id", userId));
     }
     const arr = treatments.map((t: any) => ({
       user_id: userId,
@@ -180,31 +97,15 @@ export const saveBulkData = async (userId: string, data: any) => {
       price_per_kg: t.pricePerKg || 0,
       hex_color: t.hexColor || "",
     }));
-    ops.push(
-      supabase
-        .from("tratamientos_usuario")
-        .upsert(arr, { onConflict: "user_id,master_ref" }),
-    );
+    ops.push(supabase.from("tratamientos_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (blindPanels) {
     const validRefs = blindPanels.map((a: any) => a.id).filter(Boolean);
     if (validRefs.length > 0) {
-      deleteOps.push(
-        supabase
-          .from("paneles_usuario")
-          .delete()
-          .eq("user_id", userId)
-          .not(
-            "master_ref",
-            "in",
-            `(${validRefs.map((v) => `'${v}'`).join(",")})`,
-          ),
-      );
+      deleteOps.push(supabase.from("paneles_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
     } else {
-      deleteOps.push(
-        supabase.from("paneles_usuario").delete().eq("user_id", userId),
-      );
+      deleteOps.push(supabase.from("paneles_usuario").delete().eq("user_id", userId));
     }
     const arr = blindPanels.map((p: any) => ({
       user_id: userId,
@@ -214,31 +115,15 @@ export const saveBulkData = async (userId: string, data: any) => {
       price: p.price || 0,
       unit: p.unit || "m2",
     }));
-    ops.push(
-      supabase
-        .from("paneles_usuario")
-        .upsert(arr, { onConflict: "user_id,master_ref" }),
-    );
+    ops.push(supabase.from("paneles_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (dvhInputs) {
     const validRefs = dvhInputs.map((a: any) => a.id).filter(Boolean);
     if (validRefs.length > 0) {
-      deleteOps.push(
-        supabase
-          .from("dvh_usuario")
-          .delete()
-          .eq("user_id", userId)
-          .not(
-            "master_ref",
-            "in",
-            `(${validRefs.map((v) => `'${v}'`).join(",")})`,
-          ),
-      );
+      deleteOps.push(supabase.from("dvh_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
     } else {
-      deleteOps.push(
-        supabase.from("dvh_usuario").delete().eq("user_id", userId),
-      );
+      deleteOps.push(supabase.from("dvh_usuario").delete().eq("user_id", userId));
     }
     const arr = dvhInputs.map((d: any) => ({
       user_id: userId,
@@ -248,60 +133,24 @@ export const saveBulkData = async (userId: string, data: any) => {
       cost: d.cost || 0,
       thickness: d.thickness || 0,
     }));
-    ops.push(
-      supabase
-        .from("dvh_usuario")
-        .upsert(arr, { onConflict: "user_id,master_ref" }),
-    );
+    ops.push(supabase.from("dvh_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
   }
 
   if (recipes) {
     // Recipes might not be cleanly synced this way if they are large, but let's do it
     const validRefs = recipes.map((a: any) => a.id).filter(Boolean);
     if (validRefs.length > 0) {
-      deleteOps.push(
-        supabase
-          .from("recetas_usuario")
-          .delete()
-          .eq("user_id", userId)
-          .not(
-            "master_ref",
-            "in",
-            `(${validRefs.map((v) => `'${v}'`).join(",")})`,
-          ),
-      );
+      deleteOps.push(supabase.from("recetas_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
     } else {
-      deleteOps.push(
-        supabase.from("recetas_usuario").delete().eq("user_id", userId),
-      );
+      deleteOps.push(supabase.from("recetas_usuario").delete().eq("user_id", userId));
     }
     const recetasFormateadas = recipes.map((r: any) => ({
       user_id: userId,
       master_ref: r.id,
-      receta_id: r.id, // For retro-compatibility
       name: r.name || "Sin nombre",
       data: r,
     }));
-
-    // Fallback logic inside bulk wrapper
-    const recipeUpsertOp = async () => {
-      const { error } = await supabase
-        .from("recetas_usuario")
-        .upsert(recetasFormateadas, { onConflict: "user_id,master_ref" });
-      if (
-        error &&
-        (error.message.includes("constraint") ||
-          error.code === "42704" ||
-          error.code === "23502")
-      ) {
-        return supabase
-          .from("recetas_usuario")
-          .upsert(recetasFormateadas, { onConflict: "user_id,receta_id" });
-      }
-      return { error }; // Standardize return
-    };
-
-    ops.push(recipeUpsertOp());
+    ops.push(supabase.from("recetas_usuario").upsert(recetasFormateadas, { onConflict: "user_id,master_ref" }));
   }
 
   if (quotes && quotes.length > 0) {
@@ -391,7 +240,6 @@ export const pullUpdatesFromMaster = async (userId: string) => {
             return {
               user_id: userId,
               master_ref: m.id,
-              receta_id: m.id, // For retro-compatibility
               name: m.name || "Sin nombre",
               data: m.data || {},
             };
@@ -470,23 +318,9 @@ export const pullUpdatesFromMaster = async (userId: string) => {
         });
 
       if (newItems.length > 0) {
-        let { error: upsertErr } = await supabase
+        const { error: upsertErr } = await supabase
           .from(t.user)
           .upsert(newItems, { onConflict: "user_id,master_ref" });
-
-        if (
-          upsertErr &&
-          t.user === "recetas_usuario" &&
-          (upsertErr.message.includes("constraint") ||
-            upsertErr.code === "42704" ||
-            upsertErr.code === "23502")
-        ) {
-          const { error: fallbackErr } = await supabase
-            .from(t.user)
-            .upsert(newItems, { onConflict: "user_id,receta_id" });
-          upsertErr = fallbackErr;
-        }
-
         if (upsertErr) {
           errors.push(upsertErr.message);
         } else {

@@ -304,29 +304,13 @@ const ProductRecipeEditor: React.FC<Props> = ({
         const recetaFormateada = {
           user_id: userId,
           master_ref: recipe.id,
-          receta_id: recipe.id, // For retro-compatibility
           name: recipe.name || "Sin nombre",
           data: recipe,
         };
         const { error } = await supabase
           .from("recetas_usuario")
           .upsert([recetaFormateada], { onConflict: "user_id,master_ref" });
-
-        if (error) {
-          // Si falla porque el constraint se llama diferente en la base de datos antigua
-          if (
-            error.message.includes("constraint") ||
-            error.code === "42704" ||
-            error.code === "23502"
-          ) {
-            const { error: fallbackError } = await supabase
-              .from("recetas_usuario")
-              .upsert([recetaFormateada], { onConflict: "user_id,receta_id" });
-            if (fallbackError) throw fallbackError;
-          } else {
-            throw error;
-          }
-        }
+        if (error) throw error;
         console.log("Receta sincronizada con la nube con éxito.");
       } catch (err: any) {
         console.error(
@@ -599,9 +583,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
           if (error) throw error;
         } catch (e) {
           console.error("Error al eliminar duplicados de la BD", e);
-          alert(
-            "Hubo un error al sincronizar la eliminación con la base de datos.",
-          );
+          alert("Hubo un error al sincronizar la eliminación con la base de datos.");
         }
       }
       alert(
@@ -896,10 +878,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                         if (error) throw error;
                         console.log("Receta eliminada de la nube con éxito.");
                       } catch (err: any) {
-                        console.error(
-                          "Error al eliminar receta de la nube:",
-                          err,
-                        );
+                        console.error("Error al eliminar receta de la nube:", err);
                       }
                     }
                   }
