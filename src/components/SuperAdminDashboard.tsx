@@ -147,9 +147,16 @@ const SuperAdminDashboard: React.FC = () => {
                     ...item,
                     user_id: targetUserId 
                 }));
+                console.log(`Intentando upsert en ${tableName} para ${targetUserId}:`, dataToUpsert);
                 // Usamos upsert para evitar errores de duplicados (unique constraint master_ref, user_id)
-                const { error } = await supabase.from(tableName).upsert(dataToUpsert, { onConflict: 'user_id, master_ref' });
-                if (error) throw new Error(`Error en tabla ${tableName}: ${error.message}`);
+                const { data, error } = await supabase.from(tableName).upsert(dataToUpsert, { onConflict: 'user_id, master_ref' });
+                if (error) {
+                  console.error(`Error en tabla ${tableName}:`, error);
+                  throw new Error(`Error en tabla ${tableName}: ${error.message}`);
+                }
+                console.log(`Upsert exitoso en ${tableName}:`, data);
+            } else {
+                console.log(`Saltando clave ${key} (tabla ${tableName}) - no existe o no es array`);
             }
         }
         alert("¡Datos cargados exitosamente!");
