@@ -8,8 +8,4 @@ const url = supabaseUrl || "https://placeholder.supabase.co";
 const key = supabaseAnonKey || "placeholder-key";
 
 export const supabase = createClient(url, key);
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-  supabaseUrl.startsWith("https://") &&
-  supabaseAnonKey
-);
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);

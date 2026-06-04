@@ -132,6 +132,13 @@ const SuperAdminDashboard: React.FC = () => {
 
         // Mapeo esperado según schema: clave en json -> tabla
         const tables = {
+            // Mapeo desde las claves encontradas en el JSON
+            aluminum: 'materiales_perfiles_usuario',
+            glasses: 'materiales_vidrios_usuario',
+            accessories: 'materiales_accesorios_usuario',
+            blindPanels: 'paneles_usuario',
+            dvhInputs: 'dvh_usuario',
+            // Mapeo por compatibilidad con posibles versiones anteriores
             perfiles: 'materiales_perfiles_usuario',
             vidrios: 'materiales_vidrios_usuario',
             accesorios: 'materiales_accesorios_usuario',
