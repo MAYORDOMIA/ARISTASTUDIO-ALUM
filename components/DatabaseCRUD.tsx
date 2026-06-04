@@ -454,7 +454,7 @@ const DatabaseCRUD: React.FC<Props> = ({
         );
       }
       const sheetId = match[1];
-      /* We need the sheet to be published... */ const exportUrl = `https:/* docs */ export?format=xlsx`;
+      /* We need the sheet to be published... */ const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
       const response = await fetch(exportUrl);
       if (!response.ok)
         throw new Error(

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "../services/supabaseClient";
 import {
   ShieldCheck,
@@ -7,6 +7,7 @@ import {
   Loader2,
   MonitorSmartphone,
   RefreshCw,
+  Upload,
 } from "lucide-react";
 interface Profile {
   id: string;
@@ -21,6 +22,9 @@ const SuperAdminDashboard: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [targetUserId, setTargetUserId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchProfiles();
   }, []);
@@ -113,6 +117,53 @@ const SuperAdminDashboard: React.FC = () => {
     }
     setToggling(null);
   };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !targetUserId) return;
+    
+    setToggling(targetUserId);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const jsonData = JSON.parse(e.target?.result as string);
+        console.log("Cargando JSON para usuario", targetUserId, jsonData);
+
+        // Mapeo esperado según schema: clave en json -> tabla
+        const tables = {
+            perfiles: 'materiales_perfiles_usuario',
+            vidrios: 'materiales_vidrios_usuario',
+            accesorios: 'materiales_accesorios_usuario',
+            recetas: 'recetas_usuario',
+            tratamientos: 'tratamientos_usuario',
+            paneles: 'paneles_usuario',
+            dvh: 'dvh_usuario'
+        };
+
+        for (const [key, tableName] of Object.entries(tables)) {
+            if (jsonData[key] && Array.isArray(jsonData[key])) {
+                const dataToUpsert = jsonData[key].map((item: any) => ({
+                    ...item,
+                    user_id: targetUserId 
+                }));
+                // Usamos upsert para evitar errores de duplicados (unique constraint master_ref, user_id)
+                const { error } = await supabase.from(tableName).upsert(dataToUpsert, { onConflict: 'user_id, master_ref' });
+                if (error) throw new Error(`Error en tabla ${tableName}: ${error.message}`);
+            }
+        }
+        alert("¡Datos cargados exitosamente!");
+      } catch (err: any) {
+        console.error("Error cargando JSON:", err);
+        alert("Error al procesar el archivo: " + err.message);
+      } finally {
+        setToggling(null);
+        setTargetUserId(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -122,7 +173,8 @@ const SuperAdminDashboard: React.FC = () => {
   }
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2">
-      <div className="bg-white ] p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".json" className="hidden" />
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
           <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-lg">
             <ShieldCheck size={20} />
@@ -223,13 +275,25 @@ const SuperAdminDashboard: React.FC = () => {
                     )}
                   </button>
                   {profile.role !== "super_admin" && (
-                    <button
-                      onClick={() => deleteUser(profile.id, profile.email)}
-                      disabled={toggling === profile.id}
-                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors bg-red-100 text-red-700 hover:bg-red-200 "
-                    >
-                      <UserX size={14} /> Destruir Cuenta Base
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                              setTargetUserId(profile.id);
+                              fileInputRef.current?.click();
+                          }}
+                          disabled={toggling === profile.id}
+                          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors bg-sky-100 text-sky-700 hover:bg-sky-200 "
+                        >
+                          <Upload size={14} /> Cargar JSON
+                        </button>
+                        <button
+                          onClick={() => deleteUser(profile.id, profile.email)}
+                          disabled={toggling === profile.id}
+                          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors bg-red-100 text-red-700 hover:bg-red-200 "
+                        >
+                          <UserX size={14} /> Destruir Cuenta Base
+                        </button>
+                    </div>
                   )}
                 </div>
               </div>

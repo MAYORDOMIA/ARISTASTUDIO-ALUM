@@ -323,7 +323,7 @@ const App: React.FC = () => {
         console.error("Error crítico de base de datos:", criticalError.error);
         if (criticalError.error.message === "Failed to fetch") {
           alert(
-            "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado.\n3. Un bloqueador de publicidad está interfiriendo.",
+            "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado.\n3. Un bloqueador de publicidad está interfiriendo.\n4. Las variables de entorno VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY son incorrectas.",
           );
         } else if (criticalError.error.code === "42P01") {
           alert(
