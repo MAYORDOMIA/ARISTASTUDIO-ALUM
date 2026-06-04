@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "../services/supabaseClient";
+import { saveBulkData } from "../services/migrationService";
 import {
   ShieldCheck,
   UserCheck,
@@ -130,42 +131,19 @@ const SuperAdminDashboard: React.FC = () => {
         const jsonData = JSON.parse(e.target?.result as string);
         console.log("Cargando JSON para usuario", targetUserId, jsonData);
 
-        // Mapeo esperado según schema: clave en json -> tabla
-        const tables = {
-            // Mapeo desde las claves encontradas en el JSON
-            aluminum: 'materiales_perfiles_usuario',
-            glasses: 'materiales_vidrios_usuario',
-            accessories: 'materiales_accesorios_usuario',
-            blindPanels: 'paneles_usuario',
-            dvhInputs: 'dvh_usuario',
-            // Mapeo por compatibilidad con posibles versiones anteriores
-            perfiles: 'materiales_perfiles_usuario',
-            vidrios: 'materiales_vidrios_usuario',
-            accesorios: 'materiales_accesorios_usuario',
-            recetas: 'recetas_usuario',
-            tratamientos: 'tratamientos_usuario',
-            paneles: 'paneles_usuario',
-            dvh: 'dvh_usuario'
-        };
+        // Normalize keys for saveBulkData in case older JSON backups used Spanish top-level keys
+        if (jsonData.perfiles && !jsonData.aluminum) jsonData.aluminum = jsonData.perfiles;
+        if (jsonData.vidrios && !jsonData.glasses) jsonData.glasses = jsonData.vidrios;
+        if (jsonData.accesorios && !jsonData.accessories) jsonData.accessories = jsonData.accesorios;
+        if (jsonData.paneles && !jsonData.blindPanels) jsonData.blindPanels = jsonData.paneles;
+        if (jsonData.dvh && !jsonData.dvhInputs) jsonData.dvhInputs = jsonData.dvh;
 
-        for (const [key, tableName] of Object.entries(tables)) {
-            if (jsonData[key] && Array.isArray(jsonData[key])) {
-                const dataToUpsert = jsonData[key].map((item: any) => ({
-                    ...item,
-                    user_id: targetUserId 
-                }));
-                console.log(`Intentando upsert en ${tableName} para ${targetUserId}:`, dataToUpsert);
-                // Usamos upsert para evitar errores de duplicados (unique constraint master_ref, user_id)
-                const { data, error } = await supabase.from(tableName).upsert(dataToUpsert, { onConflict: 'user_id, master_ref' });
-                if (error) {
-                  console.error(`Error en tabla ${tableName}:`, error);
-                  throw new Error(`Error en tabla ${tableName}: ${error.message}`);
-                }
-                console.log(`Upsert exitoso en ${tableName}:`, data);
-            } else {
-                console.log(`Saltando clave ${key} (tabla ${tableName}) - no existe o no es array`);
-            }
+        const result = await saveBulkData(targetUserId, jsonData);
+        
+        if (!result.success) {
+           throw new Error(result.errors.join(", "));
         }
+        
         alert("¡Datos cargados exitosamente!");
       } catch (err: any) {
         console.error("Error cargando JSON:", err);
