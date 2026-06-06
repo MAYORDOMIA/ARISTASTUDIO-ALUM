@@ -109,6 +109,7 @@ const QuotesHistory: React.FC<Props> = ({
             glasses,
             dvhInputs,
             treatments,
+            accessories,
           );
           break;
         case "taller":

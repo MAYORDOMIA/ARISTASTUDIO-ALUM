@@ -1734,6 +1734,7 @@ export const generateClientDetailedPDF = (
   glasses: Glass[],
   dvhInputs: DVHInput[],
   treatments: Treatment[],
+  accessories: Accessory[],
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1786,9 +1787,27 @@ export const generateClientDetailedPDF = (
         ? (isFrenteIntegral ? `CONJUNTO: FRENTE INTEGRAL` : `CONJUNTO: ${moduleNames.join(" + ")}`)
         : moduleNames[0] || "Abertura";
     let glassDetailStr = "No definido";
+    let topAccessories = "";
     const firstMod = item.composition.modules?.[0];
     if (firstMod) {
       const recipe = recipes.find((r) => r.id === firstMod.recipeId);
+      const activeRecipeAccs = firstMod.overriddenAccessories && firstMod.overriddenAccessories.length > 0 
+        ? firstMod.overriddenAccessories 
+        : (recipe?.accessories || []);
+
+      if (activeRecipeAccs && activeRecipeAccs.length > 0) {
+        const accs = activeRecipeAccs
+          .filter((ra) => !ra.isAlternative)
+          .map((ra) => accessories.find((a) => a.id === ra.accessoryId))
+          .filter(Boolean)
+          .filter((acc) => acc && !acc.detail.toLowerCase().includes("escuadra"))
+          .slice(0, 2)
+          .map((acc) => acc?.detail || "")
+          .filter(Boolean);
+        if (accs.length > 0) {
+          topAccessories = `\nAccesorios: ${accs.join(", ")}`;
+        }
+      }
       if (recipe?.visualType === "mosquitero") {
         glassDetailStr = "TELA MOSQUITERA (ALUMINIO)";
       } else {
@@ -1802,7 +1821,7 @@ export const generateClientDetailedPDF = (
         }
       }
     }
-    let desc = `${item.itemCode || `POS#${idx + 1}`}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || "-"}\nLlenado: ${glassDetailStr}`;
+    let desc = `${item.itemCode || `POS#${idx + 1}`}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || "-"}\nLlenado: ${glassDetailStr}${topAccessories}`;
     if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
     return [
       idx + 1,
