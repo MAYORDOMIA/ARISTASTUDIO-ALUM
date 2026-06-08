@@ -344,7 +344,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
             .toLowerCase()
             .includes((searchFilter || "").toLowerCase()),
       )
-      .sort((a, b) => b.id.localeCompare(a.id));
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [recipes, searchFilter]);
   const handleExportRecipes = () => {
     // Enriquecer las recetas con los códigos de perfiles y accesorios para que al importar en otra cuenta se puedan vincular

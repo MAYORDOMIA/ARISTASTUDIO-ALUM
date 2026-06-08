@@ -2413,7 +2413,7 @@ const QuotingModule: React.FC<Props> = ({
               onChange={(e) => setSelectedColorId(e.target.value)}
             >
               <option value="">(SELECCIONE ACABADO)</option>
-              {treatments.map((t) => (
+              {[...treatments].sort((a,b)=>(a.name||"").localeCompare(b.name||"")).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
@@ -3253,12 +3253,13 @@ const QuotingModule: React.FC<Props> = ({
                         }}
                       >
                         <option value="">(SELECCIONE)</option>
-                        {recipes
+                        {[...recipes]
                           .filter(
                             (r) =>
                               recipeFilter === "TODOS" ||
                               (r.line || "").toUpperCase() === recipeFilter,
                           )
+                          .sort((a,b) => (a.name||"").localeCompare(b.name||""))
                           .map((r) => (
                             <option key={r.id} value={r.id}>
                               {r.name}
@@ -3630,7 +3631,7 @@ const QuotingModule: React.FC<Props> = ({
                                   }}
                                 >
                                   <option value="">(SELECCIONE PANEL)</option>
-                                  {blindPanels.map((p) => (
+                                  {[...blindPanels].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((p) => (
                                     <option key={p.id} value={p.id}>
                                       {p.code} - {p.detail}
                                     </option>
@@ -3680,7 +3681,7 @@ const QuotingModule: React.FC<Props> = ({
                                     })
                                   }
                                 >
-                                  {glasses.map((g) => (
+                                  {[...glasses].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((g) => (
                                     <option key={g.id} value={g.id}>
                                       {g.detail}
                                     </option>
@@ -3695,7 +3696,7 @@ const QuotingModule: React.FC<Props> = ({
                                     })
                                   }
                                 >
-                                  {glasses.map((g) => (
+                                  {[...glasses].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((g) => (
                                     <option key={g.id} value={g.id}>
                                       {g.detail}
                                     </option>
@@ -3712,7 +3713,7 @@ const QuotingModule: React.FC<Props> = ({
                                   })
                                 }
                               >
-                                {glasses.map((g) => (
+                                {[...glasses].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((g) => (
                                   <option key={g.id} value={g.id}>
                                     {g.detail}
                                   </option>
@@ -3790,7 +3791,7 @@ const QuotingModule: React.FC<Props> = ({
                               }
                             >
                               <option value="">(SIN ACCESORIO)</option>
-                              {accessories.map((a) => (
+                              {[...accessories].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((a) => (
                                 <option key={a.id} value={a.id}>
                                   {a.code} - {a.detail}
                                 </option>

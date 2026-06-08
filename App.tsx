@@ -281,27 +281,24 @@ const App: React.FC = () => {
           .from("materiales_perfiles_usuario")
           .select("*")
           .eq("user_id", userId)
-          .order("created_at", { ascending: true })
-          .order("master_ref", { ascending: true })
+          .order("detail", { ascending: true })
           .limit(50000),
         supabase
           .from("materiales_vidrios_usuario")
           .select("*")
           .eq("user_id", userId)
-          .order("created_at", { ascending: true })
-          .order("master_ref", { ascending: true })
+          .order("detail", { ascending: true })
           .limit(50000),
         supabase
           .from("materiales_accesorios_usuario")
           .select("*")
           .eq("user_id", userId)
-          .order("created_at", { ascending: true })
-          .order("master_ref", { ascending: true })
+          .order("detail", { ascending: true })
           .limit(50000),
-        supabase.from("tratamientos_usuario").select("*").eq("user_id", userId).order("created_at", { ascending: true }).order("master_ref", { ascending: true }).limit(50000),
-        supabase.from("paneles_usuario").select("*").eq("user_id", userId).order("created_at", { ascending: true }).order("master_ref", { ascending: true }).limit(50000),
-        supabase.from("dvh_usuario").select("*").eq("user_id", userId).order("created_at", { ascending: true }).order("master_ref", { ascending: true }).limit(50000),
-        supabase.from("recetas_usuario").select("*").eq("user_id", userId).order("created_at", { ascending: true }).order("master_ref", { ascending: true }).limit(50000),
+        supabase.from("tratamientos_usuario").select("*").eq("user_id", userId).order("name", { ascending: true }).limit(50000),
+        supabase.from("paneles_usuario").select("*").eq("user_id", userId).order("detail", { ascending: true }).limit(50000),
+        supabase.from("dvh_usuario").select("*").eq("user_id", userId).order("detail", { ascending: true }).limit(50000),
+        supabase.from("recetas_usuario").select("*").eq("user_id", userId).order("name", { ascending: true }).limit(50000),
         supabase.from("presupuestos").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(50000),
         supabase
           .from("configuracion_usuario")

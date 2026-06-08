@@ -709,6 +709,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           >
             {aluminum
               .filter((p) => filter(p.code) || filter(p.detail))
+              .sort((a, b) => (a.detail || "").localeCompare(b.detail || ""))
               .map((item) => (
                 <tr key={item.id} className="row-style group">
                   <td className="cell-style">
@@ -953,6 +954,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           >
             {glasses
               .filter((g) => filter(g.detail) || filter(g.code))
+              .sort((a, b) => (a.detail || "").localeCompare(b.detail || ""))
               .map((item) => (
                 <tr key={item.id} className="row-style group">
                   <td className="cell-style">
@@ -1106,6 +1108,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           >
             {accessories
               .filter((a) => filter(a.detail) || filter(a.code))
+              .sort((a, b) => (a.detail || "").localeCompare(b.detail || ""))
               .map((item) => (
                 <tr key={item.id} className="row-style group">
                   <td className="cell-style w-40">
@@ -1201,6 +1204,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           >
             {dvhInputs
               .filter((i) => filter(i.detail) || filter(i.type))
+              .sort((a, b) => (a.detail || "").localeCompare(b.detail || ""))
               .map((item) => (
                 <tr key={item.id} className="row-style group">
                   <td className="cell-style">
@@ -1318,6 +1322,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           >
             {treatments
               .filter((t) => filter(t.name))
+              .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
               .map((item) => (
                 <tr key={item.id} className="row-style group">
                   <td className="cell-style">
@@ -1433,6 +1438,7 @@ const DatabaseCRUD: React.FC<Props> = ({
           >
             {blindPanels
               .filter((b) => filter(b.detail) || filter(b.code))
+              .sort((a, b) => (a.detail || "").localeCompare(b.detail || ""))
               .map((item) => (
                 <tr key={item.id} className="row-style group">
                   <td className="cell-style">
