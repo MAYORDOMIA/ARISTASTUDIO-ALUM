@@ -269,5 +269,6 @@ export interface Quote {
   date: string;
   items: QuoteItem[];
   totalPrice: number;
+  discount?: number; // Descuento en porcentaje
   driveFileUrl?: string; // Google Drive integration
 }

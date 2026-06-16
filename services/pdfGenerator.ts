@@ -1901,7 +1901,34 @@ export const generateClientDetailedPDF = (
     },
   });
   const lastTable = (doc as any).lastAutoTable;
-  let finalY = lastTable ? lastTable.finalY + 15 : 200;
+  let finalY = lastTable ? lastTable.finalY + 10 : 200;
+  
+  const subtotal = quote.items.reduce(
+    (acc, i) => acc + i.calculatedCost * i.quantity,
+    0,
+  );
+  const tax = Math.round(subtotal * (config.taxRate / 100));
+  const totalBeforeDiscount = subtotal + tax;
+  const discountAmount = quote.discount ? Math.round(totalBeforeDiscount * (quote.discount / 100)) : 0;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Subtotal Neto: $${subtotal.toLocaleString()}`, pageWidth - 20, finalY, { align: "right" });
+  finalY += 6;
+  
+  if (tax > 0) {
+    doc.text(`IVA (${config.taxRate}%): $${tax.toLocaleString()}`, pageWidth - 20, finalY, { align: "right" });
+    finalY += 6;
+  }
+  
+  if (quote.discount && quote.discount > 0) {
+    doc.setTextColor(220, 38, 38); // red
+    doc.text(`Descuento (${quote.discount}%): -$${discountAmount.toLocaleString()}`, pageWidth - 20, finalY, { align: "right" });
+    doc.setTextColor(0, 0, 0);
+    finalY += 6;
+  }
+  
+  finalY += 4;
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text(

@@ -234,6 +234,11 @@ const QuotesHistory: React.FC<Props> = ({
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
+                  {q.discount && q.discount > 0 && (
+                    <span className="text-[8px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-full uppercase">
+                      Descuento {q.discount}%
+                    </span>
+                  )}
                   <div className="text-sm font-black text-slate-900 font-mono">
                     ${q.totalPrice.toLocaleString()}
                   </div>

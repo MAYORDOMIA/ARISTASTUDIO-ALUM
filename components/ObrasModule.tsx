@@ -52,11 +52,15 @@ const ObrasModule: React.FC<Props> = ({
   setActiveQuote,
 }) => {
   const [clientName, setClientName] = useState("");
+  const [discount, setDiscount] = useState<number>(0);
+
   useEffect(() => {
     if (activeQuote) {
       setClientName(activeQuote.clientName);
+      setDiscount(activeQuote.discount || 0);
     } else if (items.length === 0) {
       setClientName("");
+      setDiscount(0);
     }
   }, [activeQuote, items.length]);
   useEffect(() => {
@@ -403,7 +407,10 @@ const ObrasModule: React.FC<Props> = ({
       (acc, i) => acc + i.calculatedCost * i.quantity,
       0,
     );
-    const totalPrice = Math.round(subtotal * (1 + config.taxRate / 100));
+    const tax = Math.round(subtotal * (config.taxRate / 100));
+    const totalBeforeDiscount = subtotal + tax;
+    const discountAmount = Math.round(totalBeforeDiscount * (discount / 100));
+    const totalPrice = totalBeforeDiscount - discountAmount;
     let quoteToSave: Quote;
     if (activeQuote) {
       quoteToSave = {
@@ -411,6 +418,7 @@ const ObrasModule: React.FC<Props> = ({
         clientName,
         items: [...items],
         totalPrice,
+        discount,
         date: new Date().toISOString(),
       };
       setQuotes(quotes.map((q) => (q.id === activeQuote.id ? quoteToSave : q)));
@@ -421,11 +429,13 @@ const ObrasModule: React.FC<Props> = ({
         date: new Date().toISOString(),
         items: [...items],
         totalPrice,
+        discount,
       };
       setQuotes([quoteToSave, ...quotes]);
     }
     setItems([]);
     setClientName("");
+    setDiscount(0);
     if (setActiveQuote) setActiveQuote(null);
     if (isSupabaseConfigured) {
       const userRes = await supabase.auth.getUser();
@@ -442,6 +452,7 @@ const ObrasModule: React.FC<Props> = ({
           user_id: userRes.data.user.id,
           cliente_nombre: quoteToSave.clientName,
           total: quoteToSave.totalPrice,
+          descuento: quoteToSave.discount, // Assuming dynamic type schema in Supabase or we let it ignore it if no column.
           items: cleanItemsForDb,
           created_at: quoteToSave.date,
           estado: "borrador",
@@ -462,7 +473,9 @@ const ObrasModule: React.FC<Props> = ({
     0,
   );
   const tax = Math.round(subtotal * (config.taxRate / 100));
-  const total = subtotal + tax;
+  const totalBeforeDiscount = subtotal + tax;
+  const discountAmount = Math.round(totalBeforeDiscount * (discount / 100));
+  const total = totalBeforeDiscount - discountAmount;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full animate-in fade-in duration-500">
       <div className="col-span-1 lg:col-span-8 space-y-6">
@@ -670,6 +683,25 @@ const ObrasModule: React.FC<Props> = ({
                 </div>
               </div>
             </div>
+            <div className="space-y-1">
+              <label className="text-[8px] font-black text-slate-400 uppercase px-1">
+                Descuento (%)
+              </label>
+              <div className="flex bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-inner">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="w-full bg-transparent p-3.5 text-[11px] font-black uppercase outline-none text-right font-mono"
+                  value={discount !== 0 ? discount : ""}
+                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                  placeholder="%"
+                />
+                <div className="bg-slate-100 px-4 flex items-center justify-center border-l border-slate-200 text-[10px] font-black text-slate-400">
+                  %
+                </div>
+              </div>
+            </div>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between items-center px-1">
@@ -680,14 +712,26 @@ const ObrasModule: React.FC<Props> = ({
                 ${subtotal.toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[9px] font-bold text-slate-400 uppercase">
-                IVA ({config.taxRate}%)
-              </span>
-              <span className="text-[11px] font-mono font-bold text-slate-600">
-                ${tax.toLocaleString()}
-              </span>
-            </div>
+            {config.taxRate > 0 && (
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">
+                  IVA ({config.taxRate}%)
+                </span>
+                <span className="text-[11px] font-mono font-bold text-slate-600">
+                  ${tax.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {discount > 0 && (
+              <div className="flex justify-between items-center px-1">
+                <span className="text-[9px] font-bold text-red-500 uppercase">
+                  Descuento ({discount}%)
+                </span>
+                <span className="text-[11px] font-mono font-bold text-red-500">
+                  -${discountAmount.toLocaleString()}
+                </span>
+              </div>
+            )}
             <div className="pt-4 border-t border-slate-100 flex justify-between items-center px-1">
               <span className="text-[11px] font-black text-slate-900 uppercase">
                 Total Obra
