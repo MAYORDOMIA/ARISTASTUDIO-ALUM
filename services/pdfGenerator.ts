@@ -1901,7 +1901,7 @@ export const generateClientDetailedPDF = (
     },
   });
   const lastTable = (doc as any).lastAutoTable;
-  const finalY = lastTable ? lastTable.finalY + 15 : 200;
+  let finalY = lastTable ? lastTable.finalY + 15 : 200;
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text(
@@ -1910,6 +1910,25 @@ export const generateClientDetailedPDF = (
     finalY,
     { align: "right" },
   );
+
+  if (config.quoteFooterNotes && config.quoteFooterNotes.trim() !== "") {
+    finalY += 15;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(100, 100, 100);
+    
+    // Split text to fit within page bounds (20 margin on each side)
+    const splitNotes = doc.splitTextToSize(config.quoteFooterNotes, pageWidth - 40);
+    
+    // Automatically add a new page if the notes are too long for the current page
+    if (finalY + (splitNotes.length * 4) > doc.internal.pageSize.getHeight() - 15) {
+      doc.addPage();
+      finalY = 20;
+    }
+    
+    doc.text(splitNotes, 20, finalY);
+  }
+
   doc.save(`Presupuesto_${quote.clientName}.pdf`);
 };
 

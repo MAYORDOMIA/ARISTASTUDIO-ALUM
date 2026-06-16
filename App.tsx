@@ -1269,6 +1269,18 @@ const App: React.FC = () => {
                         }
                       />
                     </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[8px] font-black text-slate-400 uppercase px-1">
+                        Aclaraciones de Pie de Presupuesto
+                      </label>
+                      <textarea
+                        className="w-full bg-slate-50 border p-1 rounded-lg text-xs font-bold resize-y min-h-[40px]"
+                        value={config.quoteFooterNotes || ""}
+                        onChange={(e) =>
+                          setConfig({ ...config, quoteFooterNotes: e.target.value })
+                        }
+                      />
+                    </div>
                     <div className="pt-0.5">
                       <label className="flex items-center gap-2 cursor-pointer bg-sky-50 text-sky-600 p-2 rounded-lg border border-sky-100 hover:bg-sky-100 transition-all">
                         <Upload size={14} />

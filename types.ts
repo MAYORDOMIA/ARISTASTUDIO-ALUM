@@ -10,6 +10,7 @@ export interface GlobalConfig {
   companyLogo?: string;
   companyAddress?: string;
   companyPhone?: string;
+  quoteFooterNotes?: string;
   handrailExtraIncrement: number;
   mamparaExtraIncrement: number;
 }
