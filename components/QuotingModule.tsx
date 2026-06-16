@@ -92,8 +92,168 @@ const drawDetailedOpening = (
   handrailProfileId?: string,
   hand?: "left" | "right",
   leafWidths?: number[],
+  leftHeight?: number,
+  rightHeight?: number,
 ) => {
   if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return;
+
+  const isTrapezoid =
+    (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+    leftHeight !== undefined &&
+    rightHeight !== undefined &&
+    leftHeight > 0 &&
+    rightHeight > 0 &&
+    leftHeight !== rightHeight;
+
+  const trapFrameT = 45 * pxPerMm;
+
+  const trapDrawProfile = (points: { x: number; y: number }[]) => {
+    if (!points || points.length < 3) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    points.forEach((p) => ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    try {
+      const minX = Math.min(...points.map((p) => p.x));
+      const maxX = Math.max(...points.map((p) => p.x));
+      const minY = Math.min(...points.map((p) => p.y));
+      const maxY = Math.max(...points.map((p) => p.y));
+      const isVert = maxX - minX < maxY - minY;
+      const grad = isVert
+        ? ctx.createLinearGradient(minX, minY, maxX, minY)
+        : ctx.createLinearGradient(minX, minY, minX, maxY);
+      grad.addColorStop(0, "rgba(0,0,0,0.15)");
+      grad.addColorStop(0.5, "rgba(255,255,255,0.25)");
+      grad.addColorStop(1, "rgba(0,0,0,0.15)");
+      ctx.fillStyle = grad;
+      ctx.fill();
+    } catch (e) {}
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  if (isTrapezoid) {
+    const lhPx = leftHeight! * pxPerMm;
+    const rhPx = rightHeight! * pxPerMm;
+    const tlY = y + h - lhPx;
+    const trY = y + h - rhPx;
+    const blY = y + h;
+    const brY = y + h;
+
+    const slope = (trY - tlY) / w;
+    const L = Math.sqrt(w * w + (trY - tlY) * (trY - tlY));
+    const offsetY = trapFrameT * (L / w);
+
+    const y_left_inner = tlY + slope * trapFrameT + offsetY;
+    const y_right_inner = trY - slope * trapFrameT + offsetY;
+
+    // 1. Draw glass/fill inside with clipping mask to handle transoms elegantly
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + trapFrameT, y_left_inner);
+    ctx.lineTo(x + w - trapFrameT, y_right_inner);
+    ctx.lineTo(x + w - trapFrameT, brY - trapFrameT);
+    ctx.lineTo(x + trapFrameT, blY - trapFrameT);
+    ctx.closePath();
+    ctx.clip();
+
+    // Fill glass with gradient
+    const glassGrad = ctx.createLinearGradient(x + trapFrameT, y_left_inner, x + w - trapFrameT, brY - trapFrameT);
+    glassGrad.addColorStop(0, "#bae6fd");
+    glassGrad.addColorStop(0.5, "#f0f9ff");
+    glassGrad.addColorStop(1, "#bae6fd");
+    ctx.fillStyle = glassGrad;
+    ctx.fillRect(x + trapFrameT, Math.min(y_left_inner, y_right_inner) - 10, w - 2 * trapFrameT, brY - Math.min(y_left_inner, y_right_inner) + 20);
+
+    // Draw horizontal transoms if any (clipped perfectly)
+    if (transoms && transoms.length > 0) {
+      transoms.forEach((t) => {
+        const trProf = allProfiles.find((p) => p.id === t.profileId);
+        const tThickness = Number(trProf?.thickness || 40) * pxPerMm;
+        const transomY = brY - Number(t.height || 0) * pxPerMm;
+        
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.fillRect(x + trapFrameT, transomY - tThickness / 2, w - 2 * trapFrameT, tThickness);
+        
+        try {
+          const grad = ctx.createLinearGradient(x + trapFrameT, transomY - tThickness / 2, x + trapFrameT, transomY + tThickness / 2);
+          grad.addColorStop(0, "rgba(0,0,0,0.15)");
+          grad.addColorStop(0.5, "rgba(255,255,255,0.25)");
+          grad.addColorStop(1, "rgba(0,0,0,0.15)");
+          ctx.fillStyle = grad;
+          ctx.fill();
+        } catch (e) {}
+
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
+        ctx.strokeRect(x + trapFrameT, transomY - tThickness / 2, w - 2 * trapFrameT, tThickness);
+        ctx.restore();
+      });
+    }
+
+    // Draw diagonal reflection on glass
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.25, y_left_inner + (blY - trapFrameT - y_left_inner) * 0.4);
+    ctx.lineTo(x + w * 0.75, y_right_inner + (brY - trapFrameT - y_right_inner) * 0.6);
+    ctx.stroke();
+    ctx.restore(); // restores clip context
+
+    // 2. Draw the 4 outer frame profiles with exact perpendicular thickness
+    // Left profile: outer top left -> inner top left -> inner bottom left -> outer bottom left
+    trapDrawProfile([
+      { x: x, y: tlY },
+      { x: x + trapFrameT, y: y_left_inner },
+      { x: x + trapFrameT, y: blY - trapFrameT },
+      { x: x, y: blY }
+    ]);
+
+    // Right profile: outer top right -> inner top right -> inner bottom right -> outer bottom right
+    trapDrawProfile([
+      { x: x + w, y: trY },
+      { x: x + w - trapFrameT, y: y_right_inner },
+      { x: x + w - trapFrameT, y: brY - trapFrameT },
+      { x: x + w, y: brY }
+    ]);
+
+    // Bottom profile: outer bottom left -> inner bottom left -> inner bottom right -> outer bottom right
+    trapDrawProfile([
+      { x: x, y: blY },
+      { x: x + trapFrameT, y: blY - trapFrameT },
+      { x: x + w - trapFrameT, y: brY - trapFrameT },
+      { x: x + w, y: brY }
+    ]);
+
+    // Top profile: outer top left -> inner top left -> inner top right -> outer top right
+    trapDrawProfile([
+      { x: x, y: tlY },
+      { x: x + trapFrameT, y: y_left_inner },
+      { x: x + w - trapFrameT, y: y_right_inner },
+      { x: x + w, y: trY }
+    ]);
+
+    // Add trapezoid text label in center
+    ctx.save();
+    ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+    ctx.font = "bold 14px Inter, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const cenX = x + w / 2;
+    const cenY = y + h - (lhPx + rhPx) / 4; // average height center
+    ctx.fillText(`📐 PF Trapecio`, cenX, cenY - 10);
+    ctx.font = "italic 11px Inter, sans-serif";
+    ctx.fillText(`${leftHeight}mm | ${rightHeight}mm`, cenX, cenY + 10);
+    ctx.restore();
+    return;
+  }
+
   const visualType = recipe.visualType || "fixed";
   const applyPaintEffect = (
     px: number,
@@ -1906,6 +2066,19 @@ const QuotingModule: React.FC<Props> = ({
         });
         return overlaps;
       }; // Solo aplicamos el toggle si el segmento está en el extremo absoluto del conjunto
+      const isTrapezoid =
+        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        mod.leftHeight !== undefined &&
+        mod.rightHeight !== undefined &&
+        mod.leftHeight > 0 &&
+        mod.rightHeight > 0 &&
+        mod.leftHeight !== mod.rightHeight;
+
+      const lhPx = isTrapezoid ? (mod.leftHeight || 0) * safePxPerMm : mH;
+      const rhPx = isTrapezoid ? (mod.rightHeight || 0) * safePxPerMm : mH;
+      const tlY = mY + mH - lhPx;
+      const trY = mY + mH - rhPx;
+
       const isAtGlobalTop = Math.abs(mY - assemblyMinY) < 5;
       const isAtGlobalBottom = Math.abs(mY + mH - assemblyMaxY) < 5;
       const isAtGlobalLeft = Math.abs(mX - assemblyMinX) < 5;
@@ -1916,15 +2089,23 @@ const QuotingModule: React.FC<Props> = ({
           mX + mW,
           getNeighborOverlaps(0, -1),
         );
-        exposed.forEach((iv) =>
+        exposed.forEach((iv) => {
+          let y1, y2;
+          if (isTrapezoid) {
+            y1 = tlY + ((trY - tlY) / mW) * (iv.s - mX);
+            y2 = tlY + ((trY - tlY) / mW) * (iv.e - mX);
+          } else {
+            y1 = mY;
+            y2 = mY;
+          }
           perimeterSegments.push({
             x1: iv.s,
-            y1: mY,
+            y1: y1,
             x2: iv.e,
-            y2: mY,
+            y2: y2,
             side: "top",
-          }),
-        );
+          });
+        });
       }
       if (extras.tapajuntasSides.bottom || !isAtGlobalBottom) {
         const exposed = subtractIntervals(
@@ -1943,8 +2124,9 @@ const QuotingModule: React.FC<Props> = ({
         );
       }
       if (extras.tapajuntasSides.left || !isAtGlobalLeft) {
+        const startYVal = isTrapezoid ? tlY : mY;
         const exposed = subtractIntervals(
-          mY,
+          startYVal,
           mY + mH,
           getNeighborOverlaps(-1, 0),
         );
@@ -1959,8 +2141,9 @@ const QuotingModule: React.FC<Props> = ({
         );
       }
       if (extras.tapajuntasSides.right || !isAtGlobalRight) {
+        const startYVal = isTrapezoid ? trY : mY;
         const exposed = subtractIntervals(
-          mY,
+          startYVal,
           mY + mH,
           getNeighborOverlaps(1, 0),
         );
@@ -1994,6 +2177,8 @@ const QuotingModule: React.FC<Props> = ({
         mod.handrailProfileId,
         mod.hand,
         mod.leafWidths,
+        mod.leftHeight,
+        mod.rightHeight,
       );
       
       // Draw Engineering Button indicator on Canvas
@@ -3341,6 +3526,57 @@ const QuotingModule: React.FC<Props> = ({
                       </div>
                     )}
                   </div>
+                {(() => {
+                  const r = recipes.find((x) => x.id === currentModForEdit.recipeId);
+                  const isPF = r && (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf"));
+                  if (!isPF) return null;
+                  return (
+                    <div className="flex flex-col gap-4 p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 shrink-0 animate-in slide-in-from-top-2">
+                      <h4 className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                        📐 Configuración de Trapecio
+                      </h4>
+                      <p className="text-[10px] text-indigo-500/80 leading-relaxed font-bold">
+                        Ingrese alturas diferentes para crear un paño fijo trapecial. Si se dejan vacías, el sistema lo considerará como un paño fijo normal (rectangular).
+                      </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                            Altura Izquierda (mm)
+                          </label>
+                          <input
+                            type="number"
+                            className="w-full bg-white border border-indigo-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-indigo-500 shadow-sm text-indigo-950 font-black"
+                            value={currentModForEdit.leftHeight !== undefined ? currentModForEdit.leftHeight : ""}
+                            placeholder="Normal"
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? undefined : (parseInt(e.target.value) || 0);
+                              updateModule(editingModuleId, {
+                                leftHeight: val,
+                              });
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                            Altura Derecha (mm)
+                          </label>
+                          <input
+                            type="number"
+                            className="w-full bg-white border border-indigo-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-indigo-500 shadow-sm text-indigo-950 font-black"
+                            value={currentModForEdit.rightHeight !== undefined ? currentModForEdit.rightHeight : ""}
+                            placeholder="Normal"
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? undefined : (parseInt(e.target.value) || 0);
+                              updateModule(editingModuleId, {
+                                rightHeight: val,
+                              });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                   <div className="min-h-[160px] bg-slate-50/50 rounded-2xl p-6 border border-dashed border-slate-200 flex flex-col items-center justify-center text-center shrink-0">
                     {currentModForEdit.recipeId ? (
                       <>

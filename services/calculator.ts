@@ -221,6 +221,8 @@ export const calculateCompositePrice = (
       !!validModules.find((m) => m.x === mod.x - 1 && m.y === mod.y), // isRightModule
       !!validModules.find((m) => m.x === mod.x && m.y === mod.y - 1), // isBottomModule
       item.quotingMode,
+      mod.leftHeight,
+      mod.rightHeight,
     );
 
     totalAluCost += result.aluCost;
@@ -488,11 +490,25 @@ export const calculateItemPrice = (
   isRightModule?: boolean,
   isBottomModule?: boolean,
   quotingMode?: "Completa" | "Solo Marcos" | "Solo Hojas",
+  leftHeight?: number,
+  rightHeight?: number,
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
   let glassCost = 0;
   let accCost = 0;
+
+  const isTrapezoid =
+    (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+    leftHeight !== undefined &&
+    rightHeight !== undefined &&
+    leftHeight > 0 &&
+    rightHeight > 0 &&
+    leftHeight !== rightHeight;
+
+  const inclinedW = isTrapezoid
+    ? Math.sqrt(Math.pow(width, 2) + Math.pow(rightHeight! - leftHeight!, 2))
+    : width;
 
   // 1. Calcular espesor total del vidrio para este módulo
   const outerGlassObj = glasses.find((g) => g.id === glassOuterId);
@@ -576,6 +592,32 @@ export const calculateItemPrice = (
 
   let removedColumna = false;
   let removedViga = false;
+
+  let totalPlainHorizontalMarcoQty = 0;
+  activeProfiles.forEach((rp) => {
+    const roleLower = (rp.role || "").toLowerCase();
+    const formulaUpper = (rp.formula || "").toUpperCase();
+    const isPlainHorizontalMarco =
+      (roleLower.includes("marco") || roleLower.includes("marcos")) &&
+      formulaUpper.includes("W") &&
+      !formulaUpper.includes("H") &&
+      !roleLower.includes("cabe") &&
+      !roleLower.includes("dintel") &&
+      !roleLower.includes("superior") &&
+      !roleLower.includes("sup") &&
+      !roleLower.includes("umbra") &&
+      !roleLower.includes("inferior") &&
+      !roleLower.includes("inf") &&
+      !roleLower.includes("zoc") &&
+      !roleLower.includes("zócalo") &&
+      !roleLower.includes("zocalo");
+    if (isPlainHorizontalMarco) {
+      totalPlainHorizontalMarcoQty += Number(rp.quantity || 0);
+    }
+  });
+
+  let processedPlainHorizontalMarcoQty = 0;
+
   activeProfiles.forEach((rp) => {
     let profile = profiles.find((p) => p.id === rp.profileId);
 
@@ -638,11 +680,102 @@ export const calculateItemPrice = (
 
 
       if (!shouldRemove) {
-        const cutMeasure = evaluateFormula(rp.formula, width, height);
-        const weight =
-          ((cutMeasure + Number(config.discWidth || 0)) / 1000) *
-          Number(rp.quantity || 0) *
-          Number(profile.weightPerMeter || 0);
+        let weight = 0;
+        if (isTrapezoid) {
+          const isContravidrio = profileRole === "contravidrio" || profileRole.includes("contra");
+          const isVertical =
+            profileRole.includes("jamba") ||
+            profileRole.includes("lateral") ||
+            profileRole.includes("parante") ||
+            profileRole.includes("mocheta") ||
+            (!profileRole.includes("cabe") && !profileRole.includes("dintel") && !profileRole.includes("umbra") && !profileRole.includes("zoc") && rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W"));
+
+          const isTopHorizontal =
+            profileRole.includes("dintel") ||
+            profileRole.includes("cabezal") ||
+            profileRole.includes("superior");
+
+          if (isContravidrio) {
+            // Contravidrios dinámicos de trapecio: adaptan sus largos
+            if (rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W")) {
+              const qtyLeft = Math.ceil(Number(rp.quantity || 0) / 2);
+              const qtyRight = Math.floor(Number(rp.quantity || 0) / 2);
+              
+              const cutLeft = evaluateFormula(rp.formula, width, leftHeight!);
+              const cutRight = evaluateFormula(rp.formula, width, rightHeight!);
+              
+              const weightLeft = ((cutLeft + Number(config.discWidth || 0)) / 1000) * qtyLeft * Number(profile.weightPerMeter || 0);
+              const weightRight = ((cutRight + Number(config.discWidth || 0)) / 1000) * qtyRight * Number(profile.weightPerMeter || 0);
+              weight = weightLeft + weightRight;
+            } else {
+              const qtyBottom = Math.ceil(Number(rp.quantity || 0) / 2);
+              const qtyTop = Math.floor(Number(rp.quantity || 0) / 2);
+              
+              const cutBottom = evaluateFormula(rp.formula, width, height);
+              const cutTop = evaluateFormula(rp.formula, inclinedW, height);
+              
+              const weightBottom = ((cutBottom + Number(config.discWidth || 0)) / 1000) * qtyBottom * Number(profile.weightPerMeter || 0);
+              const weightTop = ((cutTop + Number(config.discWidth || 0)) / 1000) * qtyTop * Number(profile.weightPerMeter || 0);
+              weight = weightBottom + weightTop;
+            }
+          } else if (isVertical) {
+            const qtyLeft = Math.ceil(Number(rp.quantity || 0) / 2);
+            const qtyRight = Math.floor(Number(rp.quantity || 0) / 2);
+            
+            const cutLeft = evaluateFormula(rp.formula, width, leftHeight!);
+            const cutRight = evaluateFormula(rp.formula, width, rightHeight!);
+            
+            const weightLeft = ((cutLeft + Number(config.discWidth || 0)) / 1000) * qtyLeft * Number(profile.weightPerMeter || 0);
+            const weightRight = ((cutRight + Number(config.discWidth || 0)) / 1000) * qtyRight * Number(profile.weightPerMeter || 0);
+            weight = weightLeft + weightRight;
+          } else if (isTopHorizontal) {
+            const cutMeasure = evaluateFormula(rp.formula, inclinedW, height);
+            weight = ((cutMeasure + Number(config.discWidth || 0)) / 1000) * Number(rp.quantity || 0) * Number(profile.weightPerMeter || 0);
+          } else if (
+            (profileRole.includes("marco") || profileRole.includes("marcos")) &&
+            rp.formula.toUpperCase().includes("W") &&
+            !rp.formula.toUpperCase().includes("H") &&
+            !profileRole.includes("cabe") &&
+            !profileRole.includes("dintel") &&
+            !profileRole.includes("superior") &&
+            !profileRole.includes("sup") &&
+            !profileRole.includes("umbra") &&
+            !profileRole.includes("inferior") &&
+            !profileRole.includes("inf") &&
+            !profileRole.includes("zoc") &&
+            !profileRole.includes("zócalo") &&
+            !profileRole.includes("zocalo")
+          ) {
+            const qty = Number(rp.quantity || 0);
+            let qtyBottom = 0;
+            let qtyTop = 0;
+            for (let k = 0; k < qty; k++) {
+              const globalIdx = processedPlainHorizontalMarcoQty + k;
+              if (globalIdx < Math.ceil(totalPlainHorizontalMarcoQty / 2)) {
+                qtyBottom++;
+              } else {
+                qtyTop++;
+              }
+            }
+            processedPlainHorizontalMarcoQty += qty;
+
+            const cutBottom = evaluateFormula(rp.formula, width, height);
+            const cutTop = evaluateFormula(rp.formula, inclinedW, height);
+
+            const weightBottom = ((cutBottom + Number(config.discWidth || 0)) / 1000) * qtyBottom * Number(profile.weightPerMeter || 0);
+            const weightTop = ((cutTop + Number(config.discWidth || 0)) / 1000) * qtyTop * Number(profile.weightPerMeter || 0);
+            weight = weightBottom + weightTop;
+          } else {
+            const cutMeasure = evaluateFormula(rp.formula, width, height);
+            weight = ((cutMeasure + Number(config.discWidth || 0)) / 1000) * Number(rp.quantity || 0) * Number(profile.weightPerMeter || 0);
+          }
+        } else {
+          const cutMeasure = evaluateFormula(rp.formula, width, height);
+          weight =
+            ((cutMeasure + Number(config.discWidth || 0)) / 1000) *
+            Number(rp.quantity || 0) *
+            Number(profile.weightPerMeter || 0);
+        }
         totalAluWeight += weight;
       }
     }
@@ -813,7 +946,9 @@ export const calculateItemPrice = (
       : recipe.glassFormulaH || "H";
 
   const adjustedW = width - Number(recipe.glassDeductionW || 0);
-  const adjustedH = height - Number(recipe.glassDeductionH || 0);
+  const adjustedH = isTrapezoid
+    ? Math.max(leftHeight!, rightHeight!) - Number(recipe.glassDeductionH || 0)
+    : height - Number(recipe.glassDeductionH || 0);
   const visualType = (recipe.visualType || "").toLowerCase();
   let numLeaves = recipe.leaves || 1;
 

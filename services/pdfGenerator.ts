@@ -267,6 +267,18 @@ export const generateBarOptimizationPDF = (
         isManualDim,
       );
 
+      const isTrapezoid =
+        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        mod.leftHeight !== undefined &&
+        mod.rightHeight !== undefined &&
+        mod.leftHeight > 0 &&
+        mod.rightHeight > 0 &&
+        mod.leftHeight !== mod.rightHeight;
+
+      const inclinedW = isTrapezoid
+        ? Math.sqrt(Math.pow(modW, 2) + Math.pow(mod.rightHeight! - mod.leftHeight!, 2))
+        : modW;
+
       const visualType = (recipe.visualType || "").toLowerCase();
       let numLeaves = recipe.leaves || 1;
       if (!recipe.leaves) {
@@ -333,6 +345,34 @@ export const generateBarOptimizationPDF = (
 
       const usedGlazingBeadIds = new Set<string>();
       const filteredProfiles1 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+
+      let totalPlainHorizontalMarcoQty = 0;
+      filteredProfiles1.forEach((rp) => {
+        if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
+          return;
+        const rLower = (rp.role || "").toLowerCase();
+        const fUpper = (rp.formula || "").toUpperCase();
+        const isPlainHorizontalMarco =
+          (rLower.includes("marco") || rLower.includes("marcos")) &&
+          fUpper.includes("W") &&
+          !fUpper.includes("H") &&
+          !rLower.includes("cabe") &&
+          !rLower.includes("dintel") &&
+          !rLower.includes("superior") &&
+          !rLower.includes("sup") &&
+          !rLower.includes("umbra") &&
+          !rLower.includes("inferior") &&
+          !rLower.includes("inf") &&
+          !rLower.includes("zoc") &&
+          !rLower.includes("zócalo") &&
+          !rLower.includes("zocalo");
+        if (isPlainHorizontalMarco) {
+          totalPlainHorizontalMarcoQty += Number(rp.quantity || 0);
+        }
+      });
+
+      let processedPlainHorizontalMarcoQty = 0;
+
       filteredProfiles1.forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
@@ -399,19 +439,114 @@ export const generateBarOptimizationPDF = (
           role.includes("encuentro") ||
           role.includes("contravidrio");
 
-        if (
-          isLeafWidthDependent &&
-          mod.leafWidths &&
-          mod.leafWidths.length === numLeaves &&
-          rp.quantity % numLeaves === 0
-        ) {
-          const piecesPerLeaf = rp.quantity / numLeaves;
-          mod.leafWidths.forEach((lw) => {
-            const effectiveW = lw * numLeaves;
-            const cutLen = evaluateFormula(rp.formula, effectiveW, modH);
+        if (isTrapezoid) {
+          const isContravidrio = role === "contravidrio" || role.includes("contra");
+          const isVertical =
+            role.includes("jamba") ||
+            role.includes("lateral") ||
+            role.includes("parante") ||
+            role.includes("mocheta") ||
+            (!role.includes("cabe") && !role.includes("dintel") && !role.includes("umbra") && !role.includes("zoc") && rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W"));
+
+          const isTopHorizontal =
+            role.includes("dintel") ||
+            role.includes("cabezal") ||
+            role.includes("superior");
+
+          if (isContravidrio) {
+            if (rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W")) {
+              const qtyLeft = Math.ceil(rp.quantity / 2);
+              const qtyRight = Math.floor(rp.quantity / 2);
+              const cutLeft = evaluateFormula(rp.formula, modW, mod.leftHeight!);
+              const cutRight = evaluateFormula(rp.formula, modW, mod.rightHeight!);
+              const list = cutsByProfile.get(pDef!.id) || [];
+              if (cutLeft > 0) {
+                for (let k = 0; k < qtyLeft * item.quantity; k++) {
+                  list.push({
+                    len: cutLeft,
+                    type: recipe.type,
+                    cutStart: rp.cutStart || "90",
+                    cutEnd: rp.cutEnd || "90",
+                    label: itemCode,
+                  });
+                }
+              }
+              if (cutRight > 0) {
+                for (let k = 0; k < qtyRight * item.quantity; k++) {
+                  list.push({
+                    len: cutRight,
+                    type: recipe.type,
+                    cutStart: rp.cutStart || "90",
+                    cutEnd: rp.cutEnd || "90",
+                    label: itemCode,
+                  });
+                }
+              }
+              cutsByProfile.set(pDef!.id, list);
+            } else {
+              const qtyBottom = Math.ceil(rp.quantity / 2);
+              const qtyTop = Math.floor(rp.quantity / 2);
+              const cutBottom = evaluateFormula(rp.formula, modW, modH);
+              const cutTop = evaluateFormula(rp.formula, inclinedW, modH);
+              const list = cutsByProfile.get(pDef!.id) || [];
+              if (cutBottom > 0) {
+                for (let k = 0; k < qtyBottom * item.quantity; k++) {
+                  list.push({
+                    len: cutBottom,
+                    type: recipe.type,
+                    cutStart: rp.cutStart || "90",
+                    cutEnd: rp.cutEnd || "90",
+                    label: itemCode,
+                  });
+                }
+              }
+              if (cutTop > 0) {
+                for (let k = 0; k < qtyTop * item.quantity; k++) {
+                  list.push({
+                    len: cutTop,
+                    type: recipe.type,
+                    cutStart: rp.cutStart || "45",
+                    cutEnd: rp.cutEnd || "45",
+                    label: itemCode,
+                  });
+                }
+              }
+              cutsByProfile.set(pDef!.id, list);
+            }
+          } else if (isVertical) {
+            const qtyLeft = Math.ceil(rp.quantity / 2);
+            const qtyRight = Math.floor(rp.quantity / 2);
+            const cutLeft = evaluateFormula(rp.formula, modW, mod.leftHeight!);
+            const cutRight = evaluateFormula(rp.formula, modW, mod.rightHeight!);
+            const list = cutsByProfile.get(pDef!.id) || [];
+            if (cutLeft > 0) {
+              for (let k = 0; k < qtyLeft * item.quantity; k++) {
+                list.push({
+                  len: cutLeft,
+                  type: recipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+            }
+            if (cutRight > 0) {
+              for (let k = 0; k < qtyRight * item.quantity; k++) {
+                list.push({
+                  len: cutRight,
+                  type: recipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+            }
+            cutsByProfile.set(pDef!.id, list);
+          } else if (isTopHorizontal) {
+            const cutLen = evaluateFormula(rp.formula, inclinedW, modH);
             if (cutLen > 0) {
               const list = cutsByProfile.get(pDef!.id) || [];
-              for (let k = 0; k < piecesPerLeaf * item.quantity; k++) {
+              for (let k = 0; k < rp.quantity * item.quantity; k++) {
                 list.push({
                   len: cutLen,
                   type: recipe.type,
@@ -422,21 +557,117 @@ export const generateBarOptimizationPDF = (
               }
               cutsByProfile.set(pDef!.id, list);
             }
-          });
-        } else {
-          const cutLen = evaluateFormula(rp.formula, modW, modH);
-          if (cutLen > 0) {
-            const list = cutsByProfile.get(pDef.id) || [];
-            for (let k = 0; k < rp.quantity * item.quantity; k++) {
-              list.push({
-                len: cutLen,
-                type: recipe.type,
-                cutStart: rp.cutStart || "90",
-                cutEnd: rp.cutEnd || "90",
-                label: itemCode,
-              });
+          } else if (
+            (role.includes("marco") || role.includes("marcos")) &&
+            rp.formula.toUpperCase().includes("W") &&
+            !rp.formula.toUpperCase().includes("H") &&
+            !role.includes("cabe") &&
+            !role.includes("dintel") &&
+            !role.includes("superior") &&
+            !role.includes("sup") &&
+            !role.includes("umbra") &&
+            !role.includes("inferior") &&
+            !role.includes("inf") &&
+            !role.includes("zoc") &&
+            !role.includes("zócalo") &&
+            !role.includes("zocalo")
+          ) {
+            const qty = Number(rp.quantity || 0);
+            let qtyBottom = 0;
+            let qtyTop = 0;
+            for (let k = 0; k < qty; k++) {
+              const globalIdx = processedPlainHorizontalMarcoQty + k;
+              if (globalIdx < Math.ceil(totalPlainHorizontalMarcoQty / 2)) {
+                qtyBottom++;
+              } else {
+                qtyTop++;
+              }
             }
-            cutsByProfile.set(pDef.id, list);
+            processedPlainHorizontalMarcoQty += qty;
+
+            const cutBottom = evaluateFormula(rp.formula, modW, modH);
+            const cutTop = evaluateFormula(rp.formula, inclinedW, modH);
+            const list = cutsByProfile.get(pDef!.id) || [];
+
+            if (cutBottom > 0 && qtyBottom > 0) {
+              for (let k = 0; k < qtyBottom * item.quantity; k++) {
+                list.push({
+                  len: cutBottom,
+                  type: recipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+            }
+            if (cutTop > 0 && qtyTop > 0) {
+              for (let k = 0; k < qtyTop * item.quantity; k++) {
+                list.push({
+                  len: cutTop,
+                  type: recipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+            }
+            cutsByProfile.set(pDef!.id, list);
+          } else {
+            const cutLen = evaluateFormula(rp.formula, modW, modH);
+            if (cutLen > 0) {
+              const list = cutsByProfile.get(pDef!.id) || [];
+              for (let k = 0; k < rp.quantity * item.quantity; k++) {
+                list.push({
+                  len: cutLen,
+                  type: recipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+              cutsByProfile.set(pDef!.id, list);
+            }
+          }
+        } else {
+          if (
+            isLeafWidthDependent &&
+            mod.leafWidths &&
+            mod.leafWidths.length === numLeaves &&
+            rp.quantity % numLeaves === 0
+          ) {
+            const piecesPerLeaf = rp.quantity / numLeaves;
+            mod.leafWidths.forEach((lw) => {
+              const effectiveW = lw * numLeaves;
+              const cutLen = evaluateFormula(rp.formula, effectiveW, modH);
+              if (cutLen > 0) {
+                const list = cutsByProfile.get(pDef!.id) || [];
+                for (let k = 0; k < piecesPerLeaf * item.quantity; k++) {
+                  list.push({
+                    len: cutLen,
+                    type: recipe.type,
+                    cutStart: rp.cutStart || "90",
+                    cutEnd: rp.cutEnd || "90",
+                    label: itemCode,
+                  });
+                }
+                cutsByProfile.set(pDef!.id, list);
+              }
+            });
+          } else {
+            const cutLen = evaluateFormula(rp.formula, modW, modH);
+            if (cutLen > 0) {
+              const list = cutsByProfile.get(pDef.id) || [];
+              for (let k = 0; k < rp.quantity * item.quantity; k++) {
+                list.push({
+                  len: cutLen,
+                  type: recipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+              cutsByProfile.set(pDef.id, list);
+            }
           }
         }
       });
@@ -621,10 +852,31 @@ export const generateBarOptimizationPDF = (
         const tjThick = Number(tjProfile.thickness || 30);
         const { top, bottom, left, right } = item.extras.tapajuntasSides;
 
+        const firstTrapMod = validModules.find((m) => {
+          const r = recipes.find((x) => x.id === m.recipeId);
+          if (!r) return false;
+          return (
+            (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+            m.leftHeight !== undefined &&
+            m.rightHeight !== undefined &&
+            m.leftHeight > 0 &&
+            m.rightHeight > 0 &&
+            m.leftHeight !== m.rightHeight
+          );
+        });
+
+        const isTrap = !!firstTrapMod;
+        const lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
+        const rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        const inclinedTJTop = isTrap
+          ? Math.sqrt(Math.pow(item.width, 2) + Math.pow(rh - lh, 2))
+          : item.width;
+
         if (top) {
+          const baseLen = isTrap ? inclinedTJTop : item.width;
           for (let k = 0; k < item.quantity; k++)
             list.push({
-              len: item.width + (left ? tjThick : 0) + (right ? tjThick : 0),
+              len: baseLen + (left ? tjThick : 0) + (right ? tjThick : 0),
               type: "TJ Perímetro",
               cutStart: "45",
               cutEnd: "45",
@@ -644,7 +896,7 @@ export const generateBarOptimizationPDF = (
         if (left) {
           for (let k = 0; k < item.quantity; k++)
             list.push({
-              len: item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0),
+              len: lh + (top ? tjThick : 0) + (bottom ? tjThick : 0),
               type: "TJ Perímetro",
               cutStart: "45",
               cutEnd: "45",
@@ -654,7 +906,7 @@ export const generateBarOptimizationPDF = (
         if (right) {
           for (let k = 0; k < item.quantity; k++)
             list.push({
-              len: item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0),
+              len: rh + (top ? tjThick : 0) + (bottom ? tjThick : 0),
               type: "TJ Perímetro",
               cutStart: "45",
               cutEnd: "45",
@@ -954,6 +1206,18 @@ export const generateMaterialsOrderPDF = (
         isManualDim,
       );
 
+      const isTrapezoid =
+        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        mod.leftHeight !== undefined &&
+        mod.rightHeight !== undefined &&
+        mod.leftHeight > 0 &&
+        mod.rightHeight > 0 &&
+        mod.leftHeight !== mod.rightHeight;
+
+      const inclinedW = isTrapezoid
+        ? Math.sqrt(Math.pow(modW, 2) + Math.pow(mod.rightHeight! - mod.leftHeight!, 2))
+        : modW;
+
       const transomTemplate = (recipe.profiles || []).find(
         (rp) =>
           rp.role === "Travesaño" ||
@@ -994,6 +1258,34 @@ export const generateMaterialsOrderPDF = (
 
       const usedGlazingBeadIds = new Set<string>();
       const filteredProfiles2 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+
+      let totalPlainHorizontalMarcoQty = 0;
+      filteredProfiles2.forEach((rp) => {
+        if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
+          return;
+        const rLower = (rp.role || "").toLowerCase();
+        const fUpper = (rp.formula || "").toUpperCase();
+        const isPlainHorizontalMarco =
+          (rLower.includes("marco") || rLower.includes("marcos")) &&
+          fUpper.includes("W") &&
+          !fUpper.includes("H") &&
+          !rLower.includes("cabe") &&
+          !rLower.includes("dintel") &&
+          !rLower.includes("superior") &&
+          !rLower.includes("sup") &&
+          !rLower.includes("umbra") &&
+          !rLower.includes("inferior") &&
+          !rLower.includes("inf") &&
+          !rLower.includes("zoc") &&
+          !rLower.includes("zócalo") &&
+          !rLower.includes("zocalo");
+        if (isPlainHorizontalMarco) {
+          totalPlainHorizontalMarcoQty += Number(rp.quantity || 0);
+        }
+      });
+
+      let processedPlainHorizontalMarcoQty = 0;
+
       filteredProfiles2.forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
@@ -1054,17 +1346,104 @@ export const generateMaterialsOrderPDF = (
            if (role.includes("marco") || role.includes("zócalo") || role.includes("zocalo") || role.includes("acople") || role.includes("columna") || role.includes("viga") || role.includes("encuentro") || role.includes("travesaño") || role.includes("travesano")) return;
         }
 
-        const len = evaluateFormula(rp.formula, modW, modH);
-        const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
-        const existing = aluSummary.get(p.id) || {
-          code: p.code,
-          detail: p.detail,
-          totalMm: 0,
-          barLength: p.barLength || 6,
-          weightPerMeter: p.weightPerMeter || 0,
-        };
-        existing.totalMm += totalMm;
-        aluSummary.set(p.id, existing);
+        let totalMm = 0;
+        if (isTrapezoid) {
+          const isContravidrio = role === "contravidrio" || role.includes("contra");
+          const isVertical =
+            role.includes("jamba") ||
+            role.includes("lateral") ||
+            role.includes("parante") ||
+            role.includes("mocheta") ||
+            (!role.includes("cabe") && !role.includes("dintel") && !role.includes("umbra") && !role.includes("zoc") && rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W"));
+
+          const isTopHorizontal =
+            role.includes("dintel") ||
+            role.includes("cabezal") ||
+            role.includes("superior");
+
+          if (isContravidrio) {
+            if (rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W")) {
+              const qtyLeft = Math.ceil(rp.quantity / 2);
+              const qtyRight = Math.floor(rp.quantity / 2);
+              const cutLeft = evaluateFormula(rp.formula, modW, mod.leftHeight!);
+              const cutRight = evaluateFormula(rp.formula, modW, mod.rightHeight!);
+              if (cutLeft > 0) totalMm += (cutLeft + config.discWidth) * qtyLeft * item.quantity;
+              if (cutRight > 0) totalMm += (cutRight + config.discWidth) * qtyRight * item.quantity;
+            } else {
+              const qtyBottom = Math.ceil(rp.quantity / 2);
+              const qtyTop = Math.floor(rp.quantity / 2);
+              const cutBottom = evaluateFormula(rp.formula, modW, modH);
+              const cutTop = evaluateFormula(rp.formula, inclinedW, modH);
+              if (cutBottom > 0) totalMm += (cutBottom + config.discWidth) * qtyBottom * item.quantity;
+              if (cutTop > 0) totalMm += (cutTop + config.discWidth) * qtyTop * item.quantity;
+            }
+          } else if (isVertical) {
+            const qtyLeft = Math.ceil(rp.quantity / 2);
+            const qtyRight = Math.floor(rp.quantity / 2);
+            const cutLeft = evaluateFormula(rp.formula, modW, mod.leftHeight!);
+            const cutRight = evaluateFormula(rp.formula, modW, mod.rightHeight!);
+            if (cutLeft > 0) totalMm += (cutLeft + config.discWidth) * qtyLeft * item.quantity;
+            if (cutRight > 0) totalMm += (cutRight + config.discWidth) * qtyRight * item.quantity;
+          } else if (isTopHorizontal) {
+            const cutLen = evaluateFormula(rp.formula, inclinedW, modH);
+            if (cutLen > 0) totalMm += (cutLen + config.discWidth) * rp.quantity * item.quantity;
+          } else if (
+            (role.includes("marco") || role.includes("marcos")) &&
+            rp.formula.toUpperCase().includes("W") &&
+            !rp.formula.toUpperCase().includes("H") &&
+            !role.includes("cabe") &&
+            !role.includes("dintel") &&
+            !role.includes("superior") &&
+            !role.includes("sup") &&
+            !role.includes("umbra") &&
+            !role.includes("inferior") &&
+            !role.includes("inf") &&
+            !role.includes("zoc") &&
+            !role.includes("zócalo") &&
+            !role.includes("zocalo")
+          ) {
+            const qty = Number(rp.quantity || 0);
+            let qtyBottom = 0;
+            let qtyTop = 0;
+            for (let k = 0; k < qty; k++) {
+              const globalIdx = processedPlainHorizontalMarcoQty + k;
+              if (globalIdx < Math.ceil(totalPlainHorizontalMarcoQty / 2)) {
+                qtyBottom++;
+              } else {
+                qtyTop++;
+              }
+            }
+            processedPlainHorizontalMarcoQty += qty;
+
+            const cutBottom = evaluateFormula(rp.formula, modW, modH);
+            const cutTop = evaluateFormula(rp.formula, inclinedW, modH);
+
+            if (cutBottom > 0 && qtyBottom > 0) {
+              totalMm += (cutBottom + config.discWidth) * qtyBottom * item.quantity;
+            }
+            if (cutTop > 0 && qtyTop > 0) {
+              totalMm += (cutTop + config.discWidth) * qtyTop * item.quantity;
+            }
+          } else {
+            const cutLen = evaluateFormula(rp.formula, modW, modH);
+            if (cutLen > 0) totalMm += (cutLen + config.discWidth) * rp.quantity * item.quantity;
+          }
+        } else {
+          const len = evaluateFormula(rp.formula, modW, modH);
+          totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
+        }
+
+        if (totalMm > 0) {
+          const existing = aluSummary.get(p.id) || {
+            code: p.code,
+            detail: p.detail,
+            totalMm: 0,
+            barLength: p.barLength || 6,
+            weightPerMeter: p.weightPerMeter || 0,
+          };
+          existing.totalMm += totalMm;
+          aluSummary.set(p.id, existing);
+        }
       });
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
@@ -1258,19 +1637,41 @@ export const generateMaterialsOrderPDF = (
       if (tjProfile) {
         const tjThick = Number(tjProfile.thickness || 30);
         const { top, bottom, left, right } = item.extras.tapajuntasSides;
+
+        const firstTrapMod = validModules.find((m) => {
+          const r = recipes.find((x) => x.id === m.recipeId);
+          if (!r) return false;
+          return (
+            (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+            m.leftHeight !== undefined &&
+            m.rightHeight !== undefined &&
+            m.leftHeight > 0 &&
+            m.rightHeight > 0 &&
+            m.leftHeight !== m.rightHeight
+          );
+        });
+
+        const isTrap = !!firstTrapMod;
+        const lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
+        const rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        const inclinedTJTop = isTrap
+          ? Math.sqrt(Math.pow(item.width, 2) + Math.pow(rh - lh, 2))
+          : item.width;
+
         let tjLenTotal = 0;
-        if (top)
-          tjLenTotal +=
-            item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
+        if (top) {
+          const baseLen = isTrap ? inclinedTJTop : item.width;
+          tjLenTotal += baseLen + (left ? tjThick : 0) + (right ? tjThick : 0);
+        }
         if (bottom)
           tjLenTotal +=
             item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
         if (left)
           tjLenTotal +=
-            item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+            lh + (top ? tjThick : 0) + (bottom ? tjThick : 0);
         if (right)
           tjLenTotal +=
-            item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+            rh + (top ? tjThick : 0) + (bottom ? tjThick : 0);
 
         if (isSet && item.composition.colRatios.length > 1) {
           for (let x = minX; x < maxX; x++) {
@@ -2152,6 +2553,18 @@ export const generateAssemblyOrderPDF = (
         isManualDim,
       );
 
+      const isTrapezoid =
+        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        mod.leftHeight !== undefined &&
+        mod.rightHeight !== undefined &&
+        mod.leftHeight > 0 &&
+        mod.rightHeight > 0 &&
+        mod.leftHeight !== mod.rightHeight;
+
+      const inclinedW = isTrapezoid
+        ? Math.sqrt(Math.pow(modW, 2) + Math.pow(mod.rightHeight! - mod.leftHeight!, 2))
+        : modW;
+
       const transomTemplate = (recipe.profiles || []).find(
         (rp) =>
           rp.role === "Travesaño" ||
@@ -2191,6 +2604,34 @@ export const generateAssemblyOrderPDF = (
       const beadStyle = item.glazingBeadStyle || "Recto";
 
       const filteredProfiles3 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+
+      let totalPlainHorizontalMarcoQty = 0;
+      filteredProfiles3.forEach((rp) => {
+        if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
+          return;
+        const rLower = (rp.role || "").toLowerCase();
+        const fUpper = (rp.formula || "").toUpperCase();
+        const isPlainHorizontalMarco =
+          (rLower.includes("marco") || rLower.includes("marcos")) &&
+          fUpper.includes("W") &&
+          !fUpper.includes("H") &&
+          !rLower.includes("cabe") &&
+          !rLower.includes("dintel") &&
+          !rLower.includes("superior") &&
+          !rLower.includes("sup") &&
+          !rLower.includes("umbra") &&
+          !rLower.includes("inferior") &&
+          !rLower.includes("inf") &&
+          !rLower.includes("zoc") &&
+          !rLower.includes("zócalo") &&
+          !rLower.includes("zocalo");
+        if (isPlainHorizontalMarco) {
+          totalPlainHorizontalMarcoQty += Number(rp.quantity || 0);
+        }
+      });
+
+      let processedPlainHorizontalMarcoQty = 0;
+
       filteredProfiles3.forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
@@ -2248,14 +2689,173 @@ export const generateAssemblyOrderPDF = (
            if (role.includes("marco") || role.includes("zócalo") || role.includes("zocalo") || role.includes("acople") || role.includes("columna") || role.includes("viga") || role.includes("encuentro") || role.includes("travesaño") || role.includes("travesano")) return;
         }
 
-        const cutLen = evaluateFormula(rp.formula, modW, modH);
-        profileCuts.push([
-          p?.code || "S/D",
-          p?.detail || "-",
-          Math.round(cutLen),
-          rp.quantity,
-          `${rp.cutStart}° / ${rp.cutEnd}°`,
-        ]);
+        if (isTrapezoid) {
+          const isContravidrio = role === "contravidrio" || role.includes("contra");
+          const isVertical =
+            role.includes("jamba") ||
+            role.includes("lateral") ||
+            role.includes("parante") ||
+            role.includes("mocheta") ||
+            (!role.includes("cabe") && !role.includes("dintel") && !role.includes("umbra") && !role.includes("zoc") && rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W"));
+
+          const isTopHorizontal =
+            role.includes("dintel") ||
+            role.includes("cabezal") ||
+            role.includes("superior");
+
+          if (isContravidrio) {
+            if (rp.formula.toUpperCase().includes("H") && !rp.formula.toUpperCase().includes("W")) {
+              const qtyLeft = Math.ceil(rp.quantity / 2);
+              const qtyRight = Math.floor(rp.quantity / 2);
+              const cutLeft = evaluateFormula(rp.formula, modW, mod.leftHeight!);
+              const cutRight = evaluateFormula(rp.formula, modW, mod.rightHeight!);
+              if (cutLeft > 0) {
+                profileCuts.push([
+                  p?.code || "S/D",
+                  (p?.detail || "-") + " Izq",
+                  Math.round(cutLeft),
+                  qtyLeft,
+                  `${rp.cutStart}° / ${rp.cutEnd}°`,
+                ]);
+              }
+              if (cutRight > 0) {
+                profileCuts.push([
+                  p?.code || "S/D",
+                  (p?.detail || "-") + " Der",
+                  Math.round(cutRight),
+                  qtyRight,
+                  `${rp.cutStart}° / ${rp.cutEnd}°`,
+                ]);
+              }
+            } else {
+              const qtyBottom = Math.ceil(rp.quantity / 2);
+              const qtyTop = Math.floor(rp.quantity / 2);
+              const cutBottom = evaluateFormula(rp.formula, modW, modH);
+              const cutTop = evaluateFormula(rp.formula, inclinedW, modH);
+              if (cutBottom > 0) {
+                profileCuts.push([
+                  p?.code || "S/D",
+                  (p?.detail || "-") + " Inf",
+                  Math.round(cutBottom),
+                  qtyBottom,
+                  `${rp.cutStart}° / ${rp.cutEnd}°`,
+                ]);
+              }
+              if (cutTop > 0) {
+                profileCuts.push([
+                  p?.code || "S/D",
+                  (p?.detail || "-") + " Sup",
+                  Math.round(cutTop),
+                  qtyTop,
+                  `${rp.cutStart || "45"}° / ${rp.cutEnd || "45"}°`,
+                ]);
+              }
+            }
+          } else if (isVertical) {
+            const qtyLeft = Math.ceil(rp.quantity / 2);
+            const qtyRight = Math.floor(rp.quantity / 2);
+            const cutLeft = evaluateFormula(rp.formula, modW, mod.leftHeight!);
+            const cutRight = evaluateFormula(rp.formula, modW, mod.rightHeight!);
+            if (cutLeft > 0) {
+              profileCuts.push([
+                p?.code || "S/D",
+                (p?.detail || "-") + " Izq",
+                Math.round(cutLeft),
+                qtyLeft,
+                `${rp.cutStart}° / ${rp.cutEnd}°`,
+              ]);
+            }
+            if (cutRight > 0) {
+              profileCuts.push([
+                p?.code || "S/D",
+                (p?.detail || "-") + " Der",
+                Math.round(cutRight),
+                qtyRight,
+                `${rp.cutStart}° / ${rp.cutEnd}°`,
+              ]);
+            }
+          } else if (isTopHorizontal) {
+            const cutLen = evaluateFormula(rp.formula, inclinedW, modH);
+            if (cutLen > 0) {
+              profileCuts.push([
+                p?.code || "S/D",
+                (p?.detail || "-") + " Sup (Inclinado)",
+                Math.round(cutLen),
+                rp.quantity,
+                `${rp.cutStart}° / ${rp.cutEnd}°`,
+              ]);
+            }
+          } else if (
+            (role.includes("marco") || role.includes("marcos")) &&
+            rp.formula.toUpperCase().includes("W") &&
+            !rp.formula.toUpperCase().includes("H") &&
+            !role.includes("cabe") &&
+            !role.includes("dintel") &&
+            !role.includes("superior") &&
+            !role.includes("sup") &&
+            !role.includes("umbra") &&
+            !role.includes("inferior") &&
+            !role.includes("inf") &&
+            !role.includes("zoc") &&
+            !role.includes("zócalo") &&
+            !role.includes("zocalo")
+          ) {
+            const qty = Number(rp.quantity || 0);
+            let qtyBottom = 0;
+            let qtyTop = 0;
+            for (let k = 0; k < qty; k++) {
+              const globalIdx = processedPlainHorizontalMarcoQty + k;
+              if (globalIdx < Math.ceil(totalPlainHorizontalMarcoQty / 2)) {
+                qtyBottom++;
+              } else {
+                qtyTop++;
+              }
+            }
+            processedPlainHorizontalMarcoQty += qty;
+
+            const cutBottom = evaluateFormula(rp.formula, modW, modH);
+            const cutTop = evaluateFormula(rp.formula, inclinedW, modH);
+
+            if (cutBottom > 0 && qtyBottom > 0) {
+              profileCuts.push([
+                p?.code || "S/D",
+                (p?.detail || "-") + " Inf",
+                Math.round(cutBottom),
+                qtyBottom,
+                `${rp.cutStart}° / ${rp.cutEnd}°`,
+              ]);
+            }
+            if (cutTop > 0 && qtyTop > 0) {
+              profileCuts.push([
+                p?.code || "S/D",
+                (p?.detail || "-") + " Sup (Inclinado)",
+                Math.round(cutTop),
+                qtyTop,
+                `${rp.cutStart || "45"}° / ${rp.cutEnd || "45"}°`,
+              ]);
+            }
+          } else {
+            const cutLen = evaluateFormula(rp.formula, modW, modH);
+            if (cutLen > 0) {
+              profileCuts.push([
+                p?.code || "S/D",
+                (p?.detail || "-") + " Inf/Cab",
+                Math.round(cutLen),
+                rp.quantity,
+                `${rp.cutStart}° / ${rp.cutEnd}°`,
+              ]);
+            }
+          }
+        } else {
+          const cutLen = evaluateFormula(rp.formula, modW, modH);
+          profileCuts.push([
+            p?.code || "S/D",
+            p?.detail || "-",
+            Math.round(cutLen),
+            rp.quantity,
+            `${rp.cutStart}° / ${rp.cutEnd}°`,
+          ]);
+        }
       });
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
@@ -2429,23 +3029,42 @@ export const generateAssemblyOrderPDF = (
       if (tjProfile) {
         const tjThick = Number(tjProfile.thickness || 30);
         const { top, bottom, left, right } = item.extras.tapajuntasSides;
-        if (top)
+
+        const firstTrapMod = validModules.find((m) => {
+          const r = recipes.find((x) => x.id === m.recipeId);
+          if (!r) return false;
+          return (
+            (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+            m.leftHeight !== undefined &&
+            m.rightHeight !== undefined &&
+            m.leftHeight > 0 &&
+            m.rightHeight > 0 &&
+            m.leftHeight !== m.rightHeight
+          );
+        });
+
+        const isTrap = !!firstTrapMod;
+        const lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
+        const rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        const inclinedTJTop = isTrap
+          ? Math.sqrt(Math.pow(item.width, 2) + Math.pow(rh - lh, 2))
+          : item.width;
+
+        if (top) {
+          const baseLen = isTrap ? inclinedTJTop : item.width;
           profileCuts.push([
             tjProfile.code,
             "Tapajunta Superior",
-            Math.round(
-              item.width + (left ? tjThick : 0) + (right ? tjThick : 0),
-            ),
+            Math.round(baseLen + (left ? tjThick : 0) + (right ? tjThick : 0)),
             1,
             "45° / 45°",
           ]);
+        }
         if (bottom)
           profileCuts.push([
             tjProfile.code,
             "Tapajunta Inferior",
-            Math.round(
-              item.width + (left ? tjThick : 0) + (right ? tjThick : 0),
-            ),
+            Math.round(item.width + (left ? tjThick : 0) + (right ? tjThick : 0)),
             1,
             "45° / 45°",
           ]);
@@ -2453,9 +3072,7 @@ export const generateAssemblyOrderPDF = (
           profileCuts.push([
             tjProfile.code,
             "Tapajunta Lateral L",
-            Math.round(
-              item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0),
-            ),
+            Math.round(lh + (top ? tjThick : 0) + (bottom ? tjThick : 0)),
             1,
             "45° / 45°",
           ]);
@@ -2463,9 +3080,7 @@ export const generateAssemblyOrderPDF = (
           profileCuts.push([
             tjProfile.code,
             "Tapajunta Lateral R",
-            Math.round(
-              item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0),
-            ),
+            Math.round(rh + (top ? tjThick : 0) + (bottom ? tjThick : 0)),
             1,
             "45° / 45°",
           ]);

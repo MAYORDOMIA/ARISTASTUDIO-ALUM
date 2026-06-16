@@ -213,6 +213,8 @@ export interface MeasurementModule {
   handrailType?: "recta" | "inclinada"; // Nuevo: Tipo de baranda
   hand?: "left" | "right"; // Nuevo: Mano de la puerta
   leafWidths?: number[]; // Nuevo: Ancho individual de hojas para puertas dobles
+  leftHeight?: number; // Para paños fijos trapecios
+  rightHeight?: number; // Para paños fijos trapecios
 }
 
 export interface QuoteItemBreakdown {
