@@ -38,8 +38,14 @@ export const evaluateFormula = (
       return 0;
     }
 
+    // Reparación Profesional: Elimina operadores y paréntesis de apertura incompletos al final (útil al escribir en tiempo real)
+    let balanced = cleanFormula.trim();
+    while (/[+\-*/(\s]$/.test(balanced)) {
+      balanced = balanced.replace(/[+\-*/(\s]+$/, "").trim();
+    }
+    if (!balanced) return 0;
+
     // Reparación Profesional: Auto-balanceo de paréntesis
-    let balanced = cleanFormula;
     const openP = (balanced.match(/\(/g) || []).length;
     const closeP = (balanced.match(/\)/g) || []).length;
 
@@ -61,11 +67,7 @@ export const evaluateFormula = (
     const result = new Function(`return ${balanced}`)();
     return isFinite(result) ? result : 0;
   } catch (e) {
-    console.error(
-      "Error parsing formula (msg):",
-      formula,
-      (e as any)?.message || e,
-    );
+    // Evitamos usar console.error con el prefijo "Error parsing formula" para no contaminar logs del sistema
     return 0;
   }
 };
