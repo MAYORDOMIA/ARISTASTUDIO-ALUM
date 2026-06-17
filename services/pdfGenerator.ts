@@ -94,11 +94,18 @@ const getModuleGlassPanes = (
 
   let numLeaves = recipe.leaves || 1;
   if (!recipe.leaves) {
-    if (visualType.includes("sliding_3") || visualType.includes("corrediza_3"))
+    if (
+      visualType.includes("sliding_3") ||
+      visualType.includes("corrediza_3") ||
+      visualType.includes("triple") ||
+      visualType.includes("3h")
+    )
       numLeaves = 3;
     else if (
       visualType.includes("sliding_4") ||
-      visualType.includes("corrediza_4")
+      visualType.includes("corrediza_4") ||
+      visualType.includes("four") ||
+      visualType.includes("4h")
     )
       numLeaves = 4;
     else if (visualType.includes("sliding") || visualType.includes("corrediza"))
@@ -284,12 +291,16 @@ export const generateBarOptimizationPDF = (
       if (!recipe.leaves) {
         if (
           visualType.includes("sliding_3") ||
-          visualType.includes("corrediza_3")
+          visualType.includes("corrediza_3") ||
+          visualType.includes("triple") ||
+          visualType.includes("3h")
         )
           numLeaves = 3;
         else if (
           visualType.includes("sliding_4") ||
-          visualType.includes("corrediza_4")
+          visualType.includes("corrediza_4") ||
+          visualType.includes("four") ||
+          visualType.includes("4h")
         )
           numLeaves = 4;
         else if (
@@ -1514,12 +1525,16 @@ export const generateMaterialsOrderPDF = (
       if (!recipe.leaves) {
         if (
           visualType.includes("sliding_3") ||
-          visualType.includes("corrediza_3")
+          visualType.includes("corrediza_3") ||
+          visualType.includes("triple") ||
+          visualType.includes("3h")
         )
           numLeaves = 3;
         else if (
           visualType.includes("sliding_4") ||
-          visualType.includes("corrediza_4")
+          visualType.includes("corrediza_4") ||
+          visualType.includes("four") ||
+          visualType.includes("4h")
         )
           numLeaves = 4;
         else if (
@@ -1854,12 +1869,16 @@ export const generateMaterialsOrderPDF = (
       if (!recipe.leaves) {
         if (
           visualType.includes("sliding_3") ||
-          visualType.includes("corrediza_3")
+          visualType.includes("corrediza_3") ||
+          visualType.includes("triple") ||
+          visualType.includes("3h")
         )
           numLeaves = 3;
         else if (
           visualType.includes("sliding_4") ||
-          visualType.includes("corrediza_4")
+          visualType.includes("corrediza_4") ||
+          visualType.includes("four") ||
+          visualType.includes("4h")
         )
           numLeaves = 4;
         else if (
@@ -2901,12 +2920,16 @@ export const generateAssemblyOrderPDF = (
       if (!recipe.leaves) {
         if (
           visualType.includes("sliding_3") ||
-          visualType.includes("corrediza_3")
+          visualType.includes("corrediza_3") ||
+          visualType.includes("triple") ||
+          visualType.includes("3h")
         )
           numLeaves = 3;
         else if (
           visualType.includes("sliding_4") ||
-          visualType.includes("corrediza_4")
+          visualType.includes("corrediza_4") ||
+          visualType.includes("four") ||
+          visualType.includes("4h")
         )
           numLeaves = 4;
         else if (
@@ -3174,12 +3197,16 @@ export const generateAssemblyOrderPDF = (
       if (!recipe.leaves) {
         if (
           visualType.includes("sliding_3") ||
-          visualType.includes("corrediza_3")
+          visualType.includes("corrediza_3") ||
+          visualType.includes("triple") ||
+          visualType.includes("3h")
         )
           numLeaves = 3;
         else if (
           visualType.includes("sliding_4") ||
-          visualType.includes("corrediza_4")
+          visualType.includes("corrediza_4") ||
+          visualType.includes("four") ||
+          visualType.includes("4h")
         )
           numLeaves = 4;
         else if (
@@ -3395,12 +3422,16 @@ export const generateGlassOptimizationPDF = (
       if (!recipe.leaves) {
         if (
           visualType.includes("sliding_3") ||
-          visualType.includes("corrediza_3")
+          visualType.includes("corrediza_3") ||
+          visualType.includes("triple") ||
+          visualType.includes("3h")
         )
           numLeaves = 3;
         else if (
           visualType.includes("sliding_4") ||
-          visualType.includes("corrediza_4")
+          visualType.includes("corrediza_4") ||
+          visualType.includes("four") ||
+          visualType.includes("4h")
         )
           numLeaves = 4;
         else if (

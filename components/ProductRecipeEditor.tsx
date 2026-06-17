@@ -35,6 +35,329 @@ import {
 import { generateRecipeTechnicalPDF } from "../services/pdfGenerator";
 import { supabase, isSupabaseConfigured } from "../src/services/supabaseClient";
 import React, { useState, useMemo, useRef, useEffect } from "react";
+
+export const RecipeIllustrationPreview: React.FC<{ visualType: string }> = ({ visualType }) => {
+  const vt = (visualType || "").toLowerCase();
+
+  const drawOpeningTri = (x1: number, y1: number, x2: number, y2: number, cx: number, cy: number) => {
+    return (
+      <path
+        d={`M ${x1} ${y1} L ${cx} ${cy} L ${x2} ${y2}`}
+        stroke="#0ea5e9"
+        strokeWidth="1.5"
+        strokeDasharray="3,3"
+        fill="none"
+      />
+    );
+  };
+
+  const renderGlassPanel = (x: number, y: number, w: number, h: number) => {
+    return (
+      <g>
+        <rect x={x} y={y} width={w} height={h} fill="#f0f9ff" stroke="#94a3b8" strokeWidth="1" />
+        <line x1={x + w * 0.2} y1={y + h * 0.2} x2={x + w * 0.4} y2={y + h * 0.4} stroke="#bae6fd" strokeWidth="1.5" />
+        <line x1={x + w * 0.6} y1={y + h * 0.6} x2={x + w * 0.8} y2={y + h * 0.8} stroke="#bae6fd" strokeWidth="1.5" />
+      </g>
+    );
+  };
+
+  const renderProfile = (x: number, y: number, w: number, h: number, isZocalo = false) => {
+    return (
+      <rect
+        x={x}
+        y={y}
+        width={w}
+        height={h}
+        fill={isZocalo ? "#64748b" : "#475569"}
+        stroke="#1e293b"
+        strokeWidth="1"
+      />
+    );
+  };
+
+  const renderPolygonProfile = (points: string, isZocalo = false) => {
+    return (
+      <polygon
+        points={points}
+        fill={isZocalo ? "#64748b" : "#475569"}
+        stroke="#1e293b"
+        strokeWidth="1"
+      />
+    );
+  };
+
+  const renderLeafMiterTop90Bottom = (lx: number, ly: number, lw: number, lh: number, pt: number, zh: number) => {
+    return (
+      <g>
+        {renderGlassPanel(lx + pt, ly + pt, lw - pt * 2, lh - pt - zh)}
+        {/* Top profile: mitered 45 on both left and right */}
+        {renderPolygonProfile(`${lx},${ly} ${lx + lw},${ly} ${lx + lw - pt},${ly + pt} ${lx + pt},${ly + pt}`)}
+        {/* Left vertical profile: mitered 45 top, flat 90 bottom */}
+        {renderPolygonProfile(`${lx},${ly} ${lx + pt},${ly + pt} ${lx + pt},${ly + lh - zh} ${lx},${ly + lh - zh}`)}
+        {/* Right vertical profile: mitered 45 top, flat 90 bottom */}
+        {renderPolygonProfile(`${lx + lw - pt},${ly + pt} ${lx + lw},${ly} ${lx + lw},${ly + lh - zh} ${lx + lw - pt},${ly + lh - zh}`)}
+        {/* Bottom profile (zocalo): flat 90 */}
+        {renderProfile(lx, ly + lh - zh, lw, zh, true)}
+      </g>
+    );
+  };
+
+  let content: React.ReactNode = null;
+
+  if (vt.includes("banderola")) {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderGlassPanel(22, 22, 116, 76)}
+        {drawOpeningTri(22, 22, 138, 22, 80, 98)}
+      </g>
+    );
+  } else if (vt.includes("ventiluz")) {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderGlassPanel(22, 22, 116, 76)}
+        {drawOpeningTri(22, 98, 138, 98, 80, 22)}
+      </g>
+    );
+  } else if (vt.includes("tilt_turn") || vt.includes("oscilo")) {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderGlassPanel(22, 22, 116, 76)}
+        {drawOpeningTri(22, 22, 22, 98, 138, 60)}
+        {drawOpeningTri(22, 22, 138, 22, 80, 98)}
+      </g>
+    );
+  } else if (vt.includes("triple_swing_door") || (vt.includes("triple") && (vt.includes("door") || vt.includes("rebatir"))) || vt.includes("three")) {
+    const lW = 41;
+    const lH = 86;
+    const lY = 17;
+    const zH = 18;
+    const pT = 4;
+    content = (
+      <g>
+        <path d="M 15 105 L 15 15 L 145 15 L 145 105" stroke="#334155" strokeWidth="3" fill="none" />
+        <g>
+          {renderLeafMiterTop90Bottom(18, lY, lW, lH, pT, zH)}
+          {drawOpeningTri(18, lY, 18, lY + lH, 18 + lW, lY + lH / 2)}
+        </g>
+        <g>
+          {renderLeafMiterTop90Bottom(60, lY, lW, lH, pT, zH)}
+          {drawOpeningTri(60 + lW, lY, 60 + lW, lY + lH, 60, lY + lH / 2)}
+        </g>
+        <g>
+          {renderLeafMiterTop90Bottom(102, lY, lW, lH, pT, zH)}
+          {drawOpeningTri(102 + lW, lY, 102 + lW, lY + lH, 102, lY + lH / 2)}
+        </g>
+      </g>
+    );
+  } else if (vt.includes("four_swing_door") || (vt.includes("four") && (vt.includes("door") || vt.includes("rebatir")))) {
+    const lW = 31;
+    const lH = 86;
+    const lY = 17;
+    const zH = 18;
+    const pT = 3.5;
+    content = (
+      <g>
+        <path d="M 15 105 L 15 15 L 145 15 L 145 105" stroke="#334155" strokeWidth="3" fill="none" />
+        <g>
+          {renderLeafMiterTop90Bottom(18, lY, lW, lH, pT, zH)}
+          {drawOpeningTri(18, lY, 18, lY + lH, 18 + lW, lY + lH / 2)}
+        </g>
+        <g>
+          {renderLeafMiterTop90Bottom(50, lY, lW, lH, pT, zH)}
+          {drawOpeningTri(50 + lW, lY, 50 + lW, lY + lH, 50, lY + lH / 2)}
+        </g>
+        <g>
+          {renderLeafMiterTop90Bottom(82, lY, lW, lH, pT, zH)}
+          {drawOpeningTri(82, lY, 82, lY + lH, 82 + lW, lY + lH / 2)}
+        </g>
+        <g>
+          {renderLeafMiterTop90Bottom(114, lY, lW, lH, pT, zH)}
+          {drawOpeningTri(114 + lW, lY, 114 + lW, lY + lH, 114, lY + lH / 2)}
+        </g>
+      </g>
+    );
+  } else if (vt.includes("double_swing_door") || vt.includes("double_swing") || (vt.includes("double") && (vt.includes("door") || vt.includes("rebatir")))) {
+    const lW = 62;
+    const lH = 86;
+    const lY = 17;
+    const zH = 18;
+    const pT = 5;
+    content = (
+      <g>
+        <path d="M 15 105 L 15 15 L 145 15 L 145 105" stroke="#334155" strokeWidth="3" fill="none" />
+        <g>
+          {renderGlassPanel(18 + pT, lY + pT, lW - pT * 2, lH - pT - zH)}
+          {renderProfile(18, lY, pT, lH)}
+          {renderProfile(18 + lW - pT, lY, pT, lH)}
+          {renderProfile(18 + pT, lY, lW - pT * 2, pT)}
+          {renderProfile(18 + pT, lY + lH - zH, lW - pT * 2, zH, true)}
+          {drawOpeningTri(18, lY, 18, lY + lH, 18 + lW, lY + lH / 2)}
+        </g>
+        <g>
+          {renderGlassPanel(81 + pT, lY + pT, lW - pT * 2, lH - pT - zH)}
+          {renderProfile(81, lY, pT, lH)}
+          {renderProfile(81 + lW - pT, lY, pT, lH)}
+          {renderProfile(81 + pT, lY, lW - pT * 2, pT)}
+          {renderProfile(81 + pT, lY + lH - zH, lW - pT * 2, zH, true)}
+          {drawOpeningTri(81 + lW, lY, 81 + lW, lY + lH, 81, lY + lH / 2)}
+        </g>
+      </g>
+    );
+  } else if (vt.includes("swing_door") || vt.includes("puerta") || vt.includes("rebatir_1h")) {
+    const lW = 124;
+    const lH = 86;
+    const lY = 17;
+    const zH = 18;
+    const pT = 6;
+    content = (
+      <g>
+        <path d="M 15 105 L 15 15 L 145 15 L 145 105" stroke="#334155" strokeWidth="3" fill="none" />
+        <g>
+          {renderGlassPanel(18 + pT, lY + pT, lW - pT * 2, lH - pT - zH)}
+          {renderProfile(18, lY, pT, lH)}
+          {renderProfile(18 + lW - pT, lY, pT, lH)}
+          {renderProfile(18 + pT, lY, lW - pT * 2, pT)}
+          {renderProfile(18 + pT, lY + lH - zH, lW - pT * 2, zH, true)}
+          {drawOpeningTri(18, lY, 18, lY + lH, 18 + lW, lY + lH / 2)}
+        </g>
+      </g>
+    );
+  } else if (vt.includes("swing_v") || vt.includes("double_swing_v") || vt.includes("rebatir")) {
+    const lW = 59;
+    const lH = 76;
+    const lY = 22;
+    const pT = 5;
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        <g>
+          {renderGlassPanel(18 + pT, lY + pT, lW - pT * 2, lH - pT * 2)}
+          {renderProfile(18, lY, pT, lH)}
+          {renderProfile(18 + lW - pT, lY, pT, lH)}
+          {renderProfile(18 + pT, lY, lW - pT * 2, pT)}
+          {renderProfile(18 + pT, lY + lH - pT, lW - pT * 2, pT)}
+          {drawOpeningTri(18, lY, 18, lY + lH, 18 + lW, lY + lH / 2)}
+        </g>
+        <g>
+          {renderGlassPanel(83 + pT, lY + pT, lW - pT * 2, lH - pT * 2)}
+          {renderProfile(83, lY, pT, lH)}
+          {renderProfile(83 + lW - pT, lY, pT, lH)}
+          {renderProfile(83 + pT, lY, lW - pT * 2, pT)}
+          {renderProfile(83 + pT, lY + lH - pT, lW - pT * 2, pT)}
+          {drawOpeningTri(83 + lW, lY, 83 + lW, lY + lH, 83, lY + lH / 2)}
+        </g>
+      </g>
+    );
+  } else if (vt.includes("sliding_2") || vt.includes("corrediza_2")) {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderGlassPanel(18, 18, 64, 84)}
+        {renderGlassPanel(78, 18, 64, 84)}
+        <path d="M 35 60 L 55 60 M 50 55 L 55 60 L 50 65" stroke="#0ea5e9" strokeWidth="2" fill="none" />
+        <path d="M 125 60 L 105 60 M 110 55 L 105 60 L 110 65" stroke="#0ea5e9" strokeWidth="2" fill="none" />
+      </g>
+    );
+  } else if (vt.includes("sliding_3") || vt.includes("corrediza_3") || vt.includes("3h")) {
+    const lW = 41;
+    const lH = 86;
+    const lY = 17;
+    const zH = 18;
+    const pT = 4;
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderLeafMiterTop90Bottom(18, lY, lW, lH, pT, zH)}
+        {renderLeafMiterTop90Bottom(60, lY, lW, lH, pT, zH)}
+        {renderLeafMiterTop90Bottom(102, lY, lW, lH, pT, zH)}
+        <path d="M 30 60 L 45 60 M 40 55 L 45 60 L 40 65" stroke="#0ea5e9" strokeWidth="1.5" fill="none" />
+        <path d="M 130 60 L 115 60 M 120 55 L 115 60 L 120 65" stroke="#0ea5e9" strokeWidth="1.5" fill="none" />
+      </g>
+    );
+  } else if (vt.includes("sliding_4") || vt.includes("corrediza_4") || vt.includes("4h")) {
+    const lW = 31;
+    const lH = 86;
+    const lY = 17;
+    const zH = 18;
+    const pT = 3.5;
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderLeafMiterTop90Bottom(18, lY, lW, lH, pT, zH)}
+        {renderLeafMiterTop90Bottom(50, lY, lW, lH, pT, zH)}
+        {renderLeafMiterTop90Bottom(82, lY, lW, lH, pT, zH)}
+        {renderLeafMiterTop90Bottom(114, lY, lW, lH, pT, zH)}
+        <path d="M 60 60 L 40 60 M 45 55 L 40 60 L 45 65" stroke="#0ea5e9" strokeWidth="1.5" fill="none" />
+        <path d="M 100 60 L 120 60 M 115 55 L 120 60 L 115 65" stroke="#0ea5e9" strokeWidth="1.5" fill="none" />
+      </g>
+    );
+  } else if (vt.includes("fixed") || vt.includes("fijo") || vt.includes("paño")) {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderGlassPanel(20, 20, 120, 80)}
+      </g>
+    );
+  } else if (vt.includes("mosquitero")) {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#4a5568" strokeWidth="2.5" rx="1" />
+        <rect x="18" y="18" width="124" height="84" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1" />
+        {Array.from({ length: 12 }).map((_, idx) => (
+          <line key={`lh-${idx}`} x1="18" y1={18 + (idx + 1) * 6.5} x2="142" y2={18 + (idx + 1) * 6.5} stroke="#94a3b8" strokeWidth="0.5" strokeDasharray="1,1" />
+        ))}
+        {Array.from({ length: 18 }).map((_, idx) => (
+          <line key={`lv-${idx}`} x1={18 + (idx + 1) * 6.5} y1="18" x2={18 + (idx + 1) * 6.5} y2="102" stroke="#94a3b8" strokeWidth="0.5" strokeDasharray="1,1" />
+        ))}
+      </g>
+    );
+  } else if (vt.includes("tubo")) {
+    const isHoriz = vt.includes("h");
+    content = (
+      <g>
+        <defs>
+          <linearGradient id="metallic" x1="0%" y1="0%" x2={isHoriz ? "0%" : "100%"} y2={isHoriz ? "100%" : "0%"}>
+            <stop offset="0%" stopColor="#475569" />
+            <stop offset="50%" stopColor="#94a3b8" />
+            <stop offset="100%" stopColor="#334155" />
+          </linearGradient>
+        </defs>
+        {isHoriz ? (
+          <rect x="15" y="45" width="130" height="30" fill="url(#metallic)" stroke="#1e293b" strokeWidth="2.5" rx="2" />
+        ) : (
+          <rect x="65" y="15" width="30" height="90" fill="url(#metallic)" stroke="#1e293b" strokeWidth="2.5" rx="2" />
+        )}
+      </g>
+    );
+  } else if (vt.includes("projecting") || vt.includes("desplazable")) {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#334155" strokeWidth="3" rx="2" />
+        {renderGlassPanel(22, 22, 116, 76)}
+        {drawOpeningTri(22, 22, 138, 22, 80, 98)}
+        <path d="M 80 98 L 80 110" stroke="#0ea5e9" strokeWidth="1.5" strokeDasharray="2,2" />
+      </g>
+    );
+  } else {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f8fafc" stroke="#475569" strokeWidth="3" rx="2" />
+        {renderGlassPanel(20, 20, 120, 80)}
+        <path d="M 20 20 L 140 100 M 140 20 L 20 100" stroke="#cbd5e1" strokeWidth="1" />
+      </g>
+    );
+  }
+
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {content}
+    </svg>
+  );
+};
+
 interface Props {
   recipes: ProductRecipe[];
   setRecipes: (
@@ -75,6 +398,16 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
     id: "double_swing_door",
     label: "PUERTA DE REBATIR 2H",
     description: "Marco completo con dintel. 2 Hojas rebatibles.",
+  },
+  {
+    id: "triple_swing_door_zocalo",
+    label: "PUERTA DE REBATIR 3H C/ZÓCALO",
+    description: "Marco completo con dintel. 3 Hojas con zócalo de puerta.",
+  },
+  {
+    id: "four_swing_door",
+    label: "PUERTA DE REBATIR 4H",
+    description: "Marco completo con dintel. 4 Hojas rebatibles.",
   },
   {
     id: "swing_door_45_no_umbral",
@@ -654,18 +987,23 @@ const ProductRecipeEditor: React.FC<Props> = ({
               <button
                 key={r.id}
                 onClick={() => handleSelectRecipe(r.id)}
-                className={`w-full text-left p-4 rounded-2xl border transition-all ${editingId === r.id ? "bg-sky-500 border-sky-600 text-white shadow-lg" : "bg-white border-slate-50 hover:border-sky-200 text-slate-600"}`}
+                className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${editingId === r.id ? "bg-sky-500 border-sky-600 text-white shadow-lg" : "bg-white border-slate-50 hover:border-sky-200 text-slate-600"}`}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span
-                    className={`text-[8px] font-black uppercase tracking-widest ${editingId === r.id ? "text-sky-200" : "text-sky-600"}`}
-                  >
-                    {r.line}
+                <div className={`w-11 h-11 rounded-xl border p-1 shrink-0 flex items-center justify-center transition-colors ${editingId === r.id ? "bg-white/10 border-white/20" : "bg-slate-50 border-slate-100"}`}>
+                  <RecipeIllustrationPreview visualType={r.visualType || ""} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span
+                      className={`text-[8px] font-black uppercase tracking-widest ${editingId === r.id ? "text-sky-200" : "text-sky-600"}`}
+                    >
+                      {r.line}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-black uppercase truncate block">
+                    {r.name}
                   </span>
                 </div>
-                <span className="text-[11px] font-black uppercase truncate block">
-                  {r.name}
-                </span>
               </button>
             ))}
           </div>
@@ -713,180 +1051,195 @@ const ProductRecipeEditor: React.FC<Props> = ({
       <div className="flex-1 min-w-0">
         {recipe ? (
           <div className="bg-white border border-slate-200 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm h-auto lg:h-[85vh] overflow-y-auto custom-scrollbar space-y-6 lg:space-y-8 border-t-8 border-t-sky-500 transition-colors">
-            <div className="flex justify-between items-start gap-6">
-              <div className="flex-1 min-w-0 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <input
-                      className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 focus:outline-none bg-transparent w-full`}
-                      value={recipe.name || ""}
-                      onChange={(e) =>
-                        updateRecipe(recipe.id, {
-                          name: e.target.value.toUpperCase(),
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => {
-                        const newId = Date.now().toString();
-                        const newRecipe = {
-                          ...recipe,
-                          id: newId,
-                          name: `${recipe.name} (COPIA)`,
-                        };
-                        setRecipes([...recipes, newRecipe]);
-                        setEditingId(newId);
-                      }}
-                      className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
-                      title="Duplicar Sistema"
-                    >
-                      <Plus size={16} /> DUPLICAR
-                    </button>
-                    <button
-                      onClick={() =>
-                        generateRecipeTechnicalPDF(
-                          recipe,
-                          aluminum,
-                          accessories,
-                          config,
-                        )
-                      }
-                      className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
-                      title="Descargar PDF"
-                    >
-                      <FileText size={16} /> PDF
-                    </button>
-                    <button
-                      onClick={handleSaveManual}
-                      className={`px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? "bg-green-600 text-white border-green-700" : "bg-sky-500 text-white border-sky-600 hover:bg-sky-400"}`}
-                    >
-                      {isSaving ? <Check size={18} /> : <Save size={18} />}
-                      {isSaving ? "GUARDADO" : "GUARDAR CAMBIOS"}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-4 items-center">
-                  <select
-                    className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none"
-                    value={recipe.type || ""}
-                    onChange={(e) =>
-                      updateRecipe(recipe.id, { type: e.target.value as any })
-                    }
-                  >
-                    {[
-                      "Ventana",
-                      "Puerta",
-                      "Mampara",
-                      "Paño Fijo",
-                      "Banderola",
-                      "Baranda",
-                      "Vidriera",
-                    ].map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none"
-                    value={recipe.visualType || ""}
-                    onChange={(e) =>
-                      updateRecipe(recipe.id, { visualType: e.target.value })
-                    }
-                  >
-                    {DEFAULT_VISUAL_TYPES.map((vt) => (
-                      <option key={vt.id} value={vt.id}>
-                        {vt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 rounded-xl border border-sky-100/50 `}
-                  >
-                    <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">
-                      Línea:
-                    </span>
-                    <input
-                      className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 outline-none w-24"
-                      value={recipe.line || ""}
-                      onChange={(e) =>
-                        updateRecipe(recipe.id, {
-                          line: e.target.value.toUpperCase(),
-                        })
-                      }
-                    />
-                  </div>
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-xl border border-emerald-100/50 `}
-                  >
-                    <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
-                      Cant. Hojas:
-                    </span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      placeholder="Auto"
-                      className="bg-transparent border-none text-[10px] font-black uppercase text-emerald-700 outline-none w-12 text-center"
-                      value={recipe.leaves || ""}
-                      onChange={(e) =>
-                        updateRecipe(recipe.id, {
-                          leaves: e.target.value
-                            ? parseInt(e.target.value)
-                            : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  {isTubeType && (
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 rounded-xl border border-amber-200 animate-in zoom-in`}
-                    >
-                      <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">
-                        Espesor (mm):
-                      </span>
-                      <input
-                        type="number"
-                        className="bg-transparent border-none text-[10px] font-black text-amber-700 outline-none w-16 text-center"
-                        value={recipe.transomThickness || 100}
-                        onChange={(e) =>
-                          updateRecipe(recipe.id, {
-                            transomThickness: parseInt(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                  )}
+            <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+              {/* Illustration Preview Side-Box (Top Left) */}
+              <div className="w-full lg:w-48 shrink-0 bg-slate-50 border border-slate-200 rounded-[2rem] p-5 flex flex-col shadow-inner relative border-t-4 border-t-sky-400">
+                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
+                  Diseño de Abertura
+                </span>
+                <div className="w-full flex-1 min-h-[140px] flex items-center justify-center bg-white rounded-[1.5rem] p-3 border border-slate-100 shadow-sm relative overflow-hidden group">
+                  <RecipeIllustrationPreview visualType={recipe.visualType} />
                 </div>
               </div>
-              <button
-                onClick={async () => {
-                  if (confirm("¿Eliminar sistema?")) {
-                    const idToDelete = recipe.id;
-                    setRecipes(recipes.filter((r) => r.id !== idToDelete));
-                    setEditingId(null);
 
-                    if (isSupabaseConfigured && userId) {
-                      try {
-                        const { error } = await supabase
-                          .from("recetas_usuario")
-                          .delete()
-                          .eq("user_id", userId)
-                          .eq("master_ref", idToDelete);
-                        if (error) throw error;
-                        console.log("Receta eliminada de la nube con éxito.");
-                      } catch (err: any) {
-                        console.error("Error al eliminar receta de la nube:", err);
+              {/* Header Box (Right) */}
+              <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm">
+                <div className="flex justify-between items-start gap-6">
+                  <div className="flex-1 min-w-0 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <input
+                          className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 focus:outline-none bg-transparent w-full`}
+                          value={recipe.name || ""}
+                          onChange={(e) =>
+                            updateRecipe(recipe.id, {
+                              name: e.target.value.toUpperCase(),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => {
+                            const newId = Date.now().toString();
+                            const newRecipe = {
+                              ...recipe,
+                              id: newId,
+                              name: `${recipe.name} (COPIA)`,
+                            };
+                            setRecipes([...recipes, newRecipe]);
+                            setEditingId(newId);
+                          }}
+                          className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
+                          title="Duplicar Sistema"
+                        >
+                          <Plus size={16} /> DUPLICAR
+                        </button>
+                        <button
+                          onClick={() =>
+                            generateRecipeTechnicalPDF(
+                              recipe,
+                              aluminum,
+                              accessories,
+                              config,
+                            )
+                          }
+                          className="px-4 py-4 rounded-2xl transition-all border shadow-md flex items-center gap-2 font-black text-[10px] uppercase tracking-widest active:scale-95 bg-white text-slate-600 border-slate-200 hover:bg-slate-50 "
+                          title="Descargar PDF"
+                        >
+                          <FileText size={16} /> PDF
+                        </button>
+                        <button
+                          onClick={handleSaveManual}
+                          className={`px-6 py-4 rounded-2xl transition-all border shadow-lg flex items-center gap-3 font-black text-[10px] uppercase tracking-widest active:scale-95 ${isSaving ? "bg-green-600 text-white border-green-700" : "bg-sky-500 text-white border-sky-600 hover:bg-sky-400"}`}
+                        >
+                          {isSaving ? <Check size={18} /> : <Save size={18} />}
+                          {isSaving ? "GUARDADO" : "GUARDAR CAMBIOS"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-4 items-center">
+                      <select
+                        className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none"
+                        value={recipe.type || ""}
+                        onChange={(e) =>
+                          updateRecipe(recipe.id, { type: e.target.value as any })
+                        }
+                      >
+                        {[
+                          "Ventana",
+                          "Puerta",
+                          "Mampara",
+                          "Paño Fijo",
+                          "Banderola",
+                          "Baranda",
+                          "Vidriera",
+                        ].map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none"
+                        value={recipe.visualType || ""}
+                        onChange={(e) =>
+                          updateRecipe(recipe.id, { visualType: e.target.value })
+                        }
+                      >
+                        {DEFAULT_VISUAL_TYPES.map((vt) => (
+                          <option key={vt.id} value={vt.id}>
+                            {vt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 rounded-xl border border-sky-100/50 `}
+                      >
+                        <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">
+                          Línea:
+                        </span>
+                        <input
+                          className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 outline-none w-24"
+                          value={recipe.line || ""}
+                          onChange={(e) =>
+                            updateRecipe(recipe.id, {
+                              line: e.target.value.toUpperCase(),
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-xl border border-emerald-100/50 `}
+                      >
+                        <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                          Cant. Hojas:
+                        </span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          placeholder="Auto"
+                          className="bg-transparent border-none text-[10px] font-black uppercase text-emerald-700 outline-none w-12 text-center"
+                          value={recipe.leaves || ""}
+                          onChange={(e) =>
+                            updateRecipe(recipe.id, {
+                              leaves: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            })
+                          }
+                        />
+                      </div>
+                      {isTubeType && (
+                        <div
+                          className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 rounded-xl border border-amber-200 animate-in zoom-in`}
+                        >
+                          <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">
+                            Espesor (mm):
+                          </span>
+                          <input
+                            type="number"
+                            className="bg-transparent border-none text-[10px] font-black text-amber-700 outline-none w-16 text-center"
+                            value={recipe.transomThickness || 100}
+                            onChange={(e) =>
+                              updateRecipe(recipe.id, {
+                                transomThickness: parseInt(e.target.value) || 0,
+                              })
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (confirm("¿Eliminar sistema?")) {
+                        const idToDelete = recipe.id;
+                        setRecipes(recipes.filter((r) => r.id !== idToDelete));
+                        setEditingId(null);
+
+                        if (isSupabaseConfigured && userId) {
+                          try {
+                            const { error } = await supabase
+                              .from("recetas_usuario")
+                              .delete()
+                              .eq("user_id", userId)
+                              .eq("master_ref", idToDelete);
+                            if (error) throw error;
+                            console.log("Receta eliminada de la nube con éxito.");
+                          } catch (err: any) {
+                            console.error("Error al eliminar receta de la nube:", err);
+                          }
+                        }
                       }
-                    }
-                  }
-                }}
-                className="shrink-0 p-4 bg-slate-50 text-slate-300 rounded-2xl hover:text-red-500 border border-slate-100 transition-colors"
-              >
-                <Trash2 size={20} />
-              </button>
+                    }}
+                    className="shrink-0 p-4 bg-slate-50 text-slate-300 rounded-2xl hover:text-red-500 border border-slate-100 transition-colors"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="space-y-4">
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">

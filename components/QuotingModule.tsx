@@ -64,6 +64,7 @@ import {
   calculateCompositePrice,
   evaluateFormula,
 } from "../services/calculator"; // CONSTANTES TÉCNICAS PARA RENDERIZADO
+import { RecipeIllustrationPreview } from "./ProductRecipeEditor";
 const TJ_LINE_COLOR = "rgba(15, 23, 42, 0.6)";
 interface Segment {
   x1: number;
@@ -563,7 +564,17 @@ const drawDetailedOpening = (
       return;
     const bT = leafHasZocalo ? zocaloT : leafT;
     const isHybrid45_90 =
-      leafType.includes("no_dintel") || leafType.includes("no_umbral");
+      leafType.includes("no_dintel") ||
+      leafType.includes("no_umbral") ||
+      leafType.includes("triple") ||
+      leafType.includes("four") ||
+      leafType.includes("three") ||
+      leafType.includes("sliding_3") ||
+      leafType.includes("sliding_4") ||
+      leafType.includes("corrediza_3") ||
+      leafType.includes("corrediza_4") ||
+      leafType.includes("3h") ||
+      leafType.includes("4h");
     drawGlassWithTransoms(
       lx + leafT,
       ly + leafT,
@@ -751,6 +762,26 @@ const drawDetailedOpening = (
             ctx.lineTo(x1, y2);
           } else {
             /* Hoja derecha -> Vértice izquierda (<) */ ctx.moveTo(x2, y1);
+            ctx.lineTo(x1, cy);
+            ctx.lineTo(x2, y2);
+          }
+        } else if (totalLeaves === 3) {
+          if (leafIndex === 0) {
+            /* Leaf 0 opens right (>) */ ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, cy);
+            ctx.lineTo(x1, y2);
+          } else {
+            /* Leaf 1 and 2 open left (<) */ ctx.moveTo(x2, y1);
+            ctx.lineTo(x1, cy);
+            ctx.lineTo(x2, y2);
+          }
+        } else if (totalLeaves === 4) {
+          if (leafIndex === 0 || leafIndex === 2) {
+            /* Leaves 0 and 2 open right (>) */ ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, cy);
+            ctx.lineTo(x1, y2);
+          } else {
+            /* Leaves 1 and 3 open left (<) */ ctx.moveTo(x2, y1);
             ctx.lineTo(x1, cy);
             ctx.lineTo(x2, y2);
           }
@@ -1012,7 +1043,68 @@ const drawDetailedOpening = (
       visualType.includes("batiente") ||
       visualType.includes("tilt_turn")
     ) {
-      if (visualType.includes("double")) {
+      if (visualType.includes("four_swing_door") || (visualType.includes("four") && (visualType.includes("door") || visualType.includes("rebatir")))) {
+        const totalW =
+          leafWidths && leafWidths.length >= 4
+            ? leafWidths.slice(0, 4).reduce((sum, val) => sum + val, 0)
+            : 0;
+        const leafWArr = Array.from({ length: 4 }, (_, i) => {
+          if (leafWidths && leafWidths.length >= 4 && totalW > 0) {
+            return (leafWidths[i] / totalW) * innerW;
+          }
+          return innerW / 4;
+        });
+        let currentLx = innerX;
+        for (let i = 0; i < 4; i++) {
+          const lw = leafWArr[i];
+          drawLeaf(
+            currentLx,
+            innerY,
+            innerH,
+            lw,
+            true,
+            true,
+            i === 0 && (extras?.mosquitero || false),
+            visualType,
+            y + h,
+            i,
+            4,
+            hand,
+          );
+          currentLx += lw;
+        }
+      } else if (visualType.includes("triple_swing_door") || (visualType.includes("triple") && (visualType.includes("door") || visualType.includes("rebatir"))) || visualType.includes("three")) {
+        const totalW =
+          leafWidths && leafWidths.length >= 3
+            ? leafWidths.slice(0, 3).reduce((sum, val) => sum + val, 0)
+            : 0;
+        const leafWArr = Array.from({ length: 3 }, (_, i) => {
+          if (leafWidths && leafWidths.length >= 3 && totalW > 0) {
+            return (leafWidths[i] / totalW) * innerW;
+          }
+          return innerW / 3;
+        });
+        const leafHasZocalo = true;
+        let currentLx = innerX;
+        for (let i = 0; i < 3; i++) {
+          const lw = leafWArr[i];
+          drawLeaf(
+            currentLx,
+            innerY,
+            innerH,
+            lw,
+            true,
+            leafHasZocalo,
+            i === 0 && (extras?.mosquitero || false),
+            visualType,
+            y + h,
+            i,
+            3,
+            hand,
+          );
+          currentLx += lw;
+        }
+      } else if (visualType.includes("double")) {
         const totalW =
           leafWidths && leafWidths.length >= 2
             ? leafWidths[0] + leafWidths[1]
@@ -3410,47 +3502,59 @@ const QuotingModule: React.FC<Props> = ({
                         ))}
                       </select>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 flex-1">
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
                         Tipología
                       </label>
-                      <select
-                        className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
-                        value={currentModForEdit.recipeId || ""}
-                        onChange={(e) => {
-                          const r = recipes.find(
-                            (x) => x.id === e.target.value,
-                          );
-                          if (r) {
-                            const processedAccs = ensureOneActivePerLabel(
-                              r.accessories || [],
-                            );
-                            updateModule(editingModuleId, {
-                              recipeId: r.id,
-                              transoms: [],
-                              overriddenAccessories: processedAccs,
-                              hand:
-                                r.type === "Puerta"
-                                  ? currentModForEdit.hand || "left"
-                                  : undefined,
-                            });
-                          }
-                        }}
-                      >
-                        <option value="">(SELECCIONE)</option>
-                        {[...recipes]
-                          .filter(
-                            (r) =>
-                              recipeFilter === "TODOS" ||
-                              (r.line || "").toUpperCase() === recipeFilter,
-                          )
-                          .sort((a,b) => (a.name||"").localeCompare(b.name||""))
-                          .map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
-                      </select>
+                      <div className="flex gap-4 items-center">
+                        <div className="flex-1">
+                          <select
+                            className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
+                            value={currentModForEdit.recipeId || ""}
+                            onChange={(e) => {
+                              const r = recipes.find(
+                                (x) => x.id === e.target.value,
+                              );
+                              if (r) {
+                                const processedAccs = ensureOneActivePerLabel(
+                                  r.accessories || [],
+                                );
+                                updateModule(editingModuleId, {
+                                  recipeId: r.id,
+                                  transoms: [],
+                                  overriddenAccessories: processedAccs,
+                                  hand:
+                                    r.type === "Puerta"
+                                      ? currentModForEdit.hand || "left"
+                                      : undefined,
+                                });
+                              }
+                            }}
+                          >
+                            <option value="">(SELECCIONE)</option>
+                            {[...recipes]
+                              .filter(
+                                (r) =>
+                                  recipeFilter === "TODOS" ||
+                                  (r.line || "").toUpperCase() === recipeFilter,
+                              )
+                              .sort((a,b) => (a.name||"").localeCompare(b.name||""))
+                              .map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        {currentModForEdit.recipeId && (() => {
+                          const r = recipes.find(x => x.id === currentModForEdit.recipeId);
+                          return r ? (
+                            <div className="w-16 h-16 bg-white border border-slate-200 rounded-xl p-1 shrink-0 flex items-center justify-center shadow-inner overflow-hidden">
+                              <RecipeIllustrationPreview visualType={r.visualType || ""} />
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
                     </div>
                     {recipes.find((r) => r.id === currentModForEdit.recipeId)
                       ?.leaves === 2 && (
