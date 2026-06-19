@@ -99,7 +99,11 @@ const drawDetailedOpening = (
   if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return;
 
   const isTrapezoid =
-    (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+    (recipe.type === "Paño Fijo" ||
+     recipe.name.toLowerCase().includes("paño fijo") ||
+     recipe.name.toLowerCase().includes("pf") ||
+     recipe.id === "vidrio_solo" ||
+     recipe.name.toLowerCase().includes("vidrio")) &&
     leftHeight !== undefined &&
     rightHeight !== undefined &&
     leftHeight > 0 &&
@@ -139,6 +143,63 @@ const drawDetailedOpening = (
   };
 
   if (isTrapezoid) {
+    const isVidrioSolo = recipe.id === "vidrio_solo" || (recipe.name || "").toLowerCase().includes("vidrio");
+    if (isVidrioSolo) {
+      const lhPx = leftHeight! * pxPerMm;
+      const rhPx = rightHeight! * pxPerMm;
+      const tlY = y + h - lhPx;
+      const trY = y + h - rhPx;
+      const blY = y + h;
+      const brY = y + h;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, tlY);
+      ctx.lineTo(x + w, trY);
+      ctx.lineTo(x + w, brY);
+      ctx.lineTo(x, blY);
+      ctx.closePath();
+
+      try {
+        const glassGrad = ctx.createLinearGradient(x, Math.min(tlY, trY), x + w, brY);
+        glassGrad.addColorStop(0, "#bae6fd");
+        glassGrad.addColorStop(0.5, "#f0f9ff");
+        glassGrad.addColorStop(1, "#bae6fd");
+        ctx.fillStyle = glassGrad;
+      } catch (e) {
+        ctx.fillStyle = "#bae6fd";
+      }
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.15)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Reflexión en diagonal
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
+      ctx.lineWidth = 1.8;
+      ctx.moveTo(x + w * 0.25, tlY + (blY - tlY) * 0.4);
+      ctx.lineTo(x + w * 0.75, trY + (brY - trY) * 0.6);
+      ctx.stroke();
+
+      // Etiqueta de texto de falsa escuadra
+      ctx.save();
+      ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+      ctx.font = "bold 13px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const cenX = x + w / 2;
+      const cenY = y + h - (lhPx + rhPx) / 4;
+      ctx.fillText(`📐 Vidrio F. Escuadra`, cenX, cenY - 10);
+      ctx.font = "italic 11px Inter, sans-serif";
+      ctx.fillText(`${leftHeight}mm | ${rightHeight}mm`, cenX, cenY + 10);
+      ctx.restore();
+
+      ctx.restore();
+      return;
+    }
+
     const lhPx = leftHeight! * pxPerMm;
     const rhPx = rightHeight! * pxPerMm;
     const tlY = y + h - lhPx;
@@ -2159,7 +2220,11 @@ const QuotingModule: React.FC<Props> = ({
         return overlaps;
       }; // Solo aplicamos el toggle si el segmento está en el extremo absoluto del conjunto
       const isTrapezoid =
-        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        (recipe.type === "Paño Fijo" ||
+         recipe.name.toLowerCase().includes("paño fijo") ||
+         recipe.name.toLowerCase().includes("pf") ||
+         recipe.id === "vidrio_solo" ||
+         recipe.name.toLowerCase().includes("vidrio")) &&
         mod.leftHeight !== undefined &&
         mod.rightHeight !== undefined &&
         mod.leftHeight > 0 &&
@@ -3632,15 +3697,22 @@ const QuotingModule: React.FC<Props> = ({
                   </div>
                 {(() => {
                   const r = recipes.find((x) => x.id === currentModForEdit.recipeId);
+                  const isGlass = r && (r.id === "vidrio_solo" || r.name.toLowerCase().includes("vidrio"));
                   const isPF = r && (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf"));
-                  if (!isPF) return null;
+                  if (!isPF && !isGlass) return null;
+                  
+                  const title = isGlass ? "📐 Configuración de Falsa Escuadra" : "📐 Configuración de Trapecio";
+                  const desc = isGlass 
+                    ? "Ingrese alturas diferentes para crear un vidrio en falsa escuadra. Si se dejan vacías, el sistema lo considerará como un vidrio rectangular normal."
+                    : "Ingrese alturas diferentes para crear un paño fijo trapecial. Si se dejan vacías, el sistema lo considerará como un paño fijo normal (rectangular).";
+
                   return (
                     <div className="flex flex-col gap-4 p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 shrink-0 animate-in slide-in-from-top-2">
-                      <h4 className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
-                        📐 Configuración de Trapecio
+                       <h4 className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                        {title}
                       </h4>
                       <p className="text-[10px] text-indigo-500/80 leading-relaxed font-bold">
-                        Ingrese alturas diferentes para crear un paño fijo trapecial. Si se dejan vacías, el sistema lo considerará como un paño fijo normal (rectangular).
+                        {desc}
                       </p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">

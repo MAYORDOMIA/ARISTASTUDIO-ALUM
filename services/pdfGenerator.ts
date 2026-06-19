@@ -275,7 +275,11 @@ export const generateBarOptimizationPDF = (
       );
 
       const isTrapezoid =
-        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        (recipe.type === "Paño Fijo" ||
+         recipe.name.toLowerCase().includes("paño fijo") ||
+         recipe.name.toLowerCase().includes("pf") ||
+         recipe.id === "vidrio_solo" ||
+         recipe.name.toLowerCase().includes("vidrio")) &&
         mod.leftHeight !== undefined &&
         mod.rightHeight !== undefined &&
         mod.leftHeight > 0 &&
@@ -1218,7 +1222,11 @@ export const generateMaterialsOrderPDF = (
       );
 
       const isTrapezoid =
-        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        (recipe.type === "Paño Fijo" ||
+         recipe.name.toLowerCase().includes("paño fijo") ||
+         recipe.name.toLowerCase().includes("pf") ||
+         recipe.id === "vidrio_solo" ||
+         recipe.name.toLowerCase().includes("vidrio")) &&
         mod.leftHeight !== undefined &&
         mod.rightHeight !== undefined &&
         mod.leftHeight > 0 &&
@@ -2573,7 +2581,11 @@ export const generateAssemblyOrderPDF = (
       );
 
       const isTrapezoid =
-        (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+        (recipe.type === "Paño Fijo" ||
+         recipe.name.toLowerCase().includes("paño fijo") ||
+         recipe.name.toLowerCase().includes("pf") ||
+         recipe.id === "vidrio_solo" ||
+         recipe.name.toLowerCase().includes("vidrio")) &&
         mod.leftHeight !== undefined &&
         mod.rightHeight !== undefined &&
         mod.leftHeight > 0 &&

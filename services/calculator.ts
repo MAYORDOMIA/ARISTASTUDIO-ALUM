@@ -501,7 +501,11 @@ export const calculateItemPrice = (
   let accCost = 0;
 
   const isTrapezoid =
-    (recipe.type === "Paño Fijo" || recipe.name.toLowerCase().includes("paño fijo") || recipe.name.toLowerCase().includes("pf")) &&
+    (recipe.type === "Paño Fijo" ||
+     recipe.name.toLowerCase().includes("paño fijo") ||
+     recipe.name.toLowerCase().includes("pf") ||
+     recipe.id === "vidrio_solo" ||
+     recipe.name.toLowerCase().includes("vidrio")) &&
     leftHeight !== undefined &&
     rightHeight !== undefined &&
     leftHeight > 0 &&
@@ -1203,10 +1207,14 @@ export const calculateItemPrice = (
             Number(config.blindPanelPricePerM2 || 0) * totalBillingArea * (1 + extraFactor);
         }
       } else {
+        let glassSurcharge = 1.0;
+        if (isTrapezoid && (recipe.id === "vidrio_solo" || recipe.name.toLowerCase().includes("vidrio"))) {
+          glassSurcharge = 1.30; // 30% recargo por corte en falsa escuadra para vidrios solos
+        }
         if (outerGlass)
-          glassCost += Number(outerGlass.pricePerM2 || 0) * totalBillingArea;
+          glassCost += Number(outerGlass.pricePerM2 || 0) * totalBillingArea * glassSurcharge;
         if (innerGlass)
-          glassCost += Number(innerGlass.pricePerM2 || 0) * totalBillingArea;
+          glassCost += Number(innerGlass.pricePerM2 || 0) * totalBillingArea * glassSurcharge;
         if (isDVH) {
           if (dvhCamera)
             glassCost +=
