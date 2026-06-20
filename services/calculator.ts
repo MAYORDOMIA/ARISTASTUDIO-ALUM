@@ -350,23 +350,148 @@ export const calculateCompositePrice = (
   // Cálculo de Tapajuntas Unificado (Para Individuales y Conjuntos)
   if (item.extras.tapajuntas && validModules.length > 0) {
     const firstRecipe = recipes.find((r) => r.id === validModules[0].recipeId);
-    const tjProfile = profiles.find(
+    let tjProfile = profiles.find(
       (p) => p.id === firstRecipe?.defaultTapajuntasProfileId,
     );
+    if (!tjProfile && firstRecipe) {
+      const tjRef = firstRecipe.profiles.find((p) => p.role === "Tapajuntas");
+      if (tjRef) tjProfile = profiles.find((p) => p.id === tjRef.profileId);
+    }
+    if (!tjProfile) {
+      tjProfile = profiles.find(
+        (p) =>
+          p.code.toUpperCase().includes("TJ") ||
+          p.detail.toLowerCase().includes("tapajunta"),
+      );
+    }
+
     if (tjProfile) {
       const tjThick = Number(tjProfile.thickness || 30);
       const { top, bottom, left, right } = item.extras.tapajuntasSides;
       let totalTjMm = 0;
 
+      const firstTrapMod = validModules.find((m) => {
+        const r = recipes.find((x) => x.id === m.recipeId);
+        if (!r) return false;
+        return (
+          (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+          m.leftHeight !== undefined &&
+          m.rightHeight !== undefined &&
+          m.leftHeight > 0 &&
+          m.rightHeight > 0 &&
+          m.leftHeight !== m.rightHeight
+        );
+      });
+
+      let lh = item.height;
+      let rh = item.height;
+      let isTrap = false;
+
+      if (isSet) {
+        const realDeduction = Number(cProfile?.thickness ?? item.composition.couplingDeduction ?? 0);
+
+        // LHS total height
+        let lhsSum = 0;
+        let lhsCouplings = 0;
+        for (let y = minY; y <= maxY; y++) {
+          const mod = validModules.find((m) => m.x === minX && m.y === y);
+          if (mod) {
+            const r = recipes.find((x) => x.id === mod.recipeId);
+            const { modH } = calculateModuleDimensions(
+              mod,
+              colRatios,
+              rowRatios,
+              minX,
+              maxX,
+              minY,
+              maxY,
+              realDeduction,
+              isManualDim,
+            );
+            
+            const isModTrap = r &&
+              (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+              mod.leftHeight !== undefined &&
+              mod.rightHeight !== undefined &&
+              mod.leftHeight > 0 &&
+              mod.rightHeight > 0 &&
+              mod.leftHeight !== mod.rightHeight;
+
+            const modLh = isModTrap ? mod.leftHeight! : modH;
+            lhsSum += modLh;
+            if (y < maxY) {
+              const belowMod = validModules.find((m) => m.x === minX && m.y === y + 1);
+              if (belowMod) {
+                lhsCouplings += realDeduction;
+              }
+            }
+          }
+        }
+        lh = lhsSum + lhsCouplings;
+
+        // RHS total height
+        let rhsSum = 0;
+        let rhsCouplings = 0;
+        for (let y = minY; y <= maxY; y++) {
+          const mod = validModules.find((m) => m.x === maxX && m.y === y);
+          if (mod) {
+            const r = recipes.find((x) => x.id === mod.recipeId);
+            const { modH } = calculateModuleDimensions(
+              mod,
+              colRatios,
+              rowRatios,
+              minX,
+              maxX,
+              minY,
+              maxY,
+              realDeduction,
+              isManualDim,
+            );
+            
+            const isModTrap = r &&
+              (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+              mod.leftHeight !== undefined &&
+              mod.rightHeight !== undefined &&
+              mod.leftHeight > 0 &&
+              mod.rightHeight > 0 &&
+              mod.leftHeight !== mod.rightHeight;
+
+            const modRh = isModTrap ? mod.rightHeight! : modH;
+            rhsSum += modRh;
+            if (y < maxY) {
+              const belowMod = validModules.find((m) => m.x === maxX && m.y === y + 1);
+              if (belowMod) {
+                rhsCouplings += realDeduction;
+              }
+            }
+          }
+        }
+        rh = rhsSum + rhsCouplings;
+        isTrap = !!firstTrapMod;
+      } else {
+        isTrap = !!firstTrapMod;
+        lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
+        rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+      }
+
+      const inclinedTJTop = isTrap
+        ? Math.sqrt(Math.pow(item.width, 2) + Math.pow(rh - lh, 2))
+        : item.width;
+
       // 1. Perímetro Exterior
-      if (top)
+      if (top) {
+        const baseLen = isTrap ? inclinedTJTop : item.width;
+        totalTjMm += baseLen + (left ? tjThick : 0) + (right ? tjThick : 0);
+      }
+      if (bottom) {
         totalTjMm += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-      if (bottom)
-        totalTjMm += item.width + (left ? tjThick : 0) + (right ? tjThick : 0);
-      if (left)
-        totalTjMm += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
-      if (right)
-        totalTjMm += item.height + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+      }
+      if (left) {
+        totalTjMm += lh + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+      }
+      if (right) {
+        totalTjMm += rh + (top ? tjThick : 0) + (bottom ? tjThick : 0);
+      }
 
       // 2. Desniveles Verticales (Solo aplica en conjuntos)
       if (isSet && colRatios.length > 1) {

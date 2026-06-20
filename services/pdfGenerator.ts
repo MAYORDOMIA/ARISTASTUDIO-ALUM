@@ -880,9 +880,103 @@ export const generateBarOptimizationPDF = (
           );
         });
 
-        const isTrap = !!firstTrapMod;
-        const lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
-        const rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        let lh = item.height;
+        let rh = item.height;
+        let isTrap = false;
+
+        if (isSet) {
+          const minX = Math.min(...validModules.map((m) => m.x));
+          const minY = Math.min(...validModules.map((m) => m.y));
+          const maxX = Math.max(...validModules.map((m) => m.x));
+          const maxY = Math.max(...validModules.map((m) => m.y));
+          const colRatios = item.composition.colRatios || [];
+          const rowRatios = item.composition.rowRatios || [];
+          const isManualDim = item.composition.isManualDim;
+
+          // LHS total height
+          let lhsSum = 0;
+          let lhsCouplings = 0;
+          for (let y = minY; y <= maxY; y++) {
+            const mod = validModules.find((m) => m.x === minX && m.y === y);
+            if (mod) {
+              const r = recipes.find((x) => x.id === mod.recipeId);
+              const { modH } = calculateModuleDimensions(
+                mod,
+                colRatios,
+                rowRatios,
+                minX,
+                maxX,
+                minY,
+                maxY,
+                realDeduction,
+                isManualDim,
+              );
+              
+              const isModTrap = r &&
+                (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+                mod.leftHeight !== undefined &&
+                mod.rightHeight !== undefined &&
+                mod.leftHeight > 0 &&
+                mod.rightHeight > 0 &&
+                mod.leftHeight !== mod.rightHeight;
+
+              const modLh = isModTrap ? mod.leftHeight! : modH;
+              lhsSum += modLh;
+              if (y < maxY) {
+                const belowMod = validModules.find((m) => m.x === minX && m.y === y + 1);
+                if (belowMod) {
+                  lhsCouplings += realDeduction;
+                }
+              }
+            }
+          }
+          lh = lhsSum + lhsCouplings;
+
+          // RHS total height
+          let rhsSum = 0;
+          let rhsCouplings = 0;
+          for (let y = minY; y <= maxY; y++) {
+            const mod = validModules.find((m) => m.x === maxX && m.y === y);
+            if (mod) {
+              const r = recipes.find((x) => x.id === mod.recipeId);
+              const { modH } = calculateModuleDimensions(
+                mod,
+                colRatios,
+                rowRatios,
+                minX,
+                maxX,
+                minY,
+                maxY,
+                realDeduction,
+                isManualDim,
+              );
+              
+              const isModTrap = r &&
+                (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+                mod.leftHeight !== undefined &&
+                mod.rightHeight !== undefined &&
+                mod.leftHeight > 0 &&
+                mod.rightHeight > 0 &&
+                mod.leftHeight !== mod.rightHeight;
+
+              const modRh = isModTrap ? mod.rightHeight! : modH;
+              rhsSum += modRh;
+              if (y < maxY) {
+                const belowMod = validModules.find((m) => m.x === maxX && m.y === y + 1);
+                if (belowMod) {
+                  rhsCouplings += realDeduction;
+                }
+              }
+            }
+          }
+          rh = rhsSum + rhsCouplings;
+          isTrap = !!firstTrapMod;
+        } else {
+          isTrap = !!firstTrapMod;
+          lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
+          rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        }
+
         const inclinedTJTop = isTrap
           ? Math.sqrt(Math.pow(item.width, 2) + Math.pow(rh - lh, 2))
           : item.width;
@@ -1061,15 +1155,40 @@ export const generateBarOptimizationPDF = (
       cutsByProfile.set(item.couplingProfileId, list);
     }
   });
-  let y = 40;
+  // Convert cutsByProfile Map to an array of profiles with their cuts, and separate cameras
+  const profilesWithCuts: {
+    profileId: string;
+    profile: any;
+    cuts: any[];
+  }[] = [];
+
   cutsByProfile.forEach((cuts, profileId) => {
     let profile = aluminum.find((p) => p.id === profileId) as any;
     if (!profile) {
       const bp = blindPanels.find((x) => x.id === profileId);
-      if (bp)
+      if (bp) {
         profile = { id: bp.id, code: bp.code, detail: bp.detail, barLength: 6 };
+      }
     }
-    if (!profile || cuts.length === 0) return;
+    if (profile && cuts.length > 0) {
+      profilesWithCuts.push({ profileId, profile, cuts });
+    }
+  });
+
+  const isCameraProfile = (prof: any) => {
+    if (!prof) return false;
+    const code = String(prof.code || "").toLowerCase();
+    const detail = String(prof.detail || "").toLowerCase();
+    return code.includes("cmra") || code.includes("camara") || code.includes("cámara");
+  };
+
+  const normalProfiles = profilesWithCuts.filter((item) => !isCameraProfile(item.profile));
+  const cameraProfiles = profilesWithCuts.filter((item) => isCameraProfile(item.profile));
+  const orderedProfilesWithCuts = [...normalProfiles, ...cameraProfiles];
+
+  let y = 40;
+  orderedProfilesWithCuts.forEach(({ profile, cuts }) => {
+    const isCam = isCameraProfile(profile);
     const barLenMm =
       profile.barLength > 100 ? profile.barLength : profile.barLength * 1000;
     cuts.sort((a, b) => b.len - a.len);
@@ -1117,7 +1236,12 @@ export const generateBarOptimizationPDF = (
       let curX = 15;
       bin.forEach((cut) => {
         const pieceW = (cut.len / barLenMm) * barW;
-        doc.setFillColor(100, 149, 237);
+        if (isCam) {
+          // Color amarillonaranja (Yellow-Orange, e.g., RGB 245, 158, 11)
+          doc.setFillColor(245, 158, 11);
+        } else {
+          doc.setFillColor(100, 149, 237);
+        }
         doc.setDrawColor(255);
         doc.setLineWidth(0.3);
         drawGeometricPiece(
@@ -1674,9 +1798,103 @@ export const generateMaterialsOrderPDF = (
           );
         });
 
-        const isTrap = !!firstTrapMod;
-        const lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
-        const rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        let lh = item.height;
+        let rh = item.height;
+        let isTrap = false;
+
+        if (isSet) {
+          const minX = Math.min(...validModules.map((m) => m.x));
+          const minY = Math.min(...validModules.map((m) => m.y));
+          const maxX = Math.max(...validModules.map((m) => m.x));
+          const maxY = Math.max(...validModules.map((m) => m.y));
+          const colRatios = item.composition.colRatios || [];
+          const rowRatios = item.composition.rowRatios || [];
+          const isManualDim = item.composition.isManualDim;
+
+          // LHS total height
+          let lhsSum = 0;
+          let lhsCouplings = 0;
+          for (let y = minY; y <= maxY; y++) {
+            const mod = validModules.find((m) => m.x === minX && m.y === y);
+            if (mod) {
+              const r = recipes.find((x) => x.id === mod.recipeId);
+              const { modH } = calculateModuleDimensions(
+                mod,
+                colRatios,
+                rowRatios,
+                minX,
+                maxX,
+                minY,
+                maxY,
+                realDeduction,
+                isManualDim,
+              );
+              
+              const isModTrap = r &&
+                (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+                mod.leftHeight !== undefined &&
+                mod.rightHeight !== undefined &&
+                mod.leftHeight > 0 &&
+                mod.rightHeight > 0 &&
+                mod.leftHeight !== mod.rightHeight;
+
+              const modLh = isModTrap ? mod.leftHeight! : modH;
+              lhsSum += modLh;
+              if (y < maxY) {
+                const belowMod = validModules.find((m) => m.x === minX && m.y === y + 1);
+                if (belowMod) {
+                  lhsCouplings += realDeduction;
+                }
+              }
+            }
+          }
+          lh = lhsSum + lhsCouplings;
+
+          // RHS total height
+          let rhsSum = 0;
+          let rhsCouplings = 0;
+          for (let y = minY; y <= maxY; y++) {
+            const mod = validModules.find((m) => m.x === maxX && m.y === y);
+            if (mod) {
+              const r = recipes.find((x) => x.id === mod.recipeId);
+              const { modH } = calculateModuleDimensions(
+                mod,
+                colRatios,
+                rowRatios,
+                minX,
+                maxX,
+                minY,
+                maxY,
+                realDeduction,
+                isManualDim,
+              );
+              
+              const isModTrap = r &&
+                (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+                mod.leftHeight !== undefined &&
+                mod.rightHeight !== undefined &&
+                mod.leftHeight > 0 &&
+                mod.rightHeight > 0 &&
+                mod.leftHeight !== mod.rightHeight;
+
+              const modRh = isModTrap ? mod.rightHeight! : modH;
+              rhsSum += modRh;
+              if (y < maxY) {
+                const belowMod = validModules.find((m) => m.x === maxX && m.y === y + 1);
+                if (belowMod) {
+                  rhsCouplings += realDeduction;
+                }
+              }
+            }
+          }
+          rh = rhsSum + rhsCouplings;
+          isTrap = !!firstTrapMod;
+        } else {
+          isTrap = !!firstTrapMod;
+          lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
+          rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        }
+
         const inclinedTJTop = isTrap
           ? Math.sqrt(Math.pow(item.width, 2) + Math.pow(rh - lh, 2))
           : item.width;
@@ -3078,9 +3296,103 @@ export const generateAssemblyOrderPDF = (
           );
         });
 
-        const isTrap = !!firstTrapMod;
-        const lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
-        const rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        let lh = item.height;
+        let rh = item.height;
+        let isTrap = false;
+
+        if (isSet) {
+          const minX = Math.min(...validModules.map((m) => m.x));
+          const minY = Math.min(...validModules.map((m) => m.y));
+          const maxX = Math.max(...validModules.map((m) => m.x));
+          const maxY = Math.max(...validModules.map((m) => m.y));
+          const colRatios = item.composition.colRatios || [];
+          const rowRatios = item.composition.rowRatios || [];
+          const isManualDim = item.composition.isManualDim;
+
+          // LHS total height
+          let lhsSum = 0;
+          let lhsCouplings = 0;
+          for (let y = minY; y <= maxY; y++) {
+            const mod = validModules.find((m) => m.x === minX && m.y === y);
+            if (mod) {
+              const r = recipes.find((x) => x.id === mod.recipeId);
+              const { modH } = calculateModuleDimensions(
+                mod,
+                colRatios,
+                rowRatios,
+                minX,
+                maxX,
+                minY,
+                maxY,
+                realDeduction,
+                isManualDim,
+              );
+              
+              const isModTrap = r &&
+                (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+                mod.leftHeight !== undefined &&
+                mod.rightHeight !== undefined &&
+                mod.leftHeight > 0 &&
+                mod.rightHeight > 0 &&
+                mod.leftHeight !== mod.rightHeight;
+
+              const modLh = isModTrap ? mod.leftHeight! : modH;
+              lhsSum += modLh;
+              if (y < maxY) {
+                const belowMod = validModules.find((m) => m.x === minX && m.y === y + 1);
+                if (belowMod) {
+                  lhsCouplings += realDeduction;
+                }
+              }
+            }
+          }
+          lh = lhsSum + lhsCouplings;
+
+          // RHS total height
+          let rhsSum = 0;
+          let rhsCouplings = 0;
+          for (let y = minY; y <= maxY; y++) {
+            const mod = validModules.find((m) => m.x === maxX && m.y === y);
+            if (mod) {
+              const r = recipes.find((x) => x.id === mod.recipeId);
+              const { modH } = calculateModuleDimensions(
+                mod,
+                colRatios,
+                rowRatios,
+                minX,
+                maxX,
+                minY,
+                maxY,
+                realDeduction,
+                isManualDim,
+              );
+              
+              const isModTrap = r &&
+                (r.type === "Paño Fijo" || r.name.toLowerCase().includes("paño fijo") || r.name.toLowerCase().includes("pf")) &&
+                mod.leftHeight !== undefined &&
+                mod.rightHeight !== undefined &&
+                mod.leftHeight > 0 &&
+                mod.rightHeight > 0 &&
+                mod.leftHeight !== mod.rightHeight;
+
+              const modRh = isModTrap ? mod.rightHeight! : modH;
+              rhsSum += modRh;
+              if (y < maxY) {
+                const belowMod = validModules.find((m) => m.x === maxX && m.y === y + 1);
+                if (belowMod) {
+                  rhsCouplings += realDeduction;
+                }
+              }
+            }
+          }
+          rh = rhsSum + rhsCouplings;
+          isTrap = !!firstTrapMod;
+        } else {
+          isTrap = !!firstTrapMod;
+          lh = isTrap ? firstTrapMod!.leftHeight! : item.height;
+          rh = isTrap ? firstTrapMod!.rightHeight! : item.height;
+        }
+
         const inclinedTJTop = isTrap
           ? Math.sqrt(Math.pow(item.width, 2) + Math.pow(rh - lh, 2))
           : item.width;
