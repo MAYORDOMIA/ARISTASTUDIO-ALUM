@@ -14,8 +14,14 @@ export const filterDVHProfiles = <T extends { profileId?: string; accessoryId?: 
   dvhInputs: any[],
   lookupArray: any[] // aluminum for profiles, accessories for accessories
 ): T[] => {
+  const isContravidrioItem = (item: any): boolean => {
+    const role = (item.role || "").toLowerCase();
+    return role.includes("contravidrio") || role.includes("contra");
+  };
+
   if (!isDVH || !dvhCameraId) {
     return items.filter(item => {
+       if (isContravidrioItem(item)) return true;
        const def = lookupArray.find(a => a.id === (item.profileId || item.accessoryId));
        if (!def) return true;
        // Only filter out items that EXPLICITLY state they are for DVH.
@@ -36,6 +42,7 @@ export const filterDVHProfiles = <T extends { profileId?: string; accessoryId?: 
   }
 
   return items.filter((item) => {
+    if (isContravidrioItem(item)) return true;
     const defId = item.profileId || item.accessoryId;
     const def = lookupArray.find((a) => String(a.id) === String(defId) || String(a.code) === String(defId));
     if (!def) return true; // Keep if not found

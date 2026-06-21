@@ -645,8 +645,10 @@ export const calculateItemPrice = (
   const outerGlassObj = glasses.find((g) => g.id === glassOuterId);
   const innerGlassObj =
     isDVH && glassInnerId ? glasses.find((g) => g.id === glassInnerId) : null;
+  const defaultCamInput = dvhInputs.find((i) => i.type === "Cámara") || dvhInputs[0];
+  const effectiveCameraId = isDVH ? (dvhCameraId || defaultCamInput?.id) : undefined;
   const dvhCameraObj =
-    isDVH && dvhCameraId ? dvhInputs.find((i) => i.id === dvhCameraId) : null;
+    isDVH && effectiveCameraId ? dvhInputs.find((i) => i.id === effectiveCameraId) : null;
 
   // Estimación simple del espesor de la cámara (si el nombre contiene mm, o un valor por defecto)
   let cameraThickness = 0;
@@ -1291,9 +1293,11 @@ export const calculateItemPrice = (
   const outerGlass = glasses.find((g) => g.id === glassOuterId);
   const innerGlass =
     isDVH && glassInnerId ? glasses.find((g) => g.id === glassInnerId) : null;
+  const defaultCamInputGlass = dvhInputs.find((i) => i.type === "Cámara") || dvhInputs[0];
+  const effectiveCameraIdGlass = isDVH ? (dvhCameraId || defaultCamInputGlass?.id) : undefined;
   const dvhCamera =
-    isDVH && dvhCameraId
-      ? dvhInputs.find((i) => i.id === dvhCameraId && i.type === "Cámara")
+    isDVH && effectiveCameraIdGlass
+      ? dvhInputs.find((i) => i.id === effectiveCameraIdGlass && i.type === "Cámara")
       : null;
 
   if (quotingMode !== "Solo Marcos") {
@@ -1353,15 +1357,15 @@ export const calculateItemPrice = (
                 (glassCost += Number(input.cost || 0) * areaM2 * numLeaves),
             );
           
-          if (!blindPanes.includes(index) && dvhCameraId) {
+          if (!blindPanes.includes(index) && effectiveCameraIdGlass) {
              const { profiles: rawDvhProfs } = getDVHExtras(recipes, isDVH);
-             const dvhProfs = filterDVHProfiles(rawDvhProfs, isDVH, dvhCameraId, dvhInputs, profiles) as any[];
+             const dvhProfs = filterDVHProfiles(rawDvhProfs, isDVH, effectiveCameraIdGlass, dvhInputs, profiles) as any[];
              const wasteFactor = 1.1; // Default 10% waste for DVH profiles
              dvhProfs.forEach(rp => {
                  const p = profiles.find((x) => x.id === rp.profileId);
                  if (p) {
                      const lenMm = evaluateFormula(rp.formula, pane.w, pane.h);
-                     const totalMeters = (lenMm / 1000) * Number(rp.quantity || 1) * numLeaves * wasteFactor;
+                     const totalMeters = (lenMm / 1000) * Number(rp.quantity || 1) * 2 * numLeaves * wasteFactor;
                      totalAluWeight += totalMeters * p.weightPerMeter;
                      aluCost += totalMeters * p.weightPerMeter * baseAluPrice;
                  }

@@ -88,8 +88,22 @@ const getModuleGlassPanes = (
     isManualDim,
   );
 
+  const isTrapezoid =
+    (recipe.type === "Paño Fijo" ||
+     recipe.name.toLowerCase().includes("paño fijo") ||
+     recipe.name.toLowerCase().includes("pf") ||
+     recipe.id === "vidrio_solo" ||
+     recipe.name.toLowerCase().includes("vidrio")) &&
+    mod.leftHeight !== undefined &&
+    mod.rightHeight !== undefined &&
+    mod.leftHeight > 0 &&
+    mod.rightHeight > 0 &&
+    mod.leftHeight !== mod.rightHeight;
+
   const adjustedW = modW - (recipe.glassDeductionW || 0);
-  const adjustedH = modH - (recipe.glassDeductionH || 0);
+  const adjustedH = isTrapezoid
+    ? Math.max(mod.leftHeight!, mod.rightHeight!) - (recipe.glassDeductionH || 0)
+    : modH - (recipe.glassDeductionH || 0);
   const visualType = (recipe.visualType || "").toLowerCase();
 
   let numLeaves = recipe.leaves || 1;
@@ -208,6 +222,11 @@ const getModuleGlassPanes = (
   return allPanes;
 };
 
+const getModuleLabel = (itemCode: string, isSet: boolean, modIdx: number): string => {
+  if (!isSet || modIdx < 0) return itemCode;
+  return `${itemCode}${String.fromCharCode(97 + modIdx)}`;
+};
+
 export const generateBarOptimizationPDF = (
   quote: Quote,
   recipes: ProductRecipe[],
@@ -260,6 +279,8 @@ export const generateBarOptimizationPDF = (
     const maxY = Math.max(...validModules.map((m) => m.y));
 
     validModules.forEach((mod) => {
+      const modIdx = validModules.indexOf(mod);
+      const itemCode = getModuleLabel(item.itemCode || `POS#${posIdx + 1}`, isSet, modIdx);
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe) return;
       const { modW, modH } = calculateModuleDimensions(
@@ -334,8 +355,10 @@ export const generateBarOptimizationPDF = (
       const gInner = mod.isDVH
         ? glasses.find((g) => g.id === mod.glassInnerId)
         : null;
-      const dvhCam = mod.isDVH
-        ? dvhInputs.find((i) => i.id === mod.dvhCameraId)
+      const defaultCamInput = dvhInputs.find((i) => i.type === "Cámara") || dvhInputs[0];
+      const effectiveCameraId = mod.isDVH ? (mod.dvhCameraId || defaultCamInput?.id) : undefined;
+      const dvhCam = mod.isDVH && effectiveCameraId
+        ? dvhInputs.find((i) => i.id === effectiveCameraId)
         : null;
       let camThick = 12;
       if (dvhCam) {
@@ -359,7 +382,7 @@ export const generateBarOptimizationPDF = (
       const beadStyle = item.glazingBeadStyle || "Recto";
 
       const usedGlazingBeadIds = new Set<string>();
-      const filteredProfiles1 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+      const filteredProfiles1 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
 
       let totalPlainHorizontalMarcoQty = 0;
       filteredProfiles1.forEach((rp) => {
@@ -754,9 +777,9 @@ export const generateBarOptimizationPDF = (
         });
       }
 
-      if (mod.isDVH && mod.dvhCameraId) {
+      if (mod.isDVH && effectiveCameraId) {
          const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
-         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
          panes.forEach(pane => {
              if (pane.isBlind) return;
@@ -765,7 +788,7 @@ export const generateBarOptimizationPDF = (
                  if (!pDef) return;
                  let length = evaluateFormula(rp.formula, pane.w, pane.h);
                  const list = cutsByProfile.get(pDef.id) || [];
-                 for (let k = 0; k < item.quantity * Number(rp.quantity || 1); k++) {
+                 for (let k = 0; k < item.quantity * Number(rp.quantity || 1) * 2; k++) {
                      list.push({
                          len: length,
                          type: pDef.detail,
@@ -1111,13 +1134,15 @@ export const generateBarOptimizationPDF = (
                   ? mR.height
                   : Number(rowRatios[y - minY] || 0);
               const cutLen = Math.min(hL, hR);
+              const idxL = validModules.indexOf(mL);
+              const coupLabel = getModuleLabel(itemCode, isSet, idxL);
               for (let k = 0; k < item.quantity; k++) {
                 list.push({
-                  len: cutLen,
-                  type: "Acople V",
-                  cutStart: "90",
-                  cutEnd: "90",
-                  label: itemCode,
+                   len: cutLen,
+                   type: "Acople V",
+                   cutStart: "90",
+                   cutEnd: "90",
+                   label: coupLabel,
                 });
               }
             }
@@ -1139,13 +1164,15 @@ export const generateBarOptimizationPDF = (
                   ? mB.width
                   : Number(colRatios[x - minX] || 0);
               const cutLen = Math.min(wT, wB);
+              const idxT = validModules.indexOf(mT);
+              const coupLabel = getModuleLabel(itemCode, isSet, idxT);
               for (let k = 0; k < item.quantity; k++) {
                 list.push({
-                  len: cutLen,
-                  type: "Acople H",
-                  cutStart: "90",
-                  cutEnd: "90",
-                  label: itemCode,
+                   len: cutLen,
+                   type: "Acople H",
+                   cutStart: "90",
+                   cutEnd: "90",
+                   label: coupLabel,
                 });
               }
             }
@@ -1375,8 +1402,10 @@ export const generateMaterialsOrderPDF = (
       const gInner = mod.isDVH
         ? glasses.find((g) => g.id === mod.glassInnerId)
         : null;
-      const dvhCam = mod.isDVH
-        ? dvhInputs.find((i) => i.id === mod.dvhCameraId)
+      const defaultCamInput = dvhInputs.find((i) => i.type === "Cámara") || dvhInputs[0];
+      const effectiveCameraId = mod.isDVH ? (mod.dvhCameraId || defaultCamInput?.id) : undefined;
+      const dvhCam = mod.isDVH && effectiveCameraId
+        ? dvhInputs.find((i) => i.id === effectiveCameraId)
         : null;
       let camThick = 12;
       if (dvhCam) {
@@ -1400,7 +1429,7 @@ export const generateMaterialsOrderPDF = (
       const beadStyle = (item as any).glazingBeadStyle || "Recto";
 
       const usedGlazingBeadIds = new Set<string>();
-      const filteredProfiles2 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+      const filteredProfiles2 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
 
       let totalPlainHorizontalMarcoQty = 0;
       filteredProfiles2.forEach((rp) => {
@@ -1627,9 +1656,9 @@ export const generateMaterialsOrderPDF = (
         });
       }
 
-      if (mod.isDVH && mod.dvhCameraId) {
+      if (mod.isDVH && effectiveCameraId) {
          const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
-         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
          panes.forEach(pane => {
              if (pane.isBlind) return;
@@ -1637,7 +1666,7 @@ export const generateMaterialsOrderPDF = (
                  let pDef = aluminum.find((a) => a.id === rp.profileId);
                  if (!pDef) return;
                  let length = evaluateFormula(rp.formula, pane.w, pane.h);
-                 const totalMm = (length + config.discWidth) * Number(rp.quantity || 1) * item.quantity;
+                 const totalMm = (length + config.discWidth) * Number(rp.quantity || 1) * 2 * item.quantity;
                  const existing = aluSummary.get(pDef.id) || {
                      code: pDef.code,
                      detail: pDef.detail,
@@ -2467,7 +2496,18 @@ export const generateClientDetailedPDF = (
         }
       }
     }
-    let desc = `${item.itemCode || `POS#${idx + 1}`}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || "-"}\nLlenado: ${glassDetailStr}${topAccessories}`;
+    const isSet = item.composition.modules.length > 1;
+    const itemCode = item.itemCode || `POS#${idx + 1}`;
+    let modulesListStr = "";
+    if (isSet) {
+      const parts = item.composition.modules.map((m, mIdx) => {
+        const r = recipes.find((x) => x.id === m.recipeId);
+        const subCode = getModuleLabel(itemCode, true, mIdx);
+        return `   - ${subCode}: ${r?.name || "Módulo"}`;
+      });
+      modulesListStr = `\nComposición:\n${parts.join("\n")}`;
+    }
+    let desc = `${itemCode}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || "-"}\nLlenado: ${glassDetailStr}${topAccessories}${modulesListStr}`;
     if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
     return [
       idx + 1,
@@ -2784,6 +2824,8 @@ export const generateAssemblyOrderPDF = (
     }
     const profileCuts: any[] = [];
     validModules.forEach((mod) => {
+      const modIdx = validModules.indexOf(mod);
+      const modLabel = getModuleLabel(item.itemCode || `POS#${idx + 1}`, isSet, modIdx);
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe) return;
       const { modW, modH } = calculateModuleDimensions(
@@ -2828,8 +2870,10 @@ export const generateAssemblyOrderPDF = (
       const gInner = mod.isDVH
         ? glasses.find((g) => g.id === mod.glassInnerId)
         : null;
-      const dvhCam = mod.isDVH
-        ? dvhInputs.find((i) => i.id === mod.dvhCameraId)
+      const defaultCamInput = dvhInputs.find((i) => i.type === "Cámara") || dvhInputs[0];
+      const effectiveCameraId = mod.isDVH ? (mod.dvhCameraId || defaultCamInput?.id) : undefined;
+      const dvhCam = mod.isDVH && effectiveCameraId
+        ? dvhInputs.find((i) => i.id === effectiveCameraId)
         : null;
       let camThick = 12;
       if (dvhCam) {
@@ -2852,7 +2896,7 @@ export const generateAssemblyOrderPDF = (
         getThick(gOuter) + (mod.isDVH ? getThick(gInner) + camThick : 0);
       const beadStyle = item.glazingBeadStyle || "Recto";
 
-      const filteredProfiles3 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+      const filteredProfiles3 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
 
       let totalPlainHorizontalMarcoQty = 0;
       filteredProfiles3.forEach((rp) => {
@@ -2886,7 +2930,8 @@ export const generateAssemblyOrderPDF = (
           return;
         const role = rp.role?.toLowerCase() || "";
         if (role === "travesaño") return;
-        let p = aluminum.find((a) => a.id === rp.profileId);
+        let pRaw = aluminum.find((a) => a.id === rp.profileId);
+        let p = pRaw ? { ...pRaw, detail: isSet ? `${pRaw.detail} (${modLabel})` : pRaw.detail } : null;
 
         // Lógica de Contravidrio Dinámico
         if (
@@ -3108,8 +3153,9 @@ export const generateAssemblyOrderPDF = (
       });
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
-          const trProf = aluminum.find((p) => p.id === t.profileId);
-          if (trProf) {
+          const trProfRaw = aluminum.find((p) => p.id === t.profileId);
+          if (trProfRaw) {
+            const trProf = { ...trProfRaw, detail: isSet ? `${trProfRaw.detail} (${modLabel})` : trProfRaw.detail };
             const f = t.formula || recipeTransomFormula;
             const cutLen = evaluateFormula(f, modW, modH);
             profileCuts.push([
@@ -3123,21 +3169,22 @@ export const generateAssemblyOrderPDF = (
         });
       }
 
-      if (mod.isDVH && mod.dvhCameraId) {
+      if (mod.isDVH && effectiveCameraId) {
          const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
-         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, mod.dvhCameraId, dvhInputs, aluminum) as any[];
+         const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
          panes.forEach(pane => {
              if (pane.isBlind) return;
              dvhProfs.forEach(rp => {
-                 let pDef = aluminum.find((a) => a.id === rp.profileId);
-                 if (!pDef) return;
+                 let pDefRaw = aluminum.find((a) => a.id === rp.profileId);
+                 if (!pDefRaw) return;
+                 let pDef = { ...pDefRaw, detail: isSet ? `${pDefRaw.detail} (${modLabel})` : pDefRaw.detail };
                  let length = evaluateFormula(rp.formula, pane.w, pane.h);
                  profileCuts.push([
                      pDef.code || "S/D",
                      pDef.detail || "-",
                      Math.round(length),
-                     rp.quantity,
+                     Number(rp.quantity || 1) * 2,
                      `${rp.cutStart || 90}° / ${rp.cutEnd || 90}°`,
                  ]);
              });
@@ -3216,9 +3263,11 @@ export const generateAssemblyOrderPDF = (
                   isManualDim && mR.height
                     ? mR.height
                     : Number(rowRatios[y - minY] || 0);
+                const idxL = validModules.indexOf(mL);
+                const coupLabel = getModuleLabel(item.itemCode || `POS#${idx + 1}`, isSet, idxL);
                 profileCuts.push([
                   trProf.code,
-                  "Acople Conjunto V",
+                  `Acople Conjunto V (${coupLabel})`,
                   Math.round(Math.min(hL, hR)),
                   1,
                   "90° / 90°",
@@ -3241,9 +3290,11 @@ export const generateAssemblyOrderPDF = (
                   isManualDim && mB.width
                     ? mB.width
                     : Number(colRatios[x - minX] || 0);
+                const idxT = validModules.indexOf(mT);
+                const coupLabel = getModuleLabel(item.itemCode || `POS#${idx + 1}`, isSet, idxT);
                 profileCuts.push([
                   trProf.code,
-                  "Acople Conjunto H",
+                  `Acople Conjunto H (${coupLabel})`,
                   Math.round(Math.min(wT, wB)),
                   1,
                   "90° / 90°",
@@ -3500,6 +3551,8 @@ export const generateAssemblyOrderPDF = (
     const glassPieces: any[] = [];
     if (item.quotingMode !== "Solo Marcos") {
       validModules.forEach((mod) => {
+        const modIdx = validModules.indexOf(mod);
+        const modLabel = getModuleLabel(item.itemCode || `POS#${idx + 1}`, isSet, modIdx);
         const recipe = recipes.find((r) => r.id === mod.recipeId);
         if (!recipe) return;
         const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
@@ -3548,7 +3601,7 @@ export const generateAssemblyOrderPDF = (
       panes.forEach((p, pIdx) => {
         if (!p.isBlind) {
           glassPieces.push([
-            `Paño ${pIdx + 1}`,
+            `${modLabel} - Paño ${pIdx + 1}`,
             spec,
             `${Math.round(p.w)} x ${Math.round(p.h)}`,
             1,
@@ -3560,7 +3613,7 @@ export const generateAssemblyOrderPDF = (
             ? `CIEGO (TABLILLAS ${slatProf.code})`
             : "PANEL CIEGO";
           glassPieces.push([
-            `Paño ${pIdx + 1}`,
+            `${modLabel} - Paño ${pIdx + 1}`,
             blindText,
             `${Math.round(p.w)} x ${Math.round(p.h)}`,
             1,
@@ -3737,8 +3790,10 @@ export const generateGlassOptimizationPDF = (
   const listTableData: any[] = [];
   quote.items.forEach((item, itemIdx) => {
     if (item.quotingMode === "Solo Marcos") return;
+    const isSet = item.composition.modules.length > 1;
     
-    item.composition.modules.forEach((mod) => {
+    item.composition.modules.forEach((mod, modIdx) => {
+      const modLabel = getModuleLabel(item.itemCode || `POS#${itemIdx + 1}`, isSet, modIdx);
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe || recipe.visualType === "mosquitero") return;
       const visualType = (recipe.visualType || "").toLowerCase();
@@ -3780,7 +3835,7 @@ export const generateGlassOptimizationPDF = (
           const qtyPerSheet = item.quantity;
           const outerSpec = gOuter?.detail || "Vidrio Ext";
           listTableData.push([
-            item.itemCode || `POS#${itemIdx + 1}`,
+            modLabel,
             outerSpec,
             `${Math.round(pane.w)} x ${Math.round(pane.h)}`,
             qtyPerSheet,
@@ -3788,7 +3843,7 @@ export const generateGlassOptimizationPDF = (
           for (let i = 0; i < qtyPerSheet; i++) {
             allPieces.push({
               id: `${item.id}-ext-${i}-${Math.random()}`,
-              itemCode: item.itemCode || `POS#${itemIdx + 1}`,
+              itemCode: modLabel,
               spec: outerSpec,
               w: Math.round(pane.w),
               h: Math.round(pane.h),
@@ -3798,7 +3853,7 @@ export const generateGlassOptimizationPDF = (
           if (mod.isDVH && gInner) {
             const innerSpec = gInner.detail || "Vidrio Int";
             listTableData.push([
-              item.itemCode || `POS#${itemIdx + 1}`,
+              modLabel,
               innerSpec,
               `${Math.round(pane.w)} x ${Math.round(pane.h)}`,
               qtyPerSheet,
@@ -3806,7 +3861,7 @@ export const generateGlassOptimizationPDF = (
             for (let i = 0; i < qtyPerSheet; i++) {
               allPieces.push({
                 id: `${item.id}-int-${i}-${Math.random()}`,
-                itemCode: item.itemCode || `POS#${itemIdx + 1}`,
+                itemCode: modLabel,
                 spec: innerSpec,
                 w: Math.round(pane.w),
                 h: Math.round(pane.h),
@@ -3821,7 +3876,7 @@ export const generateGlassOptimizationPDF = (
             const qtyPerSheet = item.quantity;
             const panelSpec = `PANEL CIEGO: ${bp.detail}`;
             listTableData.push([
-              item.itemCode || `POS#${itemIdx + 1}`,
+              modLabel,
               panelSpec,
               `${Math.round(pane.w)} x ${Math.round(pane.h)}`,
               qtyPerSheet,
@@ -3829,7 +3884,7 @@ export const generateGlassOptimizationPDF = (
             for (let i = 0; i < qtyPerSheet; i++) {
               allPieces.push({
                 id: `${item.id}-blind-${i}-${Math.random()}`,
-                itemCode: item.itemCode || `POS#${itemIdx + 1}`,
+                itemCode: modLabel,
                 spec: panelSpec,
                 w: Math.round(pane.w),
                 h: Math.round(pane.h),
