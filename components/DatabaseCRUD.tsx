@@ -80,6 +80,98 @@ const DatabaseCRUD: React.FC<Props> = ({
   const [activeSubTab, setActiveSubTab] = useState("aluminum");
   const [search, setSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newElement, setNewElement] = useState<any>({});
+
+  const openAddModal = () => {
+    let initialFields: any = {};
+    if (activeSubTab === "aluminum") {
+      initialFields = {
+        code: "",
+        detail: "",
+        weightPerMeter: 0,
+        barLength: 6,
+        treatmentCost: 0,
+        thickness: 0,
+        isGlazingBead: false,
+        glazingBeadStyle: "Recto",
+        minGlassThickness: 0,
+        maxGlassThickness: 0,
+      };
+    } else if (activeSubTab === "glasses") {
+      initialFields = {
+        code: "",
+        detail: "",
+        thickness: 4,
+        width: 2400,
+        height: 1800,
+        pricePerM2: 0,
+        isMirror: false,
+      };
+    } else if (activeSubTab === "accessories") {
+      initialFields = {
+        code: "",
+        detail: "",
+        unitPrice: 0,
+      };
+    } else if (activeSubTab === "dvh") {
+      initialFields = {
+        type: "Cámara",
+        detail: "",
+        thickness: 12,
+        cost: 0,
+      };
+    } else if (activeSubTab === "treatments") {
+      initialFields = {
+        name: "",
+        pricePerKg: 0,
+        hexColor: "#475569",
+      };
+    } else if (activeSubTab === "blindPanels") {
+      initialFields = {
+        code: "",
+        detail: "",
+        price: 0,
+        unit: "m2",
+        weightPerMeter: 0,
+        barLength: 6,
+      };
+    }
+    setNewElement(initialFields);
+    setShowAddModal(true);
+  };
+
+  const handleSaveNewElement = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const codeOrName = newElement.code || newElement.name;
+    if (!codeOrName || !codeOrName.trim()) {
+      alert("Por favor ingresa un código o nombre válido.");
+      return;
+    }
+    if (activeSubTab !== "treatments" && (!newElement.detail || !newElement.detail.trim())) {
+      alert("Por favor ingresa una descripción para el elemento.");
+      return;
+    }
+
+    const generatedId = Date.now().toString();
+    const itemToAdd = { ...newElement, id: generatedId };
+
+    if (activeSubTab === "aluminum") {
+      setAluminum([...aluminum, itemToAdd]);
+    } else if (activeSubTab === "glasses") {
+      setGlasses([...glasses, itemToAdd]);
+    } else if (activeSubTab === "accessories") {
+      setAccessories([...accessories, itemToAdd]);
+    } else if (activeSubTab === "dvh") {
+      setDvhInputs([...dvhInputs, itemToAdd]);
+    } else if (activeSubTab === "treatments") {
+      setTreatments([...treatments, itemToAdd]);
+    } else if (activeSubTab === "blindPanels") {
+      setBlindPanels([...blindPanels, itemToAdd]);
+    }
+
+    setShowAddModal(false);
+  };
   const filter = (val: any) =>
     String(val || "")
       .toLowerCase()
@@ -689,23 +781,7 @@ const DatabaseCRUD: React.FC<Props> = ({
               "Rango Vidrio",
               "Acciones",
             ]}
-            onAdd={() =>
-              setAluminum([
-                ...aluminum,
-                {
-                  id: Date.now().toString(),
-                  code: "NUEVO",
-                  detail: "Nuevo Perfil",
-                  weightPerMeter: 0,
-                  barLength: 6,
-                  treatmentCost: 0,
-                  thickness: 0,
-                  isGlazingBead: false,
-                  minGlassThickness: 0,
-                  maxGlassThickness: 0,
-                },
-              ])
-            }
+            onAdd={openAddModal}
           >
             {aluminum
               .filter((p) => filter(p.code) || filter(p.detail))
@@ -936,21 +1012,7 @@ const DatabaseCRUD: React.FC<Props> = ({
               "Espejo",
               "Acciones",
             ]}
-            onAdd={() =>
-              setGlasses([
-                ...glasses,
-                {
-                  id: Date.now().toString(),
-                  code: "V-00",
-                  detail: "Nuevo Cristal",
-                  width: 2400,
-                  height: 1800,
-                  pricePerM2: 0,
-                  isMirror: false,
-                  thickness: 4,
-                },
-              ])
-            }
+            onAdd={openAddModal}
           >
             {glasses
               .filter((g) => filter(g.detail) || filter(g.code))
@@ -1094,17 +1156,7 @@ const DatabaseCRUD: React.FC<Props> = ({
         return (
           <TableWrapper
             headers={["Código", "Descripción", "Costo ($)", "Acciones"]}
-            onAdd={() =>
-              setAccessories([
-                ...accessories,
-                {
-                  id: Date.now().toString(),
-                  code: "ACC-00",
-                  detail: "Nuevo Herraje",
-                  unitPrice: 0,
-                },
-              ])
-            }
+            onAdd={openAddModal}
           >
             {accessories
               .filter((a) => filter(a.detail) || filter(a.code))
@@ -1189,18 +1241,7 @@ const DatabaseCRUD: React.FC<Props> = ({
               "Costo Unitario",
               "Acciones",
             ]}
-            onAdd={() =>
-              setDvhInputs([
-                ...dvhInputs,
-                {
-                  id: Date.now().toString(),
-                  type: "Cámara",
-                  detail: "Nuevo Insumo DVH",
-                  cost: 0,
-                  thickness: 12,
-                },
-              ])
-            }
+            onAdd={openAddModal}
           >
             {dvhInputs
               .filter((i) => filter(i.detail) || filter(i.type))
@@ -1308,17 +1349,7 @@ const DatabaseCRUD: React.FC<Props> = ({
               "Vista",
               "Acciones",
             ]}
-            onAdd={() =>
-              setTreatments([
-                ...treatments,
-                {
-                  id: Date.now().toString(),
-                  name: "Nuevo Color",
-                  pricePerKg: 0,
-                  hexColor: "#475569",
-                },
-              ])
-            }
+            onAdd={openAddModal}
           >
             {treatments
               .filter((t) => filter(t.name))
@@ -1421,20 +1452,7 @@ const DatabaseCRUD: React.FC<Props> = ({
               "Largo Barra",
               "Acciones",
             ]}
-            onAdd={() =>
-              setBlindPanels([
-                ...blindPanels,
-                {
-                  id: Date.now().toString(),
-                  code: "P-00",
-                  detail: "Nuevo Panel",
-                  price: 0,
-                  unit: "m2",
-                  weightPerMeter: 0,
-                  barLength: 6,
-                },
-              ])
-            }
+            onAdd={openAddModal}
           >
             {blindPanels
               .filter((b) => filter(b.detail) || filter(b.code))
@@ -1734,7 +1752,7 @@ const DatabaseCRUD: React.FC<Props> = ({
         </div>
       </div>
       <div className="bg-white border border-slate-200 rounded-[1.5rem] overflow-hidden shadow-sm transition-colors">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 ">
+        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/30">
           <div className="relative w-full max-w-lg">
             <Search
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -1748,9 +1766,25 @@ const DatabaseCRUD: React.FC<Props> = ({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="text-[9px] text-slate-900 font-black uppercase tracking-[0.2em] flex items-center gap-3">
-            <CheckCircle2 size={14} className="text-green-600" /> Sincronización
-            Industrial Activa
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shrink-0 border border-transparent select-none active:scale-95"
+            >
+              <Plus size={14} />
+              Agregar {
+                activeSubTab === "aluminum" ? "Perfil" :
+                activeSubTab === "glasses" ? "Vidrio" :
+                activeSubTab === "accessories" ? "Herraje" :
+                activeSubTab === "dvh" ? "Insumo DVH" :
+                activeSubTab === "treatments" ? "Tratamiento" :
+                activeSubTab === "blindPanels" ? "Panel" : "Elemento"
+              }
+            </button>
+            <div className="text-[9px] text-slate-900 font-black uppercase tracking-[0.2em] flex items-center gap-3">
+              <CheckCircle2 size={14} className="text-green-600" /> Sincronización
+              Industrial Activa
+            </div>
           </div>
         </div>
         <div className="max-h-[64vh] overflow-y-auto custom-scrollbar">
@@ -1907,6 +1941,551 @@ const DatabaseCRUD: React.FC<Props> = ({
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DYNAMIC REGISTER FORM MODAL (POPUP) */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-slate-900 border-none transition-all">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                <Plus size={18} className="text-sky-600" />
+                Agregar Nuevo {
+                  activeSubTab === "aluminum" ? "Perfil de Aluminio" :
+                  activeSubTab === "glasses" ? "Vidrio / Cristal" :
+                  activeSubTab === "accessories" ? "Accesorio / Herraje" :
+                  activeSubTab === "dvh" ? "Insumo DVH" :
+                  activeSubTab === "treatments" ? "Tratamiento / Color" :
+                  activeSubTab === "blindPanels" ? "Panel Ciego" : "Elemento"
+                }
+              </h3>
+              <button 
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors font-bold text-base"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveNewElement} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {activeSubTab === "aluminum" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Cód. Perfil*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black text-sky-800 uppercase focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.code || ""}
+                      onChange={(e) => setNewElement({ ...newElement, code: e.target.value.toUpperCase() })}
+                      required
+                      placeholder="E.g., ALU-101"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Descripción*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.detail || ""}
+                      onChange={(e) => setNewElement({ ...newElement, detail: e.target.value })}
+                      required
+                      placeholder="E.g., Jamba o Dintel"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Peso (KG/M)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                      value={newElement.weightPerMeter || 0}
+                      onChange={(e) => setNewElement({ ...newElement, weightPerMeter: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Largo Barra (M)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                      value={newElement.barLength || 0}
+                      onChange={(e) => setNewElement({ ...newElement, barLength: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Espesor Interno DB (mm)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                      value={newElement.thickness || 0}
+                      onChange={(e) => setNewElement({ ...newElement, thickness: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Costo Extra Tratamiento ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                      value={newElement.treatmentCost || 0}
+                      onChange={(e) => setNewElement({ ...newElement, treatmentCost: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="md:col-span-2 p-3 bg-sky-50/50 rounded-xl border border-sky-100 flex flex-col gap-2 mt-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="modal-is-glazing-bead"
+                        className="w-4 h-4 rounded cursor-pointer accent-sky-600"
+                        checked={newElement.isGlazingBead || false}
+                        onChange={(e) => setNewElement({ ...newElement, isGlazingBead: e.target.checked })}
+                      />
+                      <label htmlFor="modal-is-glazing-bead" className="text-xs font-black text-slate-700 cursor-pointer uppercase tracking-wider">
+                        ¿Es un perfil contravidrio?
+                      </label>
+                    </div>
+                    {newElement.isGlazingBead && (
+                      <div className="grid grid-cols-2 gap-3 mt-2 pl-7 pt-2 border-t border-sky-100">
+                        <div>
+                          <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                            Estilo
+                          </label>
+                          <select
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none text-slate-900"
+                            value={newElement.glazingBeadStyle || "Recto"}
+                            onChange={(e) => setNewElement({ ...newElement, glazingBeadStyle: e.target.value as any })}
+                          >
+                            <option value="Recto">Recto</option>
+                            <option value="Curvo">Curvo</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="w-1/2">
+                            <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                              Esp. Mín (mm)
+                            </label>
+                            <input
+                              type="number"
+                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center outline-none text-slate-900"
+                              placeholder="Min"
+                              value={newElement.minGlassThickness || 0}
+                              onChange={(e) => setNewElement({ ...newElement, minGlassThickness: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <div className="w-1/2">
+                            <label className="block text-[9px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                              Esp. Máx (mm)
+                            </label>
+                            <input
+                              type="number"
+                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono text-center outline-none text-slate-900"
+                              placeholder="Max"
+                              value={newElement.maxGlassThickness || 0}
+                              onChange={(e) => setNewElement({ ...newElement, maxGlassThickness: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeSubTab === "glasses" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Cód. Vidrio*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black text-sky-850 uppercase focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.code || ""}
+                      onChange={(e) => setNewElement({ ...newElement, code: e.target.value })}
+                      required
+                      placeholder="E.g., V-04"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Descripción Cristal*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.detail || ""}
+                      onChange={(e) => setNewElement({ ...newElement, detail: e.target.value })}
+                      required
+                      placeholder="E.g., Float Incoloro 4mm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Espesor (mm)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                      value={newElement.thickness || 4}
+                      onChange={(e) => setNewElement({ ...newElement, thickness: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Costo por m² ($)*
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full pl-7 pr-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-black text-green-700 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                        value={newElement.pricePerM2 || 0}
+                        onChange={(e) => setNewElement({ ...newElement, pricePerM2: parseFloat(e.target.value) || 0 })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Ancho de Hoja Máx (mm)
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                      value={newElement.width || 2400}
+                      onChange={(e) => setNewElement({ ...newElement, width: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Alto de Hoja Máx (mm)
+                    </label>
+                    <input
+                      type="number"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                      value={newElement.height || 1800}
+                      onChange={(e) => setNewElement({ ...newElement, height: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 mt-2">
+                    <input
+                      type="checkbox"
+                      id="modal-is-mirror"
+                      className="w-4 h-4 rounded cursor-pointer accent-sky-600"
+                      checked={newElement.isMirror || false}
+                      onChange={(e) => setNewElement({ ...newElement, isMirror: e.target.checked })}
+                    />
+                    <label htmlFor="modal-is-mirror" className="text-xs font-black text-slate-700 cursor-pointer uppercase tracking-wider">
+                      ¿Es un espejo? (Evita traslapes o cálculos inversos)
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {activeSubTab === "accessories" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Código Accesorio*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black text-sky-850 uppercase focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.code || ""}
+                      onChange={(e) => setNewElement({ ...newElement, code: e.target.value.toUpperCase() })}
+                      required
+                      placeholder="E.g., ACC-04"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Descripción Accesorio*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.detail || ""}
+                      onChange={(e) => setNewElement({ ...newElement, detail: e.target.value })}
+                      required
+                      placeholder="E.g., Rodamiento a rulemán"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Precio Unitario ($)*
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full pl-7 pr-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-black text-green-700 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                        value={newElement.unitPrice || 0}
+                        onChange={(e) => setNewElement({ ...newElement, unitPrice: parseFloat(e.target.value) || 0 })}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeSubTab === "dvh" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Tipo de Insumo*
+                    </label>
+                    <select
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-900 outline-none text-xs focus:border-sky-500 transition-colors"
+                      value={newElement.type || "Cámara"}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewElement({ 
+                          ...newElement, 
+                          type: val,
+                          thickness: val === "Cámara" ? 12 : 0
+                        });
+                      }}
+                    >
+                      <option value="Cámara">Cámara</option>
+                      <option value="Butilo">Butilo</option>
+                      <option value="Sales">Sales</option>
+                      <option value="Escuadras">Escuadras</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Descripción*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.detail || ""}
+                      onChange={(e) => setNewElement({ ...newElement, detail: e.target.value })}
+                      required
+                      placeholder="E.g., Cámara de Aire 12mm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Espesor (mm)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors disabled:opacity-50 text-slate-900 font-bold"
+                      value={newElement.thickness || 0}
+                      onChange={(e) => setNewElement({ ...newElement, thickness: parseFloat(e.target.value) || 0 })}
+                      disabled={newElement.type !== "Cámara"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Costo Unitario ($)*
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full pl-7 pr-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-black text-green-700 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                        value={newElement.cost || 0}
+                        onChange={(e) => setNewElement({ ...newElement, cost: parseFloat(e.target.value) || 0 })}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeSubTab === "treatments" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Nombre del Acabado*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-900 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.name || ""}
+                      onChange={(e) => setNewElement({ ...newElement, name: e.target.value })}
+                      required
+                      placeholder="E.g., Pintado Blanco Aluar"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Costo Extra por KG ($)*
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full pl-7 pr-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-black text-green-700 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                        value={newElement.pricePerKg || 0}
+                        onChange={(e) => setNewElement({ ...newElement, pricePerKg: parseFloat(e.target.value) || 0 })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Código HEX Color (#)
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs outline-none focus:border-sky-500 transition-colors text-slate-900 font-bold"
+                      value={newElement.hexColor || ""}
+                      onChange={(e) => setNewElement({ ...newElement, hexColor: e.target.value })}
+                      placeholder="#ffffff"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center justify-center pt-2">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 self-start">
+                      Paleta Visual
+                    </label>
+                    <div className="flex items-center gap-3 w-full">
+                      <input
+                        type="color"
+                        className="w-10 h-10 rounded-xl border-none cursor-pointer shadow-sm shrink-0"
+                        value={newElement.hexColor || "#050505"}
+                        onChange={(e) => setNewElement({ ...newElement, hexColor: e.target.value })}
+                      />
+                      <span className="text-[10px] text-slate-400 font-mono">Presiona para alternar color</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeSubTab === "blindPanels" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Cód. Panel*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black text-sky-850 uppercase focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.code || ""}
+                      onChange={(e) => setNewElement({ ...newElement, code: e.target.value.toUpperCase() })}
+                      required
+                      placeholder="E.g., PNL-02"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Descripción Panel*
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                      value={newElement.detail || ""}
+                      onChange={(e) => setNewElement({ ...newElement, detail: e.target.value })}
+                      required
+                      placeholder="E.g., Machihembrado ciego"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Unidad de Venta/Cómputo*
+                    </label>
+                    <select
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-900 outline-none text-xs focus:border-sky-500 transition-colors"
+                      value={newElement.unit || "m2"}
+                      onChange={(e) => setNewElement({ ...newElement, unit: e.target.value as any })}
+                    >
+                      <option value="m2">M2 (Metro cuadrado)</option>
+                      <option value="ml">ML (Metro lineal)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                      Costo Unitario ($)*
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full pl-7 pr-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-black text-green-700 focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors"
+                        value={newElement.price || 0}
+                        onChange={(e) => setNewElement({ ...newElement, price: parseFloat(e.target.value) || 0 })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  {newElement.unit === "ml" && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                          Peso (Kg/ml)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                          value={newElement.weightPerMeter || 0}
+                          onChange={(e) => setNewElement({ ...newElement, weightPerMeter: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                          Largo de Barra (ml)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                          value={newElement.barLength || 6}
+                          onChange={(e) => setNewElement({ ...newElement, barLength: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60 mt-4 flex items-start gap-2.5">
+                <Info size={14} className="text-sky-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                  Los campos marcados con (*) son obligatorios para poder registrar el elemento correctamente en la base de datos local y sincronizarlo con Supabase.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center gap-3 justify-end bg-white">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 text-slate-500 transition-all font-mono"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-sky-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-sky-700 shadow-xl shadow-sky-500/20 transition-all font-mono"
+                >
+                  Confirmar y Guardar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
