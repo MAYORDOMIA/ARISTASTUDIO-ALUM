@@ -1607,17 +1607,6 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           </button>
                         </div>
                         <button
-                          onClick={() => {
-                            const updated = [...recipe.accessories];
-                            updated[idx].isAlternative =
-                              !updated[idx].isAlternative;
-                            updateRecipe(recipe.id, { accessories: updated });
-                          }}
-                          className={`px-2 py-1 rounded text-[7px] font-black border transition-all ${ra.isAlternative ? "bg-amber-600 border-amber-700 text-white" : "bg-slate-50 text-slate-400 border-slate-200"}`}
-                        >
-                          ALT
-                        </button>
-                        <button
                           onClick={() =>
                             updateRecipe(recipe.id, {
                               accessories: recipe.accessories.filter(
@@ -1705,6 +1694,25 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             />
                           </div>
                         )}
+                      </div>
+                      
+                      <div className="p-1 px-2 border border-slate-100 rounded-lg bg-slate-100/30 flex items-center justify-between">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-[8px] font-black text-slate-500 uppercase tracking-wide select-none">
+                          <input
+                            type="checkbox"
+                            checked={ra.isAlternative || false}
+                            onChange={(e) => {
+                              const updated = [...recipe.accessories];
+                              updated[idx].isAlternative = e.target.checked;
+                              updateRecipe(recipe.id, { accessories: updated });
+                            }}
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 accent-sky-600"
+                          />
+                          ¿Opcional (Normalmente Desactivado)?
+                        </label>
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${ra.isAlternative ? "text-amber-600" : "text-sky-600"}`}>
+                          {ra.isAlternative ? "Inactivo por Defecto" : "Activo por Defecto"}
+                        </span>
                       </div>
                     </div>
                   ))}
