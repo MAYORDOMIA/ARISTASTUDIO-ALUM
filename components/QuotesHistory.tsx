@@ -131,6 +131,7 @@ const QuotesHistory: React.FC<Props> = ({
             dvhInputs,
             config,
             blindPanels,
+            treatments,
           );
           break;
         case "barras":

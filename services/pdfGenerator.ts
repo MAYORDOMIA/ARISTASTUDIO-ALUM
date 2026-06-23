@@ -1317,6 +1317,7 @@ export const generateMaterialsOrderPDF = (
   dvhInputs: DVHInput[],
   config: GlobalConfig,
   blindPanels: BlindPanel[],
+  treatments?: Treatment[],
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -1339,9 +1340,11 @@ export const generateMaterialsOrderPDF = (
   currentY += 5;
   const aluSummary = new Map<
     string,
-    { code: string; detail: string; totalMm: number; barLength: number; weightPerMeter?: number }
+    { code: string; detail: string; totalMm: number; barLength: number; weightPerMeter?: number; colorName: string }
   >();
   quote.items.forEach((item) => {
+    const treatment = (treatments || []).find((t) => t.id === item.colorId);
+    const colorName = treatment ? treatment.name : "Natural";
     const { isManualDim, colRatios, rowRatios, couplingDeduction } =
       item.composition;
     const isSet = item.composition.modules.length > 1;
@@ -1606,15 +1609,17 @@ export const generateMaterialsOrderPDF = (
         }
 
         if (totalMm > 0) {
-          const existing = aluSummary.get(p.id) || {
+          const key = `${p.id}_${item.colorId || "default"}`;
+          const existing = aluSummary.get(key) || {
             code: p.code,
             detail: p.detail,
             totalMm: 0,
             barLength: p.barLength || 6,
             weightPerMeter: p.weightPerMeter || 0,
+            colorName: colorName,
           };
           existing.totalMm += totalMm;
-          aluSummary.set(p.id, existing);
+          aluSummary.set(key, existing);
         }
       });
       if (mod.transoms && mod.transoms.length > 0) {
@@ -1625,15 +1630,17 @@ export const generateMaterialsOrderPDF = (
             const cutLen = evaluateFormula(f, modW, modH);
             const totalMm =
               (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
-            const existing = aluSummary.get(trProf.id) || {
+            const key = `${trProf.id}_${item.colorId || "default"}`;
+            const existing = aluSummary.get(key) || {
               code: trProf.code,
               detail: trProf.detail,
               totalMm: 0,
               barLength: trProf.barLength || 6,
               weightPerMeter: trProf.weightPerMeter || 0,
+              colorName: colorName,
             };
             existing.totalMm += totalMm;
-            aluSummary.set(trProf.id, existing);
+            aluSummary.set(key, existing);
 
             // 2 Contravidrios extra del mismo largo que el travesaño por cada tipo de contravidrio en la receta
             usedGlazingBeadIds.forEach((gbId) => {
@@ -1641,15 +1648,17 @@ export const generateMaterialsOrderPDF = (
               if (gbProf) {
                 const gbTotalMm =
                   (cutLen + config.discWidth) * 2 * item.quantity;
-                const gbExist = aluSummary.get(gbProf.id) || {
+                const gbKey = `${gbProf.id}_${item.colorId || "default"}`;
+                const gbExist = aluSummary.get(gbKey) || {
                   code: gbProf.code,
                   detail: gbProf.detail,
                   totalMm: 0,
                   barLength: gbProf.barLength || 6,
                   weightPerMeter: gbProf.weightPerMeter || 0,
+                  colorName: colorName,
                 };
                 gbExist.totalMm += gbTotalMm;
-                aluSummary.set(gbProf.id, gbExist);
+                aluSummary.set(gbKey, gbExist);
               }
             });
           }
@@ -1667,15 +1676,17 @@ export const generateMaterialsOrderPDF = (
                  if (!pDef) return;
                  let length = evaluateFormula(rp.formula, pane.w, pane.h);
                  const totalMm = (length + config.discWidth) * Number(rp.quantity || 1) * 2 * item.quantity;
-                 const existing = aluSummary.get(pDef.id) || {
+                 const key = `${pDef.id}_${item.colorId || "default"}`;
+                 const existing = aluSummary.get(key) || {
                      code: pDef.code,
                      detail: pDef.detail,
                      totalMm: 0,
                      barLength: pDef.barLength || 6,
                      weightPerMeter: pDef.weightPerMeter || 0,
+                     colorName: colorName,
                  };
                  existing.totalMm += totalMm;
-                 aluSummary.set(pDef.id, existing);
+                 aluSummary.set(key, existing);
              });
          });
       }
@@ -1716,15 +1727,17 @@ export const generateMaterialsOrderPDF = (
           const bp = blindPanels.find((x) => x.id === bpId);
           const slatId = mod.slatProfileIds?.[paneIdx];
           if (bp && bp.unit === "ml" && !slatId) {
-            const existing = aluSummary.get(bp.id) || {
+            const key = `${bp.id}_${item.colorId || "default"}`;
+            const existing = aluSummary.get(key) || {
               code: bp.code,
               detail: bp.detail,
               totalMm: 0,
               barLength: bp.barLength || 6,
               weightPerMeter: bp.weightPerMeter || 0,
+              colorName: colorName,
             };
             existing.totalMm += p.w * numLeaves * item.quantity;
-            aluSummary.set(bp.id, existing);
+            aluSummary.set(key, existing);
           }
           if (slatId) {
             const slatProf = aluminum.find((a) => a.id === slatId);
@@ -1732,15 +1745,17 @@ export const generateMaterialsOrderPDF = (
               const numSlats = Math.ceil(p.h / slatProf.thickness);
               const totalMm =
                 (p.w + config.discWidth) * numSlats * item.quantity;
-              const existing = aluSummary.get(slatProf.id) || {
+              const key = `${slatProf.id}_${item.colorId || "default"}`;
+              const existing = aluSummary.get(key) || {
                 code: slatProf.code,
                 detail: slatProf.detail,
                 totalMm: 0,
                 barLength: slatProf.barLength || 6,
                 weightPerMeter: slatProf.weightPerMeter || 0,
+                colorName: colorName,
               };
               existing.totalMm += totalMm;
-              aluSummary.set(slatId, existing);
+              aluSummary.set(key, existing);
             }
           }
         }
@@ -1750,15 +1765,17 @@ export const generateMaterialsOrderPDF = (
       if (mod.handrailProfileId) {
         const hrProfile = aluminum.find((p) => p.id === mod.handrailProfileId);
         if (hrProfile) {
-          const existing = aluSummary.get(hrProfile.id) || {
+          const key = `${hrProfile.id}_${item.colorId || "default"}`;
+          const existing = aluSummary.get(key) || {
             code: hrProfile.code,
             detail: hrProfile.detail,
             totalMm: 0,
             barLength: hrProfile.barLength || 6,
             weightPerMeter: hrProfile.weightPerMeter || 0,
+            colorName: colorName,
           };
           existing.totalMm += (modW + config.discWidth) * item.quantity;
-          aluSummary.set(hrProfile.id, existing);
+          aluSummary.set(key, existing);
         }
       }
 
@@ -1775,12 +1792,17 @@ export const generateMaterialsOrderPDF = (
             if (!mp) return;
             const len = evaluateFormula(rp.formula, mosqW, modH);
             const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
-            const existing = aluSummary.get(mp.id) || {
-              code: mp.code, detail: mp.detail, totalMm: 0,
-              barLength: mp.barLength || 6, weightPerMeter: mp.weightPerMeter || 0
+            const key = `${mp.id}_${item.colorId || "default"}`;
+            const existing = aluSummary.get(key) || {
+              code: mp.code, 
+              detail: mp.detail, 
+              totalMm: 0,
+              barLength: mp.barLength || 6, 
+              weightPerMeter: mp.weightPerMeter || 0,
+              colorName: colorName,
             };
             existing.totalMm += totalMm;
-            aluSummary.set(mp.id, existing);
+            aluSummary.set(key, existing);
           });
         }
       }
@@ -1985,15 +2007,17 @@ export const generateMaterialsOrderPDF = (
             }
           }
         }
-        const existing = aluSummary.get(tjProfile.id) || {
+        const key = `${tjProfile.id}_${item.colorId || "default"}`;
+        const existing = aluSummary.get(key) || {
           code: tjProfile.code,
           detail: tjProfile.detail,
           totalMm: 0,
           barLength: tjProfile.barLength || 6,
           weightPerMeter: tjProfile.weightPerMeter || 0,
+          colorName: colorName,
         };
         existing.totalMm += (tjLenTotal + config.discWidth) * item.quantity;
-        aluSummary.set(tjProfile.id, existing);
+        aluSummary.set(key, existing);
       }
     }
 
@@ -2048,15 +2072,17 @@ export const generateMaterialsOrderPDF = (
           }
         }
         const bl = p.barLength || 6;
-        const existing = aluSummary.get(p.id) || {
+        const key = `${p.id}_${item.colorId || "default"}`;
+        const existing = aluSummary.get(key) || {
           code: p.code,
           detail: p.detail,
           totalMm: 0,
           barLength: bl,
           weightPerMeter: p.weightPerMeter || 0,
+          colorName: colorName,
         };
         existing.totalMm += (totalC + config.discWidth) * item.quantity;
-        aluSummary.set(p.id, existing);
+        aluSummary.set(key, existing);
       }
     }
   });
@@ -2069,6 +2095,7 @@ export const generateMaterialsOrderPDF = (
     return [
       s.code,
       s.detail,
+      s.colorName,
       `${(s.totalMm / 1000).toFixed(2)} m`,
       `${s.barLength} m`,
       totalBars,
@@ -2081,6 +2108,7 @@ export const generateMaterialsOrderPDF = (
       [
         "CÓDIGO",
         "DESCRIPCIÓN",
+        "COLOR / ACABADO",
         "METROS TOTALES",
         "LARGO BARRA",
         "BARRAS",
@@ -2092,8 +2120,8 @@ export const generateMaterialsOrderPDF = (
     headStyles: { fillColor: [51, 65, 85] },
     styles: { fontSize: 8 },
     columnStyles: { 
-      4: { halign: "center", fontStyle: "bold" },
-      5: { halign: "right" }
+      5: { halign: "center", fontStyle: "bold" },
+      6: { halign: "right" }
     },
   });
   currentY = (doc as any).lastAutoTable.finalY + 5;
