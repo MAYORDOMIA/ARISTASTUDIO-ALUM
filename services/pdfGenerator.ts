@@ -1244,8 +1244,9 @@ export const generateBarOptimizationPDF = (
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
+    const barLenM = profile.barLength > 100 ? profile.barLength / 1000 : profile.barLength;
     doc.text(
-      `PERFIL: ${profile.code} - ${profile.detail} | BARRAS REQUERIDAS: ${bins.length}`,
+      `PERFIL: ${profile.code} - ${profile.detail} (Largo Barra: ${barLenM}m) | BARRAS REQUERIDAS: ${bins.length}`,
       15,
       y + 1,
     );
