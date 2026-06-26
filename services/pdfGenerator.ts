@@ -2843,12 +2843,15 @@ export const generateAssemblyOrderPDF = (
       currentY + 6.5,
     );
     currentY += 15;
+    const startYForThisItem = currentY;
+    let imageBottom = startYForThisItem;
     if (item.previewImage) {
       try {
         const imgProps = doc.getImageProperties(item.previewImage);
         const drawH = 35;
         const drawW = (imgProps.width * drawH) / imgProps.height;
         doc.addImage(item.previewImage, "JPEG", 15, currentY, drawW, drawH);
+        imageBottom = startYForThisItem + drawH;
       } catch (e) {}
     }
     const profileCuts: any[] = [];
@@ -3566,6 +3569,7 @@ export const generateAssemblyOrderPDF = (
       }
     }
 
+    const pageCountBefore = doc.getNumberOfPages();
     autoTable(doc, {
       startY: currentY,
       margin: { left: 80 },
@@ -3576,7 +3580,13 @@ export const generateAssemblyOrderPDF = (
       headStyles: { fillColor: [71, 85, 105] },
       columnStyles: { 2: { halign: "center", fontStyle: "bold" } },
     });
-    currentY = (doc as any).lastAutoTable.finalY + 5;
+    const pageCountAfter = doc.getNumberOfPages();
+    const cutsTableBottom = (doc as any).lastAutoTable.finalY;
+    if (pageCountAfter > pageCountBefore) {
+      currentY = cutsTableBottom + 5;
+    } else {
+      currentY = Math.max(cutsTableBottom, imageBottom) + 5;
+    }
     const glassPieces: any[] = [];
     if (item.quotingMode !== "Solo Marcos") {
       validModules.forEach((mod) => {
@@ -3762,11 +3772,15 @@ export const generateCostsPDF = (
     (sum, i) => sum + (i.breakdown?.laborCost || 0) * i.quantity,
     0,
   );
-  const finalTotal = totalAlu + totalGlass + totalAcc + totalLabor;
+  const totalBeforeDiscount = totalAlu + totalGlass + totalAcc + totalLabor;
+  const discountAmount = quote.discount ? Math.round(totalBeforeDiscount * (quote.discount / 100)) : 0;
+  const finalTotal = totalBeforeDiscount - discountAmount;
+  
   doc.setFillColor(248, 250, 252);
-  doc.rect(15, finalY, pageWidth - 30, 45, "F");
+  const rectHeight = quote.discount && quote.discount > 0 ? 50 : 45;
+  doc.rect(15, finalY, pageWidth - 30, rectHeight, "F");
   doc.setDrawColor(226, 232, 240);
-  doc.rect(15, finalY, pageWidth - 30, 45, "D");
+  doc.rect(15, finalY, pageWidth - 30, rectHeight, "D");
   doc.setTextColor(100);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -3792,13 +3806,27 @@ export const generateCostsPDF = (
   doc.text(`$${totalLabor.toLocaleString()}`, pageWidth - 20, finalY + 35, {
     align: "right",
   });
+
+  let currentYPos = finalY + 35;
+  if (quote.discount && quote.discount > 0) {
+    currentYPos += 5;
+    doc.setTextColor(220, 38, 38); // Rojo
+    doc.setFont("helvetica", "bold");
+    doc.text(`DESCUENTO APLICADO (${quote.discount}%):`, 20, currentYPos);
+    doc.text(`-$${discountAmount.toLocaleString()}`, pageWidth - 20, currentYPos, {
+      align: "right",
+    });
+    doc.setTextColor(100);
+    doc.setFont("helvetica", "normal");
+  }
+
   doc.setLineWidth(0.5);
-  doc.line(20, finalY + 38, pageWidth - 20, finalY + 38);
+  doc.line(20, currentYPos + 3, pageWidth - 20, currentYPos + 3);
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(`VALOR TOTAL FINAL DE OBRA:`, 20, finalY + 43);
-  doc.text(`$${finalTotal.toLocaleString()}`, pageWidth - 20, finalY + 43, {
+  doc.text(`VALOR TOTAL FINAL DE OBRA:`, 20, currentYPos + 8);
+  doc.text(`$${finalTotal.toLocaleString()}`, pageWidth - 20, currentYPos + 8, {
     align: "right",
   });
   doc.save(`Auditoria_Costos_${quote.clientName}.pdf`);
