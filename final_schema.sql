@@ -129,6 +129,10 @@ CREATE TABLE public.maestro_paneles (
     detail TEXT,
     price FLOAT DEFAULT 0,
     unit TEXT DEFAULT 'm2',
+    aluminum_profile_id TEXT,
+    thickness FLOAT DEFAULT 0,
+    weight_per_meter FLOAT DEFAULT 0,
+    bar_length FLOAT DEFAULT 6,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -213,6 +217,10 @@ CREATE TABLE public.paneles_usuario (
     detail TEXT,
     price FLOAT DEFAULT 0,
     unit TEXT DEFAULT 'm2',
+    aluminum_profile_id TEXT,
+    thickness FLOAT DEFAULT 0,
+    weight_per_meter FLOAT DEFAULT 0,
+    bar_length FLOAT DEFAULT 6,
     created_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(user_id, master_ref)
 );

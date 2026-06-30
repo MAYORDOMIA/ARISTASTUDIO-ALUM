@@ -803,17 +803,23 @@ export const generateBarOptimizationPDF = (
       }
 
       const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+      const panesCountPerLeaf = (mod.transoms && mod.transoms.length > 0) ? mod.transoms.length + 1 : 1;
       panes.forEach((p, pIdx) => {
         if (p.isBlind) {
-          const bpId = mod.blindPaneIds?.[pIdx];
+          const sectionIdx = pIdx % panesCountPerLeaf;
+          const bpId = mod.blindPaneIds?.[sectionIdx];
           const bp = blindPanels.find((x) => x.id === bpId);
-          const slatId = mod.slatProfileIds?.[pIdx];
-          if (bp && bp.unit === "ml" && !slatId) {
+          const slatId = mod.slatProfileIds?.[sectionIdx] || (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") ? (bp.aluminumProfileId || aluminum.find(a => a.code && a.code.trim().toLowerCase() === bp.code.trim().toLowerCase())?.id) : null);
+          
+          if (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") && !slatId) {
+            // It's a slat-like panel but not linked to an aluminum profile
+            const thickness = bp.thickness > 0 ? bp.thickness : 120;
+            const numSlats = Math.ceil(p.h / thickness);
             const list = cutsByProfile.get(bp.id) || [];
-            for (let k = 0; k < item.quantity; k++) {
+            for (let k = 0; k < numSlats * item.quantity; k++) {
               list.push({
                 len: p.w,
-                type: "Panel Lineal",
+                type: "Tablilla",
                 cutStart: "90",
                 cutEnd: "90",
                 label: itemCode,
@@ -821,10 +827,12 @@ export const generateBarOptimizationPDF = (
             }
             cutsByProfile.set(bp.id, list);
           }
+          
           if (slatId) {
-            const slatProf = aluminum.find((a) => a.id === slatId);
-            if (slatProf && slatProf.thickness > 0) {
-              const numSlats = Math.ceil(p.h / slatProf.thickness);
+            const slatProf = aluminum.find((a) => a.id === slatId || (a.code && a.code.trim().toLowerCase() === slatId.trim().toLowerCase()));
+            if (slatProf) {
+              const thickness = slatProf.thickness > 0 ? slatProf.thickness : (bp && bp.thickness > 0 ? bp.thickness : 120);
+              const numSlats = Math.ceil(p.h / thickness);
               const list = cutsByProfile.get(slatProf.id) || [];
               for (let k = 0; k < numSlats * item.quantity; k++) {
                 list.push({
@@ -1722,12 +1730,14 @@ export const generateMaterialsOrderPDF = (
         )
           numLeaves = 2;
       }
+      const panesCountPerLeaf = (mod.transoms && mod.transoms.length > 0) ? mod.transoms.length + 1 : 1;
       panes.forEach((p, paneIdx) => {
         if (p.isBlind) {
-          const bpId = mod.blindPaneIds?.[paneIdx];
+          const sectionIdx = paneIdx % panesCountPerLeaf;
+          const bpId = mod.blindPaneIds?.[sectionIdx];
           const bp = blindPanels.find((x) => x.id === bpId);
-          const slatId = mod.slatProfileIds?.[paneIdx];
-          if (bp && bp.unit === "ml" && !slatId) {
+          const slatId = mod.slatProfileIds?.[sectionIdx] || (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") ? (bp.aluminumProfileId || aluminum.find(a => a.code && a.code.trim().toLowerCase() === bp.code.trim().toLowerCase())?.id) : null);
+          if (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") && !slatId) {
             const key = `${bp.id}_${item.colorId || "default"}`;
             const existing = aluSummary.get(key) || {
               code: bp.code,
@@ -1737,13 +1747,16 @@ export const generateMaterialsOrderPDF = (
               weightPerMeter: bp.weightPerMeter || 0,
               colorName: colorName,
             };
-            existing.totalMm += p.w * numLeaves * item.quantity;
+            const thickness = bp.thickness > 0 ? bp.thickness : 120;
+            const numSlats = Math.ceil(p.h / thickness);
+            existing.totalMm += (p.w + config.discWidth) * numSlats * item.quantity;
             aluSummary.set(key, existing);
           }
           if (slatId) {
-            const slatProf = aluminum.find((a) => a.id === slatId);
-            if (slatProf && slatProf.thickness > 0) {
-              const numSlats = Math.ceil(p.h / slatProf.thickness);
+            const slatProf = aluminum.find((a) => a.id === slatId || (a.code && a.code.trim().toLowerCase() === slatId.trim().toLowerCase()));
+            if (slatProf) {
+              const thickness = slatProf.thickness > 0 ? slatProf.thickness : (bp && bp.thickness > 0 ? bp.thickness : 120);
+              const numSlats = Math.ceil(p.h / thickness);
               const totalMm =
                 (p.w + config.discWidth) * numSlats * item.quantity;
               const key = `${slatProf.id}_${item.colorId || "default"}`;
@@ -2177,11 +2190,13 @@ export const generateMaterialsOrderPDF = (
         )
           numLeaves = 2;
       }
+      const panesCountPerLeaf = (mod.transoms && mod.transoms.length > 0) ? mod.transoms.length + 1 : 1;
       panes.forEach((pane, paneIdx) => {
         if (pane.isBlind) {
-          const bpId = mod.blindPaneIds?.[paneIdx];
+          const sectionIdx = paneIdx % panesCountPerLeaf;
+          const bpId = mod.blindPaneIds?.[sectionIdx];
           const bp = blindPanels.find((x) => x.id === bpId);
-          const slatId = mod.slatProfileIds?.[paneIdx];
+          const slatId = mod.slatProfileIds?.[sectionIdx] || (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") ? (bp.aluminumProfileId || aluminum.find(a => a.code && a.code.trim().toLowerCase() === bp.code.trim().toLowerCase())?.id) : null);
           if (slatId) return;
           if (bp && bp.unit === "m2") {
             const key = `CIEGO-${bp.code}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
@@ -2786,6 +2801,7 @@ export const generateAssemblyOrderPDF = (
   aluminum: AluminumProfile[],
   glasses: Glass[],
   dvhInputs: DVHInput[],
+  blindPanels: BlindPanel[] = [],
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -3257,17 +3273,34 @@ export const generateAssemblyOrderPDF = (
       if (item.quotingMode === "Solo Marcos") {
          // Do not show glasses if Solo Marcos
       } else {
+        const panesCountPerLeaf = (mod.transoms && mod.transoms.length > 0) ? mod.transoms.length + 1 : 1;
         panes.forEach((p, pIdx) => {
           if (p.isBlind) {
-            const slatId = mod.slatProfileIds?.[pIdx];
+            const sectionIdx = pIdx % panesCountPerLeaf;
+            const bpId = mod.blindPaneIds?.[sectionIdx];
+            const bp = blindPanels.find((x) => x.id === bpId);
+            const slatId = mod.slatProfileIds?.[sectionIdx] || (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") ? (bp.aluminumProfileId || aluminum.find(a => a.code && a.code.trim().toLowerCase() === bp.code.trim().toLowerCase())?.id) : null);
+            
+            if (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") && !slatId) {
+              const slatCoverage = bp.thickness > 0 ? bp.thickness : 120;
+              const numSlats = Math.ceil(p.h / slatCoverage);
+              profileCuts.push([
+                bp.code,
+                `Tablilla (${sectionIdx + 1})`,
+                Math.round(p.w),
+                numSlats,
+                "90° / 90°",
+              ]);
+            }
+            
             if (slatId) {
-              const slatProf = aluminum.find((a) => a.id === slatId);
-              const slatCoverage = slatProf && slatProf.thickness > 0 ? slatProf.thickness : 120;
+              const slatProf = aluminum.find((a) => a.id === slatId || (a.code && a.code.trim().toLowerCase() === slatId.trim().toLowerCase()));
+              const slatCoverage = slatProf && slatProf.thickness > 0 ? slatProf.thickness : (bp && bp.thickness > 0 ? bp.thickness : 120);
               if (slatProf && slatCoverage > 0) {
                 const numSlats = Math.ceil(p.h / slatCoverage);
                 profileCuts.push([
                   slatProf.code,
-                  `Tablilla (${pIdx + 1})`,
+                  `Tablilla (${sectionIdx + 1})`,
                   Math.round(p.w),
                   numSlats,
                   "90° / 90°",
@@ -3637,6 +3670,7 @@ export const generateAssemblyOrderPDF = (
         )
           numLeaves = 2;
       }
+      const panesCountPerLeaf = (mod.transoms && mod.transoms.length > 0) ? mod.transoms.length + 1 : 1;
       panes.forEach((p, pIdx) => {
         if (!p.isBlind) {
           glassPieces.push([
@@ -3646,11 +3680,14 @@ export const generateAssemblyOrderPDF = (
             1,
           ]);
         } else {
-          const slatId = mod.slatProfileIds?.[pIdx];
-          const slatProf = aluminum.find((a) => a.id === slatId);
+          const sectionIdx = pIdx % panesCountPerLeaf;
+          const bpId = mod.blindPaneIds?.[sectionIdx];
+          const bp = blindPanels.find((x) => x.id === bpId);
+          const slatId = mod.slatProfileIds?.[sectionIdx] || (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") ? (bp.aluminumProfileId || aluminum.find(a => a.code && a.code.trim().toLowerCase() === bp.code.trim().toLowerCase())?.id) : null);
+          const slatProf = aluminum.find((a) => a.id === slatId || (a.code && a.code.trim().toLowerCase() === slatId.trim().toLowerCase()));
           const blindText = slatProf
             ? `CIEGO (TABLILLAS ${slatProf.code})`
-            : "PANEL CIEGO";
+            : (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml") ? `CIEGO (TABLILLAS ${bp.code})` : (bp ? `CIEGO (${bp.code})` : "PANEL CIEGO"));
           glassPieces.push([
             `${modLabel} - Paño ${pIdx + 1}`,
             blindText,
@@ -3883,6 +3920,7 @@ export const generateGlassOptimizationPDF = (
           numLeaves = 2;
       }
       const glassPanes = getModuleGlassPanes(item, mod, recipe, aluminum);
+      const panesCountPerLeaf = (mod.transoms && mod.transoms.length > 0) ? mod.transoms.length + 1 : 1;
       const gOuter = glasses.find((g) => g.id === mod.glassOuterId);
       const gInner = mod.isDVH
         ? glasses.find((g) => g.id === mod.glassInnerId)
@@ -3927,7 +3965,8 @@ export const generateGlassOptimizationPDF = (
             }
           }
         } else {
-          const bpId = mod.blindPaneIds?.[paneIdx];
+          const sectionIdx = paneIdx % panesCountPerLeaf;
+          const bpId = mod.blindPaneIds?.[sectionIdx];
           const bp = blindPanels.find((x) => x.id === bpId);
           if (bp && bp.unit === "m2") {
             const qtyPerSheet = item.quantity;

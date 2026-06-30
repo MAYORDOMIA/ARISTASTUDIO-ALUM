@@ -119,6 +119,7 @@ const QuotesHistory: React.FC<Props> = ({
             aluminum,
             glasses,
             dvhInputs,
+            blindPanels,
           );
           break;
         case "materiales":

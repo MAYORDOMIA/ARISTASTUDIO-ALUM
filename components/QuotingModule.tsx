@@ -1359,6 +1359,7 @@ interface Props {
   aluminum: AluminumProfile[];
   glasses: Glass[];
   blindPanels: BlindPanel[];
+  setBlindPanels?: React.Dispatch<React.SetStateAction<BlindPanel[]>>;
   accessories: Accessory[];
   dvhInputs: DVHInput[];
   treatments: Treatment[];
@@ -1376,6 +1377,7 @@ const QuotingModule: React.FC<Props> = ({
   aluminum,
   glasses,
   blindPanels,
+  setBlindPanels,
   accessories,
   dvhInputs,
   treatments,
@@ -4033,11 +4035,25 @@ const QuotingModule: React.FC<Props> = ({
                                       blindPanel?.unit === "m2"
                                         ? recipe?.defaultProfileBId
                                         : recipe?.defaultProfileAId;
+                                    
+                                    const newSlatProfileIds = { ...(currentModForEdit.slatProfileIds || {}) };
+                                    if (blindPanel && blindPanel.unit === "ml") {
+                                      const matchingSlatProfile = aluminum.find(
+                                        (a) => a.id === blindPanel.aluminumProfileId || (a.code && a.code.trim().toLowerCase() === blindPanel.code.trim().toLowerCase())
+                                      );
+                                      if (matchingSlatProfile) {
+                                        newSlatProfileIds[paneIdx] = matchingSlatProfile.id;
+                                      }
+                                    } else {
+                                      delete newSlatProfileIds[paneIdx];
+                                    }
+
                                     updateModule(editingModuleId, {
                                       blindPaneIds: {
                                         ...currentModForEdit.blindPaneIds,
                                         [paneIdx]: e.target.value,
                                       },
+                                      slatProfileIds: newSlatProfileIds,
                                       leafProfileId,
                                     });
                                   }}
@@ -4271,11 +4287,53 @@ const QuotingModule: React.FC<Props> = ({
                   <button
                     key={p.id}
                     onClick={() => {
+                      let matchingBlindPanel = blindPanels.find(
+                        (bp) =>
+                          bp.aluminumProfileId === p.id ||
+                          (bp.code && bp.code.trim().toLowerCase() === p.code.trim().toLowerCase())
+                      );
+
+                      let targetBlindPanelId = matchingBlindPanel?.id;
+
+                      if (!matchingBlindPanel && setBlindPanels) {
+                        const newBlindPanelId = `bp_${Date.now()}`;
+                        const newBlindPanel = {
+                          id: newBlindPanelId,
+                          code: p.code || "TABLILLA",
+                          detail: p.detail || `Tablilla ${p.code}`,
+                          price: p.treatmentCost || 0,
+                          unit: "ml" as const,
+                          weightPerMeter: p.weightPerMeter || 0,
+                          barLength: p.barLength || 6,
+                          aluminumProfileId: p.id,
+                          thickness: p.thickness || 120,
+                        };
+                        setBlindPanels((prev) => [...prev, newBlindPanel]);
+                        targetBlindPanelId = newBlindPanelId;
+                      }
+
+                      const updatedSlatProfileIds = {
+                        ...(currentModForEdit.slatProfileIds || {}),
+                        [slatPaneIdx]: p.id,
+                      };
+
+                      const updatedBlindPaneIds = {
+                        ...(currentModForEdit.blindPaneIds || {}),
+                        [slatPaneIdx]: targetBlindPanelId || "",
+                      };
+
+                      const recipe = recipes.find(
+                        (r) => r.id === currentModForEdit.recipeId,
+                      );
+                      const leafProfileId =
+                        (matchingBlindPanel || { unit: "ml" }).unit === "m2"
+                          ? recipe?.defaultProfileBId
+                          : recipe?.defaultProfileAId;
+
                       updateModule(editingModuleId!, {
-                        slatProfileIds: {
-                          ...(currentModForEdit.slatProfileIds || {}),
-                          [slatPaneIdx]: p.id,
-                        },
+                        slatProfileIds: updatedSlatProfileIds,
+                        blindPaneIds: updatedBlindPaneIds,
+                        leafProfileId: leafProfileId || currentModForEdit.leafProfileId,
                       });
                       setShowSlatSelector(false);
                     }}

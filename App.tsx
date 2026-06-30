@@ -326,9 +326,13 @@ const App: React.FC = () => {
           alert(
             "BASE DE DATOS NO INICIALIZADA:\nSe detectó que faltan las tablas necesarias en Supabase.\n\nPor favor, ejecuta el contenido del archivo 'supabase_migration.sql' en el SQL Editor de tu Dashboard de Supabase.",
           );
-        } else if (criticalError.error.message.includes("permission denied")) {
+        } else if (criticalError.error.message?.includes("permission denied")) {
           alert(
             "ERROR DE PERMISOS:\nSupabase denegó el acceso al esquema public.\n\nPor favor, ejecuta el script de permisos al inicio de 'supabase_migration.sql' para solucionarlo.",
+          );
+        } else {
+          alert(
+            `ERROR DE BASE DE DATOS:\n${criticalError.error.message || "Error desconocido"}\n\nCódigo: ${criticalError.error.code || "N/A"}\nDetalle: ${criticalError.error.details || ""}\n\nLa aplicación intentará operar en modo local o parcial.`,
           );
         }
         return null;
@@ -379,6 +383,10 @@ const App: React.FC = () => {
         blindPanels: cleanData(pnlRes.data).map((x) => ({
           ...x,
           id: x.master_ref || x.id,
+          aluminumProfileId: x.aluminum_profile_id,
+          thickness: x.thickness,
+          weightPerMeter: x.weight_per_meter,
+          barLength: x.bar_length,
         })),
         dvhInputs: cleanData(dvhRes.data).map((x) => ({
           ...x,
@@ -1018,6 +1026,7 @@ const App: React.FC = () => {
               aluminum={aluminum}
               glasses={glasses}
               blindPanels={blindPanels}
+              setBlindPanels={setBlindPanels}
               accessories={accessories}
               dvhInputs={dvhInputs}
               treatments={treatments}

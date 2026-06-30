@@ -5,6 +5,59 @@ import { supabase } from "./supabaseClient";
  * Procesa JSONs y sube/actualiza a Supabase con control de usuario.
  */
 
+// Helper para realizar upsert resiliente y auto-reparable en caso de columnas faltantes o conflictos de restricción
+async function safeUpsert(table: string, records: any[], onConflict: string): Promise<{ data: any; error: any }> {
+  if (!records || records.length === 0) return { data: [], error: null };
+  const { data, error } = await supabase.from(table).upsert(records, { onConflict });
+  if (error) {
+    console.warn(`[safeUpsert warning] Falló upsert en ${table} (onConflict: ${onConflict}):`, error);
+
+    // Caso 1: Columna no existe (Postgres error 42703)
+    if (error.code === "42703") {
+      const match = error.message.match(/column "([^"]+)"/);
+      if (match && match[1]) {
+        const missingColumn = match[1];
+        console.log(`[Self-Healing] Removiendo columna faltante "${missingColumn}" de la tabla "${table}" y reintentando...`);
+        const cleanedRecords = records.map((rec) => {
+          const copy = { ...rec };
+          delete copy[missingColumn];
+          return copy;
+        });
+        
+        let newOnConflict = onConflict;
+        if (onConflict.includes(missingColumn)) {
+          if (table === "recetas_usuario") {
+            newOnConflict = "user_id,master_ref";
+          }
+        }
+        return safeUpsert(table, cleanedRecords, newOnConflict);
+      }
+    }
+
+    // Caso 2: Conflicto de restricción UNIQUE (Postgres error 42P10)
+    if (error.code === "42P10" && table === "recetas_usuario") {
+      const nextOnConflict = onConflict === "user_id,master_ref" ? "user_id,receta_id" : "user_id,master_ref";
+      console.log(`[Self-Healing] Reintentando recetas_usuario con restricción "${nextOnConflict}"`);
+      const cleanedRecords = records.map((rec) => ({
+        ...rec,
+        receta_id: rec.receta_id || rec.master_ref || "receta-unknown",
+      }));
+      return safeUpsert(table, cleanedRecords, nextOnConflict);
+    }
+
+    // Caso 3: Violación de restricción de no nulo (Postgres error 23502)
+    if (error.code === "23502" && error.message.includes("receta_id") && table === "recetas_usuario") {
+      console.log(`[Self-Healing] Rellenando columna receta_id faltante en recetas_usuario`);
+      const cleanedRecords = records.map((rec) => ({
+        ...rec,
+        receta_id: rec.receta_id || rec.master_ref || "receta-unknown",
+      }));
+      return safeUpsert(table, cleanedRecords, onConflict);
+    }
+  }
+  return { data, error };
+}
+
 // Guardar datos masivos para el usuario activo
 export const saveBulkData = async (userId: string, data: any) => {
   const {
@@ -44,7 +97,7 @@ export const saveBulkData = async (userId: string, data: any) => {
       max_glass_thickness: a.maxGlassThickness !== undefined ? a.maxGlassThickness : a.max_glass_thickness || 0,
       treatment_cost: a.treatmentCost !== undefined ? a.treatmentCost : a.treatment_cost || 0,
     }));
-    ops.push(supabase.from("materiales_perfiles_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
+    ops.push(safeUpsert("materiales_perfiles_usuario", arr, "user_id,master_ref"));
   }
 
   if (glasses) {
@@ -63,7 +116,7 @@ export const saveBulkData = async (userId: string, data: any) => {
       is_mirror: g.is_mirror || g.isMirror || false,
       price_per_m2: g.price_per_m2 || g.pricePerM2 || 0,
     }));
-    ops.push(supabase.from("materiales_vidrios_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
+    ops.push(safeUpsert("materiales_vidrios_usuario", arr, "user_id,master_ref"));
   }
 
   if (accessories) {
@@ -80,7 +133,7 @@ export const saveBulkData = async (userId: string, data: any) => {
       detail: a.detail || "",
       unit_price: a.unit_price || a.unitPrice || 0,
     }));
-    ops.push(supabase.from("materiales_accesorios_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
+    ops.push(safeUpsert("materiales_accesorios_usuario", arr, "user_id,master_ref"));
   }
 
   if (treatments) {
@@ -97,7 +150,7 @@ export const saveBulkData = async (userId: string, data: any) => {
       price_per_kg: t.pricePerKg || 0,
       hex_color: t.hexColor || "",
     }));
-    ops.push(supabase.from("tratamientos_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
+    ops.push(safeUpsert("tratamientos_usuario", arr, "user_id,master_ref"));
   }
 
   if (blindPanels) {
@@ -114,8 +167,12 @@ export const saveBulkData = async (userId: string, data: any) => {
       detail: p.detail || "",
       price: p.price || 0,
       unit: p.unit || "m2",
+      aluminum_profile_id: p.aluminumProfileId || null,
+      thickness: p.thickness !== undefined ? p.thickness : 0,
+      weight_per_meter: p.weightPerMeter !== undefined ? p.weightPerMeter : 0,
+      bar_length: p.barLength !== undefined ? p.barLength : 6,
     }));
-    ops.push(supabase.from("paneles_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
+    ops.push(safeUpsert("paneles_usuario", arr, "user_id,master_ref"));
   }
 
   if (dvhInputs) {
@@ -133,7 +190,7 @@ export const saveBulkData = async (userId: string, data: any) => {
       cost: d.cost || 0,
       thickness: d.thickness || 0,
     }));
-    ops.push(supabase.from("dvh_usuario").upsert(arr, { onConflict: "user_id,master_ref" }));
+    ops.push(safeUpsert("dvh_usuario", arr, "user_id,master_ref"));
   }
 
   if (recipes) {
@@ -147,10 +204,11 @@ export const saveBulkData = async (userId: string, data: any) => {
     const recetasFormateadas = recipes.map((r: any) => ({
       user_id: userId,
       master_ref: r.id,
+      receta_id: r.id || "receta-" + Math.random().toString(36).substring(2, 9),
       name: r.name || "Sin nombre",
       data: r,
     }));
-    ops.push(supabase.from("recetas_usuario").upsert(recetasFormateadas, { onConflict: "user_id,master_ref" }));
+    ops.push(safeUpsert("recetas_usuario", recetasFormateadas, "user_id,master_ref"));
   }
 
   if (quotes && quotes.length > 0) {
@@ -159,11 +217,7 @@ export const saveBulkData = async (userId: string, data: any) => {
 
   if (config) {
     ops.push(
-      supabase
-        .from("configuracion_usuario")
-        .upsert([{ user_id: userId, config_data: config }], {
-          onConflict: "user_id",
-        }),
+      safeUpsert("configuracion_usuario", [{ user_id: userId, config_data: config }], "user_id")
     );
   }
 
@@ -261,6 +315,10 @@ export const pullUpdatesFromMaster = async (userId: string) => {
               detail: m.detail || "",
               price: m.price || 0,
               unit: m.unit || "m2",
+              aluminum_profile_id: m.aluminum_profile_id || null,
+              thickness: m.thickness || 0,
+              weight_per_meter: m.weight_per_meter || 0,
+              bar_length: m.bar_length || 6,
             };
           }
           if (t.master === "maestro_dvh") {
@@ -318,9 +376,7 @@ export const pullUpdatesFromMaster = async (userId: string) => {
         });
 
       if (newItems.length > 0) {
-        const { error: upsertErr } = await supabase
-          .from(t.user)
-          .upsert(newItems, { onConflict: "user_id,master_ref" });
+        const { error: upsertErr } = await safeUpsert(t.user, newItems, "user_id,master_ref");
         if (upsertErr) {
           errors.push(upsertErr.message);
         } else {

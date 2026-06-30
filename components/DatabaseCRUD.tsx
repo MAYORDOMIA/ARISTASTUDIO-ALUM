@@ -2434,6 +2434,59 @@ const DatabaseCRUD: React.FC<Props> = ({
                   </div>
                   {newElement.unit === "ml" && (
                     <>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                          Vincular con Perfil de Aluminio (para obtener Espesor/Espesor de Tablilla)*
+                        </label>
+                        <select
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 outline-none text-xs focus:border-sky-500 transition-colors"
+                          value={newElement.aluminumProfileId || ""}
+                          onChange={(e) => {
+                            const profId = e.target.value;
+                            if (profId) {
+                              const prof = aluminum.find((a) => a.id === profId);
+                              if (prof) {
+                                setNewElement({
+                                  ...newElement,
+                                  aluminumProfileId: profId,
+                                  code: prof.code || newElement.code,
+                                  detail: prof.detail || newElement.detail,
+                                  weightPerMeter: prof.weightPerMeter || 0,
+                                  barLength: prof.barLength || 6,
+                                  thickness: prof.thickness || 120,
+                                });
+                              }
+                            } else {
+                              setNewElement({
+                                ...newElement,
+                                aluminumProfileId: undefined,
+                              });
+                            }
+                          }}
+                        >
+                          <option value="">(SIN VINCULAR - USAR VALORES MANUALES)</option>
+                          {[...aluminum].sort((a,b) => (a.code || "").localeCompare(b.code || "")).map((prof) => (
+                            <option key={prof.id} value={prof.id}>
+                              {prof.code} - {prof.detail} (Espesor/Cobertura: {prof.thickness}mm, {prof.weightPerMeter} kg/m)
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[9px] text-slate-400 mt-1 font-bold">
+                          * Es altamente recomendado vincular la tablilla con su perfil de la base de datos de aluminio. Esto permite calcular exactamente la cantidad de tiras necesarias para cubrir el alto del paño usando su espesor/espesor técnico.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                          Espesor / Cobertura de Tablilla (mm)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:border-sky-500 focus:bg-white outline-none text-xs transition-colors text-slate-900 font-bold"
+                          value={newElement.thickness || 120}
+                          onChange={(e) => setNewElement({ ...newElement, thickness: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
                       <div>
                         <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">
                           Peso (Kg/ml)

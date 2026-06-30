@@ -13,6 +13,18 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authentic
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
 
+-- Añadir nuevas columnas a paneles_usuario si ya existe la tabla
+ALTER TABLE public.paneles_usuario ADD COLUMN IF NOT EXISTS aluminum_profile_id TEXT;
+ALTER TABLE public.paneles_usuario ADD COLUMN IF NOT EXISTS thickness FLOAT DEFAULT 0;
+ALTER TABLE public.paneles_usuario ADD COLUMN IF NOT EXISTS weight_per_meter FLOAT DEFAULT 0;
+ALTER TABLE public.paneles_usuario ADD COLUMN IF NOT EXISTS bar_length FLOAT DEFAULT 6;
+
+-- Añadir nuevas columnas a maestro_paneles si ya existe la tabla
+ALTER TABLE public.maestro_paneles ADD COLUMN IF NOT EXISTS aluminum_profile_id TEXT;
+ALTER TABLE public.maestro_paneles ADD COLUMN IF NOT EXISTS thickness FLOAT DEFAULT 0;
+ALTER TABLE public.maestro_paneles ADD COLUMN IF NOT EXISTS weight_per_meter FLOAT DEFAULT 0;
+ALTER TABLE public.maestro_paneles ADD COLUMN IF NOT EXISTS bar_length FLOAT DEFAULT 6;
+
 -- Habilitar extensión para UUIDs
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -82,6 +94,10 @@ CREATE TABLE IF NOT EXISTS public.maestro_paneles (
     detail TEXT,
     price FLOAT DEFAULT 0,
     unit TEXT DEFAULT 'm2',
+    aluminum_profile_id TEXT,
+    thickness FLOAT DEFAULT 0,
+    weight_per_meter FLOAT DEFAULT 0,
+    bar_length FLOAT DEFAULT 6,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -168,6 +184,10 @@ CREATE TABLE IF NOT EXISTS public.paneles_usuario (
     detail TEXT,
     price FLOAT DEFAULT 0,
     unit TEXT DEFAULT 'm2',
+    aluminum_profile_id TEXT,
+    thickness FLOAT DEFAULT 0,
+    weight_per_meter FLOAT DEFAULT 0,
+    bar_length FLOAT DEFAULT 6,
     created_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(user_id, master_ref)
 );

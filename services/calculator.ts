@@ -225,6 +225,7 @@ export const calculateCompositePrice = (
       item.quotingMode,
       mod.leftHeight,
       mod.rightHeight,
+      mod.perLeafConfiguration
     );
 
     totalAluCost += result.aluCost;
@@ -619,6 +620,7 @@ export const calculateItemPrice = (
   quotingMode?: "Completa" | "Solo Marcos" | "Solo Hojas",
   leftHeight?: number,
   rightHeight?: number,
+  perLeafConfiguration?: Record<number, { transoms: { height: number; profileId: string; formula?: string }[]; blindPanes: number[]; blindPaneIds: Record<number, string>; slatProfileIds: Record<number, string>; glassOuterId?: string; isDVH?: boolean; }>
 ) => {
   let totalAluWeight = 0;
   let aluCost = 0;
@@ -1150,14 +1152,28 @@ export const calculateItemPrice = (
 
   blindPanes.forEach((paneIdx) => {
     const slatId = slatProfileIds[paneIdx];
-    if (slatId) {
-      const slatProfile = profiles.find((p) => p.id === slatId);
+    const specificBlind = blindPanels.find(
+      (bp) => bp.id === blindPaneIds[paneIdx]
+    );
+    const slatProfile = profiles.find(
+      (p) => p.id === slatId || (specificBlind && (p.id === specificBlind.aluminumProfileId || (p.code && p.code.trim().toLowerCase() === specificBlind.code.trim().toLowerCase())))
+    );
+    if (slatProfile) {
       const pH = panesHeights[paneIdx];
-      const slatCoverage = slatProfile && slatProfile.thickness > 0 ? slatProfile.thickness : 120;
-      if (slatProfile && slatCoverage > 0 && pH > 0) {
+      const thickness = slatProfile.thickness > 0 ? slatProfile.thickness : (specificBlind && specificBlind.thickness > 0 ? specificBlind.thickness : 120);
+      const slatCoverage = thickness > 0 ? thickness : 120;
+      if (pH > 0) {
         const numSlats = Math.ceil(pH / slatCoverage);
-        const totalLinealMm =
-          (gW + Number(config.discWidth || 0)) * numSlats * numLeaves;
+        let totalLinealMm = 0;
+        if (leafWidths && leafWidths.length > 0) {
+          leafWidths.forEach((lw) => {
+            const w = lw - Number(recipe.glassDeductionW || 0);
+            const leafGW = evaluateFormula(getFormulaW(), w, adjustedH);
+            totalLinealMm += (leafGW + Number(config.discWidth || 0)) * numSlats;
+          });
+        } else {
+          totalLinealMm = (gW + Number(config.discWidth || 0)) * numSlats * numLeaves;
+        }
         const slatWeight =
           (totalLinealMm / 1000) * Number(slatProfile.weightPerMeter || 0);
         const extraFactor = (Number(config.blindPanelExtraIncrement || 0) / 100);
@@ -1301,35 +1317,60 @@ export const calculateItemPrice = (
       : null;
 
   if (quotingMode !== "Solo Marcos") {
+    const leafMultiplier = (leafWidths && leafWidths.length > 0) ? 1 : numLeaves;
+    const panesCountPerLeaf = (transoms && transoms.length > 0) ? transoms.length + 1 : 1;
     glassPanes.forEach((pane, index) => {
       const areaM2 = (pane.w * pane.h) / 1000000;
       const billingAreaPerPiece = Math.max(areaM2, 0.5);
-      const totalBillingArea = billingAreaPerPiece * numLeaves;
+      const totalBillingArea = billingAreaPerPiece * leafMultiplier;
 
       if (visualType.includes("mosquitero") || recipe.type === "Mosquitero") {
         glassCost += Number(config.meshPricePerM2 || 25.0) * totalBillingArea;
         return;
       }
 
-      if (blindPanes.includes(index)) {
-        if (slatProfileIds[index]) {
-          return;
-        }
+      const sectionIndex = index % panesCountPerLeaf;
+
+      if (blindPanes.includes(sectionIndex)) {
         const specificBlind = blindPanels.find(
-          (bp) => bp.id === blindPaneIds[index],
+          (bp) => bp.id === blindPaneIds[sectionIndex],
         );
         const extraFactor = (Number(config.blindPanelExtraIncrement || 0) / 100);
         if (specificBlind) {
-          const unitValue =
-            specificBlind.unit === "ml" ? pane.w / 1000 : billingAreaPerPiece;
-          glassCost += Number(specificBlind.price || 0) * unitValue * numLeaves * (1 + extraFactor);
-          
-          if (specificBlind.unit === "ml" && specificBlind.weightPerMeter) {
-            // Se asume que en el caso de ML, al ser ciego, el costo va al vidrio, pero el peso al aluminio (para despunte).
-            // Omitimos sumar el incremento al peso para evitar distorsiones del peso técnico,
-            // ya que el recargo económico para "paneles ciegos" se aplicó en el `glassCost` arriba (como quería el usuario).
-            const bpWeight = (pane.w / 1000) * specificBlind.weightPerMeter * numLeaves;
-            totalAluWeight += bpWeight;
+          if (specificBlind.unit === "ml") {
+            const slatId = slatProfileIds[sectionIndex];
+            const slatProfile = profiles.find(
+              (p) => p.id === slatId || p.id === specificBlind.aluminumProfileId || (p.code && p.code.trim().toLowerCase() === specificBlind.code.trim().toLowerCase())
+            );
+            const thickness = slatProfile && slatProfile.thickness > 0 ? slatProfile.thickness : (specificBlind.thickness || 120);
+            const numSlats = Math.ceil(pane.h / (thickness || 120));
+            
+            let totalLinealMm = 0;
+            if (leafWidths && leafWidths.length > 0) {
+              leafWidths.forEach((lw) => {
+                const w = lw - Number(recipe.glassDeductionW || 0);
+                const leafGW = evaluateFormula(getFormulaW(), w, adjustedH);
+                totalLinealMm += (leafGW + Number(config.discWidth || 0)) * numSlats;
+              });
+            } else {
+              totalLinealMm = (pane.w + Number(config.discWidth || 0)) * numSlats * leafMultiplier;
+            }
+            const totalLinealMeters = totalLinealMm / 1000;
+            
+            glassCost += Number(specificBlind.price || 0) * totalLinealMeters * (1 + extraFactor);
+            
+            // Add weight to aluminum if it wasn't already handled by slatProfileIds in Section 2
+            if (!slatProfileIds[sectionIndex]) {
+              const weightPerMeter = Number(slatProfile?.weightPerMeter || specificBlind.weightPerMeter || 0);
+              if (weightPerMeter > 0) {
+                const bpWeight = totalLinealMeters * weightPerMeter;
+                totalAluWeight += bpWeight;
+                aluCost += bpWeight * baseAluPrice;
+              }
+            }
+          } else {
+            // unit === "m2"
+            glassCost += Number(specificBlind.price || 0) * billingAreaPerPiece * leafMultiplier * (1 + extraFactor);
           }
         } else {
           glassCost +=
@@ -1349,15 +1390,15 @@ export const calculateItemPrice = (
             glassCost +=
               Number(dvhCamera.cost || 0) *
               (((pane.w + pane.h) * 2) / 1000) *
-              numLeaves;
+              leafMultiplier;
           dvhInputs
             .filter((i) => i.type !== "Cámara")
             .forEach(
               (input) =>
-                (glassCost += Number(input.cost || 0) * areaM2 * numLeaves),
+                (glassCost += Number(input.cost || 0) * areaM2 * leafMultiplier),
             );
           
-          if (!blindPanes.includes(index) && effectiveCameraIdGlass) {
+          if (!blindPanes.includes(sectionIndex) && effectiveCameraIdGlass) {
              const { profiles: rawDvhProfs } = getDVHExtras(recipes, isDVH);
              const dvhProfs = filterDVHProfiles(rawDvhProfs, isDVH, effectiveCameraIdGlass, dvhInputs, profiles) as any[];
              const wasteFactor = 1.1; // Default 10% waste for DVH profiles
@@ -1365,7 +1406,7 @@ export const calculateItemPrice = (
                  const p = profiles.find((x) => x.id === rp.profileId);
                  if (p) {
                      const lenMm = evaluateFormula(rp.formula, pane.w, pane.h);
-                     const totalMeters = (lenMm / 1000) * Number(rp.quantity || 1) * 2 * numLeaves * wasteFactor;
+                     const totalMeters = (lenMm / 1000) * Number(rp.quantity || 1) * 2 * leafMultiplier * wasteFactor;
                      totalAluWeight += totalMeters * p.weightPerMeter;
                      aluCost += totalMeters * p.weightPerMeter * baseAluPrice;
                  }

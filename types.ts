@@ -78,6 +78,8 @@ export interface BlindPanel {
   unit: "m2" | "ml";
   weightPerMeter?: number;
   barLength?: number;
+  aluminumProfileId?: string;
+  thickness?: number;
 }
 
 export interface Accessory {
@@ -215,6 +217,14 @@ export interface MeasurementModule {
   leafWidths?: number[]; // Nuevo: Ancho individual de hojas para puertas dobles
   leftHeight?: number; // Para paños fijos trapecios
   rightHeight?: number; // Para paños fijos trapecios
+  perLeafConfiguration?: Record<number, {
+    transoms: { height: number; profileId: string; formula?: string }[];
+    blindPanes: number[];
+    blindPaneIds: Record<number, string>;
+    slatProfileIds: Record<number, string>;
+    glassOuterId?: string;
+    isDVH?: boolean;
+  }>;
 }
 
 export interface QuoteItemBreakdown {
