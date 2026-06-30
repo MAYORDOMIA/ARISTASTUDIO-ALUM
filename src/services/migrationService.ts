@@ -34,26 +34,7 @@ async function safeUpsert(table: string, records: any[], onConflict: string): Pr
       }
     }
 
-    // Caso 2: Conflicto de restricción UNIQUE (Postgres error 42P10)
-    if (error.code === "42P10" && table === "recetas_usuario") {
-      const nextOnConflict = onConflict === "user_id,master_ref" ? "user_id,receta_id" : "user_id,master_ref";
-      console.log(`[Self-Healing] Reintentando recetas_usuario con restricción "${nextOnConflict}"`);
-      const cleanedRecords = records.map((rec) => ({
-        ...rec,
-        receta_id: rec.receta_id || rec.master_ref || "receta-unknown",
-      }));
-      return safeUpsert(table, cleanedRecords, nextOnConflict);
-    }
-
-    // Caso 3: Violación de restricción de no nulo (Postgres error 23502)
-    if (error.code === "23502" && error.message.includes("receta_id") && table === "recetas_usuario") {
-      console.log(`[Self-Healing] Rellenando columna receta_id faltante en recetas_usuario`);
-      const cleanedRecords = records.map((rec) => ({
-        ...rec,
-        receta_id: rec.receta_id || rec.master_ref || "receta-unknown",
-      }));
-      return safeUpsert(table, cleanedRecords, onConflict);
-    }
+    // (Caso 2 y Caso 3 de self-healing para receta_id han sido removidos porque la columna ya no existe en el esquema)
   }
   return { data, error };
 }
@@ -204,7 +185,6 @@ export const saveBulkData = async (userId: string, data: any) => {
     const recetasFormateadas = recipes.map((r: any) => ({
       user_id: userId,
       master_ref: r.id,
-      receta_id: r.id || "receta-" + Math.random().toString(36).substring(2, 9),
       name: r.name || "Sin nombre",
       data: r,
     }));
