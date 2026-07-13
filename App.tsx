@@ -1283,7 +1283,8 @@ const App: React.FC = () => {
                         Aclaraciones de Pie de Presupuesto
                       </label>
                       <textarea
-                        className="w-full bg-slate-50 border p-1 rounded-lg text-xs font-bold resize-y min-h-[40px]"
+                        rows={8}
+                        className="w-full bg-slate-50 border p-2 rounded-lg text-xs font-bold resize-y min-h-[150px]"
                         value={config.quoteFooterNotes || ""}
                         onChange={(e) =>
                           setConfig({ ...config, quoteFooterNotes: e.target.value })
