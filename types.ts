@@ -1,5 +1,6 @@
 export interface GlobalConfig {
   aluminumPricePerKg: number;
+  aluminumWastePercentage?: number;
   laborPercentage: number;
   discWidth: number;
   taxRate: number;

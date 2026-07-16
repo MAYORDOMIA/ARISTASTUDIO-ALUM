@@ -76,6 +76,7 @@ const App: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [config, setConfig] = useState<GlobalConfig>({
     aluminumPricePerKg: 15.0,
+    aluminumWastePercentage: 0,
     laborPercentage: 45,
     discWidth: 4,
     vsDiscount: 0,
@@ -1093,6 +1094,22 @@ const App: React.FC = () => {
                           setConfig({
                             ...config,
                             aluminumPricePerKg: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">
+                        Desperdicio Alu %
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border p-1 rounded-lg font-mono text-xs font-bold "
+                        value={config.aluminumWastePercentage ?? ""}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            aluminumWastePercentage: parseFloat(e.target.value) || 0,
                           })
                         }
                       />

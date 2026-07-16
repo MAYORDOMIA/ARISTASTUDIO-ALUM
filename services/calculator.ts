@@ -549,6 +549,10 @@ export const calculateCompositePrice = (
     }
   }
 
+  const aluWasteFactor = 1 + (Number(config.aluminumWastePercentage || 0) / 100);
+  totalAluCost *= aluWasteFactor;
+  totalAluWeight *= aluWasteFactor;
+
   const materialCost = totalAluCost + totalGlassCost + totalAccCost;
   const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
   const handrailExtraCost = hasHandrail
@@ -1428,6 +1432,10 @@ export const calculateItemPrice = (
       glassCost += Number(config.meshPricePerM2 || 25.0) * billingArea;
     }
   }
+
+  const aluWasteFactor = 1 + (Number(config.aluminumWastePercentage || 0) / 100);
+  aluCost *= aluWasteFactor;
+  totalAluWeight *= aluWasteFactor;
 
   const materialCost = aluCost + glassCost + accCost;
   const laborCost = materialCost * (Number(config.laborPercentage || 0) / 100);
