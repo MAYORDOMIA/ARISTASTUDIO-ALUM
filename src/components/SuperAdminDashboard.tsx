@@ -9,6 +9,7 @@ import {
   MonitorSmartphone,
   RefreshCw,
   Upload,
+  Key,
 } from "lucide-react";
 interface Profile {
   id: string;
@@ -25,6 +26,9 @@ const SuperAdminDashboard: React.FC = () => {
   const [toggling, setToggling] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [targetUserId, setTargetUserId] = useState<string | null>(null);
+  const [passwordResetUserId, setPasswordResetUserId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     fetchProfiles();
@@ -52,6 +56,31 @@ const SuperAdminDashboard: React.FC = () => {
     }
     setLoading(false);
   };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordResetUserId || !newPassword || newPassword.length < 6) {
+      alert("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const { error } = await supabase.rpc("update_user_password_by_admin", {
+        target_user_id: passwordResetUserId,
+        new_password: newPassword
+      });
+      if (error) throw error;
+      alert("Contraseña actualizada exitosamente.");
+      setPasswordResetUserId(null);
+      setNewPassword("");
+    } catch (err: any) {
+      console.error(err);
+      alert("Error al actualizar contraseña: " + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     setToggling(id);
     const { error } = await supabase
@@ -269,6 +298,13 @@ const SuperAdminDashboard: React.FC = () => {
                   {profile.role !== "super_admin" && (
                     <div className="flex gap-2">
                         <button
+                          onClick={() => setPasswordResetUserId(profile.id)}
+                          disabled={toggling === profile.id}
+                          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-colors bg-purple-100 text-purple-700 hover:bg-purple-200 "
+                        >
+                          <Key size={14} /> Contraseña
+                        </button>
+                        <button
                           onClick={() => {
                               setTargetUserId(profile.id);
                               fileInputRef.current?.click();
@@ -293,6 +329,49 @@ const SuperAdminDashboard: React.FC = () => {
           )}
         </div>
       </div>
+      {passwordResetUserId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100">
+            <h3 className="text-sm font-black uppercase text-slate-800 tracking-tighter mb-4 flex items-center gap-2">
+              <Key size={16} className="text-purple-500" />
+              Cambiar Contraseña
+            </h3>
+            <form onSubmit={handlePasswordReset} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1 block">
+                  Nueva Contraseña
+                </label>
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordResetUserId(null);
+                    setNewPassword("");
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-widest py-3 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResetting || newPassword.length < 6}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed text-white font-bold uppercase text-[10px] tracking-widest py-3 rounded-xl transition-colors flex justify-center items-center gap-2"
+                >
+                  {isResetting ? <Loader2 size={14} className="animate-spin" /> : "Guardar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
