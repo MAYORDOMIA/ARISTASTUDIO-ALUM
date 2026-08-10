@@ -2118,6 +2118,7 @@ export const generateMaterialsOrderPDF = (
   });
   autoTable(doc, {
     startY: currentY,
+    rowPageBreak: 'avoid',
     head: [
       [
         "CÓDIGO",
@@ -2295,6 +2296,7 @@ export const generateMaterialsOrderPDF = (
   ]);
   autoTable(doc, {
     startY: currentY,
+    rowPageBreak: 'avoid',
     head: [["ESPECIFICACIÓN", "MEDIDA (mm)", "CANTIDAD", "TOTAL M2"]],
     body: glassBody,
     theme: "striped",
@@ -2437,6 +2439,7 @@ export const generateMaterialsOrderPDF = (
   ]);
   autoTable(doc, {
     startY: currentY,
+    rowPageBreak: 'avoid',
     head: [["CÓDIGO", "DESCRIPCIÓN", "CANTIDAD TOTAL"]],
     body: accBody,
     theme: "grid",
@@ -2566,6 +2569,7 @@ export const generateClientDetailedPDF = (
 
   autoTable(doc, {
     startY: 65,
+    rowPageBreak: 'avoid',
     head: [
       [
         "#",
@@ -2632,6 +2636,12 @@ export const generateClientDetailedPDF = (
   });
   const lastTable = (doc as any).lastAutoTable;
   let finalY = lastTable ? lastTable.finalY + 10 : 200;
+
+  // Add page break if totals don't fit
+  if (finalY > doc.internal.pageSize.getHeight() - 40) {
+    doc.addPage();
+    finalY = 20;
+  }
   
   const subtotal = quote.items.reduce(
     (acc, i) => acc + i.calculatedCost * i.quantity,
@@ -3605,6 +3615,7 @@ export const generateAssemblyOrderPDF = (
     const pageCountBefore = doc.getNumberOfPages();
     autoTable(doc, {
       startY: currentY,
+      rowPageBreak: 'avoid',
       margin: { left: 80 },
       head: [["CÓD.", "PERFIL", "LONG", "CANT", "CORTES"]],
       body: profileCuts,
@@ -3720,6 +3731,7 @@ export const generateAssemblyOrderPDF = (
 
     autoTable(doc, {
       startY: currentY,
+      rowPageBreak: 'avoid',
       head: [
         [
           "UBICACIÓN",
@@ -3775,6 +3787,7 @@ export const generateCostsPDF = (
   });
   autoTable(doc, {
     startY: 35,
+    rowPageBreak: 'avoid',
     head: [
       [
         "CÓD.",
@@ -3792,7 +3805,13 @@ export const generateCostsPDF = (
     headStyles: { fillColor: [51, 65, 85], fontSize: 8 },
     styles: { fontSize: 7 },
   });
-  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  let finalY = (doc as any).lastAutoTable.finalY + 10;
+
+  // Add page break if summary doesn't fit
+  if (finalY > doc.internal.pageSize.getHeight() - 60) {
+    doc.addPage();
+    finalY = 20;
+  }
   const totalAlu = quote.items.reduce(
     (sum, i) => sum + (i.breakdown?.aluCost || 0) * i.quantity,
     0,
