@@ -865,7 +865,34 @@ const drawDetailedOpening = (
     }
   };
   if (isVidrioSolo) {
-    drawGlassWithTransoms(x, y, w, h, y + h);
+    if (extras.mirrorShape === "redondo") {
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+      ctx.closePath();
+      try {
+        const glassGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+        glassGrad.addColorStop(0, "#bae6fd");
+        glassGrad.addColorStop(0.5, "#f0f9ff");
+        glassGrad.addColorStop(1, "#bae6fd");
+        ctx.fillStyle = glassGrad;
+      } catch (e) {
+        ctx.fillStyle = "#bae6fd";
+      }
+      ctx.fill();
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,0.6)";
+      ctx.lineWidth = 2.5;
+      ctx.moveTo(x + w * 0.3, y + h * 0.3);
+      ctx.lineTo(x + w * 0.7, y + h * 0.7);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      drawGlassWithTransoms(x, y, w, h, y + h);
+    }
   } else if (isMamparaRebatir) {
     drawProfile([
       { x: x, y: y },
@@ -1400,6 +1427,7 @@ const QuotingModule: React.FC<Props> = ({
     mosquitero: false,
     tapajuntas: false,
     tapajuntasSides: { top: true, bottom: true, left: true, right: true },
+    mirrorShape: "recto",
   });
   const [modules, setModules] = useState<MeasurementModule[]>([
     {
@@ -2838,6 +2866,33 @@ const QuotingModule: React.FC<Props> = ({
                   </div>
                 )}
               </div>
+              
+              {modules.some(m => {
+                const r = recipes.find(rec => rec.id === m.recipeId);
+                return r?.id === "vidrio_solo" || 
+                       r?.name?.toLowerCase().includes("espejo") || 
+                       r?.name?.toLowerCase().includes("vidrio") || 
+                       r?.visualType?.toLowerCase() === "vidrio_solo";
+              }) && (
+                <div
+                  className="flex flex-col gap-1.5 bg-white p-1.5 rounded-lg border border-purple-100/50 shadow-sm transition-all hover:border-purple-200"
+                >
+                  <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setExtras({ ...extras, mirrorShape: extras.mirrorShape === "redondo" ? "recto" : "redondo" })}>
+                    <Maximize2 size={14} className={extras.mirrorShape === "redondo" ? "text-purple-600" : "text-slate-400"} />
+                    <span className={`text-[9px] font-black uppercase tracking-widest flex-1 ${extras.mirrorShape === "redondo" ? "text-purple-600 " : "text-slate-500"}`}>
+                      Forma: {extras.mirrorShape === "redondo" ? "Redondo" : "Recto"}
+                    </span>
+                    <button className={`w-9 h-5 rounded-full p-0.5 transition-all ${extras.mirrorShape === "redondo" ? "bg-purple-600 shadow-lg shadow-purple-100 " : "bg-slate-300 "}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${extras.mirrorShape === "redondo" ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
+                  </div>
+                  {extras.mirrorShape === "redondo" && (
+                    <p className="text-[7.5px] font-bold text-slate-400 leading-tight uppercase tracking-wider pl-6">
+                      * Suma 100mm (solo p/precio)
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="space-y-2 pt-2 border-t border-slate-100 ">

@@ -270,6 +270,7 @@ export interface QuoteItem {
       left: boolean;
       right: boolean;
     };
+    mirrorShape?: "recto" | "redondo";
   };
   couplingProfileId?: string;
   glazingBeadStyle?: "Recto" | "Curvo";

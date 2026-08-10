@@ -179,7 +179,7 @@ export const calculateCompositePrice = (
     if (recipe.type === "Baranda") hasHandrail = true;
     if (recipe.type === "Mampara") hasMampara = true;
 
-    const { modW, modH } = calculateModuleDimensions(
+    let { modW, modH } = calculateModuleDimensions(
       mod,
       colRatios,
       rowRatios,
@@ -190,6 +190,11 @@ export const calculateCompositePrice = (
       realDeduction,
       isManualDim,
     );
+
+    if (item.extras?.mirrorShape === "redondo") {
+      modW += 100;
+      modH += 100;
+    }
 
     const result = calculateItemPrice(
       recipe,
