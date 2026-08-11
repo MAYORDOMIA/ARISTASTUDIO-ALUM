@@ -2365,7 +2365,8 @@ export const generateMaterialsOrderPDF = (
         if (calculatedQty <= 0 && ra.quantity > 0) return; // Ignore if calculated to 0
 
         const isSal = mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'));
-
+        const isEscuadra = mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('ESCUADRA') || acc.code.toUpperCase().includes('ESCUADRA'));
+        const isSpecialDVHAcc = isSal || isEscuadra;
         const existing = accSummary.get(acc.id) || {
           code: acc.code,
           detail: acc.detail,
@@ -2373,7 +2374,7 @@ export const generateMaterialsOrderPDF = (
           isLinear: ra.isLinear || false,
           isSal: isSal,
         };
-        if (ra.isLinear && ra.formula) {
+        if (!isSpecialDVHAcc && ra.isLinear && ra.formula) {
            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
            panes.forEach((pane) => {
              const lengthMm = evaluateFormula(
@@ -2383,7 +2384,7 @@ export const generateMaterialsOrderPDF = (
              );
              existing.qty += (lengthMm / 1000) * calculatedQty * item.quantity;
            });
-        } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
+        } else if (!isSpecialDVHAcc && ra.isSpaced && ra.spacingMm && ra.formula) {
            const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
            panes.forEach((pane) => {
              const lengthMm = evaluateFormula(

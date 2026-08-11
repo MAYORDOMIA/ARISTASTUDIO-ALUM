@@ -1270,8 +1270,10 @@ export const calculateItemPrice = (
     if (acc) {
       // Calculate sales quantity if it's SALES
       let calculatedQty = Number(ra.quantity || 0);
+      let isSpecialDVHAcc = false;
       if (isDVH && dvhCameraId) {
          if (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL')) {
+            isSpecialDVHAcc = true;
             let camInput = dvhInputs.find(c => c.id === dvhCameraId);
             let camThick = camInput?.thickness || 12;
             if (!camInput?.thickness && typeof camInput?.detail === 'string') {
@@ -1285,6 +1287,7 @@ export const calculateItemPrice = (
             }, 0);
             calculatedQty = calculateSalesGrams(totalPerimeterMeters, camThick);
          } else if (acc.detail.toUpperCase().includes('ESCUADRA') || acc.code.toUpperCase().includes('ESCUADRA')) {
+            isSpecialDVHAcc = true;
             const panesCount = glassPanes.filter((_, index) => !blindPanes.includes(index)).length;
             calculatedQty = Number(ra.quantity || 4) * panesCount;
          }
@@ -1301,11 +1304,11 @@ export const calculateItemPrice = (
          calcPrice = uPrice / 1000;
       }
       
-      if (ra.isLinear && ra.formula) {
+      if (!isSpecialDVHAcc && ra.isLinear && ra.formula) {
         const lengthMm = evaluateFormula(ra.formula, width, height);
         const totalMeters = (lengthMm / 1000) * calculatedQty;
         accCost += calcPrice * totalMeters;
-      } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
+      } else if (!isSpecialDVHAcc && ra.isSpaced && ra.spacingMm && ra.formula) {
         const lengthMm = evaluateFormula(ra.formula, width, height);
         const count = Math.ceil(lengthMm / ra.spacingMm);
         accCost += calcPrice * count * (calculatedQty === 0 ? 1 : calculatedQty);
@@ -1355,15 +1358,7 @@ export const calculateItemPrice = (
             const numSlats = Math.ceil(pane.h / (thickness || 120));
             
             let totalLinealMm = 0;
-            if (leafWidths && leafWidths.length > 0) {
-              leafWidths.forEach((lw) => {
-                const w = lw - Number(recipe.glassDeductionW || 0);
-                const leafGW = evaluateFormula(getFormulaW(), w, adjustedH);
-                totalLinealMm += (leafGW + Number(config.discWidth || 0)) * numSlats;
-              });
-            } else {
-              totalLinealMm = (pane.w + Number(config.discWidth || 0)) * numSlats * leafMultiplier;
-            }
+            totalLinealMm = (pane.w + Number(config.discWidth || 0)) * numSlats * leafMultiplier;
             const totalLinealMeters = totalLinealMm / 1000;
             
             glassCost += Number(specificBlind.price || 0) * totalLinealMeters * (1 + extraFactor);
