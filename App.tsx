@@ -907,12 +907,15 @@ const App: React.FC = () => {
             </button>
             <h1 className="text-xs lg:text-sm font-black uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[#0f172a] truncate max-w-[150px] lg:max-w-none">
               {activeTab === "quoter" ? (
-                <div className="flex items-baseline shrink-0">
+                <div className="flex items-center shrink-0">
                   <span className="font-black tracking-tighter text-lg leading-none text-[#0f172a] ">
                     ARISTA
                   </span>
                   <span className="font-light tracking-normal text-lg leading-none text-sky-500">
                     STUDIO
+                  </span>
+                  <span className="ml-2 bg-slate-50 text-slate-400 text-[10px] px-1.5 py-0.5 rounded font-mono border border-slate-200 lowercase">
+                    v1.2.4
                   </span>
                 </div>
               ) : (
