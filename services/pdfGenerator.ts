@@ -2461,41 +2461,62 @@ export const generateClientDetailedPDF = (
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+
+  let currentY = 15;
   if (config.companyLogo) {
     try {
       const imgProps = doc.getImageProperties(config.companyLogo);
-      const maxH = 18;
-      const drawW = (imgProps.width * maxH) / imgProps.height;
+      const maxW = pageWidth - 40; // 20px margin on each side
+      const maxH = 40; // Max height to prevent taking up half the page
+      
+      let drawW = imgProps.width;
+      let drawH = imgProps.height;
+      
+      const ratio = Math.min(maxW / drawW, maxH / drawH);
+      drawW = drawW * ratio;
+      drawH = drawH * ratio;
+
       doc.addImage(
         config.companyLogo,
         "PNG",
         pageWidth / 2 - drawW / 2,
-        10,
+        currentY,
         drawW,
-        maxH,
+        drawH,
       );
+      currentY += drawH + 10;
     } catch (e) {}
+  } else {
+    currentY += 10;
   }
+
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text(config.companyName || "PRESUPUESTO COMERCIAL", pageWidth / 2, 35, {
+  doc.text(config.companyName || "PRESUPUESTO COMERCIAL", pageWidth / 2, currentY, {
     align: "center",
   });
+  currentY += 6;
+
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.text(
     `${config.companyAddress || ""} | Tel: ${config.companyPhone || ""}`,
     pageWidth / 2,
-    40,
+    currentY,
     { align: "center" },
   );
+  currentY += 7;
+
   doc.setDrawColor(230);
-  doc.line(20, 45, pageWidth - 20, 45);
+  doc.line(20, currentY, pageWidth - 20, currentY);
+  currentY += 10;
+
   doc.setFontSize(10);
-  doc.text(`CLIENTE: ${quote.clientName.toUpperCase()}`, 20, 55);
-  doc.text(`FECHA: ${new Date().toLocaleDateString()}`, pageWidth - 20, 55, {
+  doc.text(`CLIENTE: ${quote.clientName.toUpperCase()}`, 20, currentY);
+  doc.text(`FECHA: ${new Date().toLocaleDateString()}`, pageWidth - 20, currentY, {
     align: "right",
   });
+  currentY += 10;
 
   const tableData = quote.items.map((item, idx) => {
     const treatment = treatments.find((t) => t.id === item.colorId);
@@ -2569,7 +2590,7 @@ export const generateClientDetailedPDF = (
   });
 
   autoTable(doc, {
-    startY: 65,
+    startY: currentY,
     rowPageBreak: 'avoid',
     head: [
       [
