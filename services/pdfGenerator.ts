@@ -2675,8 +2675,13 @@ export const generateClientDetailedPDF = (
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Subtotal Neto: $${subtotal.toLocaleString()}`, pageWidth - 20, finalY, { align: "right" });
-  finalY += 6;
+  
+  const showSubtotals = tax > 0 || (quote.discount && quote.discount > 0);
+  
+  if (showSubtotals) {
+    doc.text(`Subtotal Neto: $${subtotal.toLocaleString()}`, pageWidth - 20, finalY, { align: "right" });
+    finalY += 6;
+  }
   
   if (tax > 0) {
     doc.text(`IVA (${config.taxRate}%): $${tax.toLocaleString()}`, pageWidth - 20, finalY, { align: "right" });

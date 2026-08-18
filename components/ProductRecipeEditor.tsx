@@ -1066,10 +1066,10 @@ const ProductRecipeEditor: React.FC<Props> = ({
               <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm">
                 <div className="flex justify-between items-start gap-6">
                   <div className="flex-1 min-w-0 space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap xl:flex-nowrap items-start xl:items-center gap-4">
+                      <div className="flex-1 min-w-[250px] w-full">
                         <input
-                          className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 focus:outline-none bg-transparent w-full`}
+                          className={`text-2xl font-black uppercase tracking-tighter transition-colors text-slate-800 focus:outline-none bg-transparent w-full text-ellipsis overflow-hidden`}
                           value={recipe.name || ""}
                           onChange={(e) =>
                             updateRecipe(recipe.id, {
@@ -1078,7 +1078,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           }
                         />
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
                         <button
                           onClick={() => {
                             const newId = Date.now().toString();
