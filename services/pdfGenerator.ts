@@ -2467,7 +2467,7 @@ export const generateClientDetailedPDF = (
     try {
       const imgProps = doc.getImageProperties(config.companyLogo);
       const maxW = pageWidth - 40; // 20px margin on each side
-      const maxH = 40; // Max height to prevent taking up half the page
+      const maxH = 30; // Max height set to 30px
       
       let drawW = imgProps.width;
       let drawH = imgProps.height;
