@@ -1395,6 +1395,7 @@ interface Props {
   setQuotes: React.Dispatch<React.SetStateAction<Quote[]>>;
   onUpdateActiveItem?: (item: QuoteItem | null) => void;
   onRecipeChange?: (id: string | null) => void;
+  onEditingChange?: (isEditing: boolean) => void;
   currentWorkItems: QuoteItem[];
   setCurrentWorkItems: React.Dispatch<React.SetStateAction<QuoteItem[]>>;
 }
@@ -1413,6 +1414,7 @@ const QuotingModule: React.FC<Props> = ({
   setQuotes,
   onUpdateActiveItem,
   onRecipeChange,
+  onEditingChange,
   currentWorkItems,
   setCurrentWorkItems,
 }) => {
@@ -1463,6 +1465,13 @@ const QuotingModule: React.FC<Props> = ({
   const [quotingMode, setQuotingMode] = useState<
     "Completa" | "Solo Marcos" | "Solo Hojas"
   >("Completa");
+
+  useEffect(() => {
+    if (onEditingChange) {
+      onEditingChange(!!editingItemId);
+    }
+  }, [editingItemId, onEditingChange]);
+
   useEffect(() => {
     if (onRecipeChange) {
       const firstMod = modules[0];

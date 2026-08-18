@@ -27,6 +27,7 @@ import {
   LogOut,
   MonitorOff,
   Plus,
+  Check,
 } from "lucide-react";
 import { DATABASE_TABS } from "./constants";
 import * as XLSX from "xlsx";
@@ -597,6 +598,7 @@ const App: React.FC = () => {
   const [activeQuoteItem, setActiveQuoteItem] = useState<QuoteItem | null>(
     null,
   );
+  const [isEditingItem, setIsEditingItem] = useState(false);
   const [activeQuote, setActiveQuote] = useState<Quote | null>(null);
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
   const [triggerQuoterAction, setTriggerQuoterAction] = useState<{
@@ -915,7 +917,7 @@ const App: React.FC = () => {
                     STUDIO
                   </span>
                   <span className="ml-2 bg-slate-50 text-slate-400 text-[10px] px-1.5 py-0.5 rounded font-mono border border-slate-200 lowercase">
-                    v1.2.8
+                    v1.2.9
                   </span>
                 </div>
               ) : (
@@ -947,9 +949,17 @@ const App: React.FC = () => {
                   onClick={() =>
                     setTriggerQuoterAction({ action: "cargar", ts: Date.now() })
                   }
-                  className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[9px] lg:text-[10px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95 flex items-center gap-1.5"
+                  className={`px-3 py-1.5 ${isEditingItem ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-sky-600 hover:bg-sky-700 text-white"} rounded-lg text-[9px] lg:text-[10px] font-black uppercase tracking-widest shadow-sm transition-all active:scale-95 flex items-center gap-1.5`}
                 >
-                  <Plus size={14} /> A Obra
+                  {isEditingItem ? (
+                    <>
+                      <Check size={14} /> Guardar
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={14} /> A Obra
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -1038,6 +1048,7 @@ const App: React.FC = () => {
               quotes={quotes}
               setQuotes={setQuotes}
               onUpdateActiveItem={setActiveQuoteItem}
+              onEditingChange={setIsEditingItem}
               onRecipeChange={setCurrentRecipeId}
               currentWorkItems={currentWorkItems}
               setCurrentWorkItems={setCurrentWorkItems}
