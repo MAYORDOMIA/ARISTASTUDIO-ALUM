@@ -10,7 +10,31 @@ import {
   RefreshCw,
   Upload,
   Key,
+  Activity,
+  AlertTriangle,
+  Terminal,
+  Megaphone,
+  Plus,
+  Trash2,
+  Check,
+  X
 } from "lucide-react";
+interface Announcement {
+  id: string;
+  message: string;
+  type: 'info' | 'warning' | 'success';
+  is_active: boolean;
+  created_at: string;
+}
+
+interface ActivityLog {
+  id: string;
+  user_email: string;
+  event_type: string;
+  description: string;
+  created_at: string;
+}
+
 interface Profile {
   id: string;
   email: string;
@@ -19,6 +43,8 @@ interface Profile {
   limite_dispositivos: number;
   created_at?: string;
   registered_count?: number; // Calculado tras fetch
+  quotes_count?: number; // Presupuestos / obras guardadas
+  recipes_count?: number; // Tipologías / recetas guardadas
 }
 const SuperAdminDashboard: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -29,13 +55,107 @@ const SuperAdminDashboard: React.FC = () => {
   const [passwordResetUserId, setPasswordResetUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+  const [activeTab, setActiveTab] = useState<"users" | "logs" | "announcements">("users");
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [newAnnouncementMsg, setNewAnnouncementMsg] = useState("");
+  const [newAnnouncementType, setNewAnnouncementType] = useState<'info' | 'warning' | 'success'>('info');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [logsError, setLogsError] = useState<string | null>(null);
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
   useEffect(() => {
     fetchProfiles();
   }, []);
+  const fetchAnnouncements = async () => {
+    setLoadingAnnouncements(true);
+    setAnnouncementsError(null);
+    const { data, error } = await supabase
+      .from("anuncios_globales")
+      .select("*")
+      .order("created_at", { ascending: false });
+      
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') {
+        setAnnouncementsError("table_missing");
+      } else {
+        console.error("Error fetching announcements", error);
+      }
+    } else if (data) {
+      setAnnouncements(data);
+    }
+    setLoadingAnnouncements(false);
+  };
+
+  const publishAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAnnouncementMsg.trim()) return;
+    setIsPublishing(true);
+    const { error } = await supabase
+      .from("anuncios_globales")
+      .insert([{ message: newAnnouncementMsg, type: newAnnouncementType, is_active: true }]);
+    
+    setIsPublishing(false);
+    if (error) {
+      alert("Error al publicar anuncio: " + error.message);
+    } else {
+      setNewAnnouncementMsg("");
+      fetchAnnouncements();
+    }
+  };
+
+  const toggleAnnouncement = async (id: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from("anuncios_globales")
+      .update({ is_active: !currentStatus })
+      .eq("id", id);
+    if (!error) fetchAnnouncements();
+  };
+
+  const deleteAnnouncement = async (id: string) => {
+    if (!confirm("¿Seguro que quieres eliminar este anuncio?")) return;
+    const { error } = await supabase
+      .from("anuncios_globales")
+      .delete()
+      .eq("id", id);
+    if (!error) fetchAnnouncements();
+  };
+
+  const fetchLogs = async () => {
+    setLoadingLogs(true);
+    setLogsError(null);
+    const { data, error } = await supabase
+      .from("activity_logs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+      
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') {
+        setLogsError("table_missing");
+      } else {
+        console.error("Error fetching logs", JSON.stringify(error));
+      }
+    } else if (data) {
+      setLogs(data);
+    }
+    setLoadingLogs(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === "logs") {
+      fetchLogs();
+    } else if (activeTab === "announcements") {
+      fetchAnnouncements();
+    }
+  }, [activeTab]);
+
   const fetchProfiles = async () => {
     setLoading(true);
-    /* Traemos perfiles y luego contamos dispositivos */ const {
+    /* Traemos perfiles y luego contamos dispositivos y analiticas */
+    const {
       data: profs,
       error,
     } = await supabase
@@ -46,12 +166,37 @@ const SuperAdminDashboard: React.FC = () => {
       const { data: devices } = await supabase
         .from("gestion_dispositivos")
         .select("user_id");
+        
+      const { data: quotes } = await supabase
+        .from("presupuestos")
+        .select("user_id");
+        
+      const { data: recipes } = await supabase
+        .from("recetas_usuario")
+        .select("user_id");
+
       const counts: any = {};
       (devices || []).forEach((d) => {
         counts[d.user_id] = (counts[d.user_id] || 0) + 1;
       });
+      
+      const quoteCounts: any = {};
+      (quotes || []).forEach((q) => {
+        quoteCounts[q.user_id] = (quoteCounts[q.user_id] || 0) + 1;
+      });
+      
+      const recipeCounts: any = {};
+      (recipes || []).forEach((r) => {
+        recipeCounts[r.user_id] = (recipeCounts[r.user_id] || 0) + 1;
+      });
+
       setProfiles(
-        profs.map((p) => ({ ...p, registered_count: counts[p.id] || 0 })),
+        profs.map((p) => ({ 
+          ...p, 
+          registered_count: counts[p.id] || 0,
+          quotes_count: quoteCounts[p.id] || 0,
+          recipes_count: recipeCounts[p.id] || 0
+        })),
       );
     }
     setLoading(false);
@@ -196,19 +341,44 @@ const SuperAdminDashboard: React.FC = () => {
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2">
       <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".json" className="hidden" />
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-          <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-            <ShieldCheck size={20} />
+        <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest">
+                Super Administrador
+              </h2>
+              <p className="text-xs text-slate-500 ">
+                Gestión avanzada de la plataforma
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest">
-              Super Administrador
-            </h2>
-            <p className="text-xs text-slate-500 ">
-              Gestión de acceso de usuarios
-            </p>
+          
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveTab("users")}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${activeTab === "users" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Usuarios
+            </button>
+            <button
+              onClick={() => setActiveTab("logs")}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${activeTab === "logs" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Eventos
+            </button>
+            <button
+              onClick={() => setActiveTab("announcements")}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${activeTab === "announcements" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Anuncios
+            </button>
           </div>
         </div>
+
+        {activeTab === "users" ? (
         <div className="space-y-3">
           {profiles.length === 0 ? (
             <div className="text-center py-8 text-slate-500 text-sm">
@@ -242,6 +412,12 @@ const SuperAdminDashboard: React.FC = () => {
                       <span className="text-sky-500 font-bold uppercase">
                         {profile.role}
                       </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                      <span className="font-bold text-slate-600">{profile.quotes_count || 0}</span> obras
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                      <span className="font-bold text-slate-600">{profile.recipes_count || 0}</span> tipologías
                     </div>
                   </div>
                   {profile.role !== "super_admin" && (
@@ -328,6 +504,200 @@ const SuperAdminDashboard: React.FC = () => {
             ))
           )}
         </div>
+        ) : activeTab === "logs" ? (
+          <div className="space-y-4">
+            {logsError === "table_missing" ? (
+              <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl">
+                <div className="flex items-center gap-2 text-amber-700 font-bold mb-3">
+                  <AlertTriangle size={20} />
+                  Falta la tabla de logs en Supabase
+                </div>
+                <p className="text-sm text-amber-700 mb-4">
+                  Para poder registrar los eventos, necesitas crear la tabla <strong>activity_logs</strong> en tu base de datos. Copia y ejecuta este código en el SQL Editor de Supabase:
+                </p>
+                <pre className="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap font-mono">
+{`CREATE TABLE activity_logs (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_email text,
+  event_type text NOT NULL,
+  description text NOT NULL,
+  metadata jsonb,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can insert own logs" ON activity_logs
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Super admins can view all logs" ON activity_logs
+  FOR SELECT USING (
+    (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin'
+  );`}
+                </pre>
+                <button onClick={fetchLogs} className="mt-4 bg-amber-200 text-amber-800 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-amber-300 transition-colors">
+                  Ya ejecuté el código, reintentar
+                </button>
+              </div>
+            ) : loadingLogs ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-slate-400" size={24} />
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Fecha</th>
+                      <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Usuario</th>
+                      <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Evento</th>
+                      <th className="px-4 py-3 font-bold text-slate-500 uppercase tracking-widest text-[10px]">Detalle</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {logs.length === 0 ? (
+                       <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No hay eventos registrados.</td></tr>
+                    ) : logs.map(log => (
+                      <tr key={log.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-700">
+                          {log.user_email}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${
+                            log.event_type === 'error' ? 'bg-red-100 text-red-700' :
+                            log.event_type === 'login' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {log.event_type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">
+                          {log.description}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {announcementsError === "table_missing" ? (
+              <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl">
+                <div className="flex items-center gap-2 text-amber-700 font-bold mb-3">
+                  <AlertTriangle size={20} />
+                  Falta la tabla de anuncios en Supabase
+                </div>
+                <p className="text-sm text-amber-700 mb-4">
+                  Para poder enviar mensajes globales, necesitas crear la tabla <strong>anuncios_globales</strong>. Copia y ejecuta este código en el SQL Editor de Supabase:
+                </p>
+                <pre className="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap font-mono">
+{`CREATE TABLE anuncios_globales (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  message text NOT NULL,
+  type text NOT NULL DEFAULT 'info',
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE anuncios_globales ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read active announcements" ON anuncios_globales
+  FOR SELECT USING (is_active = true OR (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+
+CREATE POLICY "Super admins can manage announcements" ON anuncios_globales
+  FOR ALL USING (
+    (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin'
+  );`}
+                </pre>
+                <button onClick={fetchAnnouncements} className="mt-4 bg-amber-200 text-amber-800 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-amber-300 transition-colors">
+                  Ya ejecuté el código, reintentar
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <form onSubmit={publishAnnouncement} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nuevo Anuncio Global</label>
+                    <textarea
+                      value={newAnnouncementMsg}
+                      onChange={(e) => setNewAnnouncementMsg(e.target.value)}
+                      placeholder="Escribe aquí el mensaje que verán todos los usuarios al entrar..."
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 min-h-[80px]"
+                    />
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <select 
+                        value={newAnnouncementType}
+                        onChange={(e) => setNewAnnouncementType(e.target.value as any)}
+                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      >
+                        <option value="info">Información (Azul)</option>
+                        <option value="success">Novedad (Verde)</option>
+                        <option value="warning">Alerta (Amarillo)</option>
+                      </select>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isPublishing || !newAnnouncementMsg.trim()}
+                      className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-black uppercase text-[10px] tracking-widest px-6 py-2.5 rounded-xl transition-colors flex justify-center items-center gap-2"
+                    >
+                      {isPublishing ? <Loader2 size={14} className="animate-spin" /> : <><Megaphone size={14} /> Publicar</>}
+                    </button>
+                  </div>
+                </form>
+
+                {loadingAnnouncements ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="animate-spin text-slate-400" size={24} />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {announcements.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500 text-sm">No hay anuncios creados.</div>
+                    ) : (
+                      announcements.map((ann) => (
+                        <div key={ann.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row gap-4 justify-between ${!ann.is_active ? 'bg-slate-50 border-slate-200 opacity-60' : ann.type === 'warning' ? 'bg-amber-50 border-amber-200' : ann.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-200'}`}>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${!ann.is_active ? 'bg-slate-200 text-slate-500' : ann.type === 'warning' ? 'bg-amber-200 text-amber-800' : ann.type === 'success' ? 'bg-emerald-200 text-emerald-800' : 'bg-sky-200 text-sky-800'}`}>
+                                {ann.type}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {new Date(ann.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-800 whitespace-pre-wrap">{ann.message}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => toggleAnnouncement(ann.id, ann.is_active)}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest ${ann.is_active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}`}
+                            >
+                              {ann.is_active ? 'Ocultar' : 'Mostrar'}
+                            </button>
+                            <button
+                              onClick={() => deleteAnnouncement(ann.id)}
+                              className="p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {passwordResetUserId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">

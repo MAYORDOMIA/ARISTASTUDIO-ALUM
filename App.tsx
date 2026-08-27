@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
+  Megaphone,
   Menu,
   X,
   ChevronRight,
@@ -57,6 +58,7 @@ import ObrasModule from "./components/ObrasModule";
 import SuperAdminDashboard from "./src/components/SuperAdminDashboard";
 import Auth from "./src/components/Auth";
 import { supabase, isSupabaseConfigured } from "./src/services/supabaseClient";
+import { logEvent } from "./src/services/logger";
 import { Session } from "@supabase/supabase-js";
 import {
   generateClientDetailedPDF,
@@ -71,8 +73,33 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [deviceLimitReached, setDeviceLimitReached] = useState(false);
+  const [globalAnnouncements, setGlobalAnnouncements] = useState<any[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("quoter");
+
+  useEffect(() => {
+    const fetchGlobalAnnouncements = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('anuncios_globales')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+        
+        if (!error && data) {
+          setGlobalAnnouncements(data);
+        }
+      } catch (err) {
+        console.error('Error fetching announcements', err);
+      }
+    };
+    
+    // Solo si esta configurado supabase intentamos buscar anuncios
+    if (isSupabaseConfigured) {
+      fetchGlobalAnnouncements();
+    }
+  }, []);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
   const [config, setConfig] = useState<GlobalConfig>({
@@ -151,6 +178,9 @@ const App: React.FC = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (_event === 'SIGNED_IN' && session?.user) {
+        logEvent(session.user.id, session.user.email, 'login', 'El usuario inició sesión en el sistema.');
+      }
       setSession(session);
       if (session) {
         if (!isFetchingRef.current) {
@@ -320,11 +350,11 @@ const App: React.FC = () => {
       ].find((r) => r.error);
       if (criticalError && criticalError.error) {
         console.error("Error crítico de base de datos:", criticalError.error);
-        if (criticalError.error.message === "Failed to fetch") {
+        if (criticalError.error.message?.includes("Failed to fetch")) {
           alert(
             "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado.\n3. Un bloqueador de publicidad está interfiriendo.\n4. Las variables de entorno VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY son incorrectas.",
           );
-        } else if (criticalError.error.code === "42P01") {
+        } else if (criticalError.error.code === "42P01" || criticalError.error.code === "PGRST205") {
           alert(
             "BASE DE DATOS NO INICIALIZADA:\nSe detectó que faltan las tablas necesarias en Supabase.\n\nPor favor, ejecuta el contenido del archivo 'supabase_migration.sql' en el SQL Editor de tu Dashboard de Supabase.",
           );
@@ -527,6 +557,7 @@ const App: React.FC = () => {
       setAuthLoading(false);
     } catch (err: any) {
       console.error("Error fatal cargando perfil:", err);
+      logEvent(user?.id || null, user?.email || null, 'error', `Error crítico de datos: ${err?.message || "Desconocido"}`);
       setAuthLoading(false);
     }
   };
@@ -893,6 +924,18 @@ const App: React.FC = () => {
         </div>
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden relative w-full">
+        {globalAnnouncements.length > 0 && (
+          <div className="z-50 w-full flex flex-col animate-in slide-in-from-top-4">
+            {globalAnnouncements.map(ann => (
+              <div key={ann.id} className={`w-full px-4 py-3 flex items-center justify-between text-sm font-medium ${ann.type === 'warning' ? 'bg-amber-100 text-amber-800 border-b border-amber-200' : ann.type === 'success' ? 'bg-emerald-100 text-emerald-800 border-b border-emerald-200' : 'bg-sky-100 text-sky-800 border-b border-sky-200'}`}>
+                <div className="flex items-center gap-3">
+                  <Megaphone size={16} className="shrink-0" />
+                  <p className="whitespace-pre-wrap">{ann.message}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {isSidebarOpen && window.innerWidth < 1024 && (
           <div
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
