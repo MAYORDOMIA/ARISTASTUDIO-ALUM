@@ -854,7 +854,7 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#f1f5f9] text-[#0f172a] transition-colors duration-300">
       <aside
-        className={`fixed lg:relative transition-all duration-300 bg-white border-r border-slate-200 flex flex-col z-50 shadow-xl h-full ${isSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0 w-0 lg:w-20"}`}
+        className={`fixed lg:relative transition-all duration-300 bg-white border-r border-slate-200 flex flex-col z-50 shadow-xl h-full overflow-hidden ${isSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0 w-64 lg:w-20"}`}
       >
         <div className="p-4 flex items-center justify-between border-b border-slate-100 overflow-hidden">
           {(isSidebarOpen || window.innerWidth >= 1024) && (

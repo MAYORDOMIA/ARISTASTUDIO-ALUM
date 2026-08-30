@@ -421,32 +421,32 @@ const QuotesHistory: React.FC<Props> = ({
                   return (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-slate-200 shadow-sm transition-all hover:border-sky-600/30"
+                      className="flex flex-col lg:flex-row items-center lg:justify-between p-4 lg:p-5 bg-white rounded-2xl border-2 border-slate-200 shadow-sm transition-all hover:border-sky-600/30 gap-4"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-10 bg-slate-50 rounded-lg flex flex-col items-center justify-center border border-slate-100 ">
-                          <span className="text-[6px] font-black text-slate-400 uppercase">
+                      <div className="flex flex-col lg:flex-row items-center gap-4 w-full lg:w-auto text-center lg:text-left">
+                        <div className="w-16 h-12 lg:w-12 lg:h-10 bg-slate-50 rounded-xl flex flex-col items-center justify-center border border-slate-100 shrink-0">
+                          <span className="text-[7px] font-black text-slate-400 uppercase tracking-tighter">
                             ABER.
                           </span>
-                          <span className="text-[9px] font-black text-sky-600 truncate max-w-full px-1">
+                          <span className="text-[10px] font-black text-sky-600 truncate max-w-full px-1">
                             {item.itemCode || `POS#${idx + 1}`}
                           </span>
                         </div>
-                        <div>
-                          <div className="text-[10px] font-black text-slate-800 uppercase">
+                        <div className="flex-1">
+                          <div className="text-[10px] lg:text-[11px] font-black text-slate-800 uppercase tracking-tight">
                             {compositeName}
                           </div>
-                          <div className="text-[9px] text-slate-500 font-mono font-bold flex gap-2 items-center">
+                          <div className="text-[9px] text-slate-500 font-mono font-bold flex flex-wrap justify-center lg:justify-start gap-2 items-center mt-1">
                             <span>{item.width} x {item.height} mm | {item.quantity} UNID.</span>
                             {item.quotingMode && item.quotingMode !== "Completa" && (
-                              <span className="bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded text-[7px] font-black">{item.quotingMode}</span>
+                              <span className="bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest">{item.quotingMode}</span>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="w-full lg:w-auto flex justify-center lg:justify-end">
                         <select
-                          className="text-[9px] font-black uppercase bg-slate-50 p-2 rounded-lg border border-slate-200 "
+                          className="w-full lg:w-auto text-[9px] font-black uppercase bg-slate-50 p-2.5 rounded-xl border border-slate-200 focus:border-sky-500 outline-none transition-colors shadow-sm"
                           value={item.colorId}
                           onChange={async (e) => {
                             const newColorId = e.target.value;
