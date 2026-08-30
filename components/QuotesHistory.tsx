@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
   FileText,
@@ -65,6 +65,13 @@ const QuotesHistory: React.FC<Props> = ({
 }) => {
   const [search, setSearch] = useState("");
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedQuote && window.innerWidth < 1280 && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedQuote]);
   const filteredQuotes = quotes
     .filter(
       (q) =>
@@ -209,7 +216,7 @@ const QuotesHistory: React.FC<Props> = ({
         </div>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-        <div className="xl:col-span-5 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar pr-4">
+        <div className="order-2 xl:order-1 xl:col-span-5 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar pr-4">
           {filteredQuotes.length > 0 ? (
             filteredQuotes.map((q) => (
               <div
@@ -265,7 +272,7 @@ const QuotesHistory: React.FC<Props> = ({
             </div>
           )}
         </div>
-        <div className="xl:col-span-7">
+        <div className="order-1 xl:order-2 xl:col-span-7" ref={detailRef}>
           {selectedQuote ? (
             <div className="bg-white rounded-[1.5rem] lg:rounded-[3rem] border-2 border-slate-300 shadow-2xl p-4 lg:p-10 space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 h-full flex flex-col ring-1 ring-slate-200 transition-colors">
               <div className="flex justify-between items-start border-b-2 border-slate-100 pb-4 lg:pb-8">
@@ -298,105 +305,106 @@ const QuotesHistory: React.FC<Props> = ({
                   Editar
                 </button>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-4">
-                <button
-                  onClick={() => downloadReport(selectedQuote, "presupuesto")}
-                  className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-slate-200 hover:border-sky-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-sky-600/10"
-                >
-                  <div className="w-10 h-10 bg-sky-600/10 rounded-xl flex items-center justify-center text-sky-600 group-hover:bg-sky-600 group-hover:text-white border-2 border-sky-600/20 group-hover:border-sky-700 transition-all">
-                    <FileText size={20} />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                      Presupuesto
+              <div className="flex flex-col gap-6 lg:gap-8 h-full">
+                <div className="order-1 grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-4">
+                  <button
+                    onClick={() => downloadReport(selectedQuote, "presupuesto")}
+                    className="flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-start gap-3 lg:gap-4 p-4 lg:p-5 bg-slate-50 rounded-2xl border-2 border-slate-200 hover:border-sky-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-sky-600/10"
+                  >
+                    <div className="w-10 h-10 bg-sky-600/10 rounded-xl flex items-center justify-center text-sky-600 group-hover:bg-sky-600 group-hover:text-white border-2 border-sky-600/20 group-hover:border-sky-700 transition-all shrink-0">
+                      <FileText size={20} />
                     </div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">
-                      Comercial
+                    <div className="text-center lg:text-left">
+                      <div className="text-[9px] lg:text-[10px] font-black text-slate-800 uppercase tracking-widest leading-tight">
+                        Presupuesto
+                      </div>
+                      <div className="text-[8px] lg:text-[9px] text-slate-400 font-bold uppercase mt-0.5">
+                        Comercial
+                      </div>
                     </div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => downloadReport(selectedQuote, "costos")}
-                  className="flex items-center gap-4 p-5 bg-amber-50 rounded-2xl border-2 border-amber-200 hover:border-amber-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-amber-500/10"
-                >
-                  <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white border-2 border-amber-500/20 group-hover:border-amber-600 transition-all">
-                    <Wallet size={20} />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                      Costos
+                  </button>
+                  <button
+                    onClick={() => downloadReport(selectedQuote, "costos")}
+                    className="flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-start gap-3 lg:gap-4 p-4 lg:p-5 bg-amber-50 rounded-2xl border-2 border-amber-200 hover:border-amber-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-amber-500/10"
+                  >
+                    <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white border-2 border-amber-500/20 group-hover:border-amber-600 transition-all shrink-0">
+                      <Wallet size={20} />
                     </div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">
-                      Auditoría Interna
+                    <div className="text-center lg:text-left">
+                      <div className="text-[9px] lg:text-[10px] font-black text-slate-800 uppercase tracking-widest leading-tight">
+                        Costos
+                      </div>
+                      <div className="text-[8px] lg:text-[9px] text-slate-400 font-bold uppercase mt-0.5">
+                        Auditoría
+                      </div>
                     </div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => downloadReport(selectedQuote, "taller")}
-                  className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-slate-200 hover:border-blue-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-blue-500/10"
-                >
-                  <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-500 group-hover:text-white border-2 border-blue-500/20 group-hover:border-blue-600 transition-all">
-                    <Hammer size={20} />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                      Hoja de Armado
+                  </button>
+                  <button
+                    onClick={() => downloadReport(selectedQuote, "taller")}
+                    className="flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-start gap-3 lg:gap-4 p-4 lg:p-5 bg-slate-50 rounded-2xl border-2 border-slate-200 hover:border-blue-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-blue-500/10"
+                  >
+                    <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-500 group-hover:text-white border-2 border-blue-500/20 group-hover:border-blue-600 transition-all shrink-0">
+                      <Hammer size={20} />
                     </div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">
-                      Taller
+                    <div className="text-center lg:text-left">
+                      <div className="text-[9px] lg:text-[10px] font-black text-slate-800 uppercase tracking-widest leading-tight">
+                        Hoja Armado
+                      </div>
+                      <div className="text-[8px] lg:text-[9px] text-slate-400 font-bold uppercase mt-0.5">
+                        Taller
+                      </div>
                     </div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => downloadReport(selectedQuote, "materiales")}
-                  className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-slate-200 hover:border-green-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-green-500/10"
-                >
-                  <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center text-green-600 group-hover:bg-green-500 group-hover:text-white border-2 border-green-500/20 group-hover:border-green-600 transition-all">
-                    <PackageCheck size={20} />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                      Materiales
+                  </button>
+                  <button
+                    onClick={() => downloadReport(selectedQuote, "materiales")}
+                    className="flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-start gap-3 lg:gap-4 p-4 lg:p-5 bg-slate-50 rounded-2xl border-2 border-slate-200 hover:border-green-500 transition-all group shadow-sm ring-1 ring-transparent hover:ring-green-500/10"
+                  >
+                    <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center text-green-600 group-hover:bg-green-500 group-hover:text-white border-2 border-green-500/20 group-hover:border-green-600 transition-all shrink-0">
+                      <PackageCheck size={20} />
                     </div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">
-                      Consolidado
+                    <div className="text-center lg:text-left">
+                      <div className="text-[9px] lg:text-[10px] font-black text-slate-800 uppercase tracking-widest leading-tight">
+                        Materiales
+                      </div>
+                      <div className="text-[8px] lg:text-[9px] text-slate-400 font-bold uppercase mt-0.5">
+                        Consolidado
+                      </div>
                     </div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => downloadReport(selectedQuote, "barras")}
-                  className="flex items-center gap-4 p-5 bg-sky-50 rounded-2xl border-2 border-sky-200 hover:border-sky-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-sky-600/10"
-                >
-                  <div className="w-10 h-10 bg-sky-600/10 rounded-xl flex items-center justify-center text-sky-600 group-hover:bg-sky-600 group-hover:text-white border-2 border-sky-600/20 group-hover:border-sky-700 transition-all">
-                    <Scissors size={20} />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                      Corte Barras
+                  </button>
+                  <button
+                    onClick={() => downloadReport(selectedQuote, "barras")}
+                    className="flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-start gap-3 lg:gap-4 p-4 lg:p-5 bg-sky-50 rounded-2xl border-2 border-sky-200 hover:border-sky-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-sky-600/10"
+                  >
+                    <div className="w-10 h-10 bg-sky-600/10 rounded-xl flex items-center justify-center text-sky-600 group-hover:bg-sky-600 group-hover:text-white border-2 border-sky-600/20 group-hover:border-sky-700 transition-all shrink-0">
+                      <Scissors size={20} />
                     </div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">
-                      Optimización Lineal
+                    <div className="text-center lg:text-left">
+                      <div className="text-[9px] lg:text-[10px] font-black text-slate-800 uppercase tracking-widest leading-tight">
+                        Barras
+                      </div>
+                      <div className="text-[8px] lg:text-[9px] text-slate-400 font-bold uppercase mt-0.5">
+                        Optimización
+                      </div>
                     </div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => downloadReport(selectedQuote, "vidrios")}
-                  className="flex items-center gap-4 p-5 bg-blue-50 rounded-2xl border-2 border-blue-200 hover:border-blue-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-blue-600/10"
-                >
-                  <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-500 group-hover:text-white border-2 border-blue-600/20 group-hover:border-blue-600 transition-all">
-                    <Layers size={20} />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
-                      Corte Vidrios
+                  </button>
+                  <button
+                    onClick={() => downloadReport(selectedQuote, "vidrios")}
+                    className="flex flex-col lg:flex-row items-center lg:items-center justify-center lg:justify-start gap-3 lg:gap-4 p-4 lg:p-5 bg-blue-50 rounded-2xl border-2 border-blue-200 hover:border-blue-600 transition-all group shadow-sm ring-1 ring-transparent hover:ring-blue-600/10"
+                  >
+                    <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-500 group-hover:text-white border-2 border-blue-600/20 group-hover:border-blue-600 transition-all shrink-0">
+                      <Layers size={20} />
                     </div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">
-                      Optimización Planchas
+                    <div className="text-center lg:text-left">
+                      <div className="text-[9px] lg:text-[10px] font-black text-slate-800 uppercase tracking-widest leading-tight">
+                        Vidrios
+                      </div>
+                      <div className="text-[8px] lg:text-[9px] text-slate-400 font-bold uppercase mt-0.5">
+                        Optimización
+                      </div>
                     </div>
-                  </div>
-                </button>
-              </div>
-              <div className="flex-1 bg-slate-50 border-2 border-slate-200 rounded-3xl p-6 overflow-y-auto custom-scrollbar space-y-3 shadow-inner">
+                  </button>
+                </div>
+                <div className="order-2 flex-1 bg-slate-50 border-2 border-slate-200 rounded-3xl p-4 lg:p-6 overflow-y-auto custom-scrollbar space-y-3 shadow-inner">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">
                   Desglose de Ítems ({selectedQuote.items.length})
                 </h4>
@@ -546,12 +554,13 @@ const QuotesHistory: React.FC<Props> = ({
                   );
                 })}
               </div>
-              <div className="pt-6 border-t-2 border-slate-100 flex items-center justify-between">
-                <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                  Liquidación Final Total
-                </div>
-                <div className="text-4xl font-black text-slate-900 tracking-tighter leading-none font-mono">
-                  ${selectedQuote.totalPrice.toLocaleString()}
+                <div className="pt-6 border-t-2 border-slate-100 flex items-center justify-between">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                    Liquidación Final Total
+                  </div>
+                  <div className="text-4xl font-black text-slate-900 tracking-tighter leading-none font-mono">
+                    ${selectedQuote.totalPrice.toLocaleString()}
+                  </div>
                 </div>
               </div>
             </div>

@@ -967,7 +967,7 @@ const App: React.FC = () => {
                     STUDIO
                   </span>
                   <span className="ml-2 bg-slate-50 text-slate-400 text-[10px] px-1.5 py-0.5 rounded font-mono border border-slate-200 lowercase">
-                    v1.3.0
+                    v1.4.0
                   </span>
                 </div>
               ) : (
