@@ -476,9 +476,65 @@ const ObrasModule: React.FC<Props> = ({
   const totalBeforeDiscount = subtotal + tax;
   const discountAmount = Math.round(totalBeforeDiscount * (discount / 100));
   const total = totalBeforeDiscount - discountAmount;
+  const totalAberturas = items.reduce((acc, i) => acc + i.quantity, 0);
+  const totalM2 = items.reduce(
+    (acc, i) => acc + (i.width * i.height * i.quantity) / 1000000,
+    0,
+  );
+  const totalPesoAlu = consolidatedProfiles.reduce(
+    (acc, p) => acc + p.totalWeight,
+    0,
+  );
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full animate-in fade-in duration-500">
-      <div className="col-span-1 lg:col-span-8 space-y-6">
+    <div className="flex flex-col gap-6 h-full animate-in fade-in duration-500">
+      {/* Panel de Métricas Superior Ultra-Compacto */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+          <div className="w-6 h-6 bg-sky-50 rounded flex items-center justify-center text-sky-600 shrink-0">
+            <Hash size={12} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-[8px] font-black uppercase tracking-tight text-slate-400 leading-none mb-0.5 truncate">
+              Aberturas
+            </h3>
+            <p className="text-xs sm:text-sm font-black text-slate-800 leading-none truncate">
+              {totalAberturas} <span className="text-[8px] text-slate-400 font-bold uppercase">Und</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+          <div className="w-6 h-6 bg-emerald-50 rounded flex items-center justify-center text-emerald-600 shrink-0">
+            <Ruler size={12} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-[8px] font-black uppercase tracking-tight text-slate-400 leading-none mb-0.5 truncate">
+              Superficie
+            </h3>
+            <p className="text-xs sm:text-sm font-black text-slate-800 leading-none truncate">
+              {totalM2.toFixed(1)} <span className="text-[8px] text-slate-400 font-bold uppercase">M²</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+          <div className="w-6 h-6 bg-amber-50 rounded flex items-center justify-center text-amber-600 shrink-0">
+            <Package size={12} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-[8px] font-black uppercase tracking-tight text-slate-400 leading-none mb-0.5 truncate">
+              Peso Alu
+            </h3>
+            <p className="text-xs sm:text-sm font-black text-slate-800 leading-none truncate">
+              {totalPesoAlu.toFixed(1)} <span className="text-[8px] text-slate-400 font-bold uppercase">Kg</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6">
+      <div className="order-2 lg:order-1 col-span-1 lg:col-span-8 space-y-6">
         <div className="bg-white p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-sky-600 rounded-xl flex items-center justify-center text-white shrink-0">
@@ -643,8 +699,8 @@ const ObrasModule: React.FC<Props> = ({
           </div>
         )}
       </div>
-      <div className="col-span-1 lg:col-span-4">
-        <div className="bg-white border border-slate-200 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-8 shadow-sm space-y-6 lg:space-y-8 lg:sticky lg:top-6">
+      <div className="order-1 lg:order-2 col-span-1 lg:col-span-4">
+        <div className="bg-white border border-slate-200 rounded-[1.5rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm space-y-4 lg:space-y-8 lg:sticky lg:top-6">
           <h3 className="text-[10px] font-black uppercase text-sky-600 tracking-widest border-b border-slate-50 pb-4 flex items-center gap-2">
             <FileText size={14} /> Cierre de Expediente
           </h3>
@@ -758,6 +814,7 @@ const ObrasModule: React.FC<Props> = ({
         </div>
       </div>
     </div>
+  </div>
   );
 };
 export default ObrasModule;

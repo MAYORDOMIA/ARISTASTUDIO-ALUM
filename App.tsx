@@ -558,6 +558,13 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Error fatal cargando perfil:", err);
       logEvent(user?.id || null, user?.email || null, 'error', `Error crítico de datos: ${err?.message || "Desconocido"}`);
+      
+      if (err?.message?.includes("Failed to fetch")) {
+        alert(
+          "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado o tiene el certificado vencido.\n3. Un bloqueador de publicidad está interfiriendo.\n4. Las variables de configuración de Supabase son incorrectas.\n\nLa aplicación intentará reintentar o puedes refrescar la página."
+        );
+      }
+      
       setAuthLoading(false);
     }
   };
@@ -960,7 +967,7 @@ const App: React.FC = () => {
                     STUDIO
                   </span>
                   <span className="ml-2 bg-slate-50 text-slate-400 text-[10px] px-1.5 py-0.5 rounded font-mono border border-slate-200 lowercase">
-                    v1.2.9
+                    v1.3.0
                   </span>
                 </div>
               ) : (
