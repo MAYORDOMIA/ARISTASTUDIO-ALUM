@@ -139,6 +139,30 @@ const App: React.FC = () => {
   };
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const isFetchingRef = useRef(false);
+  const enableLocalMode = () => {
+    const localData = localStorage.getItem("maicol_engine_data_data_v2");
+    if (localData) {
+      try {
+        hydrateData(JSON.parse(localData));
+      } catch (e) {
+        console.error(
+          "Error parsing local data (msg):",
+          (e as any)?.message || e,
+        );
+      }
+    }
+    setIsDataLoaded(true);
+    setSession({
+      user: { id: "local-user", email: "local@example.com" },
+    } as any);
+    setProfile({
+      email: "local@example.com",
+      is_active: true,
+      max_devices: 999,
+    });
+    setAuthLoading(false);
+  };
+
   useEffect(() => {
     // Safety net: Always clear authLoading after 10 seconds to avoid blank screens
     const safetyTimer = setTimeout(() => {
@@ -146,27 +170,7 @@ const App: React.FC = () => {
     }, 10000);
     if (!isSupabaseConfigured) {
       // Modo local si Supabase no está configurado
-      const localData = localStorage.getItem("maicol_engine_data_data_v2");
-      if (localData) {
-        try {
-          hydrateData(JSON.parse(localData));
-        } catch (e) {
-          console.error(
-            "Error parsing local data (msg):",
-            (e as any)?.message || e,
-          );
-        }
-      }
-      setIsDataLoaded(true);
-      setSession({
-        user: { id: "local-user", email: "local@example.com" },
-      } as any);
-      setProfile({
-        email: "local@example.com",
-        is_active: true,
-        max_devices: 999,
-      });
-      setAuthLoading(false);
+      enableLocalMode();
       return;
     }
     supabase.auth.getSession().catch((err) => {
@@ -352,7 +356,7 @@ const App: React.FC = () => {
         console.error("Error crítico de base de datos:", criticalError.error);
         if (criticalError.error.message?.includes("Failed to fetch")) {
           alert(
-            "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado.\n3. Un bloqueador de publicidad está interfiriendo.\n4. Las variables de entorno VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY son incorrectas.",
+            "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\nLa aplicación operará en modo local.",
           );
         } else if (criticalError.error.code === "42P01" || criticalError.error.code === "PGRST205") {
           alert(
@@ -547,7 +551,12 @@ const App: React.FC = () => {
       } // Si llegamos a acá, el usuario es ACTIVO o es ADMIN
       try {
         const dataFromTables = await fetchFromTables(user.id);
-        if (dataFromTables) hydrateData(dataFromTables);
+        if (dataFromTables) {
+          hydrateData(dataFromTables);
+        } else {
+          enableLocalMode();
+          return;
+        }
       } catch (e) {
         console.error("Error fetching complementary tables:", e);
       }
@@ -561,8 +570,10 @@ const App: React.FC = () => {
       
       if (err?.message?.includes("Failed to fetch")) {
         alert(
-          "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\n\nEsto puede deberse a:\n1. Falta de internet.\n2. El proyecto de Supabase está pausado o tiene el certificado vencido.\n3. Un bloqueador de publicidad está interfiriendo.\n4. Las variables de configuración de Supabase son incorrectas.\n\nLa aplicación intentará reintentar o puedes refrescar la página."
+          "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\nLa aplicación operará en modo local."
         );
+        enableLocalMode();
+        return;
       }
       
       setAuthLoading(false);
@@ -967,7 +978,7 @@ const App: React.FC = () => {
                     STUDIO
                   </span>
                   <span className="ml-2 bg-slate-50 text-slate-400 text-[10px] px-1.5 py-0.5 rounded font-mono border border-slate-200 lowercase">
-                    v1.4.0
+                    v1.4.1
                   </span>
                 </div>
               ) : (

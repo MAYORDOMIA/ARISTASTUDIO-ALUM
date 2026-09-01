@@ -894,27 +894,53 @@ const drawDetailedOpening = (
       drawGlassWithTransoms(x, y, w, h, y + h);
     }
   } else if (isMamparaRebatir) {
-    drawProfile([
-      { x: x, y: y },
-      { x: x + frameT, y: y },
-      { x: x + frameT, y: y + h },
-      { x: x, y: y + h },
-    ]);
-    drawGlassWithTransoms(x + frameT, y, w - frameT, h, y + h);
+    if (hand === "right") {
+      drawProfile([
+        { x: x + w - frameT, y: y },
+        { x: x + w, y: y },
+        { x: x + w, y: y + h },
+        { x: x + w - frameT, y: y + h },
+      ]);
+      drawGlassWithTransoms(x, y, w - frameT, h, y + h);
+    } else {
+      drawProfile([
+        { x: x, y: y },
+        { x: x + frameT, y: y },
+        { x: x + frameT, y: y + h },
+        { x: x, y: y + h },
+      ]);
+      drawGlassWithTransoms(x + frameT, y, w - frameT, h, y + h);
+    }
   } else if (isMamparaFija) {
-    drawProfile([
-      { x: x, y: y },
-      { x: x + frameT, y: y },
-      { x: x + frameT, y: y + h - frameT },
-      { x: x, y: y + h - frameT },
-    ]);
-    drawProfile([
-      { x: x + frameT, y: y + h - frameT },
-      { x: x + w, y: y + h - frameT },
-      { x: x + w, y: y + h },
-      { x: x, y: y + h },
-    ]);
-    drawGlassWithTransoms(x + frameT, y, w - frameT, h - frameT, y + h);
+    if (hand === "right") {
+      drawProfile([
+        { x: x + w - frameT, y: y },
+        { x: x + w, y: y },
+        { x: x + w, y: y + h },
+        { x: x + w - frameT, y: y + h - frameT },
+      ]);
+      drawProfile([
+        { x: x, y: y + h - frameT },
+        { x: x + w - frameT, y: y + h - frameT },
+        { x: x + w, y: y + h },
+        { x: x, y: y + h },
+      ]);
+      drawGlassWithTransoms(x, y, w - frameT, h - frameT, y + h);
+    } else {
+      drawProfile([
+        { x: x, y: y },
+        { x: x + frameT, y: y },
+        { x: x + frameT, y: y + h - frameT },
+        { x: x, y: y + h },
+      ]);
+      drawProfile([
+        { x: x + frameT, y: y + h - frameT },
+        { x: x + w, y: y + h - frameT },
+        { x: x + w, y: y + h },
+        { x: x, y: y + h },
+      ]);
+      drawGlassWithTransoms(x + frameT, y, w - frameT, h - frameT, y + h);
+    }
   } else if (isPFZocalon) {
     drawProfile([
       { x: x, y: y },
@@ -3740,26 +3766,38 @@ const QuotingModule: React.FC<Props> = ({
                         </div>
                       </div>
                     )}
-                    {recipes.find((r) => r.id === currentModForEdit.recipeId)
-                      ?.type === "Puerta" && (
-                      <div className="space-y-1.5">
-                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
-                          Mano de la Puerta
-                        </label>
-                        <select
-                          className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
-                          value={currentModForEdit.hand || "left"}
-                          onChange={(e) =>
-                            updateModule(editingModuleId, {
-                              hand: e.target.value as "left" | "right",
-                            })
-                          }
-                        >
-                          <option value="left">Izquierda</option>
-                          <option value="right">Derecha</option>
-                        </select>
-                      </div>
-                    )}
+                    {(() => {
+                      const recipe = recipes.find((r) => r.id === currentModForEdit.recipeId);
+                      if (!recipe) return null;
+                      const showHandSelector = 
+                        recipe.type === "Puerta" || 
+                        recipe.type === "Mampara" || 
+                        recipe.visualType === "mampara_fija" || 
+                        recipe.visualType === "mampara_rebatir" ||
+                        recipe.visualType?.includes("door");
+
+                      if (!showHandSelector) return null;
+
+                      return (
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5">
+                            Mano de Apertura / Lado
+                          </label>
+                          <select
+                            className="w-full bg-white border border-slate-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm"
+                            value={currentModForEdit.hand || "left"}
+                            onChange={(e) =>
+                              updateModule(editingModuleId, {
+                                hand: e.target.value as "left" | "right",
+                              })
+                            }
+                          >
+                            <option value="left">Izquierda</option>
+                            <option value="right">Derecha</option>
+                          </select>
+                        </div>
+                      );
+                    })()}
                   </div>
                 {(() => {
                   const r = recipes.find((x) => x.id === currentModForEdit.recipeId);

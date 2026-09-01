@@ -1,7 +1,7 @@
 {
   "name": "2-aristastudio-alum---cotizador-de-aberturas",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.4.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
