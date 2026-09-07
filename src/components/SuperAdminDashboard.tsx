@@ -9,6 +9,8 @@ import {
   MonitorSmartphone,
   RefreshCw,
   Upload,
+  UploadCloud,
+  Database,
   Key,
   Activity,
   AlertTriangle,
@@ -50,12 +52,27 @@ const SuperAdminDashboard: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // New states for Distribution tab
+  const masterFileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkData, setBulkData] = useState<any | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState({
+    recetas: true,
+    perfiles: true,
+    accesorios: true,
+    vidrios: true,
+  });
+  const [availableLines, setAvailableLines] = useState<string[]>([]);
+  const [selectedLines, setSelectedLines] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [showLinesModal, setShowLinesModal] = useState(false);
   const [targetUserId, setTargetUserId] = useState<string | null>(null);
   const [passwordResetUserId, setPasswordResetUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [isResetting, setIsResetting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"users" | "logs" | "announcements">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "logs" | "announcements" | "distribution">("users");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
@@ -293,6 +310,71 @@ const SuperAdminDashboard: React.FC = () => {
     setToggling(null);
   };
 
+  
+  const handleMasterFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const jsonData = JSON.parse(e.target?.result as string);
+        if (jsonData.perfiles && !jsonData.aluminum) jsonData.aluminum = jsonData.perfiles;
+        if (jsonData.vidrios && !jsonData.glasses) jsonData.glasses = jsonData.vidrios;
+        if (jsonData.accesorios && !jsonData.accessories) jsonData.accessories = jsonData.accesorios;
+        if (jsonData.paneles && !jsonData.blindPanels) jsonData.blindPanels = jsonData.paneles;
+        if (jsonData.dvh && !jsonData.dvhInputs) jsonData.dvhInputs = jsonData.dvh;
+
+        setBulkData(jsonData);
+        
+        if (jsonData.recetas) {
+          const lines = new Set<string>();
+          jsonData.recetas.forEach((r: any) => {
+            if (r.line) lines.add(r.line);
+          });
+          const uniqueLines = Array.from(lines);
+          setAvailableLines(uniqueLines);
+          setSelectedLines(uniqueLines);
+        }
+      } catch (err) {
+         console.error("Error cargando JSON Maestro:", err);
+         alert("Error al procesar el archivo maestro.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleBulkInjection = async () => {
+    if (!bulkData || selectedUsers.length === 0) return;
+    if (!confirm(`¿Estás seguro de que deseas inyectar estos datos a ${selectedUsers.length} usuarios? Esto sobreescribirá las categorías seleccionadas.`)) return;
+
+    setIsDeploying(true);
+    const dataToInject: any = {};
+    if (selectedCategories.perfiles) dataToInject.aluminum = bulkData.aluminum || [];
+    if (selectedCategories.accesorios) dataToInject.accessories = bulkData.accessories || [];
+    if (selectedCategories.vidrios) {
+        dataToInject.glasses = bulkData.glasses || [];
+        dataToInject.blindPanels = bulkData.blindPanels || [];
+        dataToInject.dvhInputs = bulkData.dvhInputs || [];
+    }
+    if (selectedCategories.recetas) {
+        dataToInject.recetas = (bulkData.recetas || []).filter((r: any) => selectedLines.includes(r.line));
+    }
+
+    try {
+        let successCount = 0;
+        for (const userId of selectedUsers) {
+          const result = await saveBulkData(userId, dataToInject);
+          if (result.success) successCount++;
+        }
+        alert(`¡Inyección completada! Se actualizaron ${successCount} usuarios.`);
+        fetchProfiles();
+    } catch (error: any) {
+        alert("Error durante la inyección: " + error.message);
+    } finally {
+        setIsDeploying(false);
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !targetUserId) return;
@@ -370,6 +452,12 @@ const SuperAdminDashboard: React.FC = () => {
               Eventos
             </button>
             <button
+              onClick={() => setActiveTab("distribution")}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${activeTab === "distribution" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Distribución
+            </button>
+            <button
               onClick={() => setActiveTab("announcements")}
               className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-colors ${activeTab === "announcements" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
             >
@@ -378,7 +466,110 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {activeTab === "users" ? (
+        {activeTab === "distribution" ? (
+          <div className="space-y-6">
+             {!bulkData ? (
+               <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
+                  <UploadCloud size={48} className="text-slate-400 mb-4" />
+                  <p className="text-sm font-bold text-slate-600 uppercase tracking-widest mb-4">Cargar Archivo Maestro JSON</p>
+                  <button onClick={() => masterFileInputRef.current?.click()} className="bg-sky-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-sky-700">Subir Archivo</button>
+                  <input type="file" ref={masterFileInputRef} onChange={handleMasterFileUpload} accept=".json" className="hidden" />
+               </div>
+             ) : (
+               <div className="space-y-6">
+                 <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-bold text-emerald-800 uppercase tracking-widest">Archivo Maestro en Memoria</p>
+                      <p className="text-xs text-emerald-600 mt-1">
+                        Contiene {bulkData.recetas?.length || 0} recetas, {bulkData.aluminum?.length || 0} perfiles, {bulkData.accessories?.length || 0} accesorios.
+                      </p>
+                    </div>
+                    <button onClick={() => { setBulkData(null); setSelectedUsers([]); }} className="text-xs font-bold uppercase text-emerald-700 hover:text-emerald-900 px-3 py-1.5 bg-emerald-100 rounded-lg">Cambiar Archivo</button>
+                 </div>
+
+                 <div className="bg-white border border-slate-200 p-5 rounded-2xl">
+                    
+<h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">Filtros de Inyección</h3>
+                    <div className="flex flex-wrap gap-4 mb-6">
+                       <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                             <input type="checkbox" checked={selectedCategories.recetas} onChange={(e) => {
+                                const isChecked = e.target.checked;
+                                setSelectedCategories(p => ({...p, recetas: isChecked}));
+                                if (isChecked && availableLines.length > 0) setShowLinesModal(true);
+                             }} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
+                             Recetas
+                          </label>
+                          {selectedCategories.recetas && availableLines.length > 0 && (
+                             <button onClick={() => setShowLinesModal(true)} className="text-[10px] text-sky-600 font-bold uppercase hover:underline">
+                                (Seleccionadas: {selectedLines.length}/{availableLines.length}) Editar
+                             </button>
+                          )}
+                       </div>
+                       <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                          <input type="checkbox" checked={selectedCategories.perfiles} onChange={(e) => setSelectedCategories(p => ({...p, perfiles: e.target.checked}))} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
+                          Perfiles
+                       </label>
+                       <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                          <input type="checkbox" checked={selectedCategories.accesorios} onChange={(e) => setSelectedCategories(p => ({...p, accesorios: e.target.checked}))} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
+                          Accesorios
+                       </label>
+                       <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                          <input type="checkbox" checked={selectedCategories.vidrios} onChange={(e) => setSelectedCategories(p => ({...p, vidrios: e.target.checked}))} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
+                          Vidrios / Paneles
+                       </label>
+                    </div>
+                 </div>
+                 
+                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+                       <label className="flex items-center gap-3 text-sm font-bold text-slate-800 cursor-pointer">
+                          <input type="checkbox" 
+                                 checked={selectedUsers.length === profiles.length && profiles.length > 0} 
+                                 onChange={(e) => {
+                                    if (e.target.checked) setSelectedUsers(profiles.map(p => p.id));
+                                    else setSelectedUsers([]);
+                                 }} 
+                                 className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
+                          Seleccionar Todos los Usuarios
+                       </label>
+                       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedUsers.length} Seleccionados</span>
+                    </div>
+                    <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                       {profiles.map(profile => (
+                          <label key={profile.id} className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 cursor-pointer">
+                             <input type="checkbox" checked={selectedUsers.includes(profile.id)} onChange={(e) => {
+                                 if (e.target.checked) setSelectedUsers(p => [...p, profile.id]);
+                                 else setSelectedUsers(p => p.filter(id => id !== profile.id));
+                             }} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
+                             <div className="flex-1">
+                                <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                  {profile.email}
+                                  {profile.role === 'super_admin' && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black uppercase tracking-widest">Admin</span>}
+                                </div>
+                                <div className="text-[10px] text-slate-500 uppercase font-black tracking-wider mt-0.5">
+                                   {profile.recipes_count || 0} RECETAS | {profile.registered_count || 0} DISPOSITIVOS
+                                </div>
+                             </div>
+                          </label>
+                       ))}
+                    </div>
+                 </div>
+
+                 <div className="flex justify-end pt-2">
+                    <button
+                       onClick={handleBulkInjection}
+                       disabled={isDeploying || selectedUsers.length === 0}
+                       className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-black uppercase text-xs tracking-widest px-8 py-4 rounded-xl transition-colors flex items-center gap-3 shadow-lg hover:shadow-xl"
+                    >
+                       {isDeploying ? <Loader2 size={18} className="animate-spin" /> : <Database size={18} />}
+                       Inyectar Datos a {selectedUsers.length} Usuarios
+                    </button>
+                 </div>
+               </div>
+             )}
+          </div>
+        ) : activeTab === "users" ? (
         <div className="space-y-3">
           {profiles.length === 0 ? (
             <div className="text-center py-8 text-slate-500 text-sm">
@@ -699,6 +890,45 @@ CREATE POLICY "Super admins can manage announcements" ON anuncios_globales
           </div>
         )}
       </div>
+      
+      {showLinesModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-black uppercase text-slate-800 tracking-tighter">
+                Seleccionar Líneas de Recetas
+              </h3>
+              <button onClick={() => setShowLinesModal(false)} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-xl transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex gap-2 mb-4">
+                 <button onClick={() => setSelectedLines(availableLines)} className="text-[10px] font-bold uppercase bg-slate-100 text-slate-600 px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">Seleccionar Todas</button>
+                 <button onClick={() => setSelectedLines([])} className="text-[10px] font-bold uppercase bg-slate-100 text-slate-600 px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors">Ninguna</button>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-2 border border-slate-100 rounded-2xl p-4 bg-slate-50 min-h-[200px]">
+                 {availableLines.length === 0 ? (
+                    <div className="text-center text-slate-500 text-sm py-8">No se encontraron líneas en el archivo.</div>
+                 ) : (
+                    availableLines.map(line => (
+                        <label key={line} className="flex items-center gap-3 p-3 hover:bg-white border border-transparent hover:border-slate-200 rounded-xl cursor-pointer transition-all shadow-sm">
+                           <input type="checkbox" checked={selectedLines.includes(line)} onChange={(e) => {
+                              if (e.target.checked) setSelectedLines(p => [...p, line]);
+                              else setSelectedLines(p => p.filter(l => l !== line));
+                           }} className="w-5 h-5 rounded text-sky-600 cursor-pointer" />
+                           <span className="text-sm font-bold text-slate-700">{line || 'Sin Línea'}</span>
+                        </label>
+                    ))
+                 )}
+            </div>
+            <div className="mt-6 flex justify-end">
+               <button onClick={() => setShowLinesModal(false)} className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 text-white font-black uppercase text-[10px] tracking-widest py-4 px-8 rounded-xl transition-colors shadow-lg hover:shadow-xl">
+                  Confirmar Selección ({selectedLines.length})
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
       {passwordResetUserId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-100">

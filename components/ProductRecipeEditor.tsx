@@ -464,6 +464,11 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
     description: "Perfil vertical lateral únicamente.",
   },
   {
+    id: "mampara_corrediza_2h",
+    label: "MAMPARA CORREDIZA 2H",
+    description: "2 hojas de vidrio y perfil solo arriba.",
+  },
+  {
     id: "vidrio_solo",
     label: "VIDRIOS",
     description: "Sin perfiles perimetrales (vidrio puro).",

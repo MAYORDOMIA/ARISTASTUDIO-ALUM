@@ -451,12 +451,14 @@ const drawDetailedOpening = (
   const isNoUmbral = visualType.includes("no_umbral");
   const isMamparaFija = visualType === "mampara_fija";
   const isMamparaRebatir = visualType === "mampara_rebatir";
+  const isMamparaCorrediza = visualType === "mampara_corrediza_2h";
   const isVidrioSolo = visualType === "vidrio_solo";
   const isPuertaZocalon = visualType === "puerta_zocalon";
   const isPFZocalon = visualType === "pf_zocalon";
   const hasBottomFrame =
     !isDoor &&
     !isMamparaRebatir &&
+    !isMamparaCorrediza &&
     !isVidrioSolo &&
     !isPFZocalon &&
     !isPuertaZocalon &&
@@ -636,13 +638,20 @@ const drawDetailedOpening = (
       leafType.includes("corrediza_4") ||
       leafType.includes("3h") ||
       leafType.includes("4h");
-    drawGlassWithTransoms(
-      lx + leafT,
-      ly + leafT,
-      lw - leafT * 2,
-      lh - (leafT + bT),
-      absoluteBottomY,
-    );
+    const isMamparaSlidingLeaf = leafType.includes("mampara_sliding");
+
+    if (isMamparaSlidingLeaf) {
+      drawGlassWithTransoms(lx, ly, lw, lh, absoluteBottomY);
+    } else {
+      drawGlassWithTransoms(
+        lx + leafT,
+        ly + leafT,
+        lw - leafT * 2,
+        lh - (leafT + bT),
+        absoluteBottomY,
+      );
+    }
+
     if (hasMesh) {
       ctx.save();
       const mx = lx + leafT;
@@ -668,6 +677,7 @@ const drawDetailedOpening = (
       }
       ctx.restore();
     }
+    if (!isMamparaSlidingLeaf) {
     if (isHybrid45_90) {
       drawProfile([
         { x: lx, y: ly },
@@ -750,6 +760,7 @@ const drawDetailedOpening = (
     ctx.lineWidth = 1.5;
     ctx.strokeRect(lx, ly, lw, lh);
     ctx.restore();
+    }
     /* Símbolos de Apertura */ if (
       !visualType.includes("sliding") &&
       !visualType.includes("fija") &&
@@ -893,6 +904,14 @@ const drawDetailedOpening = (
     } else {
       drawGlassWithTransoms(x, y, w, h, y + h);
     }
+  } else if (isMamparaCorrediza) {
+    // Perfil solo arriba
+    drawProfile([
+      { x: x, y: y },
+      { x: x + w, y: y },
+      { x: x + w, y: y + frameT },
+      { x: x, y: y + frameT },
+    ]);
   } else if (isMamparaRebatir) {
     if (hand === "right") {
       drawProfile([
@@ -1068,11 +1087,11 @@ const drawDetailedOpening = (
         { x: x + w, y: y + h },
       ]);
     }
-    const innerX = x + frameT;
+    const innerX = isMamparaCorrediza ? x : x + frameT;
     const innerY = y + (isNoDintel ? 0 : frameT);
-    const innerW = w - frameT * 2;
+    const innerW = isMamparaCorrediza ? w : w - frameT * 2;
     const innerH = h - (isNoDintel ? 0 : hasBottomFrame ? frameT * 2 : frameT);
-    if (visualType.includes("sliding")) {
+    if (visualType.includes("sliding") || isMamparaCorrediza) {
       const numLeaves = visualType.includes("sliding_3")
         ? 3
         : visualType.includes("sliding_4")
@@ -1091,7 +1110,7 @@ const drawDetailedOpening = (
             leafForce90,
             leafForce90,
             i === 0 && (extras?.mosquitero || false),
-            "sliding",
+            isMamparaCorrediza ? "mampara_sliding" : "sliding",
             y + h,
             i,
             3,
@@ -1109,7 +1128,7 @@ const drawDetailedOpening = (
             leafForce90,
             leafForce90,
             i === 0 && (extras?.mosquitero || false),
-            "sliding",
+            isMamparaCorrediza ? "mampara_sliding" : "sliding",
             y + h,
             i,
             4,
@@ -1125,7 +1144,7 @@ const drawDetailedOpening = (
           leafForce90,
           leafForce90,
           extras?.mosquitero || false,
-          "sliding",
+          isMamparaCorrediza ? "mampara_sliding" : "sliding",
           y + h,
           0,
           2,
@@ -1138,7 +1157,7 @@ const drawDetailedOpening = (
           leafForce90,
           leafForce90,
           false,
-          "sliding",
+          isMamparaCorrediza ? "mampara_sliding" : "sliding",
           y + h,
           1,
           2,
