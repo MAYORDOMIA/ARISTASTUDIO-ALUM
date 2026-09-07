@@ -323,6 +323,8 @@ const SuperAdminDashboard: React.FC = () => {
         if (jsonData.accesorios && !jsonData.accessories) jsonData.accessories = jsonData.accesorios;
         if (jsonData.paneles && !jsonData.blindPanels) jsonData.blindPanels = jsonData.paneles;
         if (jsonData.dvh && !jsonData.dvhInputs) jsonData.dvhInputs = jsonData.dvh;
+        if (jsonData.recetas && !jsonData.recipes) jsonData.recipes = jsonData.recetas;
+        if (jsonData.recipes && !jsonData.recetas) jsonData.recetas = jsonData.recipes;
 
         setBulkData(jsonData);
         
@@ -357,7 +359,7 @@ const SuperAdminDashboard: React.FC = () => {
         dataToInject.dvhInputs = bulkData.dvhInputs || [];
     }
     if (selectedCategories.recetas) {
-        dataToInject.recetas = (bulkData.recetas || []).filter((r: any) => selectedLines.includes(r.line));
+        dataToInject.recipes = (bulkData.recetas || []).filter((r: any) => selectedLines.includes(r.line));
     }
 
     try {
