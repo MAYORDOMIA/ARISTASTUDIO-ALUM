@@ -95,8 +95,37 @@ const drawDetailedOpening = (
   leafWidths?: number[],
   leftHeight?: number,
   rightHeight?: number,
+  cols: number = 1,
+  rows: number = 1,
+  mullions: { x: number; profileId: string }[] = [],
 ) => {
   if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) return;
+
+  const applyPaintEffect = (
+    px: number,
+    py: number,
+    pw: number,
+    ph: number,
+    isVertical: boolean,
+  ) => {
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.fillRect(px, py, pw, ph);
+    try {
+      const grad = isVertical
+        ? ctx.createLinearGradient(px, py, px + pw, py)
+        : ctx.createLinearGradient(px, py, px, py + ph);
+      grad.addColorStop(0, "rgba(0,0,0,0.15)");
+      grad.addColorStop(0.5, "rgba(255,255,255,0.25)");
+      grad.addColorStop(1, "rgba(0,0,0,0.15)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(px, py, pw, ph);
+    } catch (e) {}
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
+    ctx.strokeRect(px, py, pw, ph);
+    ctx.restore();
+  };
 
   const isTrapezoid =
     (recipe.type === "Paño Fijo" ||
@@ -316,32 +345,97 @@ const drawDetailedOpening = (
     return;
   }
 
-  const visualType = recipe.visualType || "fixed";
-  const applyPaintEffect = (
-    px: number,
-    py: number,
-    pw: number,
-    ph: number,
-    isVertical: boolean,
-  ) => {
+  if (recipe.type === "Piel de Vidrio") {
+    const mullionW = 50 * pxPerMm; // Ancho visual del montante
+    const transomH = 45 * pxPerMm; // Alto visual del travesaño
+
+    // 1. Dibujar Vidrios de Fondo
     ctx.save();
-    ctx.fillStyle = color;
-    ctx.fillRect(px, py, pw, ph);
-    try {
-      const grad = isVertical
-        ? ctx.createLinearGradient(px, py, px + pw, py)
-        : ctx.createLinearGradient(px, py, px, py + ph);
-      grad.addColorStop(0, "rgba(0,0,0,0.15)");
-      grad.addColorStop(0.5, "rgba(255,255,255,0.25)");
-      grad.addColorStop(1, "rgba(0,0,0,0.15)");
-      ctx.fillStyle = grad;
-      ctx.fillRect(px, py, pw, ph);
-    } catch (e) {}
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
-    ctx.strokeRect(px, py, pw, ph);
+    const glassGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+    glassGrad.addColorStop(0, "#bae6fd");
+    glassGrad.addColorStop(0.5, "#f0f9ff");
+    glassGrad.addColorStop(1, "#bae6fd");
+    ctx.fillStyle = glassGrad;
+    ctx.fillRect(x, y, w, h);
     ctx.restore();
-  }; // NUEVAS TIPOLOGÍAS INDUSTRIALES CON EFECTO DE PINTURA
+
+    // 2. Dibujar Grilla (Travesaños y Montantes)
+    // Montantes (Columnas)
+    if (!mullions || mullions.length === 0) {
+      for (let i = 0; i <= cols; i++) {
+        const finalX =
+          i === 0
+            ? x
+            : i === cols
+              ? x + w - mullionW
+              : x + (i * w) / cols - mullionW / 2;
+        applyPaintEffect(finalX, y, mullionW, h, true);
+      }
+    } else {
+      // Frames laterales
+      applyPaintEffect(x, y, mullionW, h, true);
+      applyPaintEffect(x + w - mullionW, y, mullionW, h, true);
+      // Montantes internos manuales
+      mullions.forEach((m) => {
+        applyPaintEffect(x + m.x * pxPerMm - mullionW / 2, y, mullionW, h, true);
+      });
+    }
+
+    // Travesaños (Filas)
+    if (!transoms || transoms.length === 0) {
+      for (let j = 0; j <= rows; j++) {
+        const finalY =
+          j === 0
+            ? y
+            : j === rows
+              ? y + h - transomH
+              : y + (j * h) / rows - transomH / 2;
+        applyPaintEffect(x, finalY, w, transomH, false);
+      }
+    } else {
+      // Frames horizontales
+      applyPaintEffect(x, y, w, transomH, false);
+      applyPaintEffect(x, y + h - transomH, w, transomH, false);
+      // Travesaños internos manuales
+      transoms.forEach((t) => {
+        applyPaintEffect(
+          x,
+          y + (h - t.height * pxPerMm) - transomH / 2,
+          w,
+          transomH,
+          false,
+        );
+      });
+    }
+
+    // 3. Reflejos en cada paño
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.4)";
+    ctx.lineWidth = 1;
+
+    const currentCols =
+      mullions && mullions.length > 0 ? mullions.length + 1 : cols;
+    const currentRows =
+      transoms && transoms.length > 0 ? transoms.length + 1 : rows;
+
+    for (let i = 0; i < currentCols; i++) {
+      for (let j = 0; j < currentRows; j++) {
+        const pW = w / currentCols;
+        const pH = h / currentRows;
+        const pX = x + i * pW;
+        const pY = y + j * pH;
+        ctx.beginPath();
+        ctx.moveTo(pX + pW * 0.3, pY + pH * 0.3);
+        ctx.lineTo(pX + pW * 0.7, pY + pH * 0.7);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    return;
+  }
+
+  const visualType = recipe.visualType || "fixed";
+  // NUEVAS TIPOLOGÍAS INDUSTRIALES CON EFECTO DE PINTURA
   if (visualType === "tubo_h") {
     const tubeThickness = (recipe.transomThickness || 100) * pxPerMm;
     const tubeY = y + h / 2 - tubeThickness / 2;
@@ -584,30 +678,122 @@ const drawDetailedOpening = (
   ) => {
     if (!isFinite(gx) || !isFinite(gy) || !isFinite(gw) || !isFinite(gh))
       return;
-    if (transoms.length > 0) {
-      const sorted = [...transoms].sort((a, b) => b.height - a.height);
-      let currentTopY = gy;
-      const totalTransoms = transoms.length;
-      sorted.forEach((t, i) => {
+
+    const hasTransoms = transoms && transoms.length > 0;
+    const hasMullions = mullions && mullions.length > 0;
+
+    // Si no hay divisiones horizontales ni verticales, dibujar paño entero
+    if (!hasTransoms && !hasMullions) {
+      drawPane(gx, gy, gw, gh, 0);
+      return;
+    }
+
+    // 1. Calcular columnas verticales (Parantes / Mullions)
+    interface ColSegment {
+      left: number;
+      width: number;
+      colIdx: number;
+    }
+    const colSegments: ColSegment[] = [];
+    const drawnMullions: { left: number; right: number }[] = [];
+
+    if (hasMullions) {
+      const sortedMul = [...mullions].sort((a, b) => a.x - b.x);
+      let currentLeft = gx;
+      sortedMul.forEach((m, idx) => {
+        const mulProf = allProfiles.find((p) => p.id === m.profileId);
+        const mThickness = Number(mulProf?.thickness || 40) * pxPerMm;
+        const mCenter = x + Number(m.x || 0) * pxPerMm;
+        const mLeft = Math.max(gx, mCenter - mThickness / 2);
+        const mRight = Math.min(gx + gw, mCenter + mThickness / 2);
+
+        const colW = mLeft - currentLeft;
+        if (colW > 0) {
+          colSegments.push({ left: currentLeft, width: colW, colIdx: idx });
+        }
+        drawnMullions.push({ left: mLeft, right: mRight });
+        currentLeft = mRight;
+      });
+      const lastColW = (gx + gw) - currentLeft;
+      if (lastColW > 0) {
+        colSegments.push({
+          left: currentLeft,
+          width: lastColW,
+          colIdx: sortedMul.length,
+        });
+      }
+    } else {
+      colSegments.push({ left: gx, width: gw, colIdx: 0 });
+    }
+
+    // 2. Calcular filas horizontales (Travesaños / Transoms)
+    interface RowSegment {
+      top: number;
+      height: number;
+      rowIdx: number;
+    }
+    const rowSegments: RowSegment[] = [];
+    const drawnTransoms: { top: number; bottom: number }[] = [];
+
+    if (hasTransoms) {
+      const sortedTrans = [...transoms].sort((a, b) => b.height - a.height);
+      let currentTop = gy;
+      const totalTrans = sortedTrans.length;
+      sortedTrans.forEach((t, i) => {
         const trProf = allProfiles.find((p) => p.id === t.profileId);
         const tThickness = Number(trProf?.thickness || 40) * pxPerMm;
         const transomY = absoluteBottomY - Number(t.height || 0) * pxPerMm;
-        const paneH = transomY - tThickness / 2 - currentTopY;
-        const paneIndex = totalTransoms - i;
-        if (paneH > 0) drawPane(gx, currentTopY, gw, paneH, paneIndex);
-        drawProfile([
-          { x: gx, y: transomY - tThickness / 2 },
-          { x: gx + gw, y: transomY - tThickness / 2 },
-          { x: gx + gw, y: transomY + tThickness / 2 },
-          { x: gx, y: transomY + tThickness / 2 },
-        ]);
-        currentTopY = transomY + tThickness / 2;
+        const tTop = Math.max(gy, transomY - tThickness / 2);
+        const tBottom = Math.min(gy + gh, transomY + tThickness / 2);
+
+        const paneH = tTop - currentTop;
+        const rowIndex = totalTrans - i;
+        if (paneH > 0) {
+          rowSegments.push({ top: currentTop, height: paneH, rowIdx: rowIndex });
+        }
+        drawnTransoms.push({ top: tTop, bottom: tBottom });
+        currentTop = tBottom;
       });
-      const lastPaneH = gy + gh - currentTopY;
-      if (lastPaneH > 0) drawPane(gx, currentTopY, gw, lastPaneH, 0);
+      const lastPaneH = (gy + gh) - currentTop;
+      if (lastPaneH > 0) {
+        rowSegments.push({ top: currentTop, height: lastPaneH, rowIdx: 0 });
+      }
     } else {
-      drawPane(gx, gy, gw, gh, 0);
+      rowSegments.push({ top: gy, height: gh, rowIdx: 0 });
     }
+
+    // 3. Dibujar todos los paños de vidrio / ciego
+    const numRows = rowSegments.length;
+    colSegments.forEach((col) => {
+      rowSegments.forEach((row) => {
+        const paneIndex = hasTransoms && hasMullions
+          ? col.colIdx * numRows + row.rowIdx
+          : hasTransoms
+            ? row.rowIdx
+            : col.colIdx;
+        drawPane(col.left, row.top, col.width, row.height, paneIndex);
+      });
+    });
+
+    // 4. Dibujar perfiles de Travesaños Horizontales
+    drawnTransoms.forEach((t) => {
+      drawProfile([
+        { x: gx, y: t.top },
+        { x: gx + gw, y: t.top },
+        { x: gx + gw, y: t.bottom },
+        { x: gx, y: t.bottom },
+      ]);
+    });
+
+    // 5. Dibujar perfiles de Parantes Verticales (Travesaños Verticales)
+    drawnMullions.forEach((m) => {
+      drawProfile([
+        { x: m.left, y: gy },
+        { x: m.right, y: gy },
+        { x: m.right, y: gy + gh },
+        { x: m.left, y: gy + gh },
+      ]);
+    });
   };
   const drawLeaf = (
     lx: number,
@@ -1498,6 +1684,7 @@ const QuotingModule: React.FC<Props> = ({
   const [recipeFilter, setRecipeFilter] = useState<string>("TODOS");
   const [isManualDim, setIsManualDim] = useState(false);
   const [showSlatSelector, setShowSlatSelector] = useState(false);
+  const [activeDivisionTab, setActiveDivisionTab] = useState<"horizontal" | "vertical">("horizontal");
   const [slatPaneIdx, setSlatPaneIdx] = useState<number | null>(null);
   const [slatSearch, setSlatSearch] = useState("");
   const [glazingBeadStyle, setGlazingBeadStyle] = useState<"Recto" | "Curvo">(
@@ -1734,29 +1921,47 @@ const QuotingModule: React.FC<Props> = ({
       });
     }
     /* width eq */ const newCount = colSizes.length + 1;
-    const newSize = Math.floor(totalWidth / newCount);
-    const remainder = totalWidth % newCount;
-    const newColSizes = Array(newCount).fill(newSize);
-    for (let i = 0; i < remainder; i++) newColSizes[i]++;
-    setModules([...(modules || []), ...newModules]);
-    setColSizes(newColSizes);
+    if (isManualDim) {
+      const lastSize = colSizes.length > 0 ? colSizes[colSizes.length - 1] : 1000;
+      const newColSizes = [...colSizes, lastSize];
+      const currentDeduction = Number(aluminum.find((p) => p.id === couplingProfileId)?.thickness ?? couplingDeduction ?? 0);
+      setModules([...(modules || []), ...newModules]);
+      setColSizes(newColSizes);
+      setTotalWidth(newColSizes.reduce((a, b) => a + b, 0) + (newColSizes.length > 1 ? (newColSizes.length - 1) * currentDeduction : 0));
+    } else {
+      const newSize = Math.floor(totalWidth / newCount);
+      const remainder = totalWidth % newCount;
+      const newColSizes = Array(newCount).fill(newSize);
+      for (let i = 0; i < remainder; i++) newColSizes[i]++;
+      setModules([...(modules || []), ...newModules]);
+      setColSizes(newColSizes);
+    }
     /* setTotalWidth is NOT called to preserve user input */ setShowCouplingModal(
       true,
     );
-    setIsManualDim(false);
-  };
+      };
   const removeColumn = () => {
     if (colSizes.length <= 1) return;
     const lastX = bounds.maxX; /* remaining columns */
     const newCount = colSizes.length - 1;
-    const newSize = Math.floor(totalWidth / newCount);
-    const remainder = totalWidth % newCount;
-    const newColSizes = Array(newCount).fill(newSize);
-    for (let i = 0; i < remainder; i++) newColSizes[i]++;
-    setModules((modules || []).filter((m) => m && m.x !== lastX));
-    setColSizes(newColSizes);
-    /* setTotalWidth is NOT called */ setIsManualDim(false);
-    if (newColSizes.length <= 1 && rowSizes.length <= 1) {
+    
+    if (isManualDim) {
+      const newColSizes = colSizes.slice(0, -1);
+      const currentDeduction = Number(aluminum.find((p) => p.id === couplingProfileId)?.thickness ?? couplingDeduction ?? 0);
+      setModules((modules || []).filter((m) => m && m.x !== lastX));
+      setColSizes(newColSizes);
+      setTotalWidth(newColSizes.reduce((a, b) => a + b, 0) + (newColSizes.length > 1 ? (newColSizes.length - 1) * currentDeduction : 0));
+    } else {
+      const newSize = Math.floor(totalWidth / newCount);
+      const remainder = totalWidth % newCount;
+      const newColSizes = Array(newCount).fill(newSize);
+      for (let i = 0; i < remainder; i++) newColSizes[i]++;
+      setModules((modules || []).filter((m) => m && m.x !== lastX));
+      setColSizes(newColSizes);
+    }
+    
+    /* setTotalWidth is NOT called */ 
+    if (newCount <= 1 && rowSizes.length <= 1) {
       setCouplingProfileId("");
       setCouplingDeduction(0);
     }
@@ -1777,27 +1982,44 @@ const QuotingModule: React.FC<Props> = ({
       });
     }
     /* height eq */ const newCount = rowSizes.length + 1;
-    const newSize = Math.floor(totalHeight / newCount);
-    const remainder = totalHeight % newCount;
-    const newRowSizes = Array(newCount).fill(newSize);
-    for (let i = 0; i < remainder; i++) newRowSizes[i]++;
-    setModules([...(modules || []), ...newModules]);
-    setRowSizes(newRowSizes);
+    if (isManualDim) {
+      const lastSize = rowSizes.length > 0 ? rowSizes[rowSizes.length - 1] : 1000;
+      const newRowSizes = [...rowSizes, lastSize];
+      const currentDeduction = Number(aluminum.find((p) => p.id === couplingProfileId)?.thickness ?? couplingDeduction ?? 0);
+      setModules([...(modules || []), ...newModules]);
+      setRowSizes(newRowSizes);
+      setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0) + (newRowSizes.length > 1 ? (newRowSizes.length - 1) * currentDeduction : 0));
+    } else {
+      const newSize = Math.floor(totalHeight / newCount);
+      const remainder = totalHeight % newCount;
+      const newRowSizes = Array(newCount).fill(newSize);
+      for (let i = 0; i < remainder; i++) newRowSizes[i]++;
+      setModules([...(modules || []), ...newModules]);
+      setRowSizes(newRowSizes);
+    }
     /* setTotalHeight is NOT called */ setShowCouplingModal(true);
-    setIsManualDim(false);
+    
   };
   const removeRow = () => {
     if (rowSizes.length <= 1) return;
     const lastY = bounds.maxY; /* remaining rows */
     const newCount = rowSizes.length - 1;
-    const newSize = Math.floor(totalHeight / newCount);
-    const remainder = totalHeight % newCount;
-    const newRowSizes = Array(newCount).fill(newSize);
-    for (let i = 0; i < remainder; i++) newRowSizes[i]++;
-    setModules((modules || []).filter((m) => m && m.y !== lastY));
-    setRowSizes(newRowSizes);
-    /* setTotalHeight is NOT called */ setIsManualDim(false);
-    if (colSizes.length <= 1 && newRowSizes.length <= 1) {
+    if (isManualDim) {
+      const newRowSizes = rowSizes.slice(0, -1);
+      const currentDeduction = Number(aluminum.find((p) => p.id === couplingProfileId)?.thickness ?? couplingDeduction ?? 0);
+      setModules((modules || []).filter((m) => m && m.y !== lastY));
+      setRowSizes(newRowSizes);
+      setTotalHeight(newRowSizes.reduce((a, b) => a + b, 0) + (newRowSizes.length > 1 ? (newRowSizes.length - 1) * currentDeduction : 0));
+    } else {
+      const newSize = Math.floor(totalHeight / newCount);
+      const remainder = totalHeight % newCount;
+      const newRowSizes = Array(newCount).fill(newSize);
+      for (let i = 0; i < remainder; i++) newRowSizes[i]++;
+      setModules((modules || []).filter((m) => m && m.y !== lastY));
+      setRowSizes(newRowSizes);
+    }
+    /* setTotalHeight is NOT called */ 
+    if (colSizes.length <= 1 && newCount <= 1) {
       setCouplingProfileId("");
       setCouplingDeduction(0);
     }
@@ -1979,9 +2201,10 @@ const QuotingModule: React.FC<Props> = ({
     }
     setColSizes([1500]);
     setRowSizes([1100]);
-    setIsManualDim(false);
+    
     setSelectedModuleId(null);
     setEditingModuleId(null);
+    setIsManualDim(false);
     setEditingItemId(null);
   };
   useEffect(() => {
@@ -2420,6 +2643,9 @@ const QuotingModule: React.FC<Props> = ({
         mod.leafWidths,
         mod.leftHeight,
         mod.rightHeight,
+        mod.cols || 1,
+        mod.rows || 1,
+        mod.mullions || [],
       );
       
       // Draw Engineering Button indicator on Canvas
@@ -2537,6 +2763,79 @@ const QuotingModule: React.FC<Props> = ({
     }));
     updateModule(editingModuleId, { transoms: redistributed });
   };
+
+  const centerMullionsForModule = (modId: string) => {
+    setModules((prev) =>
+      prev.map((m) => {
+        if (m.id !== modId || !m.mullions || m.mullions.length === 0) return m;
+        const modIdxX = m.x - bounds.minX;
+        const modW =
+          isManualDim && m.width ? m.width : Number(colSizes[modIdxX] || 0);
+        const parts = m.mullions.length + 1;
+        const step = modW / parts;
+        const newMullions = m.mullions.map((mul, idx) => ({
+          ...mul,
+          x: Math.round(step * (idx + 1)),
+        }));
+        return { ...m, mullions: newMullions };
+      }),
+    );
+  };
+
+  const addMullionToModule = () => {
+    if (!currentModForEdit) return;
+    const modIdxX = currentModForEdit.x - bounds.minX;
+    const modW =
+      isManualDim && currentModForEdit.width
+        ? currentModForEdit.width
+        : Number(colSizes[modIdxX] || 0);
+    const mullionRecipe = recipes.find(
+      (r) => r.id === currentModForEdit.recipeId,
+    );
+    const defaultMullionProfId =
+      currentModForEdit.mullionProfileId ||
+      mullionRecipe?.profiles.find((p) =>
+        p.role &&
+        (p.role.toLowerCase().includes("columna") ||
+          p.role.toLowerCase().includes("montante") ||
+          p.role.toLowerCase().includes("parante") ||
+          p.role.toLowerCase().includes("travesaño") ||
+          p.role.toLowerCase().includes("travezaño")),
+      )?.profileId ||
+      mullionRecipe?.defaultTransomProfileId ||
+      "";
+
+    const updatedMullions = [
+      ...(currentModForEdit.mullions || []),
+      { x: 0, profileId: defaultMullionProfId },
+    ];
+    const parts = updatedMullions.length + 1;
+    const step = modW / parts;
+    const redistributed = updatedMullions.map((m, idx) => ({
+      ...m,
+      x: Math.round(step * (idx + 1)),
+    }));
+    updateModule(editingModuleId!, { mullions: redistributed });
+  };
+
+  const removeMullionFromModule = (idx: number) => {
+    if (!currentModForEdit) return;
+    const filtered =
+      currentModForEdit.mullions?.filter((_, i) => i !== idx) || [];
+    const modIdxX = currentModForEdit.x - bounds.minX;
+    const modW =
+      isManualDim && currentModForEdit.width
+        ? currentModForEdit.width
+        : Number(colSizes[modIdxX] || 0);
+    const parts = filtered.length + 1;
+    const step = modW / parts;
+    const redistributed = filtered.map((m, midx) => ({
+      ...m,
+      x: Math.round(step * (midx + 1)),
+    }));
+    updateModule(editingModuleId, { mullions: redistributed });
+  };
+
   const handleAccessorySubstitute = (index: number, newAccessoryId: string) => {
     if (!currentModForEdit) return;
     const modRecipe = recipes.find((r) => r.id === currentModForEdit.recipeId);
@@ -2730,6 +3029,7 @@ const QuotingModule: React.FC<Props> = ({
               }
             />
           </div>
+
           {hasBaranda && (
             <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 animate-in slide-in-from-top-2 space-y-3">
               <label className="text-[9px] font-black uppercase text-amber-600 tracking-widest flex items-center gap-2">
@@ -3732,6 +4032,97 @@ const QuotingModule: React.FC<Props> = ({
                         })()}
                       </div>
                     </div>
+                    {(() => {
+                      const recipe = recipes.find((r) => r.id === currentModForEdit.recipeId);
+                      if (recipe?.type === "Piel de Vidrio") {
+                        return (
+                          <div className="space-y-4 p-5 bg-sky-50 rounded-2xl border border-sky-100 animate-in slide-in-from-top-2">
+                            <h4 className="text-[9px] font-black text-sky-600 uppercase tracking-widest flex items-center gap-2">
+                              <LayoutGrid size={14} /> Modulación Piel de Vidrio
+                            </h4>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5 flex items-center gap-1.5">
+                                  <Columns size={10} /> Columnas (NX) {currentModForEdit.mullions && currentModForEdit.mullions.length > 0 && "- Personalizadas"}
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  disabled={currentModForEdit.mullions && currentModForEdit.mullions.length > 0}
+                                  className={`w-full bg-white border border-sky-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm text-sky-700 ${currentModForEdit.mullions && currentModForEdit.mullions.length > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                                  value={currentModForEdit.mullions && currentModForEdit.mullions.length > 0 ? currentModForEdit.mullions.length + 1 : currentModForEdit.cols || 1}
+                                  onChange={(e) => updateModule(editingModuleId, { cols: Math.max(1, parseInt(e.target.value) || 1) })}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5 flex items-center gap-1.5">
+                                  <Rows size={10} /> Filas (NY) {currentModForEdit.transoms && currentModForEdit.transoms.length > 0 && "- Personalizadas"}
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  disabled={currentModForEdit.transoms && currentModForEdit.transoms.length > 0}
+                                  className={`w-full bg-white border border-sky-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm text-sky-700 ${currentModForEdit.transoms && currentModForEdit.transoms.length > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                                  value={currentModForEdit.transoms && currentModForEdit.transoms.length > 0 ? currentModForEdit.transoms.length + 1 : currentModForEdit.rows || 1}
+                                  onChange={(e) => updateModule(editingModuleId, { rows: Math.max(1, parseInt(e.target.value) || 1) })}
+                                />
+                              </div>
+                            </div>
+                            
+                            {(() => {
+                              // Extract mullion options from the recipe's structural profiles list (including travesaño/parante for Paño Fijo)
+                              const mullionOptionsInRecipe = recipe.profiles.filter(p => p.role?.toLowerCase().includes("columna") || p.role?.toLowerCase().includes("montante") || p.role?.toLowerCase().includes("parante") || p.role?.toLowerCase().includes("travesaño") || p.role?.toLowerCase().includes("travezaño"));
+                              // Extract transom options from the recipe's structural profiles list
+                              const transomOptionsInRecipe = recipe.profiles.filter(p => p.role?.toLowerCase().includes("travesaño") || p.role?.toLowerCase().includes("travezaño"));
+
+                              if (mullionOptionsInRecipe.length === 0 && transomOptionsInRecipe.length === 0) return null;
+
+                              return (
+                                <div className="grid grid-cols-2 gap-4 mt-4 border-t border-sky-100 pt-4">
+                                  {mullionOptionsInRecipe.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5 flex items-center gap-1.5">
+                                        <Columns size={10} /> Perfil Parante / Columna
+                                      </label>
+                                      <select
+                                        className="w-full bg-white border border-sky-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm text-sky-700"
+                                        value={currentModForEdit.mullionProfileId || ""}
+                                        onChange={(e) => updateModule(editingModuleId, { mullionProfileId: e.target.value })}
+                                      >
+                                        <option value="">Por defecto</option>
+                                        {mullionOptionsInRecipe.map(rp => {
+                                          const p = aluminum.find(x => x.id === rp.profileId);
+                                          return p ? <option key={`mul-${rp.profileId}`} value={rp.profileId}>{p.code} - {p.detail}</option> : null;
+                                        })}
+                                      </select>
+                                    </div>
+                                  )}
+                                  {transomOptionsInRecipe.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5 flex items-center gap-1.5">
+                                        <Rows size={10} /> Perfil Travesaño
+                                      </label>
+                                      <select
+                                        className="w-full bg-white border border-sky-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm text-sky-700"
+                                        value={currentModForEdit.transomProfileId || ""}
+                                        onChange={(e) => updateModule(editingModuleId, { transomProfileId: e.target.value })}
+                                      >
+                                        <option value="">Por defecto</option>
+                                        {transomOptionsInRecipe.map(rp => {
+                                          const p = aluminum.find(x => x.id === rp.profileId);
+                                          return p ? <option key={`tra-${rp.profileId}`} value={rp.profileId}>{p.code} - {p.detail}</option> : null;
+                                        })}
+                                      </select>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     {recipes.find((r) => r.id === currentModForEdit.recipeId)
                       ?.leaves === 2 && (
                       <div className="space-y-1.5 p-4 bg-sky-50 rounded-xl border border-sky-100 ">
@@ -3918,106 +4309,223 @@ const QuotingModule: React.FC<Props> = ({
                     </h4>
                     <div className="flex gap-2">
                       <button
-                        onClick={() =>
-                          centerTransomsForModule(editingModuleId!)
-                        }
+                        onClick={() => {
+                          if (activeDivisionTab === "horizontal") {
+                            centerTransomsForModule(editingModuleId!);
+                          } else {
+                            centerMullionsForModule(editingModuleId!);
+                          }
+                        }}
                         className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase shadow hover:bg-slate-200 transition-all flex items-center gap-1.5"
                       >
                         Equidistar
                       </button>
                       <button
-                        onClick={addTransomToModule}
+                        onClick={activeDivisionTab === "horizontal" ? addTransomToModule : addMullionToModule}
                         className="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-[8px] font-black uppercase shadow hover:bg-sky-700 transition-all flex items-center gap-1.5"
                       >
-                        <Plus size={12} /> Nueva División
+                        <Plus size={12} /> Nuevo {activeDivisionTab === "horizontal" ? "Travesaño" : "Parante"}
                       </button>
                     </div>
                   </div>
+
+                  <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit">
+                    <button
+                      onClick={() => setActiveDivisionTab("horizontal")}
+                      className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all flex items-center gap-2 ${activeDivisionTab === "horizontal" ? "bg-white text-sky-600 shadow-sm" : "text-slate-400"}`}
+                    >
+                      <Rows size={12} /> Horizontales (Travesaños)
+                    </button>
+                    <button
+                      onClick={() => setActiveDivisionTab("vertical")}
+                      className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all flex items-center gap-2 ${activeDivisionTab === "vertical" ? "bg-white text-sky-600 shadow-sm" : "text-slate-400"}`}
+                    >
+                      <Columns size={12} /> Verticales (Parantes)
+                    </button>
+                  </div>
+
                   <div className="space-y-2">
-                    {(currentModForEdit.transoms || []).map((_, i, arr) => {
-                      const idx = arr.length - 1 - i;
-                      const t = arr[idx];
-                      return (
-                        <div
-                          key={idx}
-                          className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 group/item"
-                        >
-                          <div className="flex-1 space-y-1">
-                            <div className="flex justify-between items-center">
-                              <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
-                                Altura desde Base (mm)
-                              </label>
-                              <span className="text-[7px] font-black text-sky-500 uppercase">
-                                Travesaño {idx + 1}
-                              </span>
-                            </div>
-                            <div className="relative">
-                              <input
-                                type="number"
-                                className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none pr-12"
-                                value={t.height || ""}
+                    {activeDivisionTab === "horizontal" ? (
+                      (currentModForEdit.transoms || []).map((_, i, arr) => {
+                        const idx = arr.length - 1 - i;
+                        const t = arr[idx];
+                        return (
+                          <div
+                            key={`transom-${idx}`}
+                            className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 group/item"
+                          >
+                            <div className="flex-1 space-y-1">
+                              <div className="flex justify-between items-center">
+                                <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
+                                  Altura desde Base (mm)
+                                </label>
+                                <span className="text-[7px] font-black text-sky-500 uppercase">
+                                  Travesaño {idx + 1}
+                                </span>
+                              </div>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none pr-12"
+                                  value={t.height || ""}
+                                  onChange={(e) => {
+                                    const newTransoms = [
+                                      ...(currentModForEdit.transoms || []),
+                                    ];
+                                    newTransoms[idx].height =
+                                      parseInt(e.target.value) || 0;
+                                    updateModule(editingModuleId, {
+                                      transoms: newTransoms,
+                                    });
+                                  }}
+                                />
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">
+                                  MM
+                                </div>
+                              </div>
+                              <select
+                                className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none mt-1 uppercase"
+                                value={t.profileId || ""}
                                 onChange={(e) => {
                                   const newTransoms = [
                                     ...(currentModForEdit.transoms || []),
                                   ];
-                                  newTransoms[idx].height =
-                                    parseInt(e.target.value) || 0;
+                                  newTransoms[idx].profileId = e.target.value;
                                   updateModule(editingModuleId, {
                                     transoms: newTransoms,
                                   });
                                 }}
-                              />
-                              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">
-                                MM
-                              </div>
+                              >
+                                <option value="">(SELECCIONE PERFIL)</option>
+                                {aluminum
+                                  .filter((p) => {
+                                    const r = recipes.find(
+                                      (x) => x.id === currentModForEdit.recipeId,
+                                    );
+                                    const allowed = r?.profiles
+                                      .filter(
+                                        (rp) =>
+                                          rp.role === "Travesaño" ||
+                                          (rp.role &&
+                                            rp.role
+                                              .toLowerCase()
+                                              .includes("trave")),
+                                      )
+                                      .map((rp) => rp.profileId);
+                                    return allowed?.includes(p.id);
+                                  })
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.code} - {p.detail}
+                                    </option>
+                                  ))}
+                              </select>
                             </div>
-                            <select
-                              className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none mt-1 uppercase"
-                              value={t.profileId || ""}
-                              onChange={(e) => {
-                                const newTransoms = [
-                                  ...(currentModForEdit.transoms || []),
-                                ];
-                                newTransoms[idx].profileId = e.target.value;
-                                updateModule(editingModuleId, {
-                                  transoms: newTransoms,
-                                });
-                              }}
+                            <button
+                              onClick={() => removeTransomFromModule(idx)}
+                              className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"
                             >
-                              <option value="">(SELECCIONE PERFIL)</option>
-                              {aluminum
-                                .filter((p) => {
-                                  const r = recipes.find(
-                                    (x) => x.id === currentModForEdit.recipeId,
-                                  );
-                                  const allowed = r?.profiles
-                                    .filter(
-                                      (rp) =>
-                                        rp.role === "Travesaño" ||
-                                        (rp.role &&
-                                          rp.role
-                                            .toLowerCase()
-                                            .includes("trave")),
-                                    )
-                                    .map((rp) => rp.profileId);
-                                  return allowed?.includes(p.id);
-                                })
-                                .map((p) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.code} - {p.detail}
-                                  </option>
-                                ))}
-                            </select>
+                              <Trash2 size={16} />
+                            </button>
                           </div>
-                          <button
-                            onClick={() => removeTransomFromModule(idx)}
-                            className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"
+                        );
+                      })
+                    ) : (
+                      (currentModForEdit.mullions || []).map((_, i, arr) => {
+                        const idx = arr.length - 1 - i;
+                        const m = arr[idx];
+                        return (
+                          <div
+                            key={`mullion-${idx}`}
+                            className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 group/item"
                           >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      );
-                    })}
+                            <div className="flex-1 space-y-1">
+                              <div className="flex justify-between items-center">
+                                <label className="text-[7px] font-black text-slate-400 uppercase tracking-tighter ml-1">
+                                  Distancia desde Izquierda (mm)
+                                </label>
+                                <span className="text-[7px] font-black text-sky-500 uppercase">
+                                  Parante {idx + 1}
+                                </span>
+                              </div>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none pr-12"
+                                  value={m.x || ""}
+                                  onChange={(e) => {
+                                    const newMullions = [
+                                      ...(currentModForEdit.mullions || []),
+                                    ];
+                                    newMullions[idx].x =
+                                      parseInt(e.target.value) || 0;
+                                    updateModule(editingModuleId, {
+                                      mullions: newMullions,
+                                    });
+                                  }}
+                                />
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-slate-300">
+                                  MM
+                                </div>
+                              </div>
+                              <select
+                                className="w-full bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-black text-sky-600 outline-none mt-1 uppercase"
+                                value={m.profileId || ""}
+                                onChange={(e) => {
+                                  const newMullions = [
+                                    ...(currentModForEdit.mullions || []),
+                                  ];
+                                  newMullions[idx].profileId = e.target.value;
+                                  updateModule(editingModuleId, {
+                                    mullions: newMullions,
+                                  });
+                                }}
+                              >
+                                <option value="">(SELECCIONE PERFIL)</option>
+                                {aluminum
+                                  .filter((p) => {
+                                    const r = recipes.find(
+                                      (x) => x.id === currentModForEdit.recipeId,
+                                    );
+                                    const allowed = r?.profiles
+                                      .filter(
+                                        (rp) =>
+                                          rp.role === "Columna" ||
+                                          rp.role === "Travesaño" ||
+                                          (rp.role &&
+                                            (rp.role
+                                              .toLowerCase()
+                                              .includes("colu") ||
+                                              rp.role
+                                                .toLowerCase()
+                                                .includes("montante") ||
+                                              rp.role
+                                                .toLowerCase()
+                                                .includes("parante") ||
+                                              rp.role
+                                                .toLowerCase()
+                                                .includes("trave"))),
+                                      )
+                                      .map((rp) => rp.profileId);
+                                    return allowed && allowed.length > 0 ? allowed.includes(p.id) : true;
+                                  })
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.code} - {p.detail}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                            <button
+                              onClick={() => removeMullionFromModule(idx)}
+                              className="p-2 text-slate-300 hover:text-red-500 mt-3 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -4025,32 +4533,62 @@ const QuotingModule: React.FC<Props> = ({
                     <Layers size={14} /> Paños y Llenado
                   </h4>
                   <div className="space-y-3">
-                    {Array.from({
-                      length: (currentModForEdit.transoms?.length || 0) + 1,
-                    }).map((_, i, arr) => {
-                      const paneIdx = arr.length - 1 - i;
-                      const isBlind = (
-                        currentModForEdit.blindPanes || []
-                      ).includes(paneIdx);
-                      const infillType = isBlind
-                        ? "ciego"
-                        : currentModForEdit.isDVH
-                          ? "dvh"
-                          : "vs";
-                      return (
-                        <div
-                          key={paneIdx}
-                          className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm space-y-4"
-                        >
-                          <div className="flex items-center justify-between border-b border-slate-50 pb-3">
-                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
-                              Paño
-                              {paneIdx === 0
-                                ? "Inferior"
-                                : paneIdx === currentModForEdit.transoms?.length
-                                  ? "Superior"
-                                  : `Medio ${paneIdx}`}
-                            </span>
+                    {(() => {
+                      const numMullions = currentModForEdit.mullions?.length || 0;
+                      const numTransoms = currentModForEdit.transoms?.length || 0;
+                      const numCols = numMullions + 1;
+                      const numRows = numTransoms + 1;
+                      const totalPanes = numCols * numRows;
+
+                      return Array.from({ length: totalPanes }).map((_, paneIdx) => {
+                        let paneLabel = `Paño ${paneIdx + 1}`;
+                        if (numCols > 1 && numRows === 1) {
+                          paneLabel =
+                            numCols === 2
+                              ? paneIdx === 0
+                                ? "Paño Izquierdo"
+                                : "Paño Derecho"
+                              : paneIdx === 0
+                                ? "Paño Izquierdo"
+                                : paneIdx === numCols - 1
+                                  ? "Paño Derecho"
+                                  : `Paño Central ${paneIdx + 1}`;
+                        } else if (numCols === 1 && numRows > 1) {
+                          paneLabel =
+                            paneIdx === 0
+                              ? "Paño Inferior"
+                              : paneIdx === numRows - 1
+                                ? "Paño Superior"
+                                : `Paño Medio ${paneIdx}`;
+                        } else if (numCols > 1 && numRows > 1) {
+                          const colIdx = Math.floor(paneIdx / numRows);
+                          const rowIdx = paneIdx % numRows;
+                          const vLabel =
+                            rowIdx === 0
+                              ? "Inferior"
+                              : rowIdx === numRows - 1
+                                ? "Superior"
+                                : `Medio ${rowIdx}`;
+                          paneLabel = `Columna ${colIdx + 1} - ${vLabel}`;
+                        }
+
+                        const isBlind = (
+                          currentModForEdit.blindPanes || []
+                        ).includes(paneIdx);
+                        const infillType = isBlind
+                          ? "ciego"
+                          : currentModForEdit.isDVH
+                            ? "dvh"
+                            : "vs";
+                        return (
+                          <div
+                            key={paneIdx}
+                            className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm space-y-4"
+                          >
+                            <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                              <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">
+                                {paneLabel}
+                              </span>
                             <div className="flex gap-1 bg-slate-50 p-1 rounded-xl">
                               <button
                                 onClick={() => {
@@ -4272,7 +4810,8 @@ const QuotingModule: React.FC<Props> = ({
                           </div>
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                   </div>
                 </div>
                 <div className="space-y-4 pt-4 border-t border-slate-50 ">

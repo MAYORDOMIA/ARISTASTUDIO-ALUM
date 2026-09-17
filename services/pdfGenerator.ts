@@ -132,6 +132,34 @@ const getModuleGlassPanes = (
       numLeaves = 2;
   }
 
+  const allTransoms = (recipe.profiles || []).filter(
+    (rp) => rp.role && rp.role.toLowerCase().includes("trave"),
+  );
+  const activeTransomId =
+    mod.transomProfileId &&
+    allTransoms.some((t) => t.profileId === mod.transomProfileId)
+      ? mod.transomProfileId
+      : allTransoms.length > 0
+        ? allTransoms[0].profileId
+        : null;
+
+  const allMullions = (recipe.profiles || []).filter(
+    (rp) =>
+      rp.role &&
+      (rp.role.toLowerCase().includes("columna") ||
+        rp.role.toLowerCase().includes("montante") ||
+        rp.role.toLowerCase().includes("parante") ||
+        rp.role.toLowerCase().includes("travesaño") ||
+        rp.role.toLowerCase().includes("travezaño")),
+  );
+  const activeMullionId =
+    mod.mullionProfileId &&
+    (allMullions.some((m) => m.profileId === mod.mullionProfileId) || aluminum.some((p) => p.id === mod.mullionProfileId))
+      ? mod.mullionProfileId
+      : allMullions.length > 0
+        ? allMullions[0].profileId
+        : (recipe.defaultTransomProfileId || null);
+
   const getFormulaW = () =>
     mod.isDVH && recipe.dvhFormulaW
       ? recipe.dvhFormulaW
@@ -142,8 +170,28 @@ const getModuleGlassPanes = (
       : recipe.glassFormulaH || "H";
 
   const getPanesForLeafWidth = (lw: number) => {
+    // ---- LÓGICA ESPECIAL PARA PIEL DE VIDRIO ----
+    if (recipe.type === "Piel de Vidrio") {
+      const cols = mod.cols || 1;
+      const rows = mod.rows || 1;
+      
+      const currentCols = mod.mullions && mod.mullions.length > 0 ? mod.mullions.length + 1 : cols;
+      const currentRows = mod.transoms && mod.transoms.length > 0 ? mod.transoms.length + 1 : rows;
+      
+      let paneW = (modW / currentCols) - Number(recipe.glassDeductionW || 0);
+      let paneH = (modH / currentRows) - Number(recipe.glassDeductionH || 0);
+
+      const leafPanes = [];
+      for (let i = 0; i < currentCols * currentRows; i++) {
+        leafPanes.push({ w: paneW, h: paneH, isBlind: false });
+      }
+      return leafPanes;
+    }
+    // ---- FIN LÓGICA ESPECIAL PIEL DE VIDRIO ----
+
     const gW = evaluateFormula(getFormulaW(), lw, adjustedH);
     const gH = evaluateFormula(getFormulaH(), adjustedW, adjustedH);
+
     const leafPanes: { w: number; h: number; isBlind: boolean }[] = [];
 
     const transomGlassDeduction =
@@ -151,17 +199,14 @@ const getModuleGlassPanes = (
         ? Number(recipe.dvhTransomGlassDeduction)
         : Number(recipe.transomGlassDeduction || 0);
 
+    const rowHeights: number[] = [];
     if (!mod.transoms || mod.transoms.length === 0) {
-      leafPanes.push({
-        w: gW,
-        h: gH,
-        isBlind: mod.blindPanes?.includes(0) || false,
-      });
+      rowHeights.push(gH);
     } else {
       const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
       let lastY = 0;
       sorted.forEach((t, idx) => {
-        const trProf = aluminum.find((p) => p.id === t.profileId);
+        const trProf = aluminum.find((p) => p.id === (activeTransomId || t.profileId));
         const transomThickness = Number(
           trProf?.thickness || recipe.transomThickness || 40,
         );
@@ -175,15 +220,11 @@ const getModuleGlassPanes = (
               lastY -
               transomThickness -
               transomGlassDeduction;
-        leafPanes.push({
-          w: gW,
-          h: ph,
-          isBlind: mod.blindPanes?.includes(idx) || false,
-        });
+        rowHeights.push(ph);
         lastY = Number(t.height);
       });
       const lastTrProf = aluminum.find(
-        (p) => p.id === sorted[sorted.length - 1].profileId,
+        (p) => p.id === (sorted[sorted.length - 1].profileId || activeTransomId),
       );
       const lastTransomThickness = Number(
         lastTrProf?.thickness || recipe.transomThickness || 40,
@@ -194,12 +235,51 @@ const getModuleGlassPanes = (
         (lastTrProf ? lastTransomThickness / 2 : 0) -
         Number(recipe.glassDeductionH || 0) / (mod.transoms.length + 1) -
         transomGlassDeduction;
-      leafPanes.push({
-        w: gW,
-        h: lastPh,
-        isBlind: mod.blindPanes?.includes(sorted.length) || false,
-      });
+      rowHeights.push(lastPh);
     }
+
+    const colWidths: number[] = [];
+    if (mod.mullions && mod.mullions.length > 0 && numLeaves === 1) {
+      const sortedMul = [...mod.mullions].sort((a, b) => a.x - b.x);
+      let lastX = 0;
+      sortedMul.forEach((m, idx) => {
+        const mulProf = aluminum.find((p) => p.id === (m.profileId || activeMullionId));
+        const mullionThickness = Number(mulProf?.thickness || recipe.transomThickness || 40);
+        let pw =
+          idx === 0
+            ? Number(m.x) -
+              mullionThickness / 2 -
+              Number(recipe.glassDeductionW || 0) / (mod.mullions!.length + 1)
+            : Number(m.x) - lastX - mullionThickness;
+        colWidths.push(pw);
+        lastX = Number(m.x);
+      });
+      const lastMulProf = aluminum.find(
+        (p) => p.id === (sortedMul[sortedMul.length - 1].profileId || activeMullionId),
+      );
+      const lastMulThickness = Number(lastMulProf?.thickness || recipe.transomThickness || 40);
+      colWidths.push(
+        modW -
+          lastX -
+          (lastMulProf ? lastMulThickness / 2 : 0) -
+          Number(recipe.glassDeductionW || 0) / (mod.mullions.length + 1),
+      );
+    } else {
+      colWidths.push(gW);
+    }
+
+    let paneGlobalIdx = 0;
+    colWidths.forEach((cw) => {
+      rowHeights.forEach((rh) => {
+        leafPanes.push({
+          w: cw,
+          h: rh,
+          isBlind: mod.blindPanes?.includes(paneGlobalIdx) || false,
+        });
+        paneGlobalIdx++;
+      });
+    });
+
     return leafPanes;
   };
 
@@ -341,14 +421,18 @@ export const generateBarOptimizationPDF = (
           numLeaves = 2;
       }
 
-      const transomTemplate = (recipe.profiles || []).find(
-        (rp) =>
-          rp.role === "Travesaño" ||
-          (rp.role && rp.role.toLowerCase().includes("trave")),
-      );
-      const recipeTransomFormula =
-        transomTemplate?.formula || recipe.transomFormula || "W";
-      const recipeTransomQty = transomTemplate?.quantity || 1;
+      const allTransoms = (recipe.profiles || []).filter(rp => rp.role && rp.role.toLowerCase().includes("trave"));
+      const activeTransomId = mod.transomProfileId && allTransoms.some(t => t.profileId === mod.transomProfileId) ? mod.transomProfileId : (allTransoms.length > 0 ? allTransoms[0].profileId : null);
+      const transomTemplate = allTransoms.find(t => t.profileId === activeTransomId);
+      const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
+      const recipeTransomQty = Number(transomTemplate?.quantity || 1);
+
+      const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
+      const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
+      const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
+      const recipeMullionFormula = mullionTemplate?.formula || "H";
+      const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
+
 
       // Cálculo de espesor de vidrio para selección dinámica
       const gOuter = glasses.find((g) => g.id === mod.glassOuterId);
@@ -385,7 +469,12 @@ export const generateBarOptimizationPDF = (
       const filteredProfiles1 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
 
       let totalPlainHorizontalMarcoQty = 0;
-      filteredProfiles1.forEach((rp) => {
+      filteredProfiles1.filter((rp) => {
+        const r = rp.role?.toLowerCase() || "";
+        if (r.includes("columna") || r.includes("montante")) return rp.profileId === activeMullionId;
+        if (r.includes("trave")) return rp.profileId === activeTransomId;
+        return true;
+      }).forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         const rLower = (rp.role || "").toLowerCase();
@@ -411,10 +500,64 @@ export const generateBarOptimizationPDF = (
 
       let processedPlainHorizontalMarcoQty = 0;
 
-      filteredProfiles1.forEach((rp) => {
-        if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
-          return;
+            filteredProfiles1.filter((rp) => {
+        const r = rp.role?.toLowerCase() || "";
+        if (r.includes("columna") || r.includes("montante")) return rp.profileId === activeMullionId;
+        if (r.includes("trave")) return rp.profileId === activeTransomId;
+        return true;
+      }).forEach((rp) => {
+        if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A")) return;
+
         let pDef = aluminum.find((a) => a.id === rp.profileId);
+        
+        // ---- PIEL DE VIDRIO OVERRIDE EN CORTE ----
+        if (recipe.type === "Piel de Vidrio" && pDef) {
+           const cols = mod.cols || 1;
+           const rows = mod.rows || 1;
+           const currentCols = mod.mullions && mod.mullions.length > 0 ? mod.mullions.length + 1 : cols;
+           const currentRows = mod.transoms && mod.transoms.length > 0 ? mod.transoms.length + 1 : rows;
+           
+           const role = (rp.role || "").toLowerCase();
+           let cutLen = 0;
+           let finalQty = 0;
+           
+           const formulaPerPane = rp.formula.replace(/NX/gi, "1").replace(/NY/gi, "1");
+
+           if (role.includes("columna") || role.includes("montante")) {
+              if (mod.mullions && mod.mullions.length > 0) return;
+              cutLen = evaluateFormula(formulaPerPane, modW, modH, 1, 1);
+              finalQty = (currentCols + 1) * rp.quantity;
+           } else if (role.includes("travesaño") || role.includes("travezaño")) {
+              if (mod.transoms && mod.transoms.length > 0) return;
+              const paneW = modW / currentCols;
+              cutLen = evaluateFormula(formulaPerPane, paneW, modH, 1, 1);
+              finalQty = (currentRows + 1) * currentCols * rp.quantity;
+           } else if (role.includes("hoja") || role.includes("bastidor") || role.includes("hojita")) {
+              const paneW = (modW / currentCols) - Number(recipe.glassDeductionW || 0);
+              const paneH = (modH / currentRows) - Number(recipe.glassDeductionH || 0);
+              cutLen = evaluateFormula(formulaPerPane, paneW, paneH, 1, 1);
+              finalQty = rp.quantity * (currentCols * currentRows);
+           } else {
+              cutLen = evaluateFormula(rp.formula, modW, modH, currentCols, currentRows);
+              finalQty = rp.quantity;
+           }
+           
+           if (cutLen > 0 && finalQty > 0) {
+              const list = cutsByProfile.get(pDef.id) || [];
+              for (let k = 0; k < finalQty * item.quantity; k++) {
+                list.push({
+                  len: cutLen,
+                  type: recipe.type,
+                  cutStart: rp.cutStart || "90",
+                  cutEnd: rp.cutEnd || "90",
+                  label: itemCode,
+                });
+              }
+              cutsByProfile.set(pDef.id, list);
+           }
+           return;
+        }
+        // ---- FIN PIEL DE VIDRIO ----
 
         // Lógica de Contravidrio Dinámico
         if (
@@ -739,15 +882,85 @@ export const generateBarOptimizationPDF = (
         }
       }
 
+      
+      if (mod.mullions && mod.mullions.length > 0) {
+        mod.mullions.forEach((m) => {
+          const mulProf = aluminum.find((p) => p.id === (activeMullionId || m.profileId));
+          if (mulProf) {
+            let f = recipeMullionFormula;
+            let cutLen = evaluateFormula(f, modW, modH);
+            let qty = recipeMullionQty;
+            
+            if (recipe.type === "Piel de Vidrio") {
+              f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+              cutLen = evaluateFormula(f, modW, modH, 1, 1);
+            }
+
+            if (cutLen > 0) {
+              const list = cutsByProfile.get(mulProf.id) || [];
+              for (let k = 0; k < qty * item.quantity; k++) {
+                list.push({
+                  len: cutLen,
+                  type: "Columna",
+                  cutStart: "90",
+                  cutEnd: "90",
+                  label: itemCode,
+                });
+              }
+              cutsByProfile.set(mulProf.id, list);
+            }
+          }
+        });
+        
+        // Agregar los 2 marcos laterales (columnas de los extremos)
+        if (mullionTemplate) {
+          const pDef = aluminum.find((p) => p.id === mullionTemplate.profileId);
+          if (pDef) {
+            let f = recipeMullionFormula;
+            let cutLen = evaluateFormula(f, modW, modH);
+            let qty = 2 * recipeMullionQty;
+            
+            if (recipe.type === "Piel de Vidrio") {
+              f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+              cutLen = evaluateFormula(f, modW, modH, 1, 1);
+            }
+
+            if (cutLen > 0) {
+              const list = cutsByProfile.get(pDef.id) || [];
+              for (let k = 0; k < qty * item.quantity; k++) {
+                list.push({
+                  len: cutLen,
+                  type: "Columna Lateral",
+                  cutStart: "90",
+                  cutEnd: "90",
+                  label: itemCode,
+                });
+              }
+              cutsByProfile.set(pDef.id, list);
+            }
+          }
+        }
+      }
+
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
-          const trProf = aluminum.find((p) => p.id === t.profileId);
+          const trProf = aluminum.find((p) => p.id === (activeTransomId || t.profileId));
           if (trProf) {
-            const f = t.formula || recipeTransomFormula;
-            const cutLen = evaluateFormula(f, modW, modH);
+            let f = t.formula || recipeTransomFormula;
+            let cutLen = evaluateFormula(f, modW, modH);
+            let qty = recipeTransomQty;
+            
+            if (recipe.type === "Piel de Vidrio") {
+              const currentCols = mod.mullions && mod.mullions.length > 0 ? mod.mullions.length + 1 : (mod.cols || 1);
+              f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+              const paneW = modW / currentCols;
+              cutLen = evaluateFormula(f, paneW, modH, 1, 1);
+              qty = currentCols * recipeTransomQty;
+            }
+            
             if (cutLen > 0) {
               const list = cutsByProfile.get(trProf.id) || [];
-              for (let k = 0; k < recipeTransomQty * item.quantity; k++) {
+              for (let k = 0; k < qty * item.quantity; k++) {
                 list.push({
                   len: cutLen,
                   type: "Travesaño",
@@ -1400,14 +1613,18 @@ export const generateMaterialsOrderPDF = (
         ? Math.sqrt(Math.pow(modW, 2) + Math.pow(mod.rightHeight! - mod.leftHeight!, 2))
         : modW;
 
-      const transomTemplate = (recipe.profiles || []).find(
-        (rp) =>
-          rp.role === "Travesaño" ||
-          (rp.role && rp.role.toLowerCase().includes("trave")),
-      );
-      const recipeTransomFormula =
-        transomTemplate?.formula || recipe.transomFormula || "W";
-      const recipeTransomQty = transomTemplate?.quantity || 1;
+      const allTransoms = (recipe.profiles || []).filter(rp => rp.role && rp.role.toLowerCase().includes("trave"));
+      const activeTransomId = mod.transomProfileId && allTransoms.some(t => t.profileId === mod.transomProfileId) ? mod.transomProfileId : (allTransoms.length > 0 ? allTransoms[0].profileId : null);
+      const transomTemplate = allTransoms.find(t => t.profileId === activeTransomId);
+      const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
+      const recipeTransomQty = Number(transomTemplate?.quantity || 1);
+
+      const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
+      const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
+      const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
+      const recipeMullionFormula = mullionTemplate?.formula || "H";
+      const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
+
 
       // Cálculo de espesor de vidrio para selección dinámica
       const gOuter = glasses.find((g) => g.id === mod.glassOuterId);
@@ -1444,7 +1661,12 @@ export const generateMaterialsOrderPDF = (
       const filteredProfiles2 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
 
       let totalPlainHorizontalMarcoQty = 0;
-      filteredProfiles2.forEach((rp) => {
+      filteredProfiles2.filter((rp) => {
+        const r = rp.role?.toLowerCase() || "";
+        if (r.includes("columna") || r.includes("montante")) return rp.profileId === activeMullionId;
+        if (r.includes("trave")) return rp.profileId === activeTransomId;
+        return true;
+      }).forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         const rLower = (rp.role || "").toLowerCase();
@@ -1470,7 +1692,12 @@ export const generateMaterialsOrderPDF = (
 
       let processedPlainHorizontalMarcoQty = 0;
 
-      filteredProfiles2.forEach((rp) => {
+      filteredProfiles2.filter((rp) => {
+        const r = rp.role?.toLowerCase() || "";
+        if (r.includes("columna") || r.includes("montante")) return rp.profileId === activeMullionId;
+        if (r.includes("trave")) return rp.profileId === activeTransomId;
+        return true;
+      }).forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         const role = rp.role?.toLowerCase() || "";
@@ -1633,7 +1860,7 @@ export const generateMaterialsOrderPDF = (
       });
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
-          const trProf = aluminum.find((p) => p.id === t.profileId);
+          const trProf = aluminum.find((p) => p.id === (activeTransomId || t.profileId));
           if (trProf) {
             const f = t.formula || recipeTransomFormula;
             const cutLen = evaluateFormula(f, modW, modH);
@@ -2941,14 +3168,18 @@ export const generateAssemblyOrderPDF = (
         ? Math.sqrt(Math.pow(modW, 2) + Math.pow(mod.rightHeight! - mod.leftHeight!, 2))
         : modW;
 
-      const transomTemplate = (recipe.profiles || []).find(
-        (rp) =>
-          rp.role === "Travesaño" ||
-          (rp.role && rp.role.toLowerCase().includes("trave")),
-      );
-      const recipeTransomFormula =
-        transomTemplate?.formula || recipe.transomFormula || "W";
-      const recipeTransomQty = transomTemplate?.quantity || 1;
+      const allTransoms = (recipe.profiles || []).filter(rp => rp.role && rp.role.toLowerCase().includes("trave"));
+      const activeTransomId = mod.transomProfileId && allTransoms.some(t => t.profileId === mod.transomProfileId) ? mod.transomProfileId : (allTransoms.length > 0 ? allTransoms[0].profileId : null);
+      const transomTemplate = allTransoms.find(t => t.profileId === activeTransomId);
+      const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
+      const recipeTransomQty = Number(transomTemplate?.quantity || 1);
+
+      const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
+      const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
+      const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
+      const recipeMullionFormula = mullionTemplate?.formula || "H";
+      const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
+
 
       // Cálculo de espesor de vidrio para selección dinámica
       const gOuter = glasses.find((g) => g.id === mod.glassOuterId);
@@ -2984,7 +3215,12 @@ export const generateAssemblyOrderPDF = (
       const filteredProfiles3 = filterDVHProfiles(recipe.profiles || [], mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
 
       let totalPlainHorizontalMarcoQty = 0;
-      filteredProfiles3.forEach((rp) => {
+      filteredProfiles3.filter((rp) => {
+        const r = rp.role?.toLowerCase() || "";
+        if (r.includes("columna") || r.includes("montante")) return rp.profileId === activeMullionId;
+        if (r.includes("trave")) return rp.profileId === activeTransomId;
+        return true;
+      }).forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         const rLower = (rp.role || "").toLowerCase();
@@ -3010,7 +3246,12 @@ export const generateAssemblyOrderPDF = (
 
       let processedPlainHorizontalMarcoQty = 0;
 
-      filteredProfiles3.forEach((rp) => {
+      filteredProfiles3.filter((rp) => {
+        const r = rp.role?.toLowerCase() || "";
+        if (r.includes("columna") || r.includes("montante")) return rp.profileId === activeMullionId;
+        if (r.includes("trave")) return rp.profileId === activeTransomId;
+        return true;
+      }).forEach((rp) => {
         if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A"))
           return;
         const role = rp.role?.toLowerCase() || "";

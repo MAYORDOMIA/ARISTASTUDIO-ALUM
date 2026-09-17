@@ -351,25 +351,18 @@ const App: React.FC = () => {
         dvhRes,
         recRes,
         quoRes,
+        confRes,
       ].find((r) => r.error);
       if (criticalError && criticalError.error) {
-        console.error("Error crítico de base de datos:", criticalError.error);
         if (criticalError.error.message?.includes("Failed to fetch")) {
-          alert(
-            "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\nLa aplicación operará en modo local.",
-          );
+          console.warn("ERROR DE CONEXIÓN: No se pudo establecer contacto con la base de datos (Supabase). La aplicación operará en modo local.");
+          // No usamos alert aquí para no bloquear la experiencia de usuario si solo fue una desconexión temporal
         } else if (criticalError.error.code === "42P01" || criticalError.error.code === "PGRST205") {
-          alert(
-            "BASE DE DATOS NO INICIALIZADA:\nSe detectó que faltan las tablas necesarias en Supabase.\n\nPor favor, ejecuta el contenido del archivo 'supabase_migration.sql' en el SQL Editor de tu Dashboard de Supabase.",
-          );
+          console.warn("BASE DE DATOS NO INICIALIZADA: Se detectó que faltan las tablas necesarias en Supabase.");
         } else if (criticalError.error.message?.includes("permission denied")) {
-          alert(
-            "ERROR DE PERMISOS:\nSupabase denegó el acceso al esquema public.\n\nPor favor, ejecuta el script de permisos al inicio de 'supabase_migration.sql' para solucionarlo.",
-          );
+          console.warn("ERROR DE PERMISOS: Supabase denegó el acceso al esquema public.");
         } else {
-          alert(
-            `ERROR DE BASE DE DATOS:\n${criticalError.error.message || "Error desconocido"}\n\nCódigo: ${criticalError.error.code || "N/A"}\nDetalle: ${criticalError.error.details || ""}\n\nLa aplicación intentará operar en modo local o parcial.`,
-          );
+          console.warn("Error crítico de base de datos:", criticalError.error);
         }
         return null;
       }
@@ -474,6 +467,13 @@ const App: React.FC = () => {
         .eq("id", user.id)
         .single();
       
+      // Early exit si la red falla o Supabase está caído
+      if (checkError && checkError.message?.includes("Failed to fetch")) {
+        console.warn("No se pudo conectar a Supabase. Operando en modo local.");
+        enableLocalMode();
+        return;
+      }
+      
       // Si el error indica que no hay sesión válida o el usuario no existe
       if (checkError && (checkError.message.includes("JWT") || checkError.code === "PGRST116")) {
         // Podría ser un usuario eliminado pero con sesión local persistente
@@ -565,16 +565,13 @@ const App: React.FC = () => {
       await checkDeviceAccess(profileCheck);
       setAuthLoading(false);
     } catch (err: any) {
-      console.error("Error fatal cargando perfil:", err);
-      logEvent(user?.id || null, user?.email || null, 'error', `Error crítico de datos: ${err?.message || "Desconocido"}`);
-      
       if (err?.message?.includes("Failed to fetch")) {
-        alert(
-          "ERROR DE CONEXIÓN:\nNo se pudo establecer contacto con la base de datos (Supabase).\nLa aplicación operará en modo local."
-        );
+        console.warn("ERROR DE CONEXIÓN: No se pudo conectar a la base de datos (Supabase). Operando en modo local.");
         enableLocalMode();
         return;
       }
+      console.warn("Error fatal cargando perfil:", err);
+      logEvent(user?.id || null, user?.email || null, 'error', `Error crítico de datos: ${err?.message || "Desconocido"}`);
       
       setAuthLoading(false);
     }

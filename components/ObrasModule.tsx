@@ -142,15 +142,18 @@ const ObrasModule: React.FC<Props> = ({
         const rowRatio = item.composition.rowRatios[mod.y - minY] || 0; // CORRECCIÓN: USAR LAS MEDIDAS REALES DEL MÓDULO PARA EL CONSOLIDADO
         const modW = Number(colRatio);
         const modH = Number(rowRatio);
-        const transomTemplate = (recipe.profiles || []).find(
-          (rp) =>
-            rp.role === "Travesaño" ||
-            (rp.role && rp.role.toLowerCase().includes("trave")),
-        );
-        const recipeTransomFormula =
-          transomTemplate?.formula || recipe.transomFormula || "W";
-        const recipeTransomQty = transomTemplate?.quantity || 1;
-        
+        const allTransoms = (recipe.profiles || []).filter(rp => rp.role && rp.role.toLowerCase().includes("trave"));
+        const activeTransomId = mod.transomProfileId && allTransoms.some(t => t.profileId === mod.transomProfileId) ? mod.transomProfileId : (allTransoms.length > 0 ? allTransoms[0].profileId : null);
+        const transomTemplate = allTransoms.find(t => t.profileId === activeTransomId);
+        const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
+        const recipeTransomQty = Number(transomTemplate?.quantity || 1);
+
+        const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
+        const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
+        const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
+        const recipeMullionFormula = mullionTemplate?.formula || "H";
+        const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
+
         const visualType = (recipe.visualType || "").toLowerCase();
         let numLeaves = recipe.leaves || 1;
         if (!recipe.leaves) {
@@ -160,17 +163,62 @@ const ObrasModule: React.FC<Props> = ({
           else if (visualType.includes("double") || visualType.includes("doble") || visualType.includes("2h")) numLeaves = 2;
         }
 
-        recipe.profiles.forEach((rp) => {
+        const activeProfiles = (recipe.profiles || []).filter(rp => {
+          const r = rp.role?.toLowerCase() || "";
+          if (r.includes("columna") || r.includes("montante")) return rp.profileId === activeMullionId;
+          if (r.includes("trave")) return rp.profileId === activeTransomId;
+          return true;
+        });
+
+        activeProfiles.forEach((rp) => {
           const role = rp.role?.toLowerCase() || "";
-          if (role.includes("trave")) return;
+          const isTransom = role.includes("trave");
+          const isMullion = role.includes("columna") || role.includes("montante");
+
+          // Lógica de exclusión para evitar duplicados con la lógica manual/específica de abajo
+          if (recipe.type === "Piel de Vidrio") {
+            if (isTransom || isMullion) return;
+          } else {
+            // Para tipologías normales, solo saltamos si hay travesaños manuales activos
+            if (isTransom && mod.transoms && mod.transoms.length > 0) return;
+          }
+
           const isMosq = role.includes("mosquitero") || rp.profileId === recipe.mosquiteroProfileId;
           if (isMosq && (!item.extras?.mosquitero || item.extras?.mosquiteroRecipeId)) return;
           
           const pDef = aluminum.find((a) => a.id === rp.profileId);
           if (!pDef) return;
-          const cutLen = evaluateFormula(rp.formula, modW, modH);
+          let cutLen = evaluateFormula(rp.formula, modW, modH);
+          let finalQty = rp.quantity;
+
+          // Integrar Override de Corte Completo Piel de Vidrio para Consolidado Maestro
+          if (recipe.type === "Piel de Vidrio") {
+             const cols = mod.cols || 1;
+             const rows = mod.rows || 1;
+             const currentCols = mod.mullions && mod.mullions.length > 0 ? mod.mullions.length + 1 : cols;
+             const currentRows = mod.transoms && mod.transoms.length > 0 ? mod.transoms.length + 1 : rows;
+             
+             const formulaPerPane = rp.formula.replace(/NX/gi, "1").replace(/NY/gi, "1");
+
+             if (role.includes("columna") || role.includes("montante")) {
+                if (mod.mullions && mod.mullions.length > 0) return; // Procesado por sección manual
+                cutLen = evaluateFormula(formulaPerPane, modW, modH, 1, 1);
+                finalQty = (currentCols + 1) * rp.quantity;
+             } else if (role.includes("travesaño") || role.includes("travezaño")) {
+                if (mod.transoms && mod.transoms.length > 0) return; // Procesado por sección manual
+                const paneW = modW / currentCols;
+                cutLen = evaluateFormula(formulaPerPane, paneW, modH, 1, 1);
+                finalQty = (currentRows + 1) * currentCols * rp.quantity;
+             } else if (role.includes("hoja") || role.includes("bastidor") || role.includes("hojita")) {
+                const paneW = (modW / currentCols) - Number(recipe.glassDeductionW || 0);
+                const paneH = (modH / currentRows) - Number(recipe.glassDeductionH || 0);
+                cutLen = evaluateFormula(formulaPerPane, paneW, paneH, 1, 1);
+                finalQty = rp.quantity * (currentCols * currentRows);
+             }
+          }
+
           const totalCutLen =
-            (cutLen + config.discWidth) * rp.quantity * item.quantity;
+            (cutLen + config.discWidth) * finalQty * item.quantity;
           const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
           const existing = summary.get(pDef.id) || {
             code: pDef.code,
@@ -182,6 +230,139 @@ const ObrasModule: React.FC<Props> = ({
           existing.totalWeight += weight;
           summary.set(pDef.id, existing);
         }); 
+
+        // LÓGICA ESPECÍFICA PARA PIEL DE VIDRIO / MODULARES (AUTOMÁTICOS)
+        if (recipe.type === "Piel de Vidrio") {
+          const cols = mod.cols || 1;
+          const rows = mod.rows || 1;
+
+          // Columnas automáticas (si no hay manuales)
+          if ((!mod.mullions || mod.mullions.length === 0) && mullionTemplate) {
+            const pDef = aluminum.find(a => a.id === mullionTemplate.profileId);
+            if (pDef) {
+               const formulaPerPane = recipeMullionFormula.replace(/NX/gi, "1").replace(/NY/gi, "1");
+               const cutLen = evaluateFormula(formulaPerPane, modW, modH, 1, 1);
+               const qty = (cols + 1) * recipeMullionQty;
+               const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
+               const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
+               const existing = summary.get(pDef.id) || {
+                 code: pDef.code, detail: pDef.detail, totalLength: 0, totalWeight: 0
+               };
+               existing.totalLength += totalCutLen;
+               existing.totalWeight += weight;
+               summary.set(pDef.id, existing);
+            }
+          }
+
+          // Travesaños automáticos (si no hay manuales)
+          if ((!mod.transoms || mod.transoms.length === 0) && transomTemplate) {
+            const pDef = aluminum.find(a => a.id === transomTemplate.profileId);
+            if (pDef) {
+               const paneW = modW / Math.max(1, cols);
+               const formulaPerPane = recipeTransomFormula.replace(/NX/gi, "1").replace(/NY/gi, "1");
+               const cutLen = evaluateFormula(formulaPerPane, paneW, modH, 1, 1);
+               const qty = (rows + 1) * Math.max(1, cols) * recipeTransomQty;
+               const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
+               const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
+               const existing = summary.get(pDef.id) || {
+                 code: pDef.code, detail: pDef.detail, totalLength: 0, totalWeight: 0
+               };
+               existing.totalLength += totalCutLen;
+               existing.totalWeight += weight;
+               summary.set(pDef.id, existing);
+            }
+          }
+        }
+
+        // SUMAR COLUMNAS MANUALES (MULLIONS)
+        if (mod.mullions && mod.mullions.length > 0) {
+          mod.mullions.forEach((m) => {
+            const mulProf = aluminum.find((p) => p.id === (activeMullionId || m.profileId));
+            if (mulProf) {
+              let f = recipeMullionFormula;
+              let cutLen = evaluateFormula(f, modW, modH);
+              let qty = recipeMullionQty;
+              if (recipe.type === "Piel de Vidrio") {
+                f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+                cutLen = evaluateFormula(f, modW, modH, 1, 1);
+              }
+              const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
+              const weight = (totalCutLen / 1000) * mulProf.weightPerMeter;
+              const existing = summary.get(mulProf.id) || {
+                code: mulProf.code, detail: mulProf.detail, totalLength: 0, totalWeight: 0
+              };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(mulProf.id, existing);
+            }
+          });
+          // Agregar también los marcos laterales (2 columnas extra)
+          if (mullionTemplate) {
+            const pDef = aluminum.find(a => a.id === mullionTemplate.profileId);
+            if (pDef) {
+              let f = recipeMullionFormula;
+              let cutLen = evaluateFormula(f, modW, modH);
+              let qty = 2 * recipeMullionQty;
+              if (recipe.type === "Piel de Vidrio") {
+                f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+                cutLen = evaluateFormula(f, modW, modH, 1, 1);
+              }
+              const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
+              const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
+              const existing = summary.get(pDef.id) || {
+                code: pDef.code, detail: pDef.detail, totalLength: 0, totalWeight: 0
+              };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(pDef.id, existing);
+            }
+          }
+        }
+
+        // SUMAR COLUMNAS MANUALES (MULLIONS)
+        if (mod.mullions && mod.mullions.length > 0) {
+          mod.mullions.forEach((m) => {
+            const mulProf = aluminum.find((p) => p.id === (activeMullionId || m.profileId));
+            if (mulProf) {
+              let f = recipeMullionFormula;
+              let cutLen = evaluateFormula(f, modW, modH);
+              let qty = recipeMullionQty;
+              if (recipe.type === "Piel de Vidrio") {
+                f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+                cutLen = evaluateFormula(f, modW, modH, 1, 1);
+              }
+              const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
+              const weight = (totalCutLen / 1000) * mulProf.weightPerMeter;
+              const existing = summary.get(mulProf.id) || {
+                code: mulProf.code, detail: mulProf.detail, totalLength: 0, totalWeight: 0
+              };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(mulProf.id, existing);
+            }
+          });
+          // Agregar también los marcos laterales (2 columnas extra)
+          if (mullionTemplate) {
+            const pDef = aluminum.find(a => a.id === mullionTemplate.profileId);
+            if (pDef) {
+              let f = recipeMullionFormula;
+              let cutLen = evaluateFormula(f, modW, modH);
+              let qty = 2 * recipeMullionQty;
+              if (recipe.type === "Piel de Vidrio") {
+                f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+                cutLen = evaluateFormula(f, modW, modH, 1, 1);
+              }
+              const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
+              const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
+              const existing = summary.get(pDef.id) || {
+                code: pDef.code, detail: pDef.detail, totalLength: 0, totalWeight: 0
+              };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(pDef.id, existing);
+            }
+          }
+        }
 
         // SUMAR MOSQUITERO INDEPENDIENTE
         if (item.extras?.mosquitero && item.extras?.mosquiteroRecipeId) {
@@ -214,24 +395,53 @@ const ObrasModule: React.FC<Props> = ({
         // SUMAR TRAVESAÑOS AL CONSOLIDADO TÉCNICO
         if (mod.transoms && mod.transoms.length > 0) {
           mod.transoms.forEach((t) => {
-            const trProf = aluminum.find((p) => p.id === t.profileId);
+            const trProf = aluminum.find((p) => p.id === (activeTransomId || t.profileId));
             if (trProf) {
-              const f = t.formula || recipeTransomFormula;
-              const cutLen = evaluateFormula(f, modW, modH);
-              const totalCutLen =
-                (cutLen + config.discWidth) * recipeTransomQty * item.quantity;
+              let f = t.formula || recipeTransomFormula;
+              let cutLen = evaluateFormula(f, modW, modH);
+              let qty = recipeTransomQty;
+              if (recipe.type === "Piel de Vidrio") {
+                const currentCols = mod.mullions && mod.mullions.length > 0 ? mod.mullions.length + 1 : (mod.cols || 1);
+                f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+                const paneW = modW / currentCols;
+                cutLen = evaluateFormula(f, paneW, modH, 1, 1);
+                qty = currentCols * recipeTransomQty;
+              }
+              const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
               const weight = (totalCutLen / 1000) * trProf.weightPerMeter;
               const existing = summary.get(trProf.id) || {
-                code: trProf.code,
-                detail: trProf.detail,
-                totalLength: 0,
-                totalWeight: 0,
+                code: trProf.code, detail: trProf.detail, totalLength: 0, totalWeight: 0
               };
               existing.totalLength += totalCutLen;
               existing.totalWeight += weight;
               summary.set(trProf.id, existing);
             }
           });
+          
+          // Agregar los travesaños perimetrales (superior e inferior)
+          if (transomTemplate) {
+            const pDef = aluminum.find(a => a.id === transomTemplate.profileId);
+            if (pDef) {
+              let f = recipeTransomFormula;
+              let cutLen = evaluateFormula(f, modW, modH);
+              let qty = 2 * recipeTransomQty;
+              if (recipe.type === "Piel de Vidrio") {
+                const currentCols = mod.mullions && mod.mullions.length > 0 ? mod.mullions.length + 1 : (mod.cols || 1);
+                f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+                const paneW = modW / currentCols;
+                cutLen = evaluateFormula(f, paneW, modH, 1, 1);
+                qty = 2 * currentCols * recipeTransomQty;
+              }
+              const totalCutLen = (cutLen + config.discWidth) * qty * item.quantity;
+              const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
+              const existing = summary.get(pDef.id) || {
+                code: pDef.code, detail: pDef.detail, totalLength: 0, totalWeight: 0
+              };
+              existing.totalLength += totalCutLen;
+              existing.totalWeight += weight;
+              summary.set(pDef.id, existing);
+            }
+          }
         }
         // Pre-cálculo de dimensiones de vidrio para Tablillas
         const adjustedW = modW - Number(recipe.glassDeductionW || 0);
@@ -258,7 +468,7 @@ const ObrasModule: React.FC<Props> = ({
           const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);
           let lastY = 0;
           sorted.forEach((t, idx) => {
-            const trProf = aluminum.find((p) => p.id === t.profileId);
+            const trProf = aluminum.find((p) => p.id === (activeTransomId || t.profileId));
             const transomThickness = Number(trProf?.thickness || recipe.transomThickness || 40);
             let ph =
               idx === 0

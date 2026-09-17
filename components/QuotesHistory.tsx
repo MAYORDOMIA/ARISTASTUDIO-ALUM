@@ -437,7 +437,15 @@ const QuotesHistory: React.FC<Props> = ({
                             {compositeName}
                           </div>
                           <div className="text-[9px] text-slate-500 font-mono font-bold flex flex-wrap justify-center lg:justify-start gap-2 items-center mt-1">
-                            <span>{item.width} x {item.height} mm | {item.quantity} UNID.</span>
+                            <span>
+                              {item.width} x {item.height} mm
+                              {item.cols && item.rows && item.cols > 0 && item.rows > 0 && (
+                                <span className="ml-1 text-sky-500 font-black">
+                                  ({item.cols}x{item.rows})
+                                </span>
+                              )}
+                              | {item.quantity} UNID.
+                            </span>
                             {item.quotingMode && item.quotingMode !== "Completa" && (
                               <span className="bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest">{item.quotingMode}</span>
                             )}

@@ -206,6 +206,30 @@ export const RecipeIllustrationPreview: React.FC<{ visualType: string }> = ({ vi
         </g>
       </g>
     );
+  } else if (vt === "piel de vidrio") {
+    content = (
+      <g>
+        <rect x="15" y="15" width="130" height="90" fill="#f0f9ff" stroke="#334155" strokeWidth="2" rx="1" />
+        {/* Columnas */}
+        <line x1="58.33" y1="15" x2="58.33" y2="105" stroke="#334155" strokeWidth="2" />
+        <line x1="101.66" y1="15" x2="101.66" y2="105" stroke="#334155" strokeWidth="2" />
+        {/* Travesaños */}
+        <line x1="15" y1="45" x2="145" y2="45" stroke="#334155" strokeWidth="2" />
+        <line x1="15" y1="75" x2="145" y2="75" stroke="#334155" strokeWidth="2" />
+        {/* Reflejos en cada paño (9 paños) */}
+        {[0, 1, 2].map(i => [0, 1, 2].map(j => (
+          <line 
+            key={`${i}-${j}`}
+            x1={15 + i*43.33 + 10} 
+            y1={15 + j*30 + 10} 
+            x2={15 + i*43.33 + 20} 
+            y2={15 + j*30 + 15} 
+            stroke="#bae6fd" 
+            strokeWidth="1" 
+          />
+        )))}
+      </g>
+    );
   } else if (vt.includes("swing_door") || vt.includes("puerta") || vt.includes("rebatir_1h")) {
     const lW = 124;
     const lH = 86;
@@ -1139,6 +1163,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           "Banderola",
                           "Baranda",
                           "Vidriera",
+                          "Piel de Vidrio",
                         ].map((v) => (
                           <option key={v} value={v}>
                             {v}
@@ -1363,6 +1388,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                     <div className="col-span-2">
                       <input
                         className="w-full bg-white border border-slate-200 px-2 py-1.5 rounded font-mono text-[10px] font-black text-sky-600 "
+                        placeholder="W/H/NX/NY"
                         value={rp.formula || ""}
                         onChange={(e) => {
                           const updated = [...recipe.profiles];
@@ -1660,7 +1686,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                         {ra.isLinear && (
                           <input
                             className="flex-1 bg-sky-50/50 border border-sky-100 h-7 px-2 rounded font-mono text-[9px] font-black text-sky-600 outline-none"
-                            placeholder="Fórmula (W/H)"
+                            placeholder="Fórmula (W/H/NX/NY)"
                             value={ra.formula || ""}
                             onChange={(e) => {
                               const updated = [...recipe.accessories];
@@ -1687,7 +1713,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
                             />
                             <input
                               className="flex-1 bg-amber-50/50 border border-amber-200 h-7 px-2 rounded font-mono text-[9px] font-black text-amber-600 outline-none"
-                              placeholder="Longitud (W/H)"
+                              placeholder="Longitud (W/H/NX/NY)"
                               value={ra.formula || ""}
                               onChange={(e) => {
                                 const updated = [...recipe.accessories];
@@ -1728,6 +1754,11 @@ const ProductRecipeEditor: React.FC<Props> = ({
                   Vidriado Maestro
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="col-span-full bg-sky-50/50 p-3 rounded-xl border border-sky-100 mb-2">
+                    <p className="text-[9px] font-black text-sky-600 uppercase tracking-widest">
+                      💡 Tip: Puedes usar <span className="text-sky-700 underline">NX</span> (Columnas) y <span className="text-sky-700 underline">NY</span> (Filas) en las fórmulas de Piel de Vidrio.
+                    </p>
+                  </div>
                   <FormulaInput
                     label="Desc. VS Ancho"
                     value={recipe.glassFormulaW || ""}

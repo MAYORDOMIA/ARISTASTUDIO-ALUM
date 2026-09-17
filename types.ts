@@ -162,6 +162,7 @@ export interface ProductRecipe {
     | "Paño Fijo"
     | "Baranda"
     | "Vidriera"
+    | "Piel de Vidrio"
     | "Mosquitero";
   visualType?: VisualOpeningType;
   profiles: RecipeProfile[];
@@ -190,6 +191,8 @@ export interface ProductRecipe {
   mosquiteroFormulaW?: string;
   mosquiteroFormulaH?: string;
   leaves?: number;
+  mullionOptions?: string[];
+  transomOptions?: string[];
 }
 
 export interface MeasurementModule {
@@ -209,6 +212,7 @@ export interface MeasurementModule {
   blindPaneIds?: Record<number, string>;
   slatProfileIds?: Record<number, string>; // Nuevo: Perfil de tablilla por paño
   transoms?: { height: number; profileId: string; formula?: string }[];
+  mullions?: { x: number; profileId: string; formula?: string }[];
   overriddenAccessories?: RecipeAccessory[];
   handrailProfileId?: string; // Nuevo: Perfil de pasamano para barandas
   leafProfileId?: string; // Nuevo: Perfil de hoja seleccionado
@@ -218,6 +222,10 @@ export interface MeasurementModule {
   leafWidths?: number[]; // Nuevo: Ancho individual de hojas para puertas dobles
   leftHeight?: number; // Para paños fijos trapecios
   rightHeight?: number; // Para paños fijos trapecios
+  cols?: number; // Columnas para Piel de Vidrio / Modulares
+  rows?: number; // Filas para Piel de Vidrio / Modulares
+  mullionProfileId?: string;
+  transomProfileId?: string;
   perLeafConfiguration?: Record<number, {
     transoms: { height: number; profileId: string; formula?: string }[];
     blindPanes: number[];
