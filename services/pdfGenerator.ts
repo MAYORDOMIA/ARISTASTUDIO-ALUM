@@ -427,10 +427,31 @@ export const generateBarOptimizationPDF = (
       const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
       const recipeTransomQty = Number(transomTemplate?.quantity || 1);
 
-      const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
-      const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
-      const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
-      const recipeMullionFormula = mullionTemplate?.formula || "H";
+      const allMullions = (recipe.profiles || []).filter(
+        (rp) =>
+          rp.role &&
+          (rp.role.toLowerCase().includes("travesaño") ||
+            rp.role.toLowerCase().includes("travezaño") ||
+            rp.role.toLowerCase().includes("trave") ||
+            rp.role.toLowerCase().includes("parante") ||
+            rp.role.toLowerCase().includes("columna") ||
+            rp.role.toLowerCase().includes("montante")),
+      );
+      const activeMullionId =
+        mod.mullionProfileId &&
+        (allMullions.some((m) => m.profileId === mod.mullionProfileId) || aluminum.some((p) => p.id === mod.mullionProfileId))
+          ? mod.mullionProfileId
+          : mod.transomProfileId &&
+            (allMullions.some((m) => m.profileId === mod.transomProfileId) || aluminum.some((p) => p.id === mod.transomProfileId))
+            ? mod.transomProfileId
+            : allMullions.length > 0
+              ? allMullions[0].profileId
+              : (recipe.defaultTransomProfileId || null);
+      const mullionTemplate = allMullions.find((m) => m.profileId === activeMullionId);
+      let recipeMullionFormula = mullionTemplate?.formula || "H";
+      if (recipeMullionFormula.toUpperCase().includes("W") && !recipeMullionFormula.toUpperCase().includes("H")) {
+        recipeMullionFormula = recipeMullionFormula.replace(/W/gi, "H");
+      }
       const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
 
 
@@ -885,11 +906,15 @@ export const generateBarOptimizationPDF = (
       
       if (mod.mullions && mod.mullions.length > 0) {
         mod.mullions.forEach((m) => {
-          const mulProf = aluminum.find((p) => p.id === (activeMullionId || m.profileId));
+          const mulProf = aluminum.find((p) => p.id === (m.profileId || activeMullionId));
           if (mulProf) {
-            let f = recipeMullionFormula;
+            const matchedRp = recipe.profiles?.find((rp) => rp.profileId === mulProf.id);
+            let f = matchedRp?.formula || recipeMullionFormula || "H";
+            if (f.toUpperCase().includes("W") && !f.toUpperCase().includes("H")) {
+              f = f.replace(/W/gi, "H");
+            }
             let cutLen = evaluateFormula(f, modW, modH);
-            let qty = recipeMullionQty;
+            let qty = Number(matchedRp?.quantity || recipeMullionQty || 1);
             
             if (recipe.type === "Piel de Vidrio") {
               f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
@@ -901,9 +926,9 @@ export const generateBarOptimizationPDF = (
               for (let k = 0; k < qty * item.quantity; k++) {
                 list.push({
                   len: cutLen,
-                  type: "Columna",
-                  cutStart: "90",
-                  cutEnd: "90",
+                  type: "Parante / Travesaño Vertical",
+                  cutStart: matchedRp?.cutStart || "90",
+                  cutEnd: matchedRp?.cutEnd || "90",
                   label: itemCode,
                 });
               }
@@ -912,18 +937,17 @@ export const generateBarOptimizationPDF = (
           }
         });
         
-        // Agregar los 2 marcos laterales (columnas de los extremos)
-        if (mullionTemplate) {
+        // Agregar los 2 marcos laterales (columnas de los extremos) SOLO para Piel de Vidrio / Frente Integral
+        const isCurtainWall = recipe.type === "Piel de Vidrio" || (recipe.name && (recipe.name.toLowerCase().includes("piel de vidrio") || recipe.name.toLowerCase().includes("frente integral")));
+        if (mullionTemplate && isCurtainWall) {
           const pDef = aluminum.find((p) => p.id === mullionTemplate.profileId);
           if (pDef) {
             let f = recipeMullionFormula;
             let cutLen = evaluateFormula(f, modW, modH);
             let qty = 2 * recipeMullionQty;
             
-            if (recipe.type === "Piel de Vidrio") {
-              f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
-              cutLen = evaluateFormula(f, modW, modH, 1, 1);
-            }
+            f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
+            cutLen = evaluateFormula(f, modW, modH, 1, 1);
 
             if (cutLen > 0) {
               const list = cutsByProfile.get(pDef.id) || [];
@@ -1619,10 +1643,31 @@ export const generateMaterialsOrderPDF = (
       const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
       const recipeTransomQty = Number(transomTemplate?.quantity || 1);
 
-      const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
-      const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
-      const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
-      const recipeMullionFormula = mullionTemplate?.formula || "H";
+      const allMullions = (recipe.profiles || []).filter(
+        (rp) =>
+          rp.role &&
+          (rp.role.toLowerCase().includes("travesaño") ||
+            rp.role.toLowerCase().includes("travezaño") ||
+            rp.role.toLowerCase().includes("trave") ||
+            rp.role.toLowerCase().includes("parante") ||
+            rp.role.toLowerCase().includes("columna") ||
+            rp.role.toLowerCase().includes("montante")),
+      );
+      const activeMullionId =
+        mod.mullionProfileId &&
+        (allMullions.some((m) => m.profileId === mod.mullionProfileId) || aluminum.some((p) => p.id === mod.mullionProfileId))
+          ? mod.mullionProfileId
+          : mod.transomProfileId &&
+            (allMullions.some((m) => m.profileId === mod.transomProfileId) || aluminum.some((p) => p.id === mod.transomProfileId))
+            ? mod.transomProfileId
+            : allMullions.length > 0
+              ? allMullions[0].profileId
+              : (recipe.defaultTransomProfileId || null);
+      const mullionTemplate = allMullions.find((m) => m.profileId === activeMullionId);
+      let recipeMullionFormula = mullionTemplate?.formula || "H";
+      if (recipeMullionFormula.toUpperCase().includes("W") && !recipeMullionFormula.toUpperCase().includes("H")) {
+        recipeMullionFormula = recipeMullionFormula.replace(/W/gi, "H");
+      }
       const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
 
 
@@ -3174,10 +3219,31 @@ export const generateAssemblyOrderPDF = (
       const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
       const recipeTransomQty = Number(transomTemplate?.quantity || 1);
 
-      const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
-      const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
-      const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
-      const recipeMullionFormula = mullionTemplate?.formula || "H";
+      const allMullions = (recipe.profiles || []).filter(
+        (rp) =>
+          rp.role &&
+          (rp.role.toLowerCase().includes("travesaño") ||
+            rp.role.toLowerCase().includes("travezaño") ||
+            rp.role.toLowerCase().includes("trave") ||
+            rp.role.toLowerCase().includes("parante") ||
+            rp.role.toLowerCase().includes("columna") ||
+            rp.role.toLowerCase().includes("montante")),
+      );
+      const activeMullionId =
+        mod.mullionProfileId &&
+        (allMullions.some((m) => m.profileId === mod.mullionProfileId) || aluminum.some((p) => p.id === mod.mullionProfileId))
+          ? mod.mullionProfileId
+          : mod.transomProfileId &&
+            (allMullions.some((m) => m.profileId === mod.transomProfileId) || aluminum.some((p) => p.id === mod.transomProfileId))
+            ? mod.transomProfileId
+            : allMullions.length > 0
+              ? allMullions[0].profileId
+              : (recipe.defaultTransomProfileId || null);
+      const mullionTemplate = allMullions.find((m) => m.profileId === activeMullionId);
+      let recipeMullionFormula = mullionTemplate?.formula || "H";
+      if (recipeMullionFormula.toUpperCase().includes("W") && !recipeMullionFormula.toUpperCase().includes("H")) {
+        recipeMullionFormula = recipeMullionFormula.replace(/W/gi, "H");
+      }
       const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
 
 

@@ -2794,15 +2794,19 @@ const QuotingModule: React.FC<Props> = ({
     );
     const defaultMullionProfId =
       currentModForEdit.mullionProfileId ||
-      mullionRecipe?.profiles.find((p) =>
-        p.role &&
-        (p.role.toLowerCase().includes("columna") ||
-          p.role.toLowerCase().includes("montante") ||
-          p.role.toLowerCase().includes("parante") ||
-          p.role.toLowerCase().includes("travesaño") ||
-          p.role.toLowerCase().includes("travezaño")),
-      )?.profileId ||
+      currentModForEdit.transomProfileId ||
       mullionRecipe?.defaultTransomProfileId ||
+      mullionRecipe?.profiles.find((p) => {
+        const r = (p.role || "").toLowerCase();
+        return (
+          r.includes("travesaño") ||
+          r.includes("travezaño") ||
+          r.includes("trave") ||
+          r.includes("parante") ||
+          r.includes("columna") ||
+          r.includes("montante")
+        );
+      })?.profileId ||
       "";
 
     const updatedMullions = [
@@ -4070,26 +4074,70 @@ const QuotingModule: React.FC<Props> = ({
                             </div>
                             
                             {(() => {
-                              // Extract mullion options from the recipe's structural profiles list (including travesaño/parante for Paño Fijo)
-                              const mullionOptionsInRecipe = recipe.profiles.filter(p => p.role?.toLowerCase().includes("columna") || p.role?.toLowerCase().includes("montante") || p.role?.toLowerCase().includes("parante") || p.role?.toLowerCase().includes("travesaño") || p.role?.toLowerCase().includes("travezaño"));
+                              // Extract mullion options from the recipe's structural profiles list (specifically taking profiles loaded as Travesaño, Parante, Columna, or Montante)
+                              const mullionOptionsInRecipe = (recipe.profiles || []).filter(p => {
+                                const r = (p.role || "").toLowerCase();
+                                return (
+                                  r.includes("travesaño") ||
+                                  r.includes("travezaño") ||
+                                  r.includes("trave") ||
+                                  r.includes("parante") ||
+                                  r.includes("columna") ||
+                                  r.includes("montante")
+                                );
+                              });
+
+                              // Also include defaultTransomProfileId if configured in the recipe
+                              if (recipe.defaultTransomProfileId && !mullionOptionsInRecipe.some(rp => rp.profileId === recipe.defaultTransomProfileId)) {
+                                mullionOptionsInRecipe.push({
+                                  profileId: recipe.defaultTransomProfileId,
+                                  role: "Travesaño",
+                                  formula: "H",
+                                  cutStart: "90",
+                                  cutEnd: "90",
+                                  quantity: 1
+                                });
+                              }
+
                               // Extract transom options from the recipe's structural profiles list
-                              const transomOptionsInRecipe = recipe.profiles.filter(p => p.role?.toLowerCase().includes("travesaño") || p.role?.toLowerCase().includes("travezaño"));
+                              const transomOptionsInRecipe = (recipe.profiles || []).filter(p => {
+                                const r = (p.role || "").toLowerCase();
+                                return r.includes("travesaño") || r.includes("travezaño") || r.includes("trave");
+                              });
+                              if (recipe.defaultTransomProfileId && !transomOptionsInRecipe.some(rp => rp.profileId === recipe.defaultTransomProfileId)) {
+                                transomOptionsInRecipe.push({
+                                  profileId: recipe.defaultTransomProfileId,
+                                  role: "Travesaño",
+                                  formula: "W",
+                                  cutStart: "90",
+                                  cutEnd: "90",
+                                  quantity: 1
+                                });
+                              }
 
                               if (mullionOptionsInRecipe.length === 0 && transomOptionsInRecipe.length === 0) return null;
+
+                              const defaultMullionId = currentModForEdit.mullionProfileId || currentModForEdit.transomProfileId || recipe.defaultTransomProfileId || (mullionOptionsInRecipe.length > 0 ? mullionOptionsInRecipe[0].profileId : null);
+                              const defaultMullionObj = defaultMullionId ? aluminum.find(x => x.id === defaultMullionId) : null;
+                              const defaultMullionLabel = defaultMullionObj ? `Por defecto (${defaultMullionObj.code})` : "Por defecto";
+
+                              const defaultTransomId = currentModForEdit.transomProfileId || recipe.defaultTransomProfileId || (transomOptionsInRecipe.length > 0 ? transomOptionsInRecipe[0].profileId : null);
+                              const defaultTransomObj = defaultTransomId ? aluminum.find(x => x.id === defaultTransomId) : null;
+                              const defaultTransomLabel = defaultTransomObj ? `Por defecto (${defaultTransomObj.code})` : "Por defecto";
 
                               return (
                                 <div className="grid grid-cols-2 gap-4 mt-4 border-t border-sky-100 pt-4">
                                   {mullionOptionsInRecipe.length > 0 && (
                                     <div className="space-y-1.5">
                                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5 flex items-center gap-1.5">
-                                        <Columns size={10} /> Perfil Parante / Columna
+                                        <Columns size={10} /> Perfil Parante / Travesaño Vertical
                                       </label>
                                       <select
                                         className="w-full bg-white border border-sky-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm text-sky-700"
                                         value={currentModForEdit.mullionProfileId || ""}
                                         onChange={(e) => updateModule(editingModuleId, { mullionProfileId: e.target.value })}
                                       >
-                                        <option value="">Por defecto</option>
+                                        <option value="">{defaultMullionLabel}</option>
                                         {mullionOptionsInRecipe.map(rp => {
                                           const p = aluminum.find(x => x.id === rp.profileId);
                                           return p ? <option key={`mul-${rp.profileId}`} value={rp.profileId}>{p.code} - {p.detail}</option> : null;
@@ -4100,14 +4148,14 @@ const QuotingModule: React.FC<Props> = ({
                                   {transomOptionsInRecipe.length > 0 && (
                                     <div className="space-y-1.5">
                                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-0.5 flex items-center gap-1.5">
-                                        <Rows size={10} /> Perfil Travesaño
+                                        <Rows size={10} /> Perfil Travesaño Horiz.
                                       </label>
                                       <select
                                         className="w-full bg-white border border-sky-200 h-11 px-4 rounded-xl text-[10px] font-black uppercase outline-none focus:border-sky-500 shadow-sm text-sky-700"
                                         value={currentModForEdit.transomProfileId || ""}
                                         onChange={(e) => updateModule(editingModuleId, { transomProfileId: e.target.value })}
                                       >
-                                        <option value="">Por defecto</option>
+                                        <option value="">{defaultTransomLabel}</option>
                                         {transomOptionsInRecipe.map(rp => {
                                           const p = aluminum.find(x => x.id === rp.profileId);
                                           return p ? <option key={`tra-${rp.profileId}`} value={rp.profileId}>{p.code} - {p.detail}</option> : null;
@@ -4481,32 +4529,37 @@ const QuotingModule: React.FC<Props> = ({
                                   });
                                 }}
                               >
-                                <option value="">(SELECCIONE PERFIL)</option>
+                                <option value="">
+                                  {(() => {
+                                    const r = recipes.find((x) => x.id === currentModForEdit.recipeId);
+                                    const defId = currentModForEdit.mullionProfileId || currentModForEdit.transomProfileId || r?.defaultTransomProfileId;
+                                    const defP = defId ? aluminum.find(x => x.id === defId) : null;
+                                    return defP ? `Por defecto (${defP.code})` : "(SELECCIONE PERFIL)";
+                                  })()}
+                                </option>
                                 {aluminum
                                   .filter((p) => {
                                     const r = recipes.find(
                                       (x) => x.id === currentModForEdit.recipeId,
                                     );
-                                    const allowed = r?.profiles
+                                    const allowed = (r?.profiles || [])
                                       .filter(
-                                        (rp) =>
-                                          rp.role === "Columna" ||
-                                          rp.role === "Travesaño" ||
-                                          (rp.role &&
-                                            (rp.role
-                                              .toLowerCase()
-                                              .includes("colu") ||
-                                              rp.role
-                                                .toLowerCase()
-                                                .includes("montante") ||
-                                              rp.role
-                                                .toLowerCase()
-                                                .includes("parante") ||
-                                              rp.role
-                                                .toLowerCase()
-                                                .includes("trave"))),
+                                        (rp) => {
+                                          const role = (rp.role || "").toLowerCase();
+                                          return (
+                                            role.includes("trave") ||
+                                            role.includes("travesaño") ||
+                                            role.includes("travezaño") ||
+                                            role.includes("colu") ||
+                                            role.includes("montante") ||
+                                            role.includes("parante")
+                                          );
+                                        },
                                       )
                                       .map((rp) => rp.profileId);
+                                    if (r?.defaultTransomProfileId && !allowed.includes(r.defaultTransomProfileId)) {
+                                      allowed.push(r.defaultTransomProfileId);
+                                    }
                                     return allowed && allowed.length > 0 ? allowed.includes(p.id) : true;
                                   })
                                   .map((p) => (

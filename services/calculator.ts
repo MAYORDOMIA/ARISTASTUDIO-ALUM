@@ -726,28 +726,49 @@ export const calculateItemPrice = (
     transomTemplate?.formula || recipe.transomFormula || "W";
   const recipeTransomQty = Number(transomTemplate?.quantity || 1);
 
-  const mullionTemplate = filteredRecipeProfiles.find(
-    (rp) =>
-      (rp.role || "").toLowerCase().includes("columna") ||
-      (rp.role || "").toLowerCase().includes("montante") ||
-      (rp.role || "").toLowerCase().includes("parante") ||
-      (rp.role || "").toLowerCase().includes("travesaño") ||
-      (rp.role || "").toLowerCase().includes("travezaño"),
-  );
-  const recipeMullionFormula = mullionTemplate?.formula || "H";
+  const mullionTemplate = filteredRecipeProfiles.find((rp) => {
+    const r = (rp.role || "").toLowerCase();
+    return (
+      r.includes("travesaño") ||
+      r.includes("travezaño") ||
+      r.includes("trave") ||
+      r.includes("parante") ||
+      r.includes("columna") ||
+      r.includes("montante")
+    );
+  });
+  let recipeMullionFormula = mullionTemplate?.formula || "H";
+  if (recipeMullionFormula.includes("W") && !recipeMullionFormula.includes("H")) {
+    recipeMullionFormula = recipeMullionFormula.replace(/W/g, "H");
+  }
   const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
 
   // Determine active structural IDs to handle cases where the recipe contains multiple options for columns/transoms
-  const recipeMullionIds = filteredRecipeProfiles.filter(rp =>
-    (rp.role || "").toLowerCase().includes("columna") ||
-    (rp.role || "").toLowerCase().includes("montante") ||
-    (rp.role || "").toLowerCase().includes("parante") ||
-    (rp.role || "").toLowerCase().includes("travesaño") ||
-    (rp.role || "").toLowerCase().includes("travezaño")
-  ).map(rp => rp.profileId);
-  const activeMullionId = mullionProfileId && (recipeMullionIds.includes(mullionProfileId) || profiles.some(p => p.id === mullionProfileId))
-    ? mullionProfileId
-    : (recipeMullionIds.length > 0 ? recipeMullionIds[0] : (recipe.defaultTransomProfileId || null));
+  const recipeMullionIds = filteredRecipeProfiles
+    .filter((rp) => {
+      const r = (rp.role || "").toLowerCase();
+      return (
+        r.includes("travesaño") ||
+        r.includes("travezaño") ||
+        r.includes("trave") ||
+        r.includes("parante") ||
+        r.includes("columna") ||
+        r.includes("montante")
+      );
+    })
+    .map((rp) => rp.profileId);
+  if (recipe.defaultTransomProfileId && !recipeMullionIds.includes(recipe.defaultTransomProfileId)) {
+    recipeMullionIds.push(recipe.defaultTransomProfileId);
+  }
+
+  const activeMullionId =
+    mullionProfileId && (recipeMullionIds.includes(mullionProfileId) || profiles.some((p) => p.id === mullionProfileId))
+      ? mullionProfileId
+      : transomProfileId && (recipeMullionIds.includes(transomProfileId) || profiles.some((p) => p.id === transomProfileId))
+        ? transomProfileId
+        : recipeMullionIds.length > 0
+          ? recipeMullionIds[0]
+          : recipe.defaultTransomProfileId || null;
 
   const recipeTransomIds = filteredRecipeProfiles.filter(rp => (rp.role || "").toLowerCase().includes("travesaño") || (rp.role || "").toLowerCase().includes("travezaño")).map(rp => rp.profileId);
   const activeTransomId = transomProfileId && recipeTransomIds.includes(transomProfileId) ? transomProfileId : (recipeTransomIds.length > 0 ? recipeTransomIds[0] : null);
@@ -756,11 +777,11 @@ export const calculateItemPrice = (
     const role = (rp.role || "").toLowerCase();
     
     // Filter out unselected structural profiles
-    if (activeMullionId && (role.includes("columna") || role.includes("montante"))) {
+    if (activeMullionId && (role.includes("columna") || role.includes("montante") || role.includes("parante"))) {
       if (rp.profileId !== activeMullionId) return false;
     }
-    if (activeTransomId && (role.includes("travesaño") || role.includes("travezaño"))) {
-      if (rp.profileId !== activeTransomId) return false;
+    if (activeTransomId && (role.includes("travesaño") || role.includes("travezaño") || role.includes("trave"))) {
+      if (rp.profileId !== activeTransomId && rp.profileId !== activeMullionId) return false;
     }
 
     let p = profiles.find((x) => x.id === rp.profileId);
@@ -1049,7 +1070,8 @@ export const calculateItemPrice = (
     mullions.forEach((m) => {
       const pDef = profiles.find((p) => p.id === (m.profileId || activeMullionId));
       if (pDef) {
-        let formula = activeProfiles.find((rp) => rp.profileId === pDef.id)?.formula || "H";
+        const recipeProf = filteredRecipeProfiles.find((rp) => rp.profileId === pDef.id) || (recipe.profiles || []).find((rp) => rp.profileId === pDef.id);
+        let formula = recipeProf?.formula || recipeMullionFormula || "H";
         if (formula.includes("W") && !formula.includes("H")) {
           formula = formula.replace(/W/g, "H");
         }
@@ -1059,7 +1081,8 @@ export const calculateItemPrice = (
 
       // Añadir contravidrios verticales para el parante
       usedGlazingBeads.forEach((gb) => {
-        let gbFormula = activeProfiles.find((rp) => rp.profileId === gb.id)?.formula || "H";
+        const gbRecipeProf = filteredRecipeProfiles.find((rp) => rp.profileId === gb.id) || (recipe.profiles || []).find((rp) => rp.profileId === gb.id);
+        let gbFormula = gbRecipeProf?.formula || "H";
         if (gbFormula.includes("W") && !gbFormula.includes("H")) {
           gbFormula = gbFormula.replace(/W/g, "H");
         }
