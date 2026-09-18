@@ -1043,6 +1043,17 @@ export const calculateItemPrice = (
   });
 
   const usedGlazingBeads = profiles.filter((p) => usedGlazingBeadIds.has(p.id));
+  if (usedGlazingBeads.length === 0) {
+    (recipe.profiles || []).forEach((rp) => {
+      const r = (rp.role || "").toLowerCase();
+      if (r.includes("contravidrio") || r.includes("contra")) {
+        const p = profiles.find((x) => x.id === rp.profileId);
+        if (p && !usedGlazingBeads.some((gb) => gb.id === p.id)) {
+          usedGlazingBeads.push(p);
+        }
+      }
+    });
+  }
 
   // 2. Travesaños y Contravidrios Extra
   if (transoms && transoms.length > 0) {
@@ -1051,43 +1062,45 @@ export const calculateItemPrice = (
     // Sumar peso de travesaños adicionales
     transoms.forEach((t) => {
       const pDef = profiles.find((p) => p.id === (activeTransomId || t.profileId));
+      let transomCutLen = 0;
       if (pDef) {
         const formula = activeProfiles.find((rp) => rp.profileId === pDef.id)?.formula || "W";
-        const totalLen = evaluateFormula(formula, width, height, cols, rows);
-        totalAluWeight += ((totalLen + Number(config.discWidth || 0)) / 1000) * Number(pDef.weightPerMeter || 0);
+        transomCutLen = evaluateFormula(formula, width, height, cols, rows);
+        totalAluWeight += ((transomCutLen + Number(config.discWidth || 0)) / 1000) * Number(pDef.weightPerMeter || 0);
       }
       
-      // Añadir contravidrios para cada travesaño
+      // Añadir 2 contravidrios para cada travesaño (uno para cada lado/paño)
       usedGlazingBeads.forEach((gb) => {
-        const totalLen = evaluateFormula("W", width, height, cols, rows); // Aproximado
-        totalAluWeight += ((totalLen + Number(config.discWidth || 0) * 2) / 1000) * Number(gb.weightPerMeter || 0);
+        const totalLen = transomCutLen > 0 ? transomCutLen : evaluateFormula("W", width, height, cols, rows);
+        totalAluWeight += (((totalLen + Number(config.discWidth || 0)) * 2) / 1000) * Number(gb.weightPerMeter || 0);
       });
     });
   }
 
-  // 3. Columna manual / Parante Vertical (Travesaño vertical) y acoples extra
+  // 3. Columna manual / Parante Vertical (Travesaño vertical) y contravidrios extra
   if (mullions && mullions.length > 0) {
     mullions.forEach((m) => {
       const pDef = profiles.find((p) => p.id === (m.profileId || activeMullionId));
+      let mullionCutLen = 0;
       if (pDef) {
         const recipeProf = filteredRecipeProfiles.find((rp) => rp.profileId === pDef.id) || (recipe.profiles || []).find((rp) => rp.profileId === pDef.id);
         let formula = recipeProf?.formula || recipeMullionFormula || "H";
         if (formula.includes("W") && !formula.includes("H")) {
           formula = formula.replace(/W/g, "H");
         }
-        const totalLen = evaluateFormula(formula, width, height, cols, rows);
-        totalAluWeight += ((totalLen + Number(config.discWidth || 0)) / 1000) * Number(pDef.weightPerMeter || 0);
+        mullionCutLen = evaluateFormula(formula, width, height, cols, rows);
+        totalAluWeight += ((mullionCutLen + Number(config.discWidth || 0)) / 1000) * Number(pDef.weightPerMeter || 0);
       }
 
-      // Añadir contravidrios verticales para el parante
+      // Añadir 2 contravidrios verticales para el parante (igual que en el travesaño horizontal)
       usedGlazingBeads.forEach((gb) => {
         const gbRecipeProf = filteredRecipeProfiles.find((rp) => rp.profileId === gb.id) || (recipe.profiles || []).find((rp) => rp.profileId === gb.id);
         let gbFormula = gbRecipeProf?.formula || "H";
         if (gbFormula.includes("W") && !gbFormula.includes("H")) {
           gbFormula = gbFormula.replace(/W/g, "H");
         }
-        const totalLen = evaluateFormula(gbFormula, width, height, cols, rows);
-        totalAluWeight += ((totalLen + Number(config.discWidth || 0) * 2) / 1000) * Number(gb.weightPerMeter || 0);
+        const totalLen = mullionCutLen > 0 ? mullionCutLen : evaluateFormula(gbFormula, width, height, cols, rows);
+        totalAluWeight += (((totalLen + Number(config.discWidth || 0)) * 2) / 1000) * Number(gb.weightPerMeter || 0);
       });
     });
   }

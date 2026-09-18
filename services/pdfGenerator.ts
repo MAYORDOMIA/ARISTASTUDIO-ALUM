@@ -613,7 +613,7 @@ export const generateBarOptimizationPDF = (
 
         if (!pDef) return;
         const role = rp.role?.toLowerCase() || "";
-        if (role === "contravidrio") usedGlazingBeadIds.add(pDef.id);
+        if (role.includes("contravidrio") || role.includes("contra")) usedGlazingBeadIds.add(pDef.id);
         if (role === "travesaño") return;
 
         // Exclusión centralizada de Tapajuntas en el despiece de receta
@@ -873,6 +873,15 @@ export const generateBarOptimizationPDF = (
           }
         }
       });
+
+      if (usedGlazingBeadIds.size === 0) {
+        (recipe.profiles || []).forEach((rp) => {
+          const r = (rp.role || "").toLowerCase();
+          if (r.includes("contravidrio") || r.includes("contra")) {
+            usedGlazingBeadIds.add(rp.profileId);
+          }
+        });
+      }
       
       // Calculate independent mosquito recipe profiles
       if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
@@ -933,6 +942,21 @@ export const generateBarOptimizationPDF = (
                 });
               }
               cutsByProfile.set(mulProf.id, list);
+
+              // 2 Contravidrios extra del mismo largo que el parante / travesaño vertical por cada tipo de contravidrio en la receta
+              usedGlazingBeadIds.forEach((gbId) => {
+                const gbList = cutsByProfile.get(gbId) || [];
+                for (let k = 0; k < 2 * item.quantity; k++) {
+                  gbList.push({
+                    len: cutLen,
+                    type: "Contravidrio Extra Travesaño Vertical",
+                    cutStart: "45",
+                    cutEnd: "45",
+                    label: itemCode,
+                  });
+                }
+                cutsByProfile.set(gbId, gbList);
+              });
             }
           }
         });
@@ -1780,7 +1804,7 @@ export const generateMaterialsOrderPDF = (
         }
 
         if (!p) return;
-        if (role === "contravidrio") usedGlazingBeadIds.add(p.id);
+        if (role.includes("contravidrio") || role.includes("contra")) usedGlazingBeadIds.add(p.id);
         if (role === "travesaño") return;
 
         // Exclusión centralizada de Tapajuntas en materiales individuales
@@ -1903,6 +1927,16 @@ export const generateMaterialsOrderPDF = (
           aluSummary.set(key, existing);
         }
       });
+
+      if (usedGlazingBeadIds.size === 0) {
+        (recipe.profiles || []).forEach((rp) => {
+          const r = (rp.role || "").toLowerCase();
+          if (r.includes("contravidrio") || r.includes("contra")) {
+            usedGlazingBeadIds.add(rp.profileId);
+          }
+        });
+      }
+
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
           const trProf = aluminum.find((p) => p.id === (activeTransomId || t.profileId));
@@ -1924,6 +1958,54 @@ export const generateMaterialsOrderPDF = (
             aluSummary.set(key, existing);
 
             // 2 Contravidrios extra del mismo largo que el travesaño por cada tipo de contravidrio en la receta
+            usedGlazingBeadIds.forEach((gbId) => {
+              const gbProf = aluminum.find((p) => p.id === gbId);
+              if (gbProf) {
+                const gbTotalMm =
+                  (cutLen + config.discWidth) * 2 * item.quantity;
+                const gbKey = `${gbProf.id}_${item.colorId || "default"}`;
+                const gbExist = aluSummary.get(gbKey) || {
+                  code: gbProf.code,
+                  detail: gbProf.detail,
+                  totalMm: 0,
+                  barLength: gbProf.barLength || 6,
+                  weightPerMeter: gbProf.weightPerMeter || 0,
+                  colorName: colorName,
+                };
+                gbExist.totalMm += gbTotalMm;
+                aluSummary.set(gbKey, gbExist);
+              }
+            });
+          }
+        });
+      }
+
+      if (mod.mullions && mod.mullions.length > 0) {
+        mod.mullions.forEach((m) => {
+          const mulProf = aluminum.find((p) => p.id === (m.profileId || activeMullionId));
+          if (mulProf) {
+            const matchedRp = recipe.profiles?.find((rp) => rp.profileId === mulProf.id);
+            let f = matchedRp?.formula || recipeMullionFormula || "H";
+            if (f.toUpperCase().includes("W") && !f.toUpperCase().includes("H")) {
+              f = f.replace(/W/gi, "H");
+            }
+            const cutLen = evaluateFormula(f, modW, modH);
+            const qty = Number(matchedRp?.quantity || recipeMullionQty || 1);
+            const totalMm =
+              (cutLen + config.discWidth) * qty * item.quantity;
+            const key = `${mulProf.id}_${item.colorId || "default"}`;
+            const existing = aluSummary.get(key) || {
+              code: mulProf.code,
+              detail: mulProf.detail,
+              totalMm: 0,
+              barLength: mulProf.barLength || 6,
+              weightPerMeter: mulProf.weightPerMeter || 0,
+              colorName: colorName,
+            };
+            existing.totalMm += totalMm;
+            aluSummary.set(key, existing);
+
+            // 2 Contravidrios extra del mismo largo que el parante / travesaño vertical por cada tipo de contravidrio en la receta
             usedGlazingBeadIds.forEach((gbId) => {
               const gbProf = aluminum.find((p) => p.id === gbId);
               if (gbProf) {
@@ -3311,6 +3393,7 @@ export const generateAssemblyOrderPDF = (
       });
 
       let processedPlainHorizontalMarcoQty = 0;
+      const usedGlazingBeadIds = new Set<string>();
 
       filteredProfiles3.filter((rp) => {
         const r = rp.role?.toLowerCase() || "";
@@ -3354,6 +3437,10 @@ export const generateAssemblyOrderPDF = (
           }
 
           if (bestMatch) p = bestMatch;
+        }
+
+        if (p && (role.includes("contravidrio") || role.includes("contra"))) {
+          usedGlazingBeadIds.add(p.id);
         }
 
         // Exclusión centralizada de Tapajuntas en hoja de taller
@@ -3543,9 +3630,19 @@ export const generateAssemblyOrderPDF = (
           ]);
         }
       });
+
+      if (usedGlazingBeadIds.size === 0) {
+        (recipe.profiles || []).forEach((rp) => {
+          const r = (rp.role || "").toLowerCase();
+          if (r.includes("contravidrio") || r.includes("contra")) {
+            usedGlazingBeadIds.add(rp.profileId);
+          }
+        });
+      }
+
       if (mod.transoms && mod.transoms.length > 0) {
         mod.transoms.forEach((t) => {
-          const trProfRaw = aluminum.find((p) => p.id === t.profileId);
+          const trProfRaw = aluminum.find((p) => p.id === (activeTransomId || t.profileId));
           if (trProfRaw) {
             const trProf = { ...trProfRaw, detail: isSet ? `${trProfRaw.detail} (${modLabel})` : trProfRaw.detail };
             const f = t.formula || recipeTransomFormula;
@@ -3557,6 +3654,59 @@ export const generateAssemblyOrderPDF = (
               recipeTransomQty,
               "90° / 90°",
             ]);
+
+            // 2 Contravidrios extra para el travesaño horizontal
+            usedGlazingBeadIds.forEach((gbId) => {
+              const gbProfRaw = aluminum.find((p) => p.id === gbId);
+              if (gbProfRaw) {
+                const gbProf = { ...gbProfRaw, detail: isSet ? `${gbProfRaw.detail} (${modLabel})` : gbProfRaw.detail };
+                profileCuts.push([
+                  gbProf.code,
+                  (gbProf.detail || "Contravidrio") + " Extra Travesaño Horiz.",
+                  Math.round(cutLen),
+                  2,
+                  "45° / 45°",
+                ]);
+              }
+            });
+          }
+        });
+      }
+
+      if (mod.mullions && mod.mullions.length > 0) {
+        mod.mullions.forEach((m) => {
+          const mulProfRaw = aluminum.find((p) => p.id === (m.profileId || activeMullionId));
+          if (mulProfRaw) {
+            const mulProf = { ...mulProfRaw, detail: isSet ? `${mulProfRaw.detail} (${modLabel})` : mulProfRaw.detail };
+            const matchedRp = recipe.profiles?.find((rp) => rp.profileId === mulProfRaw.id);
+            let f = matchedRp?.formula || recipeMullionFormula || "H";
+            if (f.toUpperCase().includes("W") && !f.toUpperCase().includes("H")) {
+              f = f.replace(/W/gi, "H");
+            }
+            const cutLen = evaluateFormula(f, modW, modH);
+            const qty = Number(matchedRp?.quantity || recipeMullionQty || 1);
+            profileCuts.push([
+              mulProf.code,
+              mulProf.detail,
+              Math.round(cutLen),
+              qty,
+              `${matchedRp?.cutStart || 90}° / ${matchedRp?.cutEnd || 90}°`,
+            ]);
+
+            // 2 Contravidrios extra para el parante / travesaño vertical
+            usedGlazingBeadIds.forEach((gbId) => {
+              const gbProfRaw = aluminum.find((p) => p.id === gbId);
+              if (gbProfRaw) {
+                const gbProf = { ...gbProfRaw, detail: isSet ? `${gbProfRaw.detail} (${modLabel})` : gbProfRaw.detail };
+                profileCuts.push([
+                  gbProf.code,
+                  (gbProf.detail || "Contravidrio") + " Extra Travesaño Vert.",
+                  Math.round(cutLen),
+                  2,
+                  "45° / 45°",
+                ]);
+              }
+            });
           }
         });
       }

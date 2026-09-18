@@ -148,10 +148,31 @@ const ObrasModule: React.FC<Props> = ({
         const recipeTransomFormula = transomTemplate?.formula || recipe.transomFormula || "W";
         const recipeTransomQty = Number(transomTemplate?.quantity || 1);
 
-        const allMullions = (recipe.profiles || []).filter(rp => rp.role && (rp.role.toLowerCase().includes("columna") || rp.role.toLowerCase().includes("montante")));
-        const activeMullionId = mod.mullionProfileId && allMullions.some(m => m.profileId === mod.mullionProfileId) ? mod.mullionProfileId : (allMullions.length > 0 ? allMullions[0].profileId : null);
-        const mullionTemplate = allMullions.find(m => m.profileId === activeMullionId);
-        const recipeMullionFormula = mullionTemplate?.formula || "H";
+        const allMullions = (recipe.profiles || []).filter(
+          (rp) =>
+            rp.role &&
+            (rp.role.toLowerCase().includes("travesaño") ||
+              rp.role.toLowerCase().includes("travezaño") ||
+              rp.role.toLowerCase().includes("trave") ||
+              rp.role.toLowerCase().includes("parante") ||
+              rp.role.toLowerCase().includes("columna") ||
+              rp.role.toLowerCase().includes("montante")),
+        );
+        const activeMullionId =
+          mod.mullionProfileId &&
+          (allMullions.some((m) => m.profileId === mod.mullionProfileId) || aluminum.some((p) => p.id === mod.mullionProfileId))
+            ? mod.mullionProfileId
+            : mod.transomProfileId &&
+              (allMullions.some((m) => m.profileId === mod.transomProfileId) || aluminum.some((p) => p.id === mod.transomProfileId))
+              ? mod.transomProfileId
+              : allMullions.length > 0
+                ? allMullions[0].profileId
+                : (recipe.defaultTransomProfileId || null);
+        const mullionTemplate = allMullions.find((m) => m.profileId === activeMullionId);
+        let recipeMullionFormula = mullionTemplate?.formula || "H";
+        if (recipeMullionFormula.toUpperCase().includes("W") && !recipeMullionFormula.toUpperCase().includes("H")) {
+          recipeMullionFormula = recipeMullionFormula.replace(/W/gi, "H");
+        }
         const recipeMullionQty = Number(mullionTemplate?.quantity || 1);
 
         const visualType = (recipe.visualType || "").toLowerCase();
@@ -170,8 +191,12 @@ const ObrasModule: React.FC<Props> = ({
           return true;
         });
 
+        const usedGlazingBeadIds = new Set<string>();
         activeProfiles.forEach((rp) => {
           const role = rp.role?.toLowerCase() || "";
+          if (role.includes("contravidrio") || role.includes("contra")) {
+            usedGlazingBeadIds.add(rp.profileId);
+          }
           const isTransom = role.includes("trave");
           const isMullion = role.includes("columna") || role.includes("montante");
 
@@ -230,6 +255,15 @@ const ObrasModule: React.FC<Props> = ({
           existing.totalWeight += weight;
           summary.set(pDef.id, existing);
         }); 
+
+        if (usedGlazingBeadIds.size === 0) {
+          (recipe.profiles || []).forEach((rp) => {
+            const r = (rp.role || "").toLowerCase();
+            if (r.includes("contravidrio") || r.includes("contra")) {
+              usedGlazingBeadIds.add(rp.profileId);
+            }
+          });
+        }
 
         // LÓGICA ESPECÍFICA PARA PIEL DE VIDRIO / MODULARES (AUTOMÁTICOS)
         if (recipe.type === "Piel de Vidrio") {
@@ -319,14 +353,18 @@ const ObrasModule: React.FC<Props> = ({
           }
         }
 
-        // SUMAR COLUMNAS MANUALES (MULLIONS)
+        // SUMAR COLUMNAS / PARANTES VERTICALES MANUALES (MULLIONS)
         if (mod.mullions && mod.mullions.length > 0) {
           mod.mullions.forEach((m) => {
-            const mulProf = aluminum.find((p) => p.id === (activeMullionId || m.profileId));
+            const mulProf = aluminum.find((p) => p.id === (m.profileId || activeMullionId));
             if (mulProf) {
-              let f = recipeMullionFormula;
+              const matchedRp = recipe.profiles?.find((rp) => rp.profileId === mulProf.id);
+              let f = matchedRp?.formula || recipeMullionFormula || "H";
+              if (f.toUpperCase().includes("W") && !f.toUpperCase().includes("H")) {
+                f = f.replace(/W/gi, "H");
+              }
               let cutLen = evaluateFormula(f, modW, modH);
-              let qty = recipeMullionQty;
+              let qty = Number(matchedRp?.quantity || recipeMullionQty || 1);
               if (recipe.type === "Piel de Vidrio") {
                 f = f.replace(/NX/gi, "1").replace(/NY/gi, "1");
                 cutLen = evaluateFormula(f, modW, modH, 1, 1);
@@ -339,6 +377,21 @@ const ObrasModule: React.FC<Props> = ({
               existing.totalLength += totalCutLen;
               existing.totalWeight += weight;
               summary.set(mulProf.id, existing);
+
+              // 2 Contravidrios por cada parante / travesaño vertical
+              usedGlazingBeadIds.forEach((gbId) => {
+                const gbProf = aluminum.find((a) => a.id === gbId);
+                if (gbProf) {
+                  const gbTotalCutLen = (cutLen + config.discWidth) * 2 * item.quantity;
+                  const gbWeight = (gbTotalCutLen / 1000) * gbProf.weightPerMeter;
+                  const gbExist = summary.get(gbProf.id) || {
+                    code: gbProf.code, detail: gbProf.detail, totalLength: 0, totalWeight: 0
+                  };
+                  gbExist.totalLength += gbTotalCutLen;
+                  gbExist.totalWeight += gbWeight;
+                  summary.set(gbProf.id, gbExist);
+                }
+              });
             }
           });
           // Agregar también los marcos laterales (2 columnas extra)
@@ -415,6 +468,21 @@ const ObrasModule: React.FC<Props> = ({
               existing.totalLength += totalCutLen;
               existing.totalWeight += weight;
               summary.set(trProf.id, existing);
+
+              // 2 Contravidrios por cada travesaño horizontal
+              usedGlazingBeadIds.forEach((gbId) => {
+                const gbProf = aluminum.find((a) => a.id === gbId);
+                if (gbProf) {
+                  const gbTotalCutLen = (cutLen + config.discWidth) * 2 * item.quantity;
+                  const gbWeight = (gbTotalCutLen / 1000) * gbProf.weightPerMeter;
+                  const gbExist = summary.get(gbProf.id) || {
+                    code: gbProf.code, detail: gbProf.detail, totalLength: 0, totalWeight: 0
+                  };
+                  gbExist.totalLength += gbTotalCutLen;
+                  gbExist.totalWeight += gbWeight;
+                  summary.set(gbProf.id, gbExist);
+                }
+              });
             }
           });
           
