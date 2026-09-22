@@ -12,7 +12,12 @@ import {
   QuoteItemBreakdown,
   MeasurementModule,
 } from "../types";
-import { filterDVHProfiles, calculateSalesGrams, getDVHExtras } from "./dvhHelper";
+import {
+  filterDVHProfiles,
+  calculateSalesGrams,
+  getDVHExtras,
+  extractsDVHThickness,
+} from "./dvhHelper";
 
 export const evaluateFormula = (
   formula: string,
@@ -1254,8 +1259,15 @@ export const calculateItemPrice = (
       : recipe.accessories || [];
         
   if (isDVH && dvhCameraId) {
-     const { accessories: dvhAccs } = getDVHExtras(recipes, isDVH);
-     activeAccessories = [...activeAccessories, ...dvhAccs.map((a: any) => ({ ...a, isAlternative: false }))];
+     const { accessories: dvhAccs } = getDVHExtras(recipes, isDVH, dvhInputs, accessories, profiles);
+     dvhAccs.forEach((da: any) => {
+       const alreadyExists = activeAccessories.some(
+         (oa) => oa.accessoryId === da.accessoryId
+       );
+       if (!alreadyExists) {
+         activeAccessories.push({ ...da, isAlternative: false });
+       }
+     });
   }
         
   activeAccessories = filterDVHProfiles(activeAccessories, isDVH, dvhCameraId, dvhInputs, accessories) as any[];
@@ -1314,22 +1326,38 @@ export const calculateItemPrice = (
   activeAccessories.forEach((ra) => {
     if (ra.isAlternative) return;
 
-    const acc = accessories.find(
+    let acc = accessories.find(
       (a) => a.id === ra.accessoryId || a.code === ra.accessoryId,
     );
+    if (!acc) {
+      const dvhIn = dvhInputs.find((d) => d.id === ra.accessoryId);
+      if (dvhIn) {
+        acc = {
+          id: dvhIn.id,
+          code: dvhIn.type || "DVH",
+          detail: dvhIn.detail || dvhIn.type,
+          unitPrice: Number(dvhIn.cost || 0),
+          unit: dvhIn.type === "Sales" ? "kg" : (dvhIn.type === "Butilo" ? "ml" : "un"),
+        } as any;
+      }
+    }
     if (acc) {
-      // Calculate sales quantity if it's SALES
       let calculatedQty = Number(ra.quantity || 0);
       let isSpecialDVHAcc = false;
       if (isDVH && dvhCameraId) {
-         if (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL')) {
+         let camInput = dvhInputs.find(c => c.id === dvhCameraId);
+         let camThick = camInput?.thickness || 12;
+         if (!camInput?.thickness && typeof camInput?.detail === 'string') {
+           const m = camInput.detail.match(/(\d+)\s*mm/i);
+           if (m) camThick = parseInt(m[1], 10);
+           else {
+             const ext = extractsDVHThickness(camInput.detail);
+             if (ext) camThick = ext;
+           }
+         }
+
+         if (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL') || acc.detail.toUpperCase().includes('TAMIZ')) {
             isSpecialDVHAcc = true;
-            let camInput = dvhInputs.find(c => c.id === dvhCameraId);
-            let camThick = camInput?.thickness || 12;
-            if (!camInput?.thickness && typeof camInput?.detail === 'string') {
-              const m = camInput.detail.match(/(\d+)\s*mm/i);
-              if (m) camThick = parseInt(m[1], 10);
-            }
             // Sum perimeter of all glass panes in this module
             const totalPerimeterMeters = glassPanes.reduce((acc, pane, index) => {
                if (blindPanes.includes(index)) return acc;
@@ -1340,6 +1368,13 @@ export const calculateItemPrice = (
             isSpecialDVHAcc = true;
             const panesCount = glassPanes.filter((_, index) => !blindPanes.includes(index)).length;
             calculatedQty = Number(ra.quantity || 4) * panesCount;
+         } else if (acc.detail.toUpperCase().includes('BUTILO') || acc.code.toUpperCase().includes('BUTILO')) {
+            isSpecialDVHAcc = true;
+            const totalPerimeterMeters = glassPanes.reduce((acc, pane, index) => {
+               if (blindPanes.includes(index)) return acc;
+               return acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2 * 2) / 1000;
+            }, 0);
+            calculatedQty = totalPerimeterMeters;
          }
       }
 
@@ -1349,7 +1384,7 @@ export const calculateItemPrice = (
 
       const uPrice = Number(acc.unitPrice || 0);
       let calcPrice = uPrice;
-      if (isDVH && dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'))) {
+      if (isDVH && dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL') || acc.detail.toUpperCase().includes('TAMIZ'))) {
          // uPrice is per KG, so we need to divide by 1000 since we have grams
          calcPrice = uPrice / 1000;
       }
@@ -1445,15 +1480,36 @@ export const calculateItemPrice = (
               Number(dvhCamera.cost || 0) *
               (((pane.w + pane.h) * 2) / 1000) *
               leafMultiplier;
+          
+          const hasAccSales = activeAccessories.some(ra => {
+            const a = accessories.find(x => x.id === ra.accessoryId || x.code === ra.accessoryId);
+            return a && (a.detail.toUpperCase().includes('SAL') || a.code.toUpperCase().includes('SAL') || a.detail.toUpperCase().includes('TAMIZ'));
+          });
+          const hasAccEscuadras = activeAccessories.some(ra => {
+            const a = accessories.find(x => x.id === ra.accessoryId || x.code === ra.accessoryId);
+            return a && (a.detail.toUpperCase().includes('ESCUADRA') || a.code.toUpperCase().includes('ESCUADRA'));
+          });
+          const hasAccButilo = activeAccessories.some(ra => {
+            const a = accessories.find(x => x.id === ra.accessoryId || x.code === ra.accessoryId);
+            return a && (a.detail.toUpperCase().includes('BUTILO') || a.code.toUpperCase().includes('BUTILO'));
+          });
+
+          const panePMeters = (((pane.w + pane.h) * 2) / 1000);
           dvhInputs
             .filter((i) => i.type !== "Cámara")
-            .forEach(
-              (input) =>
-                (glassCost += Number(input.cost || 0) * areaM2 * leafMultiplier),
-            );
+            .forEach((input) => {
+              if (input.type === "Sales" && !hasAccSales) {
+                const grams = calculateSalesGrams(panePMeters, cameraThickness);
+                glassCost += (grams / 1000) * Number(input.cost || 0) * leafMultiplier;
+              } else if (input.type === "Escuadras" && !hasAccEscuadras) {
+                glassCost += 4 * Number(input.cost || 0) * leafMultiplier;
+              } else if (input.type === "Butilo" && !hasAccButilo) {
+                glassCost += (panePMeters * 2) * Number(input.cost || 0) * leafMultiplier;
+              }
+            });
           
           if (!blindPanes.includes(sectionIndex) && effectiveCameraIdGlass) {
-             const { profiles: rawDvhProfs } = getDVHExtras(recipes, isDVH);
+             const { profiles: rawDvhProfs } = getDVHExtras(recipes, isDVH, dvhInputs, accessories, profiles);
              const dvhProfs = filterDVHProfiles(rawDvhProfs, isDVH, effectiveCameraIdGlass, dvhInputs, profiles) as any[];
              const wasteFactor = 1.1; // Default 10% waste for DVH profiles
              dvhProfs.forEach(rp => {

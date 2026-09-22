@@ -19,9 +19,24 @@ import {
   Link2,
   Split,
   Tag,
+  Layers,
+  Sparkles,
+  X,
+  Sliders,
+  Zap,
+  CheckCircle2,
+  Settings2,
+  Info,
+  ChevronUp,
+  ArrowRight,
+  ShieldCheck,
+  HelpCircle,
 } from "lucide-react";
 import {
   ProductRecipe,
+  ComplementaryCategory,
+  ComplementActivationRule,
+  isComplementaryRecipe,
   AluminumProfile,
   Accessory,
   RecipeProfile,
@@ -619,6 +634,123 @@ const DEFAULT_VISUAL_TYPES: CustomVisualType[] = [
     description: "Vidrio con dos mini postes inferiores y pasamano superior.",
   },
 ];
+export const COMPLEMENTARY_CATEGORIES: {
+  id: ComplementaryCategory;
+  label: string;
+  iconText: string;
+  defaultRef: "module" | "leaf" | "glass_pane";
+  description: string;
+  defaultTrigger: "switch" | "dimension" | "glass_type" | "always" | "manual";
+  defaultLabel: string;
+}[] = [
+  {
+    id: "mosquitero",
+    label: "Mosquitero (Corredizo, Fijo, Enrollable)",
+    iconText: "🦟",
+    defaultRef: "leaf",
+    description: "Marco de mosquitero y tela instalada sobre hojas o guías exteriores.",
+    defaultTrigger: "switch",
+    defaultLabel: "Incluir Mosquitero",
+  },
+  {
+    id: "dvh",
+    label: "Cámara DVH / Doble Vidriado",
+    iconText: "🪟",
+    defaultRef: "glass_pane",
+    description: "Perfil separador, sales desecantes y selladores para unidades de doble vidrio.",
+    defaultTrigger: "glass_type",
+    defaultLabel: "Cámara DVH",
+  },
+  {
+    id: "cortina_persiana",
+    label: "Persiana / Cortina de Enrollar",
+    iconText: "🪟",
+    defaultRef: "module",
+    description: "Cajón compacto, guías laterales y paño de lamas de persiana.",
+    defaultTrigger: "switch",
+    defaultLabel: "Incluir Cortina de Enrollar",
+  },
+  {
+    id: "premarco",
+    label: "Premarco y Grampas de Anclaje",
+    iconText: "🏗️",
+    defaultRef: "module",
+    description: "Perfiles de aluminio para fijación previa en mampostería.",
+    defaultTrigger: "switch",
+    defaultLabel: "Incluir Premarco",
+  },
+  {
+    id: "tapajuntas_contramarco",
+    label: "Contramarco / Tapajuntas Perimetral",
+    iconText: "📐",
+    defaultRef: "module",
+    description: "Embellecedor perimetral para cubrir la unión entre el marco y la pared.",
+    defaultTrigger: "switch",
+    defaultLabel: "Incluir Tapajuntas",
+  },
+  {
+    id: "refuerzo_inercial",
+    label: "Refuerzo Inercial / Poste de Acople",
+    iconText: "🏛️",
+    defaultRef: "module",
+    description: "Tubo o perfil reforzado para resistir cargas de viento en grandes luces.",
+    defaultTrigger: "dimension",
+    defaultLabel: "Refuerzo Estructural",
+  },
+  {
+    id: "baranda_pasamanos",
+    label: "Pasamanos y Soportes de Baranda",
+    iconText: "🪜",
+    defaultRef: "module",
+    description: "Pasamanos superior y conectores de seguridad para barandas.",
+    defaultTrigger: "always",
+    defaultLabel: "Pasamanos Superior",
+  },
+  {
+    id: "cierre_seguridad",
+    label: "Cierre Multipunto / Accesorios Especiales",
+    iconText: "🔒",
+    defaultRef: "leaf",
+    description: "Herrajes perimetrales o de seguridad adicionales.",
+    defaultTrigger: "switch",
+    defaultLabel: "Cierre Multipunto",
+  },
+  {
+    id: "subestructura_personalizada",
+    label: "Otra Subestructura Personalizada",
+    iconText: "🧩",
+    defaultRef: "module",
+    description: "Cualquier complemento modular o auxiliar diseñado a medida.",
+    defaultTrigger: "manual",
+    defaultLabel: "Complemento Personalizado",
+  },
+];
+
+export const getActivationRuleSummary = (rule?: ComplementActivationRule): string => {
+  if (!rule || !rule.triggerType) {
+    return "Activación manual / Sin condición configurada";
+  }
+  switch (rule.triggerType) {
+    case "switch":
+      return `Con interruptor "${rule.switchLabel || "Incluir Complemento"}" (${rule.defaultActiveInQuoter ? "Activo por defecto" : "Opcional"})`;
+    case "dimension": {
+      const parts: string[] = [];
+      if (rule.minWidth) parts.push(`Ancho W ≥ ${rule.minWidth}mm`);
+      if (rule.minHeight) parts.push(`Alto H ≥ ${rule.minHeight}mm`);
+      if (rule.minArea) parts.push(`Área ≥ ${rule.minArea}m²`);
+      return parts.length > 0 ? `Automático si ${parts.join(" o ")}` : "Automático por dimensiones";
+    }
+    case "glass_type":
+      return "Automático si la abertura usa Vidrio DVH";
+    case "always":
+      return "Siempre activo (Obligatorio en tipologías compatibles)";
+    case "manual":
+      return "Selección manual a demanda en el cotizador";
+    default:
+      return "Condición personalizada";
+  }
+};
+
 const ProductRecipeEditor: React.FC<Props> = ({
   recipes,
   setRecipes,
@@ -629,16 +761,34 @@ const ProductRecipeEditor: React.FC<Props> = ({
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
+  const [recipeTypeFilter, setRecipeTypeFilter] = useState<"all" | "standard" | "complementary">("all");
+  const [isNewRecipeModalOpen, setIsNewRecipeModalOpen] = useState(false);
+  const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
-  const addNewRecipe = () => {
+
+  const createRecipe = (isComp: boolean) => {
+    const defaultCat = COMPLEMENTARY_CATEGORIES[0];
     const newRecipe: ProductRecipe = {
       id: Date.now().toString(),
-      name: "NUEVA CARPINTERÍA",
-      line: "LÍNEA BASE",
-      type: "Ventana",
-      visualType: "sliding_2_45",
+      name: isComp ? "NUEVO MOSQUITERO COMPLEMENTARIO" : "NUEVA CARPINTERÍA",
+      line: isComp ? "UNIVERSAL" : "LÍNEA BASE",
+      type: isComp ? "Complementaria" : "Ventana",
+      isComplementary: isComp,
+      recipeNature: isComp ? "complementary" : "standard",
+      complementCategory: isComp ? "mosquitero" : undefined,
+      complementaryType: isComp ? "mosquitero" : undefined,
+      compatibleTypologies: isComp ? ["Ventana", "Puerta"] : undefined,
+      dimensionReference: isComp ? "leaf" : undefined,
+      activationRule: isComp
+        ? {
+            triggerType: "switch",
+            switchLabel: "Incluir Mosquitero",
+            defaultActiveInQuoter: false,
+          }
+        : undefined,
+      visualType: isComp ? undefined : "sliding_2_45",
       profiles: [],
       accessories: [],
       glassFormulaW: "W - 50",
@@ -648,6 +798,11 @@ const ProductRecipeEditor: React.FC<Props> = ({
     };
     setRecipes([...recipes, newRecipe]);
     setEditingId(newRecipe.id);
+    setIsNewRecipeModalOpen(false);
+  };
+
+  const addNewRecipe = () => {
+    setIsNewRecipeModalOpen(true);
   };
   const updateRecipe = (id: string, data: Partial<ProductRecipe>) =>
     setRecipes(recipes.map((r) => (r.id === id ? { ...r, ...data } : r)));
@@ -697,17 +852,21 @@ const ProductRecipeEditor: React.FC<Props> = ({
   const recipe = recipes.find((r) => r.id === editingId);
   const filteredRecipes = useMemo(() => {
     return [...recipes]
-      .filter(
-        (r) =>
+      .filter((r) => {
+        const isComp = isComplementaryRecipe(r);
+        if (recipeTypeFilter === "standard" && isComp) return false;
+        if (recipeTypeFilter === "complementary" && !isComp) return false;
+        return (
           (r.name || "")
             .toLowerCase()
             .includes((searchFilter || "").toLowerCase()) ||
           (r.line || "")
             .toLowerCase()
-            .includes((searchFilter || "").toLowerCase()),
-      )
+            .includes((searchFilter || "").toLowerCase())
+        );
+      })
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [recipes, searchFilter]);
+  }, [recipes, searchFilter, recipeTypeFilter]);
   const handleExportRecipes = () => {
     // Enriquecer las recetas con los códigos de perfiles y accesorios para que al importar en otra cuenta se puedan vincular
     const enrichedRecipes = recipes.map((r) => ({
@@ -987,6 +1146,90 @@ const ProductRecipeEditor: React.FC<Props> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Nueva Ingeniería con 2 opciones */}
+      {isNewRecipeModalOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-6 lg:p-8 shadow-2xl border border-slate-100 space-y-6 relative animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setIsNewRecipeModalOpen(false)}
+              className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-sky-100 text-sky-600 rounded-2xl mb-1 shadow-sm">
+                <Plus size={24} />
+              </div>
+              <h3 className="text-xl font-black uppercase text-slate-800 tracking-tight">
+                Nueva Ingeniería
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">
+                Selecciona el tipo de receta que deseas diseñar y configurar:
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 pt-2">
+              {/* Opción 1: Receta de Tipología (Estándar) */}
+              <button
+                onClick={() => createRecipe(false)}
+                className="group text-left p-5 rounded-2xl border-2 border-sky-200 bg-sky-50/60 hover:bg-sky-100/80 hover:border-sky-500 transition-all shadow-sm flex items-start gap-4 active:scale-[0.98]"
+              >
+                <div className="w-12 h-12 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <Shapes size={24} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-black text-sm uppercase text-sky-950">
+                      1. Receta de Tipología
+                    </span>
+                    <span className="text-[9px] font-black uppercase bg-sky-200 text-sky-800 px-2 py-0.5 rounded-full">
+                      Estándar
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-sky-800 font-medium leading-relaxed">
+                    Ventanas (corredizas, batientes, oscilobatientes), puertas, paños fijos, banderolas y mamparas que se cotizan como aberturas principales.
+                  </p>
+                </div>
+              </button>
+
+              {/* Opción 2: Receta Complementaria */}
+              <button
+                onClick={() => createRecipe(true)}
+                className="group text-left p-5 rounded-2xl border-2 border-purple-300 bg-purple-50/70 hover:bg-purple-100/90 hover:border-purple-600 transition-all shadow-sm flex items-start gap-4 active:scale-[0.98]"
+              >
+                <div className="w-12 h-12 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <Layers size={24} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-black text-sm uppercase text-purple-950">
+                      2. Receta Complementaria
+                    </span>
+                    <span className="text-[9px] font-black uppercase bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full">
+                      Estructura / Auxiliar
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-purple-800 font-medium leading-relaxed">
+                    Subestructuras internas y auxiliares (DVH, mosquiteros integrados, cortinas de enrollar, premarcos) que complementan o se acoplan a una tipología.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setIsNewRecipeModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl text-slate-500 font-bold text-xs uppercase tracking-wider hover:bg-slate-100 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full lg:w-80 flex flex-col gap-4">
         <div className="bg-white border border-slate-200 rounded-[1.5rem] p-5 shadow-sm flex flex-col h-auto lg:h-[85vh] transition-colors">
           <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
@@ -999,42 +1242,99 @@ const ProductRecipeEditor: React.FC<Props> = ({
               </h3>
             </div>
           </div>
-          <div className="relative mt-4">
+
+          {/* Filtro de Pestañas: Todas / Tipologías / Complementarias */}
+          <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl gap-1 mt-3">
+            <button
+              onClick={() => setRecipeTypeFilter("all")}
+              className={`py-1.5 px-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all text-center ${recipeTypeFilter === "all" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+            >
+              Todas
+            </button>
+            <button
+              onClick={() => setRecipeTypeFilter("standard")}
+              className={`py-1.5 px-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all text-center ${recipeTypeFilter === "standard" ? "bg-sky-500 text-white shadow-sm" : "text-slate-500 hover:text-sky-600"}`}
+            >
+              Tipologías
+            </button>
+            <button
+              onClick={() => setRecipeTypeFilter("complementary")}
+              className={`py-1.5 px-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all text-center ${recipeTypeFilter === "complementary" ? "bg-purple-600 text-white shadow-sm" : "text-purple-600 hover:text-purple-800"}`}
+            >
+              Complem.
+            </button>
+          </div>
+
+          <div className="relative mt-3">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300"
               size={14}
             />
             <input
               className="w-full bg-slate-50 border border-slate-100 pl-9 pr-3 py-2.5 rounded-xl text-[10px] font-bold uppercase outline-none focus:border-sky-500 shadow-inner"
-              placeholder="Filtrar..."
+              placeholder="Filtrar por nombre o línea..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
             />
           </div>
+
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1 mt-4">
-            {filteredRecipes.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => handleSelectRecipe(r.id)}
-                className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${editingId === r.id ? "bg-sky-500 border-sky-600 text-white shadow-lg" : "bg-white border-slate-50 hover:border-sky-200 text-slate-600"}`}
-              >
-                <div className={`w-11 h-11 rounded-xl border p-1 shrink-0 flex items-center justify-center transition-colors ${editingId === r.id ? "bg-white/10 border-white/20" : "bg-slate-50 border-slate-100"}`}>
-                  <RecipeIllustrationPreview visualType={r.visualType || ""} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span
-                      className={`text-[8px] font-black uppercase tracking-widest ${editingId === r.id ? "text-sky-200" : "text-sky-600"}`}
-                    >
-                      {r.line}
+            {filteredRecipes.map((r) => {
+              const isComp = isComplementaryRecipe(r);
+              const isSelected = editingId === r.id;
+
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => handleSelectRecipe(r.id)}
+                  className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${
+                    isSelected
+                      ? isComp
+                        ? "bg-purple-600 border-purple-700 text-white shadow-lg"
+                        : "bg-sky-500 border-sky-600 text-white shadow-lg"
+                      : isComp
+                        ? "bg-purple-50/70 border-purple-200 hover:border-purple-400 text-purple-950"
+                        : "bg-white border-slate-100 hover:border-sky-200 text-slate-600"
+                  }`}
+                >
+                  <div
+                    className={`w-11 h-11 rounded-xl border p-1 shrink-0 flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? "bg-white/20 border-white/30"
+                        : isComp
+                          ? "bg-purple-100/90 border-purple-200 text-purple-700"
+                          : "bg-slate-50 border-slate-100"
+                    }`}
+                  >
+                    {isComp ? (
+                      <Layers size={18} className={isSelected ? "text-white" : "text-purple-600"} />
+                    ) : (
+                      <RecipeIllustrationPreview visualType={r.visualType || ""} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center mb-0.5">
+                      <span
+                        className={`text-[8px] font-black uppercase tracking-widest ${
+                          isSelected
+                            ? isComp
+                              ? "text-purple-200"
+                              : "text-sky-200"
+                            : isComp
+                              ? "text-purple-600 font-bold"
+                              : "text-sky-600"
+                        }`}
+                      >
+                        {isComp ? "⚡ COMPLEMENTARIA" : r.line}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-black uppercase truncate block">
+                      {r.name}
                     </span>
                   </div>
-                  <span className="text-[11px] font-black uppercase truncate block">
-                    {r.name}
-                  </span>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
           <div className="grid grid-cols-2 gap-2 mt-4">
             <button
@@ -1059,7 +1359,7 @@ const ProductRecipeEditor: React.FC<Props> = ({
           </div>
           <button
             onClick={addNewRecipe}
-            className="w-full bg-slate-900 text-white font-black py-4 rounded-xl text-[9px] uppercase tracking-widest hover:bg-sky-500 transition-all mt-2"
+            className="w-full bg-slate-900 text-white font-black py-4 rounded-xl text-[9px] uppercase tracking-widest hover:bg-sky-500 transition-all mt-2 flex items-center justify-center gap-2"
           >
             <Plus size={14} /> Nueva Ingeniería
           </button>
@@ -1079,17 +1379,23 @@ const ProductRecipeEditor: React.FC<Props> = ({
       </div>
       <div className="flex-1 min-w-0">
         {recipe ? (
-          <div className="bg-white border border-slate-200 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm h-auto lg:h-[85vh] overflow-y-auto custom-scrollbar space-y-6 lg:space-y-8 border-t-8 border-t-sky-500 transition-colors">
+          <div className={`bg-white border border-slate-200 rounded-[2rem] lg:rounded-[2.5rem] p-4 lg:p-8 shadow-sm h-auto lg:h-[85vh] overflow-y-auto custom-scrollbar space-y-6 lg:space-y-8 transition-colors ${
+            isComplementaryRecipe(recipe)
+              ? "border-t-8 border-t-purple-600"
+              : "border-t-8 border-t-sky-500"
+          }`}>
             <div className="flex flex-col lg:flex-row gap-6 items-stretch">
-              {/* Illustration Preview Side-Box (Top Left) */}
-              <div className="w-full lg:w-48 shrink-0 bg-slate-50 border border-slate-200 rounded-[2rem] p-5 flex flex-col shadow-inner relative border-t-4 border-t-sky-400">
-                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
-                  Diseño de Abertura
-                </span>
-                <div className="w-full flex-1 min-h-[140px] flex items-center justify-center bg-white rounded-[1.5rem] p-3 border border-slate-100 shadow-sm relative overflow-hidden group">
-                  <RecipeIllustrationPreview visualType={recipe.visualType} />
+              {/* Illustration Preview Side-Box (Top Left) - Solo para Tipologías Estándar */}
+              {!isComplementaryRecipe(recipe) && (
+                <div className="w-full lg:w-48 shrink-0 bg-slate-50 border border-slate-200 rounded-[2rem] p-5 flex flex-col shadow-inner relative border-t-4 border-t-sky-400">
+                  <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider mb-2.5">
+                    Diseño de Abertura
+                  </span>
+                  <div className="w-full flex-1 min-h-[140px] flex items-center justify-center bg-white rounded-[1.5rem] p-3 border border-slate-100 shadow-sm relative overflow-hidden group">
+                    <RecipeIllustrationPreview visualType={recipe.visualType} />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Header Box (Right) */}
               <div className="flex-1 min-w-0 bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm">
@@ -1148,12 +1454,43 @@ const ProductRecipeEditor: React.FC<Props> = ({
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-4 items-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextComp = !isComplementaryRecipe(recipe);
+                          updateRecipe(recipe.id, {
+                            isComplementary: nextComp,
+                            recipeNature: nextComp ? "complementary" : "standard",
+                            type: nextComp ? "Complementaria" : "Ventana",
+                          });
+                        }}
+                        className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border ${
+                          isComplementaryRecipe(recipe)
+                            ? "bg-purple-600 text-white border-purple-700 shadow-md"
+                            : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                        }`}
+                      >
+                        <Layers size={13} />
+                        {isComplementaryRecipe(recipe)
+                          ? "⚡ Receta Complementaria"
+                          : "Tipología Estándar"}
+                      </button>
+
                       <select
-                        className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-600 outline-none"
+                        className={`border rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none ${
+                          isComplementaryRecipe(recipe)
+                            ? "bg-purple-50 border-purple-200 text-purple-700"
+                            : "bg-slate-50 border-slate-100 text-sky-600"
+                        }`}
                         value={recipe.type || ""}
-                        onChange={(e) =>
-                          updateRecipe(recipe.id, { type: e.target.value as any })
-                        }
+                        onChange={(e) => {
+                          const isComp = e.target.value === "Complementaria";
+                          updateRecipe(recipe.id, {
+                            type: e.target.value as any,
+                            isComplementary: isComp ? true : recipe.isComplementary,
+                            recipeNature: isComp ? "complementary" : recipe.recipeNature,
+                          });
+                        }}
                       >
                         {[
                           "Ventana",
@@ -1164,81 +1501,87 @@ const ProductRecipeEditor: React.FC<Props> = ({
                           "Baranda",
                           "Vidriera",
                           "Piel de Vidrio",
+                          "Mosquitero",
+                          "Complementaria",
                         ].map((v) => (
                           <option key={v} value={v}>
                             {v}
                           </option>
                         ))}
                       </select>
-                      <select
-                        className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none"
-                        value={recipe.visualType || ""}
-                        onChange={(e) =>
-                          updateRecipe(recipe.id, { visualType: e.target.value })
-                        }
-                      >
-                        {DEFAULT_VISUAL_TYPES.map((vt) => (
-                          <option key={vt.id} value={vt.id}>
-                            {vt.label}
-                          </option>
-                        ))}
-                      </select>
-                      <div
-                        className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 rounded-xl border border-sky-100/50 `}
-                      >
-                        <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">
-                          Línea:
-                        </span>
-                        <input
-                          className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 outline-none w-24"
-                          value={recipe.line || ""}
-                          onChange={(e) =>
-                            updateRecipe(recipe.id, {
-                              line: e.target.value.toUpperCase(),
-                            })
-                          }
-                        />
-                      </div>
-                      <div
-                        className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-xl border border-emerald-100/50 `}
-                      >
-                        <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
-                          Cant. Hojas:
-                        </span>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          placeholder="Auto"
-                          className="bg-transparent border-none text-[10px] font-black uppercase text-emerald-700 outline-none w-12 text-center"
-                          value={recipe.leaves || ""}
-                          onChange={(e) =>
-                            updateRecipe(recipe.id, {
-                              leaves: e.target.value
-                                ? parseInt(e.target.value)
-                                : undefined,
-                            })
-                          }
-                        />
-                      </div>
-                      {isTubeType && (
-                        <div
-                          className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 rounded-xl border border-amber-200 animate-in zoom-in`}
-                        >
-                          <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">
-                            Espesor (mm):
-                          </span>
-                          <input
-                            type="number"
-                            className="bg-transparent border-none text-[10px] font-black text-amber-700 outline-none w-16 text-center"
-                            value={recipe.transomThickness || 100}
+                      {!isComplementaryRecipe(recipe) && (
+                        <>
+                          <select
+                            className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none"
+                            value={recipe.visualType || ""}
                             onChange={(e) =>
-                              updateRecipe(recipe.id, {
-                                transomThickness: parseInt(e.target.value) || 0,
-                              })
+                              updateRecipe(recipe.id, { visualType: e.target.value })
                             }
-                          />
-                        </div>
+                          >
+                            {DEFAULT_VISUAL_TYPES.map((vt) => (
+                              <option key={vt.id} value={vt.id}>
+                                {vt.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div
+                            className={`flex items-center gap-2 px-3 py-2 bg-sky-50/50 rounded-xl border border-sky-100/50 `}
+                          >
+                            <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest">
+                              Línea:
+                            </span>
+                            <input
+                              className="bg-transparent border-none text-[10px] font-black uppercase text-sky-600 outline-none w-24"
+                              value={recipe.line || ""}
+                              onChange={(e) =>
+                                updateRecipe(recipe.id, {
+                                  line: e.target.value.toUpperCase(),
+                                })
+                              }
+                            />
+                          </div>
+                          <div
+                            className={`flex items-center gap-2 px-3 py-2 bg-emerald-50/50 rounded-xl border border-emerald-100/50 `}
+                          >
+                            <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">
+                              Cant. Hojas:
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              placeholder="Auto"
+                              className="bg-transparent border-none text-[10px] font-black uppercase text-emerald-700 outline-none w-12 text-center"
+                              value={recipe.leaves || ""}
+                              onChange={(e) =>
+                                updateRecipe(recipe.id, {
+                                  leaves: e.target.value
+                                    ? parseInt(e.target.value)
+                                    : undefined,
+                                })
+                              }
+                            />
+                          </div>
+                          {isTubeType && (
+                            <div
+                              className={`flex items-center gap-2 px-3 py-2 bg-amber-50/50 rounded-xl border border-amber-200 animate-in zoom-in`}
+                            >
+                              <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">
+                                Espesor (mm):
+                              </span>
+                              <input
+                                type="number"
+                                className="bg-transparent border-none text-[10px] font-black text-amber-700 outline-none w-16 text-center"
+                                value={recipe.transomThickness || 100}
+                                onChange={(e) =>
+                                  updateRecipe(recipe.id, {
+                                    transomThickness: parseInt(e.target.value) || 0,
+                                  })
+                                }
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -1271,6 +1614,451 @@ const ProductRecipeEditor: React.FC<Props> = ({
                 </div>
               </div>
             </div>
+
+            {/* Sección de Configuración de Receta Complementaria / Subestructura */}
+            {isComplementaryRecipe(recipe) && (
+              <div className="bg-gradient-to-br from-purple-50/90 via-white to-purple-50/50 border-2 border-purple-200 rounded-[2rem] p-5 lg:p-6 shadow-md space-y-5 animate-in fade-in">
+                {/* Header de la sección */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-purple-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shrink-0">
+                      <Layers size={22} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-black uppercase text-purple-950 tracking-wider">
+                          Menú de Posibilidades y Reglas de Integración
+                        </h4>
+                        <span className="text-[9px] font-black uppercase bg-purple-200 text-purple-900 px-2 py-0.5 rounded-full">
+                          Complementaria
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-purple-700 font-medium mt-0.5">
+                        Define la categoría de subestructura, su referencia de corte y sus condiciones de activación inteligente.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Botón Destacado: DEBE ACTIVARSE SI... */}
+                  <button
+                    type="button"
+                    onClick={() => setIsActivationModalOpen(true)}
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20 active:scale-95 transition-all border border-purple-500"
+                  >
+                    <Zap size={15} className="animate-pulse text-amber-300" />
+                    <span>Debe activarse si...</span>
+                    <Settings2 size={14} className="opacity-80 ml-1" />
+                  </button>
+                </div>
+
+                {/* Resumen actual de la regla de activación */}
+                <div className="bg-white border border-purple-100 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-inner">
+                  <div className="flex items-center gap-2 text-[11px] text-purple-900">
+                    <span className="font-black text-[9px] uppercase tracking-widest text-purple-600 bg-purple-100 px-2 py-0.5 rounded">
+                      Regla Activa:
+                    </span>
+                    <span className="font-bold">
+                      {getActivationRuleSummary(recipe.activationRule)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsActivationModalOpen(true)}
+                    className="text-[9px] font-black uppercase text-purple-600 hover:text-purple-800 underline tracking-wider"
+                  >
+                    Cambiar condición
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  {/* Selector 1: Posibilidades de Complementos (Menú de Categorías) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase text-purple-950 tracking-wider flex items-center gap-1.5">
+                      <Sliders size={12} className="text-purple-600" />
+                      Posibilidad / Categoría de Uso:
+                    </label>
+                    <select
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase text-purple-950 outline-none focus:border-purple-600 shadow-sm"
+                      value={recipe.complementCategory || "mosquitero"}
+                      onChange={(e) => {
+                        const newCatId = e.target.value as ComplementaryCategory;
+                        const catData = COMPLEMENTARY_CATEGORIES.find((c) => c.id === newCatId);
+                        if (catData) {
+                          updateRecipe(recipe.id, {
+                            complementCategory: newCatId,
+                            complementaryType: newCatId === "dvh" ? "dvh" : newCatId === "mosquitero" ? "mosquitero" : newCatId === "cortina_persiana" ? "cortina" : newCatId === "premarco" ? "premarco" : "otro",
+                            dimensionReference: catData.defaultRef,
+                            activationRule: {
+                              triggerType: catData.defaultTrigger,
+                              switchLabel: catData.defaultLabel,
+                              defaultActiveInQuoter: false,
+                            },
+                          });
+                        }
+                      }}
+                    >
+                      {COMPLEMENTARY_CATEGORIES.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.iconText} {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[9px] text-purple-600 italic leading-tight">
+                      {COMPLEMENTARY_CATEGORIES.find((c) => c.id === (recipe.complementCategory || "mosquitero"))?.description}
+                    </p>
+                  </div>
+
+                  {/* Selector 2: Referencia Dimensional para Fórmulas de Corte */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase text-purple-950 tracking-wider flex items-center gap-1.5">
+                      <Ruler size={12} className="text-purple-600" />
+                      Referencia de Fórmulas (W y H):
+                    </label>
+                    <select
+                      className="w-full bg-white border border-purple-200 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase text-purple-950 outline-none focus:border-purple-600 shadow-sm"
+                      value={recipe.dimensionReference || "module"}
+                      onChange={(e) =>
+                        updateRecipe(recipe.id, {
+                          dimensionReference: e.target.value as any,
+                        })
+                      }
+                    >
+                      <option value="module">📏 Medida Total del Módulo (W, H exterior)</option>
+                      <option value="leaf">🪟 Medida de Hoja Contenedora (W_hoja, H_hoja)</option>
+                      <option value="glass_pane">🧊 Medida de Paño de Vidrio (W_vidrio, H_vidrio)</option>
+                    </select>
+                    <p className="text-[9px] text-purple-600 italic leading-tight">
+                      Define sobre qué medida base aplican las fórmulas W y H en el despiece.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal de Configuración: "Debe activarse si..." */}
+            {isActivationModalOpen && (
+              <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-6 lg:p-8 shadow-2xl border-2 border-purple-200 space-y-6 relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                  <button
+                    onClick={() => setIsActivationModalOpen(false)}
+                    className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+
+                  <div className="text-center space-y-1">
+                    <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-700 rounded-2xl mb-1 shadow-sm">
+                      <Zap size={24} />
+                    </div>
+                    <h3 className="text-xl font-black uppercase text-slate-800 tracking-tight flex items-center justify-center gap-2">
+                      Debe activarse si...
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">
+                      Configura la regla lógica para que este complemento se incluya en el Cotizador.
+                    </p>
+                  </div>
+
+                  {/* Opciones de Modos de Activación */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider block">
+                      Selecciona la condición de disparo:
+                    </label>
+
+                    {/* Modo 1: Interruptor / Switch en Cotizador */}
+                    <div
+                      onClick={() =>
+                        updateRecipe(recipe.id, {
+                          activationRule: {
+                            ...(recipe.activationRule || {}),
+                            triggerType: "switch",
+                            switchLabel: recipe.activationRule?.switchLabel || `Incluir ${recipe.name || "Complemento"}`,
+                          },
+                        })
+                      }
+                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                        (recipe.activationRule?.triggerType || "switch") === "switch"
+                          ? "bg-purple-50/80 border-purple-600 shadow-sm"
+                          : "bg-white border-slate-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">🔘</span>
+                          <div>
+                            <span className="font-black text-xs uppercase text-slate-800 block">
+                              1. Por Interruptor / Checkbox en Cotizador (Opcional a pedido)
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Muestra una casilla o switch configurable al cotizar la abertura.
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            (recipe.activationRule?.triggerType || "switch") === "switch"
+                              ? "border-purple-600 bg-purple-600 text-white"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {(recipe.activationRule?.triggerType || "switch") === "switch" && <Check size={12} />}
+                        </div>
+                      </div>
+
+                      {(recipe.activationRule?.triggerType || "switch") === "switch" && (
+                        <div className="mt-4 pt-3 border-t border-purple-200 space-y-3 pl-8 animate-in fade-in">
+                          <div>
+                            <label className="text-[9px] font-black uppercase text-purple-900 tracking-wider block mb-1">
+                              Texto del Interruptor en Cotizador:
+                            </label>
+                            <input
+                              type="text"
+                              value={recipe.activationRule?.switchLabel || ""}
+                              onChange={(e) =>
+                                updateRecipe(recipe.id, {
+                                  activationRule: {
+                                    ...(recipe.activationRule || { triggerType: "switch" }),
+                                    switchLabel: e.target.value,
+                                  },
+                                })
+                              }
+                              placeholder="Ej: Incluir Mosquitero Corredizo"
+                              className="w-full bg-white border border-purple-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-purple-600 shadow-inner"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="defaultActiveSwitch"
+                              checked={Boolean(recipe.activationRule?.defaultActiveInQuoter)}
+                              onChange={(e) =>
+                                updateRecipe(recipe.id, {
+                                  activationRule: {
+                                    ...(recipe.activationRule || { triggerType: "switch" }),
+                                    defaultActiveInQuoter: e.target.checked,
+                                  },
+                                })
+                              }
+                              className="w-4 h-4 text-purple-600 rounded"
+                            />
+                            <label htmlFor="defaultActiveSwitch" className="text-[10px] font-bold text-slate-700">
+                              Aparecer marcado (activado) por defecto al cotizar
+                            </label>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Modo 2: Automático por Medidas (Dimensional) */}
+                    <div
+                      onClick={() =>
+                        updateRecipe(recipe.id, {
+                          activationRule: {
+                            ...(recipe.activationRule || {}),
+                            triggerType: "dimension",
+                            minWidth: recipe.activationRule?.minWidth || 1800,
+                            minHeight: recipe.activationRule?.minHeight || 2200,
+                          },
+                        })
+                      }
+                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                        recipe.activationRule?.triggerType === "dimension"
+                          ? "bg-purple-50/80 border-purple-600 shadow-sm"
+                          : "bg-white border-slate-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">📏</span>
+                          <div>
+                            <span className="font-black text-xs uppercase text-slate-800 block">
+                              2. Automático por Medidas (Condición Dimensional / Grandes Luces)
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Se añade automáticamente si la abertura supera el ancho o alto configurado.
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            recipe.activationRule?.triggerType === "dimension"
+                              ? "border-purple-600 bg-purple-600 text-white"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {recipe.activationRule?.triggerType === "dimension" && <Check size={12} />}
+                        </div>
+                      </div>
+
+                      {recipe.activationRule?.triggerType === "dimension" && (
+                        <div className="mt-4 pt-3 border-t border-purple-200 grid grid-cols-3 gap-3 pl-8 animate-in fade-in">
+                          <div>
+                            <label className="text-[9px] font-black uppercase text-purple-900 tracking-wider block mb-1">
+                              Ancho W ≥ (mm):
+                            </label>
+                            <input
+                              type="number"
+                              value={recipe.activationRule?.minWidth || ""}
+                              onChange={(e) =>
+                                updateRecipe(recipe.id, {
+                                  activationRule: {
+                                    ...(recipe.activationRule || { triggerType: "dimension" }),
+                                    minWidth: e.target.value ? parseInt(e.target.value) : undefined,
+                                  },
+                                })
+                              }
+                              placeholder="Ej: 1800"
+                              className="w-full bg-white border border-purple-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-purple-600 text-center shadow-inner"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black uppercase text-purple-900 tracking-wider block mb-1">
+                              Alto H ≥ (mm):
+                            </label>
+                            <input
+                              type="number"
+                              value={recipe.activationRule?.minHeight || ""}
+                              onChange={(e) =>
+                                updateRecipe(recipe.id, {
+                                  activationRule: {
+                                    ...(recipe.activationRule || { triggerType: "dimension" }),
+                                    minHeight: e.target.value ? parseInt(e.target.value) : undefined,
+                                  },
+                                })
+                              }
+                              placeholder="Ej: 2200"
+                              className="w-full bg-white border border-purple-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-purple-600 text-center shadow-inner"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black uppercase text-purple-900 tracking-wider block mb-1">
+                              Área ≥ (m²):
+                            </label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={recipe.activationRule?.minArea || ""}
+                              onChange={(e) =>
+                                updateRecipe(recipe.id, {
+                                  activationRule: {
+                                    ...(recipe.activationRule || { triggerType: "dimension" }),
+                                    minArea: e.target.value ? parseFloat(e.target.value) : undefined,
+                                  },
+                                })
+                              }
+                              placeholder="Ej: 3.5"
+                              className="w-full bg-white border border-purple-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-purple-600 text-center shadow-inner"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Modo 3: Automático si usa DVH */}
+                    <div
+                      onClick={() =>
+                        updateRecipe(recipe.id, {
+                          activationRule: {
+                            ...(recipe.activationRule || {}),
+                            triggerType: "glass_type",
+                            requiresDVH: true,
+                          },
+                        })
+                      }
+                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                        recipe.activationRule?.triggerType === "glass_type"
+                          ? "bg-purple-50/80 border-purple-600 shadow-sm"
+                          : "bg-white border-slate-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">🪟</span>
+                          <div>
+                            <span className="font-black text-xs uppercase text-slate-800 block">
+                              3. Automático si el Módulo usa Vidrio DVH
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Se inserta automáticamente en los cálculos cuando la abertura se configura con doble vidriado.
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            recipe.activationRule?.triggerType === "glass_type"
+                              ? "border-purple-600 bg-purple-600 text-white"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {recipe.activationRule?.triggerType === "glass_type" && <Check size={12} />}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Modo 4: Siempre Activo (Obligatorio) */}
+                    <div
+                      onClick={() =>
+                        updateRecipe(recipe.id, {
+                          activationRule: {
+                            ...(recipe.activationRule || {}),
+                            triggerType: "always",
+                          },
+                        })
+                      }
+                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                        recipe.activationRule?.triggerType === "always"
+                          ? "bg-purple-50/80 border-purple-600 shadow-sm"
+                          : "bg-white border-slate-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">⚡</span>
+                          <div>
+                            <span className="font-black text-xs uppercase text-slate-800 block">
+                              4. Siempre Activo (Obligatorio en tipologías compatibles)
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Forma parte permanente del despiece de las aberturas asignadas.
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            recipe.activationRule?.triggerType === "always"
+                              ? "border-purple-600 bg-purple-600 text-white"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {recipe.activationRule?.triggerType === "always" && <Check size={12} />}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resumen explicativo final */}
+                  <div className="bg-purple-100/70 border border-purple-200 rounded-2xl p-4 flex items-start gap-3">
+                    <Info size={18} className="text-purple-700 shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-purple-950 leading-relaxed">
+                      <span className="font-black block uppercase text-[10px] tracking-wider text-purple-800 mb-0.5">
+                        Resultado de la Configuración:
+                      </span>
+                      {getActivationRuleSummary(recipe.activationRule)}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsActivationModalOpen(false)}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-3.5 rounded-2xl text-[10px] uppercase tracking-wider shadow-lg transition-all"
+                    >
+                      Confirmar y Guardar Regla
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                 <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">

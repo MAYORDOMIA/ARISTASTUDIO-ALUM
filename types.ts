@@ -150,6 +150,60 @@ export interface CustomVisualType {
   description: string;
 }
 
+export type ComplementaryCategory =
+  | "dvh"
+  | "mosquitero"
+  | "cortina_persiana"
+  | "premarco"
+  | "tapajuntas_contramarco"
+  | "refuerzo_inercial"
+  | "baranda_pasamanos"
+  | "cierre_seguridad"
+  | "subestructura_personalizada";
+
+export interface ComplementActivationRule {
+  triggerType: "switch" | "dimension" | "glass_type" | "always" | "manual";
+  switchLabel?: string; // ej: "Incluir Mosquitero"
+  defaultActiveInQuoter?: boolean; // si viene tildado por defecto
+  minWidth?: number; // Activar si W >= minWidth
+  maxWidth?: number;
+  minHeight?: number; // Activar si H >= minHeight
+  maxHeight?: number;
+  minArea?: number; // Activar si m² >= minArea
+  requiresDVH?: boolean;
+  applicableLines?: string[]; // Líneas compatibles o vacio para todas
+  applicableTypes?: string[]; // Tipos de abertura compatibles (Ventana, Puerta, etc.)
+  customConditionNote?: string;
+}
+
+export const isComplementaryRecipe = (r?: Partial<ProductRecipe> | null): boolean => {
+  if (!r) return false;
+  if (r.isComplementary === true) return true;
+  if (r.recipeNature === "complementary") return true;
+  if (r.type === "Complementaria") return true;
+  if (Boolean(r.complementCategory)) return true;
+  if (Boolean(r.complementaryType)) return true;
+  if (Boolean(r.activationRule)) return true;
+  const line = (r.line || "").trim().toUpperCase();
+  if (
+    line === "COMPLEMENTARIA" ||
+    line === "COMPLEMENTARIAS" ||
+    line === "COMPLEMENTO" ||
+    line === "COMPLEMENTOS"
+  ) {
+    return true;
+  }
+  const name = (r.name || "").trim().toUpperCase();
+  if (
+    name.includes("INSUMOS") ||
+    name.includes("COMPLEMENTARI") ||
+    name.includes("SUBESTRUCTURA")
+  ) {
+    return true;
+  }
+  return false;
+};
+
 export interface ProductRecipe {
   id: string;
   name: string;
@@ -163,7 +217,16 @@ export interface ProductRecipe {
     | "Baranda"
     | "Vidriera"
     | "Piel de Vidrio"
-    | "Mosquitero";
+    | "Mosquitero"
+    | "Complementaria";
+  isComplementary?: boolean;
+  recipeNature?: "standard" | "complementary";
+  complementaryType?: "dvh" | "mosquitero" | "cortina" | "premarco" | "otro";
+  complementCategory?: ComplementaryCategory;
+  compatibleTypologies?: string[];
+  compatibleLines?: string[];
+  dimensionReference?: "module" | "leaf" | "glass_pane";
+  activationRule?: ComplementActivationRule;
   visualType?: VisualOpeningType;
   profiles: RecipeProfile[];
   accessories: RecipeAccessory[];

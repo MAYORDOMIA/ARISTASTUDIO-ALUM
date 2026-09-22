@@ -12,6 +12,7 @@ import {
   MeasurementModule,
   RecipeAccessory,
   QuoteItemBreakdown,
+  isComplementaryRecipe,
 } from "../types";
 import React, {
   useState,
@@ -59,11 +60,19 @@ import {
   Unlock,
   Link as LinkIcon,
   Maximize2,
+  Sparkles,
 } from "lucide-react";
 import {
   calculateCompositePrice,
   evaluateFormula,
 } from "../services/calculator"; // CONSTANTES TÉCNICAS PARA RENDERIZADO
+import {
+  findDVHRecipe,
+  extractsDVHThickness,
+  calculateSalesGrams,
+  getDVHExtras,
+  filterDVHProfiles,
+} from "../services/dvhHelper";
 import { RecipeIllustrationPreview } from "./ProductRecipeEditor";
 const TJ_LINE_COLOR = "rgba(15, 23, 42, 0.6)";
 interface Segment {
@@ -1721,13 +1730,14 @@ const QuotingModule: React.FC<Props> = ({
   ]); /* Ensure there is always a product selected */
   useEffect(() => {
     if (recipes.length > 0) {
+      const firstStandard = recipes.find((r) => !isComplementaryRecipe(r)) || recipes[0];
       setModules((prev) => {
         const defaultGlassId = glasses.length > 0 ? glasses[0].id : "";
         if (prev.length === 0) {
           return [
             {
               id: "m1",
-              recipeId: recipes[0].id,
+              recipeId: firstStandard.id,
               x: 0,
               y: 0,
               isDVH: false,
@@ -1737,11 +1747,11 @@ const QuotingModule: React.FC<Props> = ({
             },
           ];
         }
-        if (!prev[0].recipeId) {
+        if (!prev[0].recipeId || isComplementaryRecipe(recipes.find((r) => r.id === prev[0].recipeId))) {
           const newMods = [...prev];
           newMods[0] = {
             ...newMods[0],
-            recipeId: recipes[0].id,
+            recipeId: firstStandard.id,
             glassOuterId: newMods[0].glassOuterId || defaultGlassId,
           };
           return newMods;
@@ -1750,6 +1760,26 @@ const QuotingModule: React.FC<Props> = ({
       });
     }
   }, [recipes, glasses]);
+
+  // Sanitizador permanente: Si algún módulo tiene una receta complementaria seleccionada, reemplazarla por una tipología estándar válida
+  useEffect(() => {
+    if (recipes.length > 0) {
+      const firstStandard = recipes.find((r) => !isComplementaryRecipe(r));
+      if (!firstStandard) return;
+      setModules((prev) => {
+        let hasComp = false;
+        const sanitized = prev.map((m) => {
+          const rec = recipes.find((r) => r.id === m.recipeId);
+          if (!rec || isComplementaryRecipe(rec)) {
+            hasComp = true;
+            return { ...m, recipeId: firstStandard.id };
+          }
+          return m;
+        });
+        return hasComp ? sanitized : prev;
+      });
+    }
+  }, [recipes]);
   const [modalPos, setModalPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -1818,10 +1848,13 @@ const QuotingModule: React.FC<Props> = ({
         (a.code || "").toLowerCase().includes("pasamano"),
     );
   }, [aluminum]);
-  const uniqueLines = useMemo(() => {
-    const lines = recipes.map((r) => (r.line || "").toUpperCase());
-    return ["TODOS", ...Array.from(new Set(lines))];
+  const standardRecipes = useMemo(() => {
+    return recipes.filter((r) => !isComplementaryRecipe(r));
   }, [recipes]);
+  const uniqueLines = useMemo(() => {
+    const lines = standardRecipes.map((r) => (r.line || "").toUpperCase()).filter(Boolean);
+    return ["TODOS", ...Array.from(new Set(lines))];
+  }, [standardRecipes]);
   const liveBreakdown = useMemo(() => {
     const treatment = treatments.find((t) => t.id === colorId);
     if (!treatment) return null;
@@ -2186,10 +2219,11 @@ const QuotingModule: React.FC<Props> = ({
     });
     if (recipes.length > 0) {
       const defaultGlassId = glasses.length > 0 ? glasses[0].id : "";
+      const firstStandard = recipes.find((r) => !isComplementaryRecipe(r)) || recipes[0];
       setModules([
         {
           id: "m-" + Date.now(),
-          recipeId: recipes[0].id,
+          recipeId: firstStandard.id,
           x: 0,
           y: 0,
           isDVH: false,
@@ -2840,28 +2874,108 @@ const QuotingModule: React.FC<Props> = ({
     updateModule(editingModuleId, { mullions: redistributed });
   };
 
+  const getCombinedRecipeAccessories = useCallback((mod: MeasurementModule): RecipeAccessory[] => {
+    const modRecipe = recipes.find((r) => r.id === mod.recipeId);
+    const baseAccs: RecipeAccessory[] = modRecipe?.accessories
+      ? modRecipe.accessories.map((a) => ({ ...a }))
+      : [];
+
+    const extraAccs: RecipeAccessory[] = [];
+
+    // 1. DVH Complementary Recipe
+    if (mod.isDVH) {
+      const { accessories: dvhAccs, recipe: dvhRec } = getDVHExtras(
+        recipes,
+        true,
+        dvhInputs,
+        accessories,
+        aluminum
+      );
+      const filteredDvhAccs = filterDVHProfiles(
+        dvhAccs,
+        true,
+        mod.dvhCameraId,
+        dvhInputs,
+        accessories
+      ) as RecipeAccessory[];
+
+      filteredDvhAccs.forEach((da) => {
+        extraAccs.push({
+          ...da,
+          label: da.label || (dvhRec?.name ? `Insumo (${dvhRec.name})` : "Insumo DVH"),
+        });
+      });
+    }
+
+    // 2. Any other complementary recipes active for this module
+    recipes.forEach((comp) => {
+      if (!comp || !isComplementaryRecipe(comp)) return;
+      if (
+        comp.complementCategory === "dvh" ||
+        comp.activationRule?.requiresDVH ||
+        comp.name.toUpperCase().includes("DVH")
+      ) {
+        return;
+      }
+      const rule = comp.activationRule;
+      if (!rule) return;
+
+      let applies = false;
+      if (rule.triggerType === "always") applies = true;
+      if (rule.triggerType === "glass_type" && rule.requiresDVH && mod.isDVH) applies = true;
+
+      if (applies && comp.accessories && comp.accessories.length > 0) {
+        comp.accessories.forEach((ca) => {
+          extraAccs.push({
+            ...ca,
+            label: ca.label || comp.name,
+          });
+        });
+      }
+    });
+
+    return [...baseAccs, ...extraAccs];
+  }, [recipes, dvhInputs, accessories, aluminum]);
+
   const handleAccessorySubstitute = (index: number, newAccessoryId: string) => {
     if (!currentModForEdit) return;
-    const modRecipe = recipes.find((r) => r.id === currentModForEdit.recipeId);
-    if (!modRecipe) return;
-    const activeAccs =
+    const combinedBase = getCombinedRecipeAccessories(currentModForEdit);
+    let activeAccs: RecipeAccessory[] = [];
+    if (
       currentModForEdit.overriddenAccessories &&
       currentModForEdit.overriddenAccessories.length > 0
-        ? [...currentModForEdit.overriddenAccessories]
-        : [...modRecipe.accessories];
+    ) {
+      activeAccs = [...currentModForEdit.overriddenAccessories];
+      combinedBase.forEach((baseItem) => {
+        const exists = activeAccs.some((oa) => oa.accessoryId === baseItem.accessoryId);
+        if (!exists) activeAccs.push(baseItem);
+      });
+    } else {
+      activeAccs = [...combinedBase];
+    }
+    if (!activeAccs[index]) return;
     activeAccs[index] = { ...activeAccs[index], accessoryId: newAccessoryId };
     updateModule(currentModForEdit.id, { overriddenAccessories: activeAccs });
   };
+
   const toggleAccessoryActive = (index: number) => {
     if (!currentModForEdit) return;
-    const modRecipe = recipes.find((r) => r.id === currentModForEdit.recipeId);
-    if (!modRecipe) return;
-    const activeAccs =
+    const combinedBase = getCombinedRecipeAccessories(currentModForEdit);
+    let activeAccs: RecipeAccessory[] = [];
+    if (
       currentModForEdit.overriddenAccessories &&
       currentModForEdit.overriddenAccessories.length > 0
-        ? [...currentModForEdit.overriddenAccessories]
-        : [...modRecipe.accessories];
+    ) {
+      activeAccs = [...currentModForEdit.overriddenAccessories];
+      combinedBase.forEach((baseItem) => {
+        const exists = activeAccs.some((oa) => oa.accessoryId === baseItem.accessoryId);
+        if (!exists) activeAccs.push(baseItem);
+      });
+    } else {
+      activeAccs = [...combinedBase];
+    }
     const target = activeAccs[index];
+    if (!target) return;
     const willBeActive = target.isAlternative;
     if (willBeActive && target.label) {
       activeAccs.forEach((acc, i) => {
@@ -3729,6 +3843,7 @@ const QuotingModule: React.FC<Props> = ({
                     ${Math.round(liveBreakdown.accCost).toLocaleString()}
                   </span>
                 </div>
+
                 <div className="pt-4 mt-2 border-t border-slate-200 flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white">
@@ -4012,7 +4127,7 @@ const QuotingModule: React.FC<Props> = ({
                             }}
                           >
                             <option value="">(SELECCIONE)</option>
-                            {[...recipes]
+                            {[...standardRecipes]
                               .filter(
                                 (r) =>
                                   recipeFilter === "TODOS" ||
@@ -4876,19 +4991,36 @@ const QuotingModule: React.FC<Props> = ({
                   </p>
                   <div className="grid grid-cols-1 gap-2">
                     {(() => {
-                      const modAccs =
+                      const combinedBase = getCombinedRecipeAccessories(currentModForEdit);
+                      let modAccs: RecipeAccessory[] = [];
+                      if (
                         currentModForEdit.overriddenAccessories &&
                         currentModForEdit.overriddenAccessories.length > 0
-                          ? currentModForEdit.overriddenAccessories
-                          : recipes.find(
-                              (r) => r.id === currentModForEdit.recipeId,
-                            )?.accessories || [];
+                      ) {
+                        modAccs = [...currentModForEdit.overriddenAccessories];
+                        combinedBase.forEach((baseItem) => {
+                          const exists = modAccs.some((oa) => oa.accessoryId === baseItem.accessoryId);
+                          if (!exists) modAccs.push(baseItem);
+                        });
+                        if (!currentModForEdit.isDVH) {
+                          modAccs = modAccs.filter((a) => !(a.label || "").toUpperCase().includes("DVH"));
+                        }
+                      } else {
+                        modAccs = combinedBase;
+                      }
+
                       return modAccs.map((ra, idx) => {
-                        const acc = accessories.find(
-                          (a) =>
-                            a.id === ra.accessoryId ||
-                            a.code === ra.accessoryId,
-                        );
+                        const acc =
+                          accessories.find(
+                            (a) =>
+                              a.id === ra.accessoryId ||
+                              a.code === ra.accessoryId,
+                          ) ||
+                          dvhInputs.find((d) => d.id === ra.accessoryId);
+
+                        const isSal = acc && ((acc.detail || "").toUpperCase().includes("SAL") || (acc.code || "").toUpperCase().includes("SAL") || (acc.detail || "").toUpperCase().includes("TAMIZ"));
+                        const isButilo = acc && ((acc.detail || "").toUpperCase().includes("BUTILO") || (acc.code || "").toUpperCase().includes("BUTILO"));
+
                         return (
                           <div
                             key={idx}
@@ -4906,7 +5038,7 @@ const QuotingModule: React.FC<Props> = ({
                                   </span>
                                 )}
                                 <span className="text-[9px] font-black text-slate-500 uppercase">
-                                  x{ra.quantity} {ra.isLinear ? "ML" : "UN"}
+                                  x{ra.quantity} {ra.isLinear || isButilo ? "ML" : (isSal ? "g" : "UN")}
                                 </span>
                               </div>
                               <button
@@ -4932,11 +5064,22 @@ const QuotingModule: React.FC<Props> = ({
                               }
                             >
                               <option value="">(SIN ACCESORIO)</option>
-                              {[...accessories].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((a) => (
-                                <option key={a.id} value={a.id}>
-                                  {a.code} - {a.detail}
-                                </option>
-                              ))}
+                              <optgroup label="Accesorios y Herrajes">
+                                {[...accessories].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((a) => (
+                                  <option key={a.id} value={a.id}>
+                                    {a.code} - {a.detail}
+                                  </option>
+                                ))}
+                              </optgroup>
+                              {dvhInputs && dvhInputs.length > 0 && (
+                                <optgroup label="Insumos DVH">
+                                  {[...dvhInputs].sort((a,b)=>(a.detail||"").localeCompare(b.detail||"")).map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                      [{d.type}] {d.detail}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
                             </select>
                           </div>
                         );

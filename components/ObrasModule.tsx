@@ -516,13 +516,14 @@ const ObrasModule: React.FC<Props> = ({
         const adjustedH = modH - Number(recipe.glassDeductionH || 0);
         let leafBaseW = adjustedW;
         if (visualType.includes("sliding") || numLeaves > 1) leafBaseW = adjustedW / numLeaves;
+        const isDVH = Boolean(mod.isDVH || mod.dvhCameraId);
+        const gWForm = isDVH && recipe.dvhFormulaW ? recipe.dvhFormulaW : (recipe.glassFormulaW || "W");
         const gW = evaluateFormula(
-          mod.dvhCameraId ? (recipe.dvhFormulaW || recipe.glassFormulaW || "W") : (recipe.glassFormulaW || "W"),
+          gWForm,
           leafBaseW,
           adjustedH
         );
 
-        const isDVH = mod.dvhCameraId !== undefined;
         const transomGlassDeduction =
           isDVH && recipe.dvhTransomGlassDeduction !== undefined
             ? Number(recipe.dvhTransomGlassDeduction)
@@ -530,7 +531,7 @@ const ObrasModule: React.FC<Props> = ({
 
         const panesHeights: number[] = [];
         if (!mod.transoms || mod.transoms.length === 0) {
-          const gHForm = mod.dvhCameraId ? (recipe.dvhFormulaH || recipe.glassFormulaH || "H") : (recipe.glassFormulaH || "H");
+          const gHForm = isDVH && recipe.dvhFormulaH ? recipe.dvhFormulaH : (recipe.glassFormulaH || "H");
           panesHeights.push(evaluateFormula(gHForm, adjustedW, adjustedH));
         } else {
           const sorted = [...mod.transoms].sort((a, b) => a.height - b.height);

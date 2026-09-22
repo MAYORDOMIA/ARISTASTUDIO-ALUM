@@ -48,6 +48,7 @@ import {
   Quote,
   QuoteItem,
   CustomVisualType,
+  isComplementaryRecipe,
 } from "./types";
 import { MENU_ITEMS } from "./constants";
 import DatabaseCRUD from "./components/DatabaseCRUD";
@@ -663,12 +664,14 @@ const App: React.FC = () => {
   };
   const activeRecipe = useMemo(() => {
     if (activeTab === "quoter" && currentRecipeId) {
-      return recipes.find((r) => r.id === currentRecipeId);
+      const rec = recipes.find((r) => r.id === currentRecipeId);
+      if (rec && !isComplementaryRecipe(rec)) return rec;
     }
     if (!activeQuoteItem || !activeQuoteItem.composition.modules.length)
       return null;
     const firstModule = activeQuoteItem.composition.modules[0];
-    return recipes.find((r) => r.id === firstModule.recipeId);
+    const rec = recipes.find((r) => r.id === firstModule.recipeId);
+    return rec && !isComplementaryRecipe(rec) ? rec : null;
   }, [activeQuoteItem, recipes, currentRecipeId, activeTab]);
   const openingName = activeRecipe
     ? `${activeRecipe.line} - ${activeRecipe.name}`

@@ -13,7 +13,12 @@ import {
   BlindPanel,
 } from "../types";
 import { evaluateFormula, calculateModuleDimensions } from "./calculator";
-import { filterDVHProfiles, calculateSalesGrams, getDVHExtras } from "./dvhHelper";
+import {
+  filterDVHProfiles,
+  calculateSalesGrams,
+  getDVHExtras,
+  extractsDVHThickness,
+} from "./dvhHelper";
 
 const TYPE_COLORS: Record<string, [number, number, number]> = {
   Ventana: [79, 70, 229],
@@ -1039,7 +1044,7 @@ export const generateBarOptimizationPDF = (
       }
 
       if (mod.isDVH && effectiveCameraId) {
-         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
+         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH, dvhInputs, undefined, aluminum);
          const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
          panes.forEach(pane => {
@@ -2029,7 +2034,7 @@ export const generateMaterialsOrderPDF = (
       }
 
       if (mod.isDVH && effectiveCameraId) {
-         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
+         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH, dvhInputs, accessories, aluminum);
          const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
          panes.forEach(pane => {
@@ -2672,7 +2677,7 @@ export const generateMaterialsOrderPDF = (
     item.composition.modules.forEach((mod) => {
       const recipe = recipes.find((r) => r.id === mod.recipeId);
       if (!recipe) return;
-      const { accessories: dvhAccs } = getDVHExtras(recipes, mod.isDVH || false);
+      const { accessories: dvhAccs } = getDVHExtras(recipes, mod.isDVH || false, dvhInputs, accessories, aluminum);
       let activeAccs =
         mod.overriddenAccessories && mod.overriddenAccessories.length > 0
           ? mod.overriddenAccessories
@@ -2688,21 +2693,37 @@ export const generateMaterialsOrderPDF = (
 
       activeAccs.forEach((ra) => {
         if (ra.isAlternative) return;
-        const acc = accessories.find(
+        let acc = accessories.find(
           (a) => a.id === ra.accessoryId || a.code === ra.accessoryId,
         );
+        if (!acc) {
+          const dvhIn = dvhInputs.find((d) => d.id === ra.accessoryId);
+          if (dvhIn) {
+            acc = {
+              id: dvhIn.id,
+              code: dvhIn.type || "DVH",
+              detail: dvhIn.detail || dvhIn.type,
+              unitPrice: Number(dvhIn.cost || 0),
+              unit: dvhIn.type === "Sales" ? "kg" : (dvhIn.type === "Butilo" ? "ml" : "un"),
+            } as any;
+          }
+        }
         if (!acc) return;
         
-        // Calculate sales quantity if it's SALES
+        // Calculate sales, escuadras and butilo quantities
         let calculatedQty = Number(ra.quantity || 0);
         if (mod.isDVH && mod.dvhCameraId) {
-           if (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL')) {
-              let camInput = dvhInputs.find(c => c.id === mod.dvhCameraId);
-              let camThick = camInput?.thickness || 12;
-              if (!camInput?.thickness && typeof camInput?.detail === 'string') {
-                const m = camInput.detail.match(/(\d+)\s*mm/i);
-                if (m) camThick = parseInt(m[1], 10);
-              }
+           let camInput = dvhInputs.find(c => c.id === mod.dvhCameraId);
+           let camThick = camInput?.thickness || 12;
+           if (!camInput?.thickness && typeof camInput?.detail === 'string') {
+             const m = camInput.detail.match(/(\d+)\s*mm/i);
+             if (m) camThick = parseInt(m[1], 10);
+             else {
+               const ext = extractsDVHThickness(camInput.detail);
+               if (ext) camThick = ext;
+             }
+           }
+           if (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL') || acc.detail.toUpperCase().includes('TAMIZ')) {
               const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
               const totalPerimeterMeters = panes.reduce((acc, pane) => {
                  if (pane.isBlind) return acc;
@@ -2713,14 +2734,22 @@ export const generateMaterialsOrderPDF = (
               const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
               const panesCount = panes.filter((p) => !p.isBlind).length;
               calculatedQty = Number(ra.quantity || 4) * panesCount;
+           } else if (acc.detail.toUpperCase().includes('BUTILO') || acc.code.toUpperCase().includes('BUTILO')) {
+              const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
+              const totalPerimeterMeters = panes.reduce((acc, pane) => {
+                 if (pane.isBlind) return acc;
+                 return acc + ((Math.max(pane.w || 0, 0) + Math.max(pane.h || 0, 0)) * 2 * 2) / 1000;
+              }, 0);
+              calculatedQty = totalPerimeterMeters;
            }
         }
         
         if (calculatedQty <= 0 && ra.quantity > 0) return; // Ignore if calculated to 0
 
-        const isSal = mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL'));
+        const isSal = mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('SAL') || acc.code.toUpperCase().includes('SAL') || acc.detail.toUpperCase().includes('TAMIZ'));
         const isEscuadra = mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('ESCUADRA') || acc.code.toUpperCase().includes('ESCUADRA'));
-        const isSpecialDVHAcc = isSal || isEscuadra;
+        const isButilo = mod.isDVH && mod.dvhCameraId && (acc.detail.toUpperCase().includes('BUTILO') || acc.code.toUpperCase().includes('BUTILO'));
+        const isSpecialDVHAcc = isSal || isEscuadra || isButilo;
         const existing = accSummary.get(acc.id) || {
           code: acc.code,
           detail: acc.detail,
@@ -2790,7 +2819,9 @@ export const generateMaterialsOrderPDF = (
   const accBody = Array.from(accSummary.values()).map((a: any) => [
     a.code,
     a.detail,
-    a.isSal ? `${a.qty.toFixed(0)} g` : (a.isLinear ? `${a.qty.toFixed(2)} m` : a.qty),
+    a.isSal
+      ? (a.qty >= 1000 ? `${(a.qty / 1000).toFixed(2)} kg (${a.qty.toFixed(0)} g)` : `${a.qty.toFixed(0)} g`)
+      : (a.isLinear || (a.detail && a.detail.toUpperCase().includes('BUTILO')) ? `${a.qty.toFixed(2)} m` : a.qty),
   ]);
   autoTable(doc, {
     startY: currentY,
@@ -3712,7 +3743,7 @@ export const generateAssemblyOrderPDF = (
       }
 
       if (mod.isDVH && effectiveCameraId) {
-         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH);
+         const { profiles: rawDvhProfs } = getDVHExtras(recipes, mod.isDVH, dvhInputs, undefined, aluminum);
          const dvhProfs = filterDVHProfiles(rawDvhProfs, mod.isDVH, effectiveCameraId, dvhInputs, aluminum) as any[];
          const panes = getModuleGlassPanes(item, mod, recipe, aluminum);
          panes.forEach(pane => {
