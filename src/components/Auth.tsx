@@ -52,7 +52,12 @@ const Auth: React.FC = () => {
         );
       }
     } catch (err: any) {
-      setError(err.message || "Ocurrió un error durante la autenticación.");
+      const msg = err?.message || "";
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        setError("Error de conexión al servidor. Por favor verifica tu conexión a internet o intenta nuevamente.");
+      } else {
+        setError(err.message || "Ocurrió un error durante la autenticación.");
+      }
     } finally {
       setLoading(false);
     }

@@ -619,17 +619,7 @@ export const calculateItemPrice = (
   glassOuterId: string,
   glassInnerId?: string,
   dvhCameraId?: string,
-  extras?: {
-    mosquitero: boolean;
-    mosquiteroRecipeId?: string;
-    tapajuntas: boolean;
-    tapajuntasSides: {
-      top: boolean;
-      bottom: boolean;
-      left: boolean;
-      right: boolean;
-    };
-  },
+  extras?: QuoteItem["extras"],
   coupling?: { profileId?: string; position: string },
   transoms?: { height: number; profileId: string; formula?: string }[],
   mullions?: { x: number; profileId: string; formula?: string }[],
@@ -1474,6 +1464,9 @@ export const calculateItemPrice = (
           glassCost += Number(outerGlass.pricePerM2 || 0) * totalBillingArea * glassSurcharge;
         if (innerGlass)
           glassCost += Number(innerGlass.pricePerM2 || 0) * totalBillingArea * glassSurcharge;
+        if (extras?.frostedFilm) {
+          glassCost += Number(config.frostedFilmPricePerM2 || 0) * totalBillingArea;
+        }
         if (isDVH) {
           if (dvhCamera)
             glassCost +=

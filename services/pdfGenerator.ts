@@ -2590,7 +2590,8 @@ export const generateMaterialsOrderPDF = (
 
           if (mod.isDVH) {
             // Outer Glass
-            const specOuter = gOuter?.detail || "Vidrio (Ext)";
+            const hasFilm = Boolean(item.extras?.frostedFilm || mod.hasFrostedFilm);
+            const specOuter = (gOuter?.detail || "Vidrio (Ext)") + (hasFilm ? " (C/ LÁMINA ESMERILADA)" : "");
             const keyOuter = `${specOuter}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
             const existingOuter = fillSummary.get(keyOuter) || {
               spec: specOuter,
@@ -2615,7 +2616,8 @@ export const generateMaterialsOrderPDF = (
             fillSummary.set(keyInner, existingInner);
           } else {
             // Single Glass
-            const spec = gOuter?.detail || "VS";
+            const hasFilm = Boolean(item.extras?.frostedFilm || mod.hasFrostedFilm);
+            const spec = (gOuter?.detail || "VS") + (hasFilm ? " (C/ LÁMINA ESMERILADA)" : "");
             const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
             const existing = fillSummary.get(key) || {
               spec,
@@ -2628,6 +2630,26 @@ export const generateMaterialsOrderPDF = (
           }
         }
       });
+      
+      // Detalle de Lámina Esmerilada para Pedido de Materiales
+      if (item.extras?.frostedFilm) {
+        panes.forEach((pane) => {
+          if (!pane.isBlind) {
+            const specFilm = "LÁMINA ESMERILADA";
+            const pW = Math.round(pane.w);
+            const pH = Math.round(pane.h);
+            const keyFilm = `${specFilm}-${pW}-${pH}`;
+            const existingFilm = fillSummary.get(keyFilm) || {
+              spec: specFilm,
+              w: pW,
+              h: pH,
+              qty: 0,
+            };
+            existingFilm.qty += item.quantity;
+            fillSummary.set(keyFilm, existingFilm);
+          }
+        });
+      }
       
       if (item.extras?.mosquitero) {
         const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
@@ -2948,6 +2970,9 @@ export const generateClientDetailedPDF = (
         } else {
           glassDetailStr = gOuter?.detail || "Simple";
         }
+        if (item.extras?.frostedFilm || firstMod.hasFrostedFilm) {
+          glassDetailStr += " + LÁMINA ESMERILADA";
+        }
       }
     }
     const isSet = item.composition.modules.length > 1;
@@ -2963,6 +2988,7 @@ export const generateClientDetailedPDF = (
     }
     let desc = `${itemCode}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || "-"}\nLlenado: ${glassDetailStr}${topAccessories}${modulesListStr}`;
     if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
+    if (item.extras?.frostedFilm) desc += `\nAdicional: CON LÁMINA ESMERILADA`;
     return [
       idx + 1,
       "",
@@ -4165,6 +4191,9 @@ export const generateAssemblyOrderPDF = (
           spec = `${gOuter?.detail || "?"} / ${camera?.detail || "?"} / ${gInner?.detail || "?"}`;
         } else {
           spec = gOuter?.detail || "Vidrio Simple";
+        }
+        if (item.extras?.frostedFilm || mod.hasFrostedFilm) {
+          spec += " + LÁMINA ESMERILADA";
         }
       }
       const visualType = (recipe.visualType || "").toLowerCase();

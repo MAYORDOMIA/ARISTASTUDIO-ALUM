@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient";
+import { supabase, isSupabaseConfigured } from "./supabaseClient";
 
 export type EventType = 'login' | 'config_change' | 'error' | 'action';
 
@@ -9,6 +9,7 @@ export const logEvent = async (
   description: string,
   metadata?: any
 ) => {
+  if (!isSupabaseConfigured) return;
   try {
     await supabase.from('activity_logs').insert([{
       user_id: userId,
@@ -18,6 +19,6 @@ export const logEvent = async (
       metadata
     }]);
   } catch (err) {
-    console.error("Failed to log event:", err);
+    console.warn("Failed to log event:", err);
   }
 };

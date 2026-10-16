@@ -717,32 +717,35 @@ const ObrasModule: React.FC<Props> = ({
     setDiscount(0);
     if (setActiveQuote) setActiveQuote(null);
     if (isSupabaseConfigured) {
-      const userRes = await supabase.auth.getUser();
-      if (userRes.data.user) {
-        const cleanItemsForDb = quoteToSave.items.map((i) => ({
-          ...i,
-          previewImage: i.previewImage && i.previewImage.length > 50000 
-            ? undefined 
-            : i.previewImage,
-        }));
-        
-        const payload = {
-          id: quoteToSave.id,
-          user_id: userRes.data.user.id,
-          cliente_nombre: quoteToSave.clientName,
-          total: quoteToSave.totalPrice,
-          descuento: quoteToSave.discount, // Assuming dynamic type schema in Supabase or we let it ignore it if no column.
-          items: cleanItemsForDb,
-          created_at: quoteToSave.date,
-          estado: "borrador",
-        };
-        const { error } = await supabase
-          .from("presupuestos")
-          .upsert(payload, { onConflict: "id" });
-        if (error) {
-          console.error("Error saving quote to DB", error);
-          alert("Error al guardar en la nube: " + error.message);
+      try {
+        const userRes = await supabase.auth.getUser();
+        if (userRes?.data?.user) {
+          const cleanItemsForDb = quoteToSave.items.map((i) => ({
+            ...i,
+            previewImage: i.previewImage && i.previewImage.length > 50000 
+              ? undefined 
+              : i.previewImage,
+          }));
+          
+          const payload = {
+            id: quoteToSave.id,
+            user_id: userRes.data.user.id,
+            cliente_nombre: quoteToSave.clientName,
+            total: quoteToSave.totalPrice,
+            descuento: quoteToSave.discount, // Assuming dynamic type schema in Supabase or we let it ignore it if no column.
+            items: cleanItemsForDb,
+            created_at: quoteToSave.date,
+            estado: "borrador",
+          };
+          const { error } = await supabase
+            .from("presupuestos")
+            .upsert(payload, { onConflict: "id" });
+          if (error) {
+            console.warn("Error saving quote to DB", error);
+          }
         }
+      } catch (err: any) {
+        console.warn("Fallo de red al guardar obra en Supabase:", err?.message || err);
       }
     }
     alert(`Obra ${activeQuote ? "actualizada" : "guardada"} con éxito.`);

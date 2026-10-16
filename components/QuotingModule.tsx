@@ -1670,6 +1670,7 @@ const QuotingModule: React.FC<Props> = ({
     tapajuntas: false,
     tapajuntasSides: { top: true, bottom: true, left: true, right: true },
     mirrorShape: "recto",
+    frostedFilm: false,
   });
   const [modules, setModules] = useState<MeasurementModule[]>([
     {
@@ -2216,6 +2217,8 @@ const QuotingModule: React.FC<Props> = ({
       mosquitero: false,
       tapajuntas: false,
       tapajuntasSides: { top: true, bottom: true, left: true, right: true },
+      mirrorShape: "recto",
+      frostedFilm: false,
     });
     if (recipes.length > 0) {
       const defaultGlassId = glasses.length > 0 ? glasses[0].id : "";
@@ -3361,6 +3364,59 @@ const QuotingModule: React.FC<Props> = ({
                   {extras.mirrorShape === "redondo" && (
                     <p className="text-[7.5px] font-bold text-slate-400 leading-tight uppercase tracking-wider pl-6">
                       * Suma 100mm (solo p/precio)
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Opción Lámina Esmerilada para Línea Vidrio / Vidrio */}
+              {modules.some(m => {
+                const r = recipes.find(rec => rec.id === m.recipeId);
+                return (r?.line || "").toUpperCase().includes("VIDRIO") ||
+                       r?.id === "vidrio_solo" || 
+                       r?.name?.toLowerCase().includes("vidrio") || 
+                       r?.visualType?.toLowerCase() === "vidrio_solo";
+              }) && (
+                <div
+                  className="flex flex-col gap-1.5 bg-white p-1.5 rounded-lg border border-cyan-100/60 shadow-sm transition-all hover:border-cyan-300"
+                >
+                  <div
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={() =>
+                      setExtras({ ...extras, frostedFilm: !extras.frostedFilm })
+                    }
+                  >
+                    <Layers
+                      size={14}
+                      className={
+                        extras.frostedFilm ? "text-cyan-600" : "text-slate-400"
+                      }
+                    />
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-widest flex-1 ${
+                        extras.frostedFilm ? "text-cyan-600 font-black" : "text-slate-500"
+                      }`}
+                    >
+                      Lámina Esmerilada
+                    </span>
+                    <button
+                      type="button"
+                      className={`w-9 h-5 rounded-full p-0.5 transition-all ${
+                        extras.frostedFilm
+                          ? "bg-cyan-600 shadow-lg shadow-cyan-100"
+                          : "bg-slate-300"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                          extras.frostedFilm ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {extras.frostedFilm && (
+                    <p className="text-[7.5px] font-bold text-cyan-600 leading-tight uppercase tracking-wider pl-6">
+                      * Con Lámina Esmerilada (${config.frostedFilmPricePerM2 ?? 25}/m²)
                     </p>
                   )}
                 </div>

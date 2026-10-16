@@ -114,6 +114,7 @@ const App: React.FC = () => {
     blindPanelPricePerM2: 85.0,
     blindPanelExtraIncrement: 0,
     meshPricePerM2: 25.0,
+    frostedFilmPricePerM2: 25.0,
     companyName: "ARISTASTUDIO ALUM",
     companyAddress: "Planta Industrial Central",
     companyPhone: "+54 11 0000 0000",
@@ -165,6 +166,16 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // Interceptar rechazos no manejados de red (Failed to fetch) para evitar errores no controlados
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const msg = event.reason?.message || String(event.reason || "");
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Load failed")) {
+        console.warn("Advertencia de red interceptada de forma segura (Failed to fetch):", event.reason);
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
     // Safety net: Always clear authLoading after 10 seconds to avoid blank screens
     const safetyTimer = setTimeout(() => {
       setAuthLoading(false);
@@ -172,7 +183,9 @@ const App: React.FC = () => {
     if (!isSupabaseConfigured) {
       // Modo local si Supabase no está configurado
       enableLocalMode();
-      return;
+      return () => {
+        window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      };
     }
     supabase.auth.getSession().catch((err) => {
       console.warn("Recovered from getSession error:", err);
@@ -200,6 +213,7 @@ const App: React.FC = () => {
     return () => {
       subscription.unsubscribe();
       clearTimeout(safetyTimer);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
     };
   }, []); // Suscripción en tiempo real para sincronización de activación
   useEffect(() => {
@@ -341,7 +355,7 @@ const App: React.FC = () => {
           .from("configuracion_usuario")
           .select("config_data")
           .eq("user_id", userId)
-          .single(),
+          .maybeSingle(),
       ]);
       const criticalError = [
         aluRes,
@@ -353,7 +367,7 @@ const App: React.FC = () => {
         recRes,
         quoRes,
         confRes,
-      ].find((r) => r.error);
+      ].find((r) => r.error && !(r === confRes && (r.error.code === "PGRST116" || !r.error.message)));
       if (criticalError && criticalError.error) {
         if (criticalError.error.message?.includes("Failed to fetch")) {
           console.warn("ERROR DE CONEXIÓN: No se pudo establecer contacto con la base de datos (Supabase). La aplicación operará en modo local.");
@@ -734,7 +748,21 @@ const App: React.FC = () => {
       }
     }, 1500);
     return () => clearTimeout(timer);
-  }, [config, customVisualTypes, currentWorkItems, isDataLoaded, session]);
+  }, [
+    aluminum,
+    glasses,
+    blindPanels,
+    accessories,
+    dvhInputs,
+    treatments,
+    recipes,
+    config,
+    quotes,
+    customVisualTypes,
+    currentWorkItems,
+    isDataLoaded,
+    session,
+  ]);
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1283,6 +1311,22 @@ const App: React.FC = () => {
                           setConfig({
                             ...config,
                             meshPricePerM2: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-1">
+                        <Layers size={8} /> Lámina Esmerilada ($/M2)
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border p-1 rounded-lg font-mono text-xs font-bold "
+                        value={config.frostedFilmPricePerM2 ?? ""}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            frostedFilmPricePerM2: parseFloat(e.target.value) || 0,
                           })
                         }
                       />

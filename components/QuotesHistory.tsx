@@ -508,39 +508,39 @@ const QuotesHistory: React.FC<Props> = ({
                               ),
                             );
                             if (isSupabaseConfigured) {
-                              const userRes = await supabase.auth.getUser();
-                              const cleanItemsForDb = updatedQuote.items.map((i) => ({
-                                ...i,
-                                previewImage: i.previewImage && i.previewImage.length > 50000 
-                                  ? undefined 
-                                  : i.previewImage,
-                              }));
+                              try {
+                                const userRes = await supabase.auth.getUser();
+                                const cleanItemsForDb = updatedQuote.items.map((i) => ({
+                                  ...i,
+                                  previewImage: i.previewImage && i.previewImage.length > 50000 
+                                    ? undefined 
+                                    : i.previewImage,
+                                }));
 
-                              if (userRes.data.user) {
-                                const { error } = await supabase
-                                  .from("presupuestos")
-                                  .upsert(
-                                    {
-                                      id: updatedQuote.id,
-                                      user_id: userRes.data.user.id,
-                                      cliente_nombre: updatedQuote.clientName,
-                                      total: updatedQuote.totalPrice,
-                                      items: cleanItemsForDb,
-                                      created_at: updatedQuote.date,
-                                      estado: "borrador",
-                                    },
-                                    { onConflict: "id" },
-                                  );
-                                if (error) {
-                                  console.error(
-                                    "Error updating quote in DB",
-                                    error,
-                                  );
-                                  alert(
-                                    "Error al actualizar en la nube: " +
-                                      error.message,
-                                  );
+                                if (userRes?.data?.user) {
+                                  const { error } = await supabase
+                                    .from("presupuestos")
+                                    .upsert(
+                                      {
+                                        id: updatedQuote.id,
+                                        user_id: userRes.data.user.id,
+                                        cliente_nombre: updatedQuote.clientName,
+                                        total: updatedQuote.totalPrice,
+                                        items: cleanItemsForDb,
+                                        created_at: updatedQuote.date,
+                                        estado: "borrador",
+                                      },
+                                      { onConflict: "id" },
+                                    );
+                                  if (error) {
+                                    console.warn(
+                                      "Error updating quote in DB",
+                                      error,
+                                    );
+                                  }
                                 }
+                              } catch (dbErr: any) {
+                                console.warn("Fallo de red al actualizar presupuesto en la nube:", dbErr?.message || dbErr);
                               }
                             }
                           }}
