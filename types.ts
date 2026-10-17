@@ -8,6 +8,7 @@ export interface GlobalConfig {
   blindPanelExtraIncrement?: number;
   meshPricePerM2: number;
   frostedFilmPricePerM2?: number;
+  polishedEdgePricePerMeter?: number;
   companyName?: string;
   companyLogo?: string;
   companyAddress?: string;
@@ -299,6 +300,7 @@ export interface MeasurementModule {
     isDVH?: boolean;
   }>;
   hasFrostedFilm?: boolean;
+  hasPolishedEdge?: boolean;
 }
 
 export interface QuoteItemBreakdown {
@@ -311,6 +313,7 @@ export interface QuoteItemBreakdown {
   handrailExtraCost?: number;
   mamparaExtraCost?: number;
   frostedFilmCost?: number;
+  polishedEdgeCost?: number;
 }
 
 export interface QuoteItem {
@@ -346,6 +349,7 @@ export interface QuoteItem {
     };
     mirrorShape?: "recto" | "redondo";
     frostedFilm?: boolean;
+    polishedEdge?: boolean;
   };
   couplingProfileId?: string;
   glazingBeadStyle?: "Recto" | "Curvo";

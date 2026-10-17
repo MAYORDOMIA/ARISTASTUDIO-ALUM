@@ -61,6 +61,7 @@ import {
   Link as LinkIcon,
   Maximize2,
   Sparkles,
+  Scissors,
 } from "lucide-react";
 import {
   calculateCompositePrice,
@@ -1671,6 +1672,7 @@ const QuotingModule: React.FC<Props> = ({
     tapajuntasSides: { top: true, bottom: true, left: true, right: true },
     mirrorShape: "recto",
     frostedFilm: false,
+    polishedEdge: false,
   });
   const [modules, setModules] = useState<MeasurementModule[]>([
     {
@@ -2219,6 +2221,7 @@ const QuotingModule: React.FC<Props> = ({
       tapajuntasSides: { top: true, bottom: true, left: true, right: true },
       mirrorShape: "recto",
       frostedFilm: false,
+      polishedEdge: false,
     });
     if (recipes.length > 0) {
       const defaultGlassId = glasses.length > 0 ? glasses[0].id : "";
@@ -3417,6 +3420,63 @@ const QuotingModule: React.FC<Props> = ({
                   {extras.frostedFilm && (
                     <p className="text-[7.5px] font-bold text-cyan-600 leading-tight uppercase tracking-wider pl-6">
                       * Con Lámina Esmerilada (${config.frostedFilmPricePerM2 ?? 25}/m²)
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Opción Borde Pulido para Línea Vidrio y Espejo */}
+              {modules.some(m => {
+                const r = recipes.find(rec => rec.id === m.recipeId);
+                const line = (r?.line || "").toUpperCase();
+                const name = (r?.name || "").toLowerCase();
+                return line.includes("VIDRIO") ||
+                       line.includes("ESPEJO") ||
+                       r?.id === "vidrio_solo" || 
+                       name.includes("vidrio") || 
+                       name.includes("espejo") || 
+                       r?.visualType?.toLowerCase() === "vidrio_solo";
+              }) && (
+                <div
+                  className="flex flex-col gap-1.5 bg-white p-1.5 rounded-lg border border-amber-100/60 shadow-sm transition-all hover:border-amber-300"
+                >
+                  <div
+                    className="flex items-center gap-2 cursor-pointer group"
+                    onClick={() =>
+                      setExtras({ ...extras, polishedEdge: !extras.polishedEdge })
+                    }
+                  >
+                    <Scissors
+                      size={14}
+                      className={
+                        extras.polishedEdge ? "text-amber-600" : "text-slate-400"
+                      }
+                    />
+                    <span
+                      className={`text-[9px] font-black uppercase tracking-widest flex-1 ${
+                        extras.polishedEdge ? "text-amber-600 font-black" : "text-slate-500"
+                      }`}
+                    >
+                      Borde Pulido
+                    </span>
+                    <button
+                      type="button"
+                      className={`w-9 h-5 rounded-full p-0.5 transition-all ${
+                        extras.polishedEdge
+                          ? "bg-amber-600 shadow-lg shadow-amber-100"
+                          : "bg-slate-300"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                          extras.polishedEdge ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {extras.polishedEdge && (
+                    <p className="text-[7.5px] font-bold text-amber-600 leading-tight uppercase tracking-wider pl-6">
+                      * Con Borde Pulido (${config.polishedEdgePricePerMeter ?? 10}/ml)
                     </p>
                   )}
                 </div>

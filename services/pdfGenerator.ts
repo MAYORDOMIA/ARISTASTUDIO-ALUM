@@ -2591,7 +2591,11 @@ export const generateMaterialsOrderPDF = (
           if (mod.isDVH) {
             // Outer Glass
             const hasFilm = Boolean(item.extras?.frostedFilm || mod.hasFrostedFilm);
-            const specOuter = (gOuter?.detail || "Vidrio (Ext)") + (hasFilm ? " (C/ LÁMINA ESMERILADA)" : "");
+            const hasPolish = Boolean(item.extras?.polishedEdge || mod.hasPolishedEdge);
+            let extrasLabel = "";
+            if (hasFilm) extrasLabel += " (C/ LÁMINA ESMERILADA)";
+            if (hasPolish) extrasLabel += " (C/ BORDE PULIDO)";
+            const specOuter = (gOuter?.detail || "Vidrio (Ext)") + extrasLabel;
             const keyOuter = `${specOuter}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
             const existingOuter = fillSummary.get(keyOuter) || {
               spec: specOuter,
@@ -2617,7 +2621,11 @@ export const generateMaterialsOrderPDF = (
           } else {
             // Single Glass
             const hasFilm = Boolean(item.extras?.frostedFilm || mod.hasFrostedFilm);
-            const spec = (gOuter?.detail || "VS") + (hasFilm ? " (C/ LÁMINA ESMERILADA)" : "");
+            const hasPolish = Boolean(item.extras?.polishedEdge || mod.hasPolishedEdge);
+            let extrasLabel = "";
+            if (hasFilm) extrasLabel += " (C/ LÁMINA ESMERILADA)";
+            if (hasPolish) extrasLabel += " (C/ BORDE PULIDO)";
+            const spec = (gOuter?.detail || "VS") + extrasLabel;
             const key = `${spec}-${Math.round(pane.w)}-${Math.round(pane.h)}`;
             const existing = fillSummary.get(key) || {
               spec,
@@ -2650,6 +2658,26 @@ export const generateMaterialsOrderPDF = (
           }
         });
       }
+
+      // Detalle de Borde Pulido para Pedido de Materiales / Taller
+      if (item.extras?.polishedEdge) {
+        panes.forEach((pane) => {
+          if (!pane.isBlind) {
+            const specPolish = "BORDE PULIDO";
+            const pW = Math.round(pane.w);
+            const pH = Math.round(pane.h);
+            const keyPolish = `${specPolish}-${pW}-${pH}`;
+            const existingPolish = fillSummary.get(keyPolish) || {
+              spec: specPolish,
+              w: pW,
+              h: pH,
+              qty: 0,
+            };
+            existingPolish.qty += item.quantity;
+            fillSummary.set(keyPolish, existingPolish);
+          }
+        });
+      }
       
       if (item.extras?.mosquitero) {
         const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
@@ -2673,7 +2701,9 @@ export const generateMaterialsOrderPDF = (
     g.spec,
     `${g.w} x ${g.h}`,
     g.qty,
-    `${(((g.w * g.h) / 1000000) * g.qty).toFixed(2)} m2`,
+    g.spec === "BORDE PULIDO"
+      ? `${((((g.w + g.h) * 2) / 1000) * g.qty).toFixed(2)} ml`
+      : `${(((g.w * g.h) / 1000000) * g.qty).toFixed(2)} m2`,
   ]);
   autoTable(doc, {
     startY: currentY,
@@ -2973,6 +3003,9 @@ export const generateClientDetailedPDF = (
         if (item.extras?.frostedFilm || firstMod.hasFrostedFilm) {
           glassDetailStr += " + LÁMINA ESMERILADA";
         }
+        if (item.extras?.polishedEdge || firstMod.hasPolishedEdge) {
+          glassDetailStr += " + BORDE PULIDO";
+        }
       }
     }
     const isSet = item.composition.modules.length > 1;
@@ -2989,6 +3022,7 @@ export const generateClientDetailedPDF = (
     let desc = `${itemCode}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || "-"}\nLlenado: ${glassDetailStr}${topAccessories}${modulesListStr}`;
     if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
     if (item.extras?.frostedFilm) desc += `\nAdicional: CON LÁMINA ESMERILADA`;
+    if (item.extras?.polishedEdge) desc += `\nAdicional: CON BORDE PULIDO`;
     return [
       idx + 1,
       "",
@@ -4194,6 +4228,9 @@ export const generateAssemblyOrderPDF = (
         }
         if (item.extras?.frostedFilm || mod.hasFrostedFilm) {
           spec += " + LÁMINA ESMERILADA";
+        }
+        if (item.extras?.polishedEdge || mod.hasPolishedEdge) {
+          spec += " + BORDE PULIDO";
         }
       }
       const visualType = (recipe.visualType || "").toLowerCase();

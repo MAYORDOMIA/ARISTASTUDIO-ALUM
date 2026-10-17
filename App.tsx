@@ -115,6 +115,7 @@ const App: React.FC = () => {
     blindPanelExtraIncrement: 0,
     meshPricePerM2: 25.0,
     frostedFilmPricePerM2: 25.0,
+    polishedEdgePricePerMeter: 10.0,
     companyName: "ARISTASTUDIO ALUM",
     companyAddress: "Planta Industrial Central",
     companyPhone: "+54 11 0000 0000",
@@ -1327,6 +1328,22 @@ const App: React.FC = () => {
                           setConfig({
                             ...config,
                             frostedFilmPricePerM2: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-1">
+                        <Scissors size={8} /> Borde Pulido ($/ML)
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border p-1 rounded-lg font-mono text-xs font-bold "
+                        value={config.polishedEdgePricePerMeter ?? ""}
+                        onChange={(e) =>
+                          setConfig({
+                            ...config,
+                            polishedEdgePricePerMeter: parseFloat(e.target.value) || 0,
                           })
                         }
                       />

@@ -1467,6 +1467,10 @@ export const calculateItemPrice = (
         if (extras?.frostedFilm) {
           glassCost += Number(config.frostedFilmPricePerM2 || 0) * totalBillingArea;
         }
+        if (extras?.polishedEdge) {
+          const panePerimeterMeters = (((pane.w + pane.h) * 2) / 1000) * leafMultiplier;
+          glassCost += Number(config.polishedEdgePricePerMeter || 0) * panePerimeterMeters;
+        }
         if (isDVH) {
           if (dvhCamera)
             glassCost +=
