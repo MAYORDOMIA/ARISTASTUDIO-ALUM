@@ -29,6 +29,9 @@ import {
   MonitorOff,
   Plus,
   Check,
+  Bell,
+  AlertTriangle,
+  User,
 } from "lucide-react";
 import { DATABASE_TABS } from "./constants";
 import * as XLSX from "xlsx";
@@ -74,32 +77,90 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [deviceLimitReached, setDeviceLimitReached] = useState(false);
-  const [globalAnnouncements, setGlobalAnnouncements] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState<string[]>([]);
+  const [activePopupAnnouncement, setActivePopupAnnouncement] = useState<any | null>(null);
+  const initialPopupShownRef = useRef(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("quoter");
 
-  useEffect(() => {
-    const fetchGlobalAnnouncements = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('anuncios_globales')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
-        
-        if (!error && data) {
-          setGlobalAnnouncements(data);
-        }
-      } catch (err) {
-        console.error('Error fetching announcements', err);
+  // Consulta y filtrado de anuncios (Globales e Individuales)
+  const fetchAnnouncements = async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase
+        .from('anuncios_globales')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.warn('Aviso: Anuncios no disponibles o permisos pendientes:', error.message);
+        return;
       }
-    };
-    
-    // Solo si esta configurado supabase intentamos buscar anuncios
-    if (isSupabaseConfigured) {
-      fetchGlobalAnnouncements();
+
+      if (data) {
+        const currentUserId = session?.user?.id;
+        const currentUserEmail = session?.user?.email?.toLowerCase();
+
+        // Filtrar anuncios para este usuario (individuales) o para todos (globales)
+        const relevant = data.filter((ann: any) => {
+          // Si no tiene target individual ni por id ni por email, es global
+          if (!ann.target_user_id && !ann.target_user_email) return true;
+          // Si tiene target individual, verificar si corresponde a este usuario
+          const matchesId = Boolean(currentUserId && ann.target_user_id === currentUserId);
+          const matchesEmail = Boolean(currentUserEmail && ann.target_user_email && ann.target_user_email.toLowerCase() === currentUserEmail);
+          return matchesId || matchesEmail;
+        });
+
+        setAnnouncements(relevant);
+
+        // Al ingresar a la app, si hay un anuncio activo relevante no descartado en esta sesión, activarlo en pop-up
+        if (!initialPopupShownRef.current && relevant.length > 0) {
+          const firstUndismissed = relevant.find((a: any) => !dismissedAnnouncementIds.includes(a.id));
+          if (firstUndismissed) {
+            setActivePopupAnnouncement(firstUndismissed);
+            initialPopupShownRef.current = true;
+          }
+        }
+      }
+    } catch (err: any) {
+      console.warn('Aviso: Excepción al consultar anuncios:', err?.message || err);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchAnnouncements();
+
+    // Suscribirse a cambios en tiempo real
+    if (isSupabaseConfigured) {
+      const channel = supabase
+        .channel('public_anuncios_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'anuncios_globales' },
+          () => {
+            fetchAnnouncements();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [session?.user?.id, session?.user?.email]);
+
+  const handleDismissAnnouncement = (id: string) => {
+    setDismissedAnnouncementIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    if (activePopupAnnouncement?.id === id) {
+      setActivePopupAnnouncement(null);
+    }
+  };
+
+  const visibleAnnouncements = useMemo(() => {
+    return announcements.filter((ann) => !dismissedAnnouncementIds.includes(ann.id));
+  }, [announcements, dismissedAnnouncementIds]);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isSaving, setIsSaving] = useState(false);
@@ -971,14 +1032,145 @@ const App: React.FC = () => {
         </div>
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden relative w-full">
-        {globalAnnouncements.length > 0 && (
-          <div className="z-50 w-full flex flex-col animate-in slide-in-from-top-4">
-            {globalAnnouncements.map(ann => (
-              <div key={ann.id} className={`w-full px-4 py-3 flex items-center justify-between text-sm font-medium ${ann.type === 'warning' ? 'bg-amber-100 text-amber-800 border-b border-amber-200' : ann.type === 'success' ? 'bg-emerald-100 text-emerald-800 border-b border-emerald-200' : 'bg-sky-100 text-sky-800 border-b border-sky-200'}`}>
+        {/* Modal Pop-up que se activa al abrir la app si hay mensajes activos */}
+        {activePopupAnnouncement && !dismissedAnnouncementIds.includes(activePopupAnnouncement.id) && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200">
+              {/* Encabezado según tipo de aviso */}
+              <div
+                className={`px-6 py-4 flex items-center justify-between text-white ${
+                  activePopupAnnouncement.type === "urgent"
+                    ? "bg-gradient-to-r from-red-600 to-rose-600"
+                    : activePopupAnnouncement.type === "warning"
+                    ? "bg-gradient-to-r from-amber-500 to-orange-500"
+                    : activePopupAnnouncement.type === "success"
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-600"
+                    : "bg-gradient-to-r from-sky-600 to-blue-600"
+                }`}
+              >
                 <div className="flex items-center gap-3">
-                  <Megaphone size={16} className="shrink-0" />
-                  <p className="whitespace-pre-wrap">{ann.message}</p>
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-xs">
+                    <Megaphone size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-wider">
+                      {activePopupAnnouncement.target_user_email ? "Mensaje para ti" : "Aviso del Administrador"}
+                    </h3>
+                    <p className="text-[11px] text-white/80 font-medium">
+                      {new Date(activePopupAnnouncement.created_at).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => handleDismissAnnouncement(activePopupAnnouncement.id)}
+                  className="p-1.5 rounded-full hover:bg-white/20 text-white/90 hover:text-white transition-colors"
+                  title="Cerrar (X)"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Cuerpo del Mensaje */}
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
+                      activePopupAnnouncement.type === "urgent"
+                        ? "bg-red-100 text-red-700 border border-red-200"
+                        : activePopupAnnouncement.type === "warning"
+                        ? "bg-amber-100 text-amber-800 border border-amber-200"
+                        : activePopupAnnouncement.type === "success"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : "bg-sky-100 text-sky-800 border border-sky-200"
+                    }`}
+                  >
+                    {activePopupAnnouncement.type === "urgent"
+                      ? "🚨 Importante / Urgente"
+                      : activePopupAnnouncement.type === "warning"
+                      ? "⚠️ Alerta"
+                      : activePopupAnnouncement.type === "success"
+                      ? "✨ Novedad"
+                      : "ℹ️ Información"}
+                  </span>
+
+                  {activePopupAnnouncement.target_user_email ? (
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
+                      <User size={11} /> Para: {activePopupAnnouncement.target_user_email}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      🌐 Comunicado para todos
+                    </span>
+                  )}
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-800 text-sm font-medium leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto shadow-inner">
+                  {activePopupAnnouncement.message}
+                </div>
+
+                <p className="text-[11px] text-slate-400 font-medium italic">
+                  💡 Puedes cerrar este mensaje para continuar trabajando. Volverá a activarse cuando vuelvas a ingresar a la app hasta que sea desactivado por el administrador.
+                </p>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={() => handleDismissAnnouncement(activePopupAnnouncement.id)}
+                    className={`w-full py-3 px-6 rounded-xl text-white font-black uppercase text-xs tracking-widest shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-98 ${
+                      activePopupAnnouncement.type === "urgent"
+                        ? "bg-red-600 hover:bg-red-700"
+                        : activePopupAnnouncement.type === "warning"
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : activePopupAnnouncement.type === "success"
+                        ? "bg-emerald-600 hover:bg-emerald-700"
+                        : "bg-sky-600 hover:bg-sky-700"
+                    }`}
+                  >
+                    <Check size={16} /> Entendido / Cerrar Mensaje
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Banner superior con botón de cerrar para sacar el anuncio durante la sesión */}
+        {visibleAnnouncements.length > 0 && (
+          <div className="z-40 w-full flex flex-col animate-in slide-in-from-top-4">
+            {visibleAnnouncements.map((ann) => (
+              <div
+                key={ann.id}
+                className={`w-full px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm font-medium border-b shadow-xs transition-colors ${
+                  ann.type === "urgent"
+                    ? "bg-red-50 text-red-900 border-red-200"
+                    : ann.type === "warning"
+                    ? "bg-amber-50 text-amber-900 border-amber-200"
+                    : ann.type === "success"
+                    ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                    : "bg-sky-50 text-sky-900 border-sky-200"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 overflow-hidden pr-3">
+                  <Megaphone size={16} className="shrink-0 text-current opacity-80" />
+                  {ann.target_user_email && (
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/80 border border-current/20 shadow-xs">
+                      👤 Para ti
+                    </span>
+                  )}
+                  <p className="whitespace-pre-wrap truncate sm:whitespace-normal font-semibold">
+                    {ann.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDismissAnnouncement(ann.id)}
+                  className="p-1 rounded-lg hover:bg-black/5 text-current/70 hover:text-current transition-colors shrink-0 ml-2"
+                  title="Cerrar este aviso por esta sesión"
+                >
+                  <X size={16} />
+                </button>
               </div>
             ))}
           </div>
@@ -1014,6 +1206,24 @@ const App: React.FC = () => {
                 MENU_ITEMS.find((m) => m.id === activeTab)?.label || activeTab
               )}
             </h1>
+            {announcements.length > 0 && (
+              <button
+                onClick={() => {
+                  const first = announcements[0];
+                  if (first) {
+                    setDismissedAnnouncementIds((prev) => prev.filter((id) => id !== first.id));
+                    setActivePopupAnnouncement(first);
+                  }
+                }}
+                className="relative p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-sky-600 transition-colors"
+                title="Ver avisos y comunicados"
+              >
+                <Bell size={18} />
+                {visibleAnnouncements.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white animate-pulse" />
+                )}
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-3 lg:gap-6">
             {activeTab === "quoter" && (

@@ -19,13 +19,18 @@ import {
   Plus,
   Trash2,
   Check,
-  X
+  X,
+  User,
+  Globe,
+  Copy,
 } from "lucide-react";
 interface Announcement {
   id: string;
   message: string;
-  type: 'info' | 'warning' | 'success';
+  type: 'info' | 'warning' | 'success' | 'urgent';
   is_active: boolean;
+  target_user_id?: string | null;
+  target_user_email?: string | null;
   created_at: string;
 }
 
@@ -77,8 +82,12 @@ const SuperAdminDashboard: React.FC = () => {
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
   const [newAnnouncementMsg, setNewAnnouncementMsg] = useState("");
-  const [newAnnouncementType, setNewAnnouncementType] = useState<'info' | 'warning' | 'success'>('info');
+  const [newAnnouncementType, setNewAnnouncementType] = useState<'info' | 'warning' | 'success' | 'urgent'>('info');
+  const [targetUserOption, setTargetUserOption] = useState<string>("all");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+  const [showSqlGuide, setShowSqlGuide] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [logsError, setLogsError] = useState<string | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -97,8 +106,11 @@ const SuperAdminDashboard: React.FC = () => {
     if (error) {
       if (error.code === '42P01' || error.code === 'PGRST205') {
         setAnnouncementsError("table_missing");
+      } else if (error.code === '42501') {
+        setAnnouncementsError("permission_denied");
       } else {
-        console.error("Error fetching announcements", error);
+        console.warn("Aviso al consultar anuncios en Supabase:", error.message);
+        setAnnouncementsError("general_error");
       }
     } else if (data) {
       setAnnouncements(data);
@@ -110,15 +122,39 @@ const SuperAdminDashboard: React.FC = () => {
     e.preventDefault();
     if (!newAnnouncementMsg.trim()) return;
     setIsPublishing(true);
+    
+    const targetProfile = targetUserOption !== "all" ? profiles.find(p => p.id === targetUserOption) : null;
+    const payload: any = { 
+      message: newAnnouncementMsg, 
+      type: newAnnouncementType, 
+      is_active: true 
+    };
+
+    if (targetProfile) {
+      payload.target_user_id = targetProfile.id;
+      payload.target_user_email = targetProfile.email;
+    }
+
     const { error } = await supabase
       .from("anuncios_globales")
-      .insert([{ message: newAnnouncementMsg, type: newAnnouncementType, is_active: true }]);
+      .insert([payload]);
     
     setIsPublishing(false);
     if (error) {
-      alert("Error al publicar anuncio: " + error.message);
+      if (error.code === '42703') {
+        alert(
+          "ATENCIÓN: Para enviar mensajes individuales, tu tabla en Supabase necesita 2 columnas nuevas.\n\n" +
+          "Copia y ejecuta esto en Supabase -> SQL Editor:\n\n" +
+          "ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;\n" +
+          "ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_email text;\n\n" +
+          "Detalle del servidor: " + error.message
+        );
+      } else {
+        alert("Error al publicar anuncio: " + error.message);
+      }
     } else {
       setNewAnnouncementMsg("");
+      setTargetUserOption("all");
       fetchAnnouncements();
     }
   };
@@ -780,68 +816,245 @@ CREATE POLICY "Super admins can view all logs" ON activity_logs
           </div>
         ) : (
           <div className="space-y-4">
-            {announcementsError === "table_missing" ? (
+            {announcementsError === "table_missing" || announcementsError === "permission_denied" ? (
               <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl">
                 <div className="flex items-center gap-2 text-amber-700 font-bold mb-3">
                   <AlertTriangle size={20} />
-                  Falta la tabla de anuncios en Supabase
+                  {announcementsError === "permission_denied"
+                    ? "Permisos RLS de Anuncios en Supabase (Error 42501)"
+                    : "Configurar tabla de anuncios en Supabase"}
                 </div>
                 <p className="text-sm text-amber-700 mb-4">
-                  Para poder enviar mensajes globales, necesitas crear la tabla <strong>anuncios_globales</strong>. Copia y ejecuta este código en el SQL Editor de Supabase:
+                  {announcementsError === "permission_denied"
+                    ? "La política anterior en Supabase intentó consultar la tabla interna auth.users, lo cual Postgres restringe por seguridad. Ejecuta este script corregido en Supabase -> SQL Editor para solucionar los permisos de inmediato:"
+                    : "Para poder enviar mensajes globales e individuales, ejecuta este script en el SQL Editor de Supabase:"}
                 </p>
                 <pre className="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap font-mono">
-{`CREATE TABLE anuncios_globales (
+{`CREATE TABLE IF NOT EXISTS public.anuncios_globales (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   message text NOT NULL,
   type text NOT NULL DEFAULT 'info',
   is_active boolean DEFAULT true,
+  target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  target_user_email text,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-ALTER TABLE anuncios_globales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_email text;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS type text DEFAULT 'info';
 
-CREATE POLICY "Anyone can read active announcements" ON anuncios_globales
-  FOR SELECT USING (is_active = true OR (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin');
+ALTER TABLE public.anuncios_globales ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Super admins can manage announcements" ON anuncios_globales
+DROP POLICY IF EXISTS "Users can read their announcements" ON public.anuncios_globales;
+DROP POLICY IF EXISTS "Anyone can read active announcements" ON public.anuncios_globales;
+DROP POLICY IF EXISTS "Super admins can manage announcements" ON public.anuncios_globales;
+
+CREATE POLICY "Users can read their announcements" ON public.anuncios_globales
+  FOR SELECT USING (
+    is_active = true 
+    AND (
+      (target_user_id IS NULL AND target_user_email IS NULL)
+      OR (auth.uid() IS NOT NULL AND target_user_id = auth.uid())
+      OR (auth.jwt() ->> 'email' IS NOT NULL AND target_user_email = (auth.jwt() ->> 'email'))
+      OR (auth.uid() IS NOT NULL AND target_user_email = (SELECT email FROM public.perfiles_usuarios WHERE id = auth.uid()))
+    )
+  );
+
+CREATE POLICY "Super admins can manage announcements" ON public.anuncios_globales
   FOR ALL USING (
-    (SELECT role FROM perfiles_usuarios WHERE id = auth.uid()) = 'super_admin'
+    EXISTS (
+      SELECT 1 FROM public.perfiles_usuarios 
+      WHERE perfiles_usuarios.id = auth.uid() 
+      AND perfiles_usuarios.role = 'super_admin'
+    )
   );`}
                 </pre>
-                <button onClick={fetchAnnouncements} className="mt-4 bg-amber-200 text-amber-800 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-amber-300 transition-colors">
-                  Ya ejecuté el código, reintentar
-                </button>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => {
+                      const sqlText = `CREATE TABLE IF NOT EXISTS public.anuncios_globales (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  message text NOT NULL,
+  type text NOT NULL DEFAULT 'info',
+  is_active boolean DEFAULT true,
+  target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  target_user_email text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_email text;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS type text DEFAULT 'info';
+ALTER TABLE public.anuncios_globales ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read their announcements" ON public.anuncios_globales;
+DROP POLICY IF EXISTS "Anyone can read active announcements" ON public.anuncios_globales;
+DROP POLICY IF EXISTS "Super admins can manage announcements" ON public.anuncios_globales;
+CREATE POLICY "Users can read their announcements" ON public.anuncios_globales
+  FOR SELECT USING (
+    is_active = true 
+    AND (
+      (target_user_id IS NULL AND target_user_email IS NULL)
+      OR (auth.uid() IS NOT NULL AND target_user_id = auth.uid())
+      OR (auth.jwt() ->> 'email' IS NOT NULL AND target_user_email = (auth.jwt() ->> 'email'))
+      OR (auth.uid() IS NOT NULL AND target_user_email = (SELECT email FROM public.perfiles_usuarios WHERE id = auth.uid()))
+    )
+  );
+CREATE POLICY "Super admins can manage announcements" ON public.anuncios_globales
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.perfiles_usuarios 
+      WHERE perfiles_usuarios.id = auth.uid() 
+      AND perfiles_usuarios.role = 'super_admin'
+    )
+  );`;
+                      navigator.clipboard.writeText(sqlText);
+                      setCopiedSql(true);
+                      setTimeout(() => setCopiedSql(false), 2500);
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                  >
+                    {copiedSql ? <><Check size={14} /> Copiado</> : <><Copy size={14} /> Copiar SQL</>}
+                  </button>
+                  <button onClick={fetchAnnouncements} className="bg-amber-200 text-amber-800 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-amber-300 transition-colors">
+                    Ya ejecuté el código, reintentar
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
-                <form onSubmit={publishAnnouncement} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Nuevo Anuncio Global</label>
-                    <textarea
-                      value={newAnnouncementMsg}
-                      onChange={(e) => setNewAnnouncementMsg(e.target.value)}
-                      placeholder="Escribe aquí el mensaje que verán todos los usuarios al entrar..."
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 min-h-[80px]"
-                    />
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-                    <div className="flex gap-2 w-full sm:w-auto">
+                <form onSubmit={publishAnnouncement} className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                      <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                        <User size={14} className="text-sky-600" /> Destinatario
+                      </label>
+                      <select
+                        value={targetUserOption}
+                        onChange={(e) => setTargetUserOption(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm"
+                      >
+                        <option value="all">🌐 TODOS LOS USUARIOS (Anuncio Global)</option>
+                        <optgroup label="👤 Mensaje Individual para Usuario Específico:">
+                          {profiles.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.email} {p.role === "super_admin" ? "(Admin)" : ""} {p.is_active ? "• Activo" : "• Inactivo"}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    <div className="sm:w-56">
+                      <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-1.5">
+                        Tipo de Notificación
+                      </label>
                       <select 
                         value={newAnnouncementType}
                         onChange={(e) => setNewAnnouncementType(e.target.value as any)}
-                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm"
                       >
-                        <option value="info">Información (Azul)</option>
-                        <option value="success">Novedad (Verde)</option>
-                        <option value="warning">Alerta (Amarillo)</option>
+                        <option value="info">🔵 Información (Azul)</option>
+                        <option value="success">🟢 Novedad / Felicitación (Verde)</option>
+                        <option value="warning">🟡 Alerta / Recordatorio (Amarillo)</option>
+                        <option value="urgent">🔴 Urgente / Bloqueo (Rojo)</option>
                       </select>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-600 uppercase tracking-widest mb-1.5">
+                      Mensaje del Anuncio
+                    </label>
+                    <textarea
+                      value={newAnnouncementMsg}
+                      onChange={(e) => setNewAnnouncementMsg(e.target.value)}
+                      placeholder={
+                        targetUserOption === "all"
+                          ? "Escribe aquí el mensaje que verán TODOS los usuarios al entrar a la app..."
+                          : `Escribe el mensaje personal que verá exclusivamente este usuario cada vez que entre a la app...`
+                      }
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 min-h-[90px] shadow-sm"
+                    />
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-1.5">
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        🔔 <strong>Activación continua:</strong> Cada vez que el usuario entre o recargue la app, se activará este mensaje en pantalla. Puede cerrarlo para trabajar, pero volverá a activarse cada vez que vuelva a ingresar hasta que presiones <em>Desactivar</em>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowSqlGuide(!showSqlGuide)}
+                        className="text-[11px] text-sky-600 hover:text-sky-800 font-bold underline shrink-0"
+                      >
+                        {showSqlGuide ? "Ocultar SQL de Supabase" : "Ver / Copiar SQL de Supabase"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {showSqlGuide && (
+                    <div className="bg-slate-900 text-slate-200 p-4 rounded-xl text-xs space-y-2 border border-slate-800 font-mono">
+                      <div className="flex items-center justify-between text-emerald-400 font-bold">
+                        <span>Script SQL para Supabase (anuncios_globales)</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sqlText = `CREATE TABLE IF NOT EXISTS public.anuncios_globales (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  message text NOT NULL,
+  type text NOT NULL DEFAULT 'info',
+  is_active boolean DEFAULT true,
+  target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  target_user_email text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS target_user_email text;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+ALTER TABLE public.anuncios_globales ADD COLUMN IF NOT EXISTS type text DEFAULT 'info';
+ALTER TABLE public.anuncios_globales ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read their announcements" ON public.anuncios_globales;
+DROP POLICY IF EXISTS "Anyone can read active announcements" ON public.anuncios_globales;
+DROP POLICY IF EXISTS "Super admins can manage announcements" ON public.anuncios_globales;
+CREATE POLICY "Users can read their announcements" ON public.anuncios_globales
+  FOR SELECT USING (
+    is_active = true 
+    AND (
+      (target_user_id IS NULL AND target_user_email IS NULL)
+      OR (auth.uid() IS NOT NULL AND target_user_id = auth.uid())
+      OR (auth.jwt() ->> 'email' IS NOT NULL AND target_user_email = (auth.jwt() ->> 'email'))
+      OR (auth.uid() IS NOT NULL AND target_user_email = (SELECT email FROM public.perfiles_usuarios WHERE id = auth.uid()))
+    )
+  );
+CREATE POLICY "Super admins can manage announcements" ON public.anuncios_globales
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.perfiles_usuarios 
+      WHERE perfiles_usuarios.id = auth.uid() 
+      AND perfiles_usuarios.role = 'super_admin'
+    )
+  );`;
+                            navigator.clipboard.writeText(sqlText);
+                            setCopiedSql(true);
+                            setTimeout(() => setCopiedSql(false), 2500);
+                          }}
+                          className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] uppercase font-sans font-bold flex items-center gap-1 transition-colors"
+                        >
+                          {copiedSql ? <><Check size={12} /> Copiado</> : <><Copy size={12} /> Copiar SQL</>}
+                        </button>
+                      </div>
+                      <p className="text-slate-400 font-sans text-[11px]">
+                        Ejecuta esto en Supabase -&gt; SQL Editor si necesitas crear o actualizar la tabla de anuncios con soporte para mensajes individuales.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-1">
                     <button
                       type="submit"
                       disabled={isPublishing || !newAnnouncementMsg.trim()}
-                      className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-black uppercase text-[10px] tracking-widest px-6 py-2.5 rounded-xl transition-colors flex justify-center items-center gap-2"
+                      className="w-full sm:w-auto bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-black uppercase text-xs tracking-widest px-8 py-3 rounded-xl transition-all shadow-md hover:shadow-lg flex justify-center items-center gap-2"
                     >
-                      {isPublishing ? <Loader2 size={14} className="animate-spin" /> : <><Megaphone size={14} /> Publicar</>}
+                      {isPublishing ? <Loader2 size={16} className="animate-spin" /> : <><Megaphone size={16} /> Publicar Mensaje</>}
                     </button>
                   </div>
                 </form>
@@ -856,11 +1069,43 @@ CREATE POLICY "Super admins can manage announcements" ON anuncios_globales
                       <div className="text-center py-8 text-slate-500 text-sm">No hay anuncios creados.</div>
                     ) : (
                       announcements.map((ann) => (
-                        <div key={ann.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row gap-4 justify-between ${!ann.is_active ? 'bg-slate-50 border-slate-200 opacity-60' : ann.type === 'warning' ? 'bg-amber-50 border-amber-200' : ann.type === 'success' ? 'bg-emerald-50 border-emerald-200' : 'bg-sky-50 border-sky-200'}`}>
+                        <div key={ann.id} className={`p-4 rounded-2xl border flex flex-col sm:flex-row gap-4 justify-between transition-all ${
+                          !ann.is_active 
+                            ? 'bg-slate-50 border-slate-200 opacity-60' 
+                            : ann.type === 'urgent'
+                            ? 'bg-rose-50 border-rose-200'
+                            : ann.type === 'warning' 
+                            ? 'bg-amber-50 border-amber-200' 
+                            : ann.type === 'success' 
+                            ? 'bg-emerald-50 border-emerald-200' 
+                            : 'bg-sky-50 border-sky-200'
+                        }`}>
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${!ann.is_active ? 'bg-slate-200 text-slate-500' : ann.type === 'warning' ? 'bg-amber-200 text-amber-800' : ann.type === 'success' ? 'bg-emerald-200 text-emerald-800' : 'bg-sky-200 text-sky-800'}`}>
-                                {ann.type}
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded ${
+                                !ann.is_active 
+                                  ? 'bg-slate-200 text-slate-600' 
+                                  : ann.type === 'urgent'
+                                  ? 'bg-rose-200 text-rose-800'
+                                  : ann.type === 'warning' 
+                                  ? 'bg-amber-200 text-amber-800' 
+                                  : ann.type === 'success' 
+                                  ? 'bg-emerald-200 text-emerald-800' 
+                                  : 'bg-sky-200 text-sky-800'
+                              }`}>
+                                {ann.type === 'urgent' ? '🚨 Urgente' : ann.type === 'warning' ? '⚠️ Alerta' : ann.type === 'success' ? '✨ Novedad' : 'ℹ️ Info'}
+                              </span>
+                              {ann.target_user_email ? (
+                                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-purple-100 text-purple-700 flex items-center gap-1 border border-purple-200">
+                                  <User size={10} /> Para usuario: {ann.target_user_email}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-blue-100 text-blue-700 flex items-center gap-1 border border-blue-200">
+                                  <Globe size={10} /> Global (Todos los usuarios)
+                                </span>
+                              )}
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ann.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                {ann.is_active ? '🟢 Activo (se activa al abrir app)' : '⚪ Desactivado'}
                               </span>
                               <span className="text-xs text-slate-400">
                                 {new Date(ann.created_at).toLocaleDateString()}
@@ -868,16 +1113,21 @@ CREATE POLICY "Super admins can manage announcements" ON anuncios_globales
                             </div>
                             <p className="text-sm font-medium text-slate-800 whitespace-pre-wrap">{ann.message}</p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
                               onClick={() => toggleAnnouncement(ann.id, ann.is_active)}
-                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest ${ann.is_active ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}`}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition-colors ${
+                                ann.is_active 
+                                  ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' 
+                                  : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                              }`}
                             >
-                              {ann.is_active ? 'Ocultar' : 'Mostrar'}
+                              {ann.is_active ? 'Desactivar' : 'Reactivar'}
                             </button>
                             <button
                               onClick={() => deleteAnnouncement(ann.id)}
-                              className="p-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
+                              className="p-2 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                              title="Eliminar permanentemente"
                             >
                               <Trash2 size={16} />
                             </button>
