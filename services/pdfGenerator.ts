@@ -11,6 +11,7 @@ import {
   QuoteItem,
   Treatment,
   BlindPanel,
+  MeasurementModule,
 } from "../types";
 import { evaluateFormula, calculateModuleDimensions } from "./calculator";
 import {
@@ -2895,6 +2896,8 @@ export const generateClientDetailedPDF = (
   dvhInputs: DVHInput[],
   treatments: Treatment[],
   accessories: Accessory[],
+  blindPanels: BlindPanel[] = [],
+  aluminum: AluminumProfile[] = [],
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -2967,7 +2970,185 @@ export const generateClientDetailedPDF = (
       moduleNames.length > 1
         ? (isFrenteIntegral ? `CONJUNTO: FRENTE INTEGRAL` : `CONJUNTO: ${moduleNames.join(" + ")}`)
         : moduleNames[0] || "Abertura";
+
+    const getModuleInfillDetail = (
+      mod: MeasurementModule,
+    ): { label: string; hasGlass: boolean } => {
+      const recipe = recipes.find((r) => r.id === mod.recipeId);
+      if (recipe?.visualType === "mosquitero") {
+        return { label: "TELA MOSQUITERA (ALUMINIO)", hasGlass: false };
+      }
+
+      const numMullions = mod.mullions?.length || 0;
+      const numTransoms = mod.transoms?.length || 0;
+      const totalPanes = Math.max(1, (numMullions + 1) * (numTransoms + 1));
+
+      const recipeName = (recipe?.name || "").toLowerCase();
+      const isRecipeTablilla =
+        recipe?.visualType === "tablilla" ||
+        recipe?.visualType === "ciego" ||
+        recipeName.includes("tablilla") ||
+        recipeName.includes("6216") ||
+        recipeName.includes("machimbre");
+
+      const configuredBlindPanes = new Set<number>(mod.blindPanes || []);
+      const configuredBlindIds = { ...(mod.blindPaneIds || {}) };
+      const configuredSlatIds = { ...(mod.slatProfileIds || {}) };
+
+      if (mod.perLeafConfiguration) {
+        Object.values(mod.perLeafConfiguration).forEach((leafConf) => {
+          (leafConf.blindPanes || []).forEach((bp) => configuredBlindPanes.add(bp));
+          if (leafConf.blindPaneIds) {
+            Object.assign(configuredBlindIds, leafConf.blindPaneIds);
+          }
+          if (leafConf.slatProfileIds) {
+            Object.assign(configuredSlatIds, leafConf.slatProfileIds);
+          }
+        });
+      }
+
+      // Check if all panes are blind/slats or if the recipe is explicitly for tablillas/ciego
+      const isAllBlind =
+        isRecipeTablilla ||
+        (configuredBlindPanes.size > 0 &&
+          (configuredBlindPanes.size >= totalPanes ||
+            Array.from({ length: totalPanes }).every((_, i) =>
+              configuredBlindPanes.has(i),
+            )));
+
+      const getPaneBlindLabel = (pIdx: number): string => {
+        const slatId = configuredSlatIds[pIdx];
+        const bpId = configuredBlindIds[pIdx];
+        const bp = blindPanels.find((x) => x.id === bpId);
+        const effectiveSlatId =
+          slatId ||
+          (bp && (bp.unit === "ml" || bp.unit?.toLowerCase() === "ml")
+            ? bp.aluminumProfileId ||
+              aluminum.find(
+                (a) =>
+                  a.code &&
+                  a.code.trim().toLowerCase() === bp.code.trim().toLowerCase(),
+              )?.id
+            : null);
+
+        if (effectiveSlatId) {
+          const slatProf = aluminum.find(
+            (a) =>
+              a.id === effectiveSlatId ||
+              (a.code &&
+                a.code.trim().toLowerCase() ===
+                  effectiveSlatId.trim().toLowerCase()),
+          );
+          if (slatProf) {
+            const detailUpper = (slatProf.detail || "").toUpperCase();
+            if (
+              detailUpper.includes("TABLILLA") ||
+              detailUpper.includes("MACHIMBRE")
+            ) {
+              return detailUpper;
+            }
+            return `TABLILLAS (${slatProf.code}${slatProf.detail ? ` - ${slatProf.detail}` : ""})`;
+          }
+        }
+
+        if (bp) {
+          const isSlatLike =
+            bp.unit === "ml" ||
+            bp.unit?.toLowerCase() === "ml" ||
+            /tablilla|machimbre|6216/i.test(bp.detail + " " + bp.code);
+          if (isSlatLike) {
+            return `TABLILLAS (${bp.detail || bp.code})`;
+          }
+          return `PANEL CIEGO (${bp.detail || bp.code})`;
+        }
+
+        if (isRecipeTablilla) {
+          if (recipeName.includes("6216")) {
+            return "TABLILLAS TUBULARES (6216)";
+          }
+          if (
+            recipeName.includes("tablilla") ||
+            recipeName.includes("machimbre")
+          ) {
+            return "TABLILLAS";
+          }
+        }
+
+        return "TABLILLAS";
+      };
+
+      // Glass description
+      let glassStr = "";
+      const gOuter = glasses.find((g) => g.id === mod.glassOuterId);
+      if (mod.isDVH) {
+        const gInner = glasses.find((g) => g.id === mod.glassInnerId);
+        const camera = dvhInputs.find((i) => i.id === mod.dvhCameraId);
+        glassStr = `${gOuter?.detail || "?"} / ${camera?.detail || "?"} / ${gInner?.detail || "?"}`;
+      } else {
+        glassStr = gOuter?.detail || "Simple";
+      }
+      if (item.extras?.frostedFilm || mod.hasFrostedFilm) {
+        glassStr += " + LÁMINA ESMERILADA";
+      }
+      if (item.extras?.polishedEdge || mod.hasPolishedEdge) {
+        glassStr += " + BORDE PULIDO";
+      }
+
+      if (isAllBlind) {
+        const labels: string[] = [];
+        for (let i = 0; i < totalPanes; i++) {
+          const l = getPaneBlindLabel(i);
+          if (!labels.includes(l)) labels.push(l);
+        }
+        return {
+          label:
+            labels.join(", ") ||
+            (recipeName.includes("6216")
+              ? "TABLILLAS TUBULARES (6216)"
+              : "TABLILLAS"),
+          hasGlass: false,
+        };
+      }
+
+      if (configuredBlindPanes.size === 0) {
+        return { label: glassStr, hasGlass: true };
+      }
+
+      // Mixed: some blind, some glass
+      const blindLabels: string[] = [];
+      for (const i of configuredBlindPanes) {
+        const l = getPaneBlindLabel(i);
+        if (!blindLabels.includes(l)) blindLabels.push(l);
+      }
+      return {
+        label: `VIDRIO: ${glassStr} / CIEGO: ${blindLabels.join(", ")}`,
+        hasGlass: true,
+      };
+    };
+
+    const moduleInfillInfos = (item.composition.modules || []).map((m) =>
+      getModuleInfillDetail(m),
+    );
+    const anyModuleHasGlass = moduleInfillInfos.some((info) => info.hasGlass);
     let glassDetailStr = "No definido";
+    if (moduleInfillInfos.length === 1) {
+      glassDetailStr = moduleInfillInfos[0].label;
+    } else if (moduleInfillInfos.length > 1) {
+      const uniqueLabels = Array.from(
+        new Set(moduleInfillInfos.map((info) => info.label)),
+      );
+      if (uniqueLabels.length === 1) {
+        glassDetailStr = uniqueLabels[0];
+      } else {
+        glassDetailStr = item.composition.modules
+          .map((m, mIdx) => {
+            const subCode = getModuleLabel(itemCode, true, mIdx);
+            return `${subCode}: ${moduleInfillInfos[mIdx].label}`;
+          })
+          .join(" | ");
+      }
+    }
+
     let topAccessories = "";
     const firstMod = item.composition.modules?.[0];
     if (firstMod) {
@@ -2989,24 +3170,6 @@ export const generateClientDetailedPDF = (
           topAccessories = `\nAccesorios: ${accs.join(", ")}`;
         }
       }
-      if (recipe?.visualType === "mosquitero") {
-        glassDetailStr = "TELA MOSQUITERA (ALUMINIO)";
-      } else {
-        const gOuter = glasses.find((g) => g.id === firstMod.glassOuterId);
-        if (firstMod.isDVH) {
-          const gInner = glasses.find((g) => g.id === firstMod.glassInnerId);
-          const camera = dvhInputs.find((i) => i.id === firstMod.dvhCameraId);
-          glassDetailStr = `${gOuter?.detail || "?"} / ${camera?.detail || "?"} / ${gInner?.detail || "?"}`;
-        } else {
-          glassDetailStr = gOuter?.detail || "Simple";
-        }
-        if (item.extras?.frostedFilm || firstMod.hasFrostedFilm) {
-          glassDetailStr += " + LÁMINA ESMERILADA";
-        }
-        if (item.extras?.polishedEdge || firstMod.hasPolishedEdge) {
-          glassDetailStr += " + BORDE PULIDO";
-        }
-      }
     }
     const isSet = item.composition.modules.length > 1;
     const itemCode = item.itemCode || `POS#${idx + 1}`;
@@ -3021,8 +3184,8 @@ export const generateClientDetailedPDF = (
     }
     let desc = `${itemCode}: ${compositeName}\nLínea: ${recipeLine}\nAcabado: ${treatment?.name || "-"}\nLlenado: ${glassDetailStr}${topAccessories}${modulesListStr}`;
     if (item.extras?.mosquitero) desc += `\nAdicional: CON MOSQUITERO`;
-    if (item.extras?.frostedFilm) desc += `\nAdicional: CON LÁMINA ESMERILADA`;
-    if (item.extras?.polishedEdge) desc += `\nAdicional: CON BORDE PULIDO`;
+    if (item.extras?.frostedFilm && anyModuleHasGlass) desc += `\nAdicional: CON LÁMINA ESMERILADA`;
+    if (item.extras?.polishedEdge && anyModuleHasGlass) desc += `\nAdicional: CON BORDE PULIDO`;
     return [
       idx + 1,
       "",
@@ -3082,15 +3245,18 @@ export const generateClientDetailedPDF = (
               drawH,
               "D",
             );
+            const format = (imgProps.fileType || (item.previewImage.includes("png") ? "PNG" : "JPEG")).toUpperCase();
             doc.addImage(
               item.previewImage,
-              "JPEG",
+              format,
               data.cell.x + 2 + offsetX,
               data.cell.y + 2 + offsetY,
               drawW,
               drawH,
             );
-          } catch (e) {}
+          } catch (e) {
+            console.warn("Error drawing previewImage in PDF table cell:", e);
+          }
         }
       }
     },

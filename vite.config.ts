@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: "0.0.0.0",
+      hmr: false,
     },
     plugins: [react()],
     define: {
@@ -36,6 +37,7 @@ export default defineConfig(({ mode }) => {
       __SUPABASE_SERVICE_ROLE_KEY__: JSON.stringify(supabaseServiceRoleKey),
     },
     resolve: {
+      dedupe: ["react", "react-dom"],
       alias: {
         "@": path.resolve(__dirname, "."),
       },

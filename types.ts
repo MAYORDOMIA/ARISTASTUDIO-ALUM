@@ -16,6 +16,19 @@ export interface GlobalConfig {
   quoteFooterNotes?: string;
   handrailExtraIncrement: number;
   mamparaExtraIncrement: number;
+  webQuoterConfig?: WebQuoterConfig;
+  webQuoterPlanActive?: boolean;
+}
+
+export interface WebQuoterConfig {
+  enabled: boolean;
+  publicTitle?: string;
+  markupPercentage: number;
+  whatsappNumber?: string;
+  allowedRecipeIds?: string[];
+  allowDVH?: boolean;
+  allowBlind?: boolean;
+  notes?: string;
 }
 
 // --- SaaS Types ---

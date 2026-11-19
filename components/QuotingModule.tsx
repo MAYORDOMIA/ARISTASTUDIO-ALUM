@@ -76,14 +76,14 @@ import {
 } from "../services/dvhHelper";
 import { RecipeIllustrationPreview } from "./ProductRecipeEditor";
 const TJ_LINE_COLOR = "rgba(15, 23, 42, 0.6)";
-interface Segment {
+export interface Segment {
   x1: number;
   y1: number;
   x2: number;
   y2: number;
   side: "top" | "bottom" | "left" | "right";
 }
-const drawDetailedOpening = (
+export const drawDetailedOpening = (
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -1495,7 +1495,7 @@ const drawDetailedOpening = (
     }
   }
 };
-const renderAdaptiveTJ = (
+export const renderAdaptiveTJ = (
   ctx: CanvasRenderingContext2D,
   segments: Segment[],
   tjSize: number,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "../services/supabaseClient";
-import { saveBulkData } from "../services/migrationService";
+import { saveBulkData, applyBulkPriceIncrease, BulkPriceIncreaseResult } from "../services/migrationService";
 import {
   ShieldCheck,
   UserCheck,
@@ -23,6 +23,13 @@ import {
   User,
   Globe,
   Copy,
+  TrendingUp,
+  Percent,
+  Layers,
+  Box,
+  Package,
+  Search,
+  CheckCircle2,
 } from "lucide-react";
 interface Announcement {
   id: string;
@@ -52,8 +59,21 @@ interface Profile {
   registered_count?: number; // Calculado tras fetch
   quotes_count?: number; // Presupuestos / obras guardadas
   recipes_count?: number; // Tipologías / recetas guardadas
+  glasses_count?: number; // Vidrios en base de datos
+  accessories_count?: number; // Accesorios en base de datos
+  aluminum_price_per_kg?: number; // Precio aluminio crudo ($/kg)
+  web_quoter_enabled?: boolean; // Habilitación del servicio de cotizador web para clientes
 }
-const SuperAdminDashboard: React.FC = () => {
+
+interface SuperAdminDashboardProps {
+  currentUserId?: string;
+  onCurrentUserDataUpdated?: () => void;
+}
+
+const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
+  currentUserId,
+  onCurrentUserDataUpdated,
+}) => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -73,6 +93,18 @@ const SuperAdminDashboard: React.FC = () => {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [showLinesModal, setShowLinesModal] = useState(false);
+
+  // Estados para Aumentos Masivos por Porcentaje (%)
+  const [applyGlassIncrease, setApplyGlassIncrease] = useState(true);
+  const [applyAluminumIncrease, setApplyAluminumIncrease] = useState(true);
+  const [applyAccessoryIncrease, setApplyAccessoryIncrease] = useState(true);
+  const [glassIncreasePct, setGlassIncreasePct] = useState<string>("0");
+  const [aluminumIncreasePct, setAluminumIncreasePct] = useState<string>("0");
+  const [accessoryIncreasePct, setAccessoryIncreasePct] = useState<string>("0");
+  const [unifiedIncreasePct, setUnifiedIncreasePct] = useState<string>("");
+  const [isApplyingPriceIncrease, setIsApplyingPriceIncrease] = useState(false);
+  const [priceIncreaseSummary, setPriceIncreaseSummary] = useState<BulkPriceIncreaseResult | null>(null);
+  const [distributionUserSearch, setDistributionUserSearch] = useState("");
   const [targetUserId, setTargetUserId] = useState<string | null>(null);
   const [passwordResetUserId, setPasswordResetUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -228,6 +260,14 @@ const SuperAdminDashboard: React.FC = () => {
         .from("recetas_usuario")
         .select("user_id");
 
+      const { data: glassesRows } = await supabase
+        .from("materiales_vidrios_usuario")
+        .select("user_id");
+
+      const { data: accessoriesRows } = await supabase
+        .from("materiales_accesorios_usuario")
+        .select("user_id");
+
       const counts: any = {};
       (devices || []).forEach((d) => {
         counts[d.user_id] = (counts[d.user_id] || 0) + 1;
@@ -243,16 +283,81 @@ const SuperAdminDashboard: React.FC = () => {
         recipeCounts[r.user_id] = (recipeCounts[r.user_id] || 0) + 1;
       });
 
+      const glassCounts: any = {};
+      (glassesRows || []).forEach((g) => {
+        glassCounts[g.user_id] = (glassCounts[g.user_id] || 0) + 1;
+      });
+
+      const accessoryCounts: any = {};
+      (accessoriesRows || []).forEach((a) => {
+        accessoryCounts[a.user_id] = (accessoryCounts[a.user_id] || 0) + 1;
+      });
+
+      // Mapear configuración de cotizador web y precio aluminio crudo
+      const { data: configs } = await supabase
+        .from("configuracion_usuario")
+        .select("user_id, config_data");
+      const configMap: any = {};
+      (configs || []).forEach((c) => {
+        configMap[c.user_id] = c.config_data;
+      });
+
       setProfiles(
         profs.map((p) => ({ 
           ...p, 
           registered_count: counts[p.id] || 0,
           quotes_count: quoteCounts[p.id] || 0,
-          recipes_count: recipeCounts[p.id] || 0
+          recipes_count: recipeCounts[p.id] || 0,
+          glasses_count: glassCounts[p.id] || 0,
+          accessories_count: accessoryCounts[p.id] || 0,
+          aluminum_price_per_kg:
+            configMap[p.id]?.aluminumPricePerKg !== undefined
+              ? Number(configMap[p.id].aluminumPricePerKg)
+              : undefined,
+          web_quoter_enabled: p.web_quoter_enabled || Boolean(configMap[p.id]?.webQuoterPlanActive),
         })),
       );
     }
     setLoading(false);
+  };
+
+  const toggleWebQuoter = async (id: string, currentVal: boolean) => {
+    setToggling(id);
+    const nextVal = !currentVal;
+    try {
+      await supabase
+        .from("perfiles_usuarios")
+        .update({ web_quoter_enabled: nextVal })
+        .eq("id", id);
+    } catch (e) {
+      console.warn("Columna web_quoter_enabled en perfiles_usuarios:", e);
+    }
+
+    try {
+      const { data: existingConf } = await supabase
+        .from("configuracion_usuario")
+        .select("config_data")
+        .eq("user_id", id)
+        .maybeSingle();
+
+      const currentData = existingConf?.config_data || {};
+      const updatedData = { ...currentData, webQuoterPlanActive: nextVal };
+
+      await supabase
+        .from("configuracion_usuario")
+        .upsert([{ user_id: id, config_data: updatedData }], {
+          onConflict: "user_id",
+        });
+    } catch (e) {
+      console.warn("Fallo al actualizar webQuoterPlanActive en configuracion_usuario:", e);
+    }
+
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, web_quoter_enabled: nextVal } : p
+      )
+    );
+    setToggling(null);
   };
 
   const handlePasswordReset = async (e: React.FormEvent) => {
@@ -406,10 +511,78 @@ const SuperAdminDashboard: React.FC = () => {
         }
         alert(`¡Inyección completada! Se actualizaron ${successCount} usuarios.`);
         fetchProfiles();
+        if (currentUserId && selectedUsers.includes(currentUserId) && onCurrentUserDataUpdated) {
+          onCurrentUserDataUpdated();
+        }
     } catch (error: any) {
         alert("Error durante la inyección: " + error.message);
     } finally {
         setIsDeploying(false);
+    }
+  };
+
+  const handleApplyUnifiedPct = () => {
+    const val = unifiedIncreasePct.trim();
+    if (!val) return;
+    setGlassIncreasePct(val);
+    setAluminumIncreasePct(val);
+    setAccessoryIncreasePct(val);
+  };
+
+  const handleBulkPriceIncrease = async () => {
+    if (selectedUsers.length === 0) {
+      alert("Selecciona al menos un usuario destinatario en la lista.");
+      return;
+    }
+
+    const glassPct = applyGlassIncrease ? parseFloat(glassIncreasePct) || 0 : 0;
+    const aluPct = applyAluminumIncrease ? parseFloat(aluminumIncreasePct) || 0 : 0;
+    const accPct = applyAccessoryIncrease ? parseFloat(accessoryIncreasePct) || 0 : 0;
+
+    if (glassPct === 0 && aluPct === 0 && accPct === 0) {
+      alert("Ingresa al menos un porcentaje distinto de 0% en alguna de las bases activadas.");
+      return;
+    }
+
+    const resumenLineas: string[] = [];
+    if (glassPct !== 0) resumenLineas.push(`• Vidrios ($/m²): ${glassPct > 0 ? "+" : ""}${glassPct}%`);
+    if (aluPct !== 0) resumenLineas.push(`• Aluminio Crudo ($/KG): ${aluPct > 0 ? "+" : ""}${aluPct}%`);
+    if (accPct !== 0) resumenLineas.push(`• Accesorios ($/unidad): ${accPct > 0 ? "+" : ""}${accPct}%`);
+
+    const confirmed = confirm(
+      `¿Confirmas aplicar el aumento masivo sobre los precios actuales de ${selectedUsers.length} usuario(s)?\n\n` +
+      resumenLineas.join("\n") +
+      `\n\nSe actualizarán directamente las bases de datos de los usuarios seleccionados sin borrar ni sobrescribir sus ítems.`
+    );
+    if (!confirmed) return;
+
+    setIsApplyingPriceIncrease(true);
+    setPriceIncreaseSummary(null);
+    try {
+      const result = await applyBulkPriceIncrease(selectedUsers, {
+        glassPercentage: glassPct,
+        aluminumCrudoPercentage: aluPct,
+        accessoryPercentage: accPct,
+      });
+      setPriceIncreaseSummary(result);
+      await fetchProfiles();
+      if (currentUserId && selectedUsers.includes(currentUserId) && onCurrentUserDataUpdated) {
+        onCurrentUserDataUpdated();
+      }
+      if (!result.success) {
+        alert(
+          `Aumento aplicado parcialmente con advertencias:\n` +
+          `• Usuarios actualizados: ${result.updatedUsers}\n` +
+          `• Vidrios actualizados: ${result.glassesUpdated}\n` +
+          `• Configs Aluminio Crudo: ${result.aluminumConfigsUpdated}\n` +
+          `• Accesorios actualizados: ${result.accessoriesUpdated}\n\n` +
+          `Errores:\n${result.errors.join("\n")}`
+        );
+      }
+    } catch (err: any) {
+      alert("Error al aplicar el aumento masivo: " + (err?.message || err));
+    } finally {
+      setIsApplyingPriceIncrease(false);
     }
   };
 
@@ -506,106 +679,484 @@ const SuperAdminDashboard: React.FC = () => {
 
         {activeTab === "distribution" ? (
           <div className="space-y-6">
-             {!bulkData ? (
-               <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
-                  <UploadCloud size={48} className="text-slate-400 mb-4" />
-                  <p className="text-sm font-bold text-slate-600 uppercase tracking-widest mb-4">Cargar Archivo Maestro JSON</p>
-                  <button onClick={() => masterFileInputRef.current?.click()} className="bg-sky-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-sky-700">Subir Archivo</button>
-                  <input type="file" ref={masterFileInputRef} onChange={handleMasterFileUpload} accept=".json" className="hidden" />
-               </div>
-             ) : (
-               <div className="space-y-6">
-                 <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex justify-between items-center">
+            {/* 1. SELECCIÓN DE USUARIOS DESTINATARIOS (COMPARTIDA PARA AUMENTOS E INYECCIÓN) */}
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2.5 text-sm font-bold text-slate-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.length === profiles.length && profiles.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedUsers(profiles.map((p) => p.id));
+                        else setSelectedUsers([]);
+                      }}
+                      className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                    />
+                    Seleccionar Todos ({profiles.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedUsers(profiles.filter((p) => p.is_active).map((p) => p.id))
+                    }
+                    className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                  >
+                    Solo Activos
+                  </button>
+                  {selectedUsers.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedUsers([])}
+                      className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={distributionUserSearch}
+                      onChange={(e) => setDistributionUserSearch(e.target.value)}
+                      placeholder="Buscar email..."
+                      className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 w-44 sm:w-52"
+                    />
+                  </div>
+                  <span className="text-xs font-black text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg uppercase tracking-widest whitespace-nowrap">
+                    {selectedUsers.length} Selec.
+                  </span>
+                </div>
+              </div>
+
+              <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                {profiles
+                  .filter((p) =>
+                    !distributionUserSearch.trim()
+                      ? true
+                      : p.email.toLowerCase().includes(distributionUserSearch.trim().toLowerCase())
+                  )
+                  .map((profile) => (
+                    <label
+                      key={profile.id}
+                      className={`flex items-center gap-4 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${
+                        selectedUsers.includes(profile.id) ? "bg-sky-50/40" : ""
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(profile.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedUsers((p) => [...p, profile.id]);
+                          else setSelectedUsers((p) => p.filter((id) => id !== profile.id));
+                        }}
+                        className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-slate-800 flex flex-wrap items-center gap-2">
+                          <span className="truncate">{profile.email}</span>
+                          {profile.role === "super_admin" && (
+                            <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black uppercase tracking-widest">
+                              Admin
+                            </span>
+                          )}
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${
+                              profile.is_active
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {profile.is_active ? "Activo" : "Inactivo"}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 uppercase font-black tracking-wider mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                          <span className="text-sky-700">
+                            Alu Crudo:{" "}
+                            {profile.aluminum_price_per_kg !== undefined
+                              ? `$${profile.aluminum_price_per_kg.toLocaleString("es-AR", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}/kg`
+                              : "Sin config ($15 base)"}
+                          </span>
+                          <span>• {profile.glasses_count || 0} vidrios</span>
+                          <span>• {profile.accessories_count || 0} accesorios</span>
+                          <span>• {profile.recipes_count || 0} recetas</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+              </div>
+            </div>
+
+            {/* 2. AUMENTOS MASIVOS DE PRECIOS EN PORCENTAJE (%) */}
+            <div className="bg-gradient-to-br from-amber-50/70 via-white to-sky-50/60 border border-amber-200 rounded-2xl p-5 space-y-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-200/70 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md shrink-0">
+                    <TrendingUp size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                      Aumentos Masivos de Precios (%)
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      Sube un porcentaje sobre el precio actual que ya tiene cada usuario seleccionado, sin borrar ni reemplazar su catálogo.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1.5 shadow-xs shrink-0">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={unifiedIncreasePct}
+                    onChange={(e) => setUnifiedIncreasePct(e.target.value)}
+                    placeholder="% general"
+                    className="w-24 px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyUnifiedPct}
+                    disabled={!unifiedIncreasePct.trim()}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
+                  >
+                    Aplicar a los 3
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Vidrios */}
+                <div
+                  className={`p-4 rounded-2xl border transition-all ${
+                    applyGlassIncrease
+                      ? "bg-white border-sky-300 shadow-sm"
+                      : "bg-slate-50/70 border-slate-200 opacity-65"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyGlassIncrease}
+                        onChange={(e) => setApplyGlassIncrease(e.target.checked)}
+                        className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                      />
+                      <Layers size={15} className="text-sky-600" />
+                      Vidrios Completa
+                    </label>
+                    <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full">
+                      $/m²
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      disabled={!applyGlassIncrease}
+                      value={glassIncreasePct}
+                      onChange={(e) => setGlassIncreasePct(e.target.value)}
+                      className="w-full pr-8 pl-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:cursor-not-allowed"
+                    />
+                    <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                    Ej. $1.000 →{" "}
+                    <strong className="text-slate-700">
+                      $
+                      {(
+                        1000 *
+                        (1 + ((applyGlassIncrease ? parseFloat(glassIncreasePct) || 0 : 0) / 100))
+                      ).toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </strong>
+                  </p>
+                </div>
+
+                {/* Aluminio Crudo */}
+                <div
+                  className={`p-4 rounded-2xl border transition-all ${
+                    applyAluminumIncrease
+                      ? "bg-white border-amber-300 shadow-sm"
+                      : "bg-slate-50/70 border-slate-200 opacity-65"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyAluminumIncrease}
+                        onChange={(e) => setApplyAluminumIncrease(e.target.checked)}
+                        className="w-4 h-4 rounded text-amber-600 cursor-pointer"
+                      />
+                      <Box size={15} className="text-amber-600" />
+                      Aluminio Crudo
+                    </label>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                      $/KG
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      disabled={!applyAluminumIncrease}
+                      value={aluminumIncreasePct}
+                      onChange={(e) => setAluminumIncreasePct(e.target.value)}
+                      className="w-full pr-8 pl-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:cursor-not-allowed"
+                    />
+                    <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                    Ej. $1.000 →{" "}
+                    <strong className="text-slate-700">
+                      $
+                      {(
+                        1000 *
+                        (1 + ((applyAluminumIncrease ? parseFloat(aluminumIncreasePct) || 0 : 0) / 100))
+                      ).toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </strong>
+                  </p>
+                </div>
+
+                {/* Accesorios */}
+                <div
+                  className={`p-4 rounded-2xl border transition-all ${
+                    applyAccessoryIncrease
+                      ? "bg-white border-emerald-300 shadow-sm"
+                      : "bg-slate-50/70 border-slate-200 opacity-65"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyAccessoryIncrease}
+                        onChange={(e) => setApplyAccessoryIncrease(e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-600 cursor-pointer"
+                      />
+                      <Package size={15} className="text-emerald-600" />
+                      Accesorios Completa
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      $/Unidad
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      disabled={!applyAccessoryIncrease}
+                      value={accessoryIncreasePct}
+                      onChange={(e) => setAccessoryIncreasePct(e.target.value)}
+                      className="w-full pr-8 pl-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed"
+                    />
+                    <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                    Ej. $1.000 →{" "}
+                    <strong className="text-slate-700">
+                      $
+                      {(
+                        1000 *
+                        (1 + ((applyAccessoryIncrease ? parseFloat(accessoryIncreasePct) || 0 : 0) / 100))
+                      ).toLocaleString("es-AR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+
+              {priceIncreaseSummary && (
+                <div
+                  className={`p-4 rounded-xl border text-xs flex items-start gap-3 ${
+                    priceIncreaseSummary.success
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                      : "bg-amber-50 border-amber-200 text-amber-800"
+                  }`}
+                >
+                  <CheckCircle2 size={18} className="shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-black uppercase tracking-widest">
+                      {priceIncreaseSummary.success
+                        ? "Aumento masivo aplicado con éxito"
+                        : "Aumento aplicado con advertencias"}
+                    </p>
+                    <p className="font-medium">
+                      Usuarios actualizados: <strong>{priceIncreaseSummary.updatedUsers}</strong> • Vidrios actualizados:{" "}
+                      <strong>{priceIncreaseSummary.glassesUpdated}</strong> • Alu Crudo actualizado:{" "}
+                      <strong>{priceIncreaseSummary.aluminumConfigsUpdated}</strong> • Accesorios actualizados:{" "}
+                      <strong>{priceIncreaseSummary.accessoriesUpdated}</strong>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleBulkPriceIncrease}
+                  disabled={isApplyingPriceIncrease || selectedUsers.length === 0}
+                  className="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-300 text-white font-black uppercase text-xs tracking-widest px-6 py-3.5 rounded-xl transition-colors flex items-center gap-2.5 shadow-md hover:shadow-lg"
+                >
+                  {isApplyingPriceIncrease ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <TrendingUp size={18} />
+                  )}
+                  Aplicar Aumento Masivo a {selectedUsers.length} Usuario(s)
+                </button>
+              </div>
+            </div>
+
+            {/* 3. INYECCIÓN DE ARCHIVO MAESTRO JSON */}
+            <div className="border-t border-slate-200 pt-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                    Inyección de Archivo Maestro JSON (Sobrescribe categorías seleccionadas)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Usa la misma selección de usuarios de arriba para inyectar recetas, perfiles, accesorios o vidrios desde un respaldo JSON.
+                  </p>
+                </div>
+              </div>
+
+              {!bulkData ? (
+                <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
+                  <UploadCloud size={44} className="text-slate-400 mb-3" />
+                  <p className="text-sm font-bold text-slate-600 uppercase tracking-widest mb-4">
+                    Cargar Archivo Maestro JSON
+                  </p>
+                  <button
+                    onClick={() => masterFileInputRef.current?.click()}
+                    className="bg-sky-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-sky-700"
+                  >
+                    Subir Archivo
+                  </button>
+                  <input
+                    type="file"
+                    ref={masterFileInputRef}
+                    onChange={handleMasterFileUpload}
+                    accept=".json"
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex justify-between items-center">
                     <div>
-                      <p className="text-sm font-bold text-emerald-800 uppercase tracking-widest">Archivo Maestro en Memoria</p>
+                      <p className="text-sm font-bold text-emerald-800 uppercase tracking-widest">
+                        Archivo Maestro en Memoria
+                      </p>
                       <p className="text-xs text-emerald-600 mt-1">
-                        Contiene {bulkData.recetas?.length || 0} recetas, {bulkData.aluminum?.length || 0} perfiles, {bulkData.accessories?.length || 0} accesorios.
+                        Contiene {bulkData.recetas?.length || 0} recetas, {bulkData.aluminum?.length || 0} perfiles,{" "}
+                        {bulkData.accessories?.length || 0} accesorios.
                       </p>
                     </div>
-                    <button onClick={() => { setBulkData(null); setSelectedUsers([]); }} className="text-xs font-bold uppercase text-emerald-700 hover:text-emerald-900 px-3 py-1.5 bg-emerald-100 rounded-lg">Cambiar Archivo</button>
-                 </div>
-
-                 <div className="bg-white border border-slate-200 p-5 rounded-2xl">
-                    
-<h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">Filtros de Inyección</h3>
-                    <div className="flex flex-wrap gap-4 mb-6">
-                       <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                             <input type="checkbox" checked={selectedCategories.recetas} onChange={(e) => {
-                                const isChecked = e.target.checked;
-                                setSelectedCategories(p => ({...p, recetas: isChecked}));
-                                if (isChecked && availableLines.length > 0) setShowLinesModal(true);
-                             }} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
-                             Recetas
-                          </label>
-                          {selectedCategories.recetas && availableLines.length > 0 && (
-                             <button onClick={() => setShowLinesModal(true)} className="text-[10px] text-sky-600 font-bold uppercase hover:underline">
-                                (Seleccionadas: {selectedLines.length}/{availableLines.length}) Editar
-                             </button>
-                          )}
-                       </div>
-                       <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                          <input type="checkbox" checked={selectedCategories.perfiles} onChange={(e) => setSelectedCategories(p => ({...p, perfiles: e.target.checked}))} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
-                          Perfiles
-                       </label>
-                       <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                          <input type="checkbox" checked={selectedCategories.accesorios} onChange={(e) => setSelectedCategories(p => ({...p, accesorios: e.target.checked}))} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
-                          Accesorios
-                       </label>
-                       <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                          <input type="checkbox" checked={selectedCategories.vidrios} onChange={(e) => setSelectedCategories(p => ({...p, vidrios: e.target.checked}))} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
-                          Vidrios / Paneles
-                       </label>
-                    </div>
-                 </div>
-                 
-                 <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-                       <label className="flex items-center gap-3 text-sm font-bold text-slate-800 cursor-pointer">
-                          <input type="checkbox" 
-                                 checked={selectedUsers.length === profiles.length && profiles.length > 0} 
-                                 onChange={(e) => {
-                                    if (e.target.checked) setSelectedUsers(profiles.map(p => p.id));
-                                    else setSelectedUsers([]);
-                                 }} 
-                                 className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
-                          Seleccionar Todos los Usuarios
-                       </label>
-                       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{selectedUsers.length} Seleccionados</span>
-                    </div>
-                    <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                       {profiles.map(profile => (
-                          <label key={profile.id} className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 cursor-pointer">
-                             <input type="checkbox" checked={selectedUsers.includes(profile.id)} onChange={(e) => {
-                                 if (e.target.checked) setSelectedUsers(p => [...p, profile.id]);
-                                 else setSelectedUsers(p => p.filter(id => id !== profile.id));
-                             }} className="w-4 h-4 rounded text-sky-600 cursor-pointer" />
-                             <div className="flex-1">
-                                <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                  {profile.email}
-                                  {profile.role === 'super_admin' && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black uppercase tracking-widest">Admin</span>}
-                                </div>
-                                <div className="text-[10px] text-slate-500 uppercase font-black tracking-wider mt-0.5">
-                                   {profile.recipes_count || 0} RECETAS | {profile.registered_count || 0} DISPOSITIVOS
-                                </div>
-                             </div>
-                          </label>
-                       ))}
-                    </div>
-                 </div>
-
-                 <div className="flex justify-end pt-2">
                     <button
-                       onClick={handleBulkInjection}
-                       disabled={isDeploying || selectedUsers.length === 0}
-                       className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-black uppercase text-xs tracking-widest px-8 py-4 rounded-xl transition-colors flex items-center gap-3 shadow-lg hover:shadow-xl"
+                      onClick={() => {
+                        setBulkData(null);
+                      }}
+                      className="text-xs font-bold uppercase text-emerald-700 hover:text-emerald-900 px-3 py-1.5 bg-emerald-100 rounded-lg"
                     >
-                       {isDeploying ? <Loader2 size={18} className="animate-spin" /> : <Database size={18} />}
-                       Inyectar Datos a {selectedUsers.length} Usuarios
+                      Cambiar Archivo
                     </button>
-                 </div>
-               </div>
-             )}
+                  </div>
+
+                  <div className="bg-white border border-slate-200 p-5 rounded-2xl">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">
+                      Filtros de Inyección
+                    </h4>
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedCategories.recetas}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setSelectedCategories((p) => ({ ...p, recetas: isChecked }));
+                              if (isChecked && availableLines.length > 0) setShowLinesModal(true);
+                            }}
+                            className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                          />
+                          Recetas
+                        </label>
+                        {selectedCategories.recetas && availableLines.length > 0 && (
+                          <button
+                            onClick={() => setShowLinesModal(true)}
+                            className="text-[10px] text-sky-600 font-bold uppercase hover:underline"
+                          >
+                            (Seleccionadas: {selectedLines.length}/{availableLines.length}) Editar
+                          </button>
+                        )}
+                      </div>
+                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.perfiles}
+                          onChange={(e) =>
+                            setSelectedCategories((p) => ({ ...p, perfiles: e.target.checked }))
+                          }
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                        />
+                        Perfiles
+                      </label>
+                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.accesorios}
+                          onChange={(e) =>
+                            setSelectedCategories((p) => ({ ...p, accesorios: e.target.checked }))
+                          }
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                        />
+                        Accesorios
+                      </label>
+                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.vidrios}
+                          onChange={(e) =>
+                            setSelectedCategories((p) => ({ ...p, vidrios: e.target.checked }))
+                          }
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                        />
+                        Vidrios / Paneles
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      onClick={handleBulkInjection}
+                      disabled={isDeploying || selectedUsers.length === 0}
+                      className="bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-black uppercase text-xs tracking-widest px-8 py-4 rounded-xl transition-colors flex items-center gap-3 shadow-lg hover:shadow-xl"
+                    >
+                      {isDeploying ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Database size={18} />
+                      )}
+                      Inyectar Datos a {selectedUsers.length} Usuarios
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : activeTab === "users" ? (
         <div className="space-y-3">
@@ -700,6 +1251,19 @@ const SuperAdminDashboard: React.FC = () => {
                       </>
                     )}
                   </button>
+                  <button
+                    onClick={() => toggleWebQuoter(profile.id, Boolean(profile.web_quoter_enabled))}
+                    disabled={toggling === profile.id}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                      profile.web_quoter_enabled
+                        ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                        : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                    }`}
+                  >
+                    <Globe size={13} />
+                    Cotizador Web: {profile.web_quoter_enabled ? "Activo" : "Inactivo"}
+                  </button>
+
                   {profile.role !== "super_admin" && (
                     <div className="flex gap-2">
                         <button

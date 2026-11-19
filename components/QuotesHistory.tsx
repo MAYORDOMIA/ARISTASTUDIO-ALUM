@@ -15,6 +15,7 @@ import {
   ChevronRight,
   X,
   Wallet,
+  Globe,
 } from "lucide-react";
 import {
   Quote,
@@ -117,6 +118,8 @@ const QuotesHistory: React.FC<Props> = ({
             dvhInputs,
             treatments,
             accessories,
+            blindPanels,
+            aluminum,
           );
           break;
         case "taller":
@@ -234,8 +237,15 @@ const QuotesHistory: React.FC<Props> = ({
                     <div className="text-[10px] text-sky-600 font-black uppercase tracking-widest">
                       {formatDate(q.date)}
                     </div>
-                    <div className="text-sm font-black text-slate-800 uppercase group-hover:text-sky-600 transition-colors truncate max-w-[200px]">
-                      {q.clientName}
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-black text-slate-800 uppercase group-hover:text-sky-600 transition-colors truncate max-w-[200px]">
+                        {q.clientName.replace("[WEB]", "").trim() || q.clientName}
+                      </div>
+                      {q.clientName.includes("[WEB]") && (
+                        <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0">
+                          <Globe size={9} /> Web
+                        </span>
+                      )}
                     </div>
                     <div className="text-[9px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
                       ID: {q.id.substring(0, 8)} | {q.items.length} ÍTEMS

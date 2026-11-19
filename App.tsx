@@ -32,6 +32,7 @@ import {
   Bell,
   AlertTriangle,
   User,
+  Globe,
 } from "lucide-react";
 import { DATABASE_TABS } from "./constants";
 import * as XLSX from "xlsx";
@@ -61,6 +62,8 @@ import QuotesHistory from "./components/QuotesHistory";
 import ObrasModule from "./components/ObrasModule";
 import SuperAdminDashboard from "./src/components/SuperAdminDashboard";
 import Auth from "./src/components/Auth";
+import WebQuoterSettings from "./components/WebQuoterSettings";
+import PublicWebQuoter from "./components/PublicWebQuoter";
 import { supabase, isSupabaseConfigured } from "./src/services/supabaseClient";
 import { logEvent } from "./src/services/logger";
 import { Session } from "@supabase/supabase-js";
@@ -83,6 +86,16 @@ const App: React.FC = () => {
   const initialPopupShownRef = useRef(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("quoter");
+  const [showPublicPreview, setShowPublicPreview] = useState(false);
+  const [isStandaloneWebQuoter] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const params = new URLSearchParams(window.location.search);
+    return (
+      params.get("portal") === "cotizar" ||
+      params.get("portal") === "web" ||
+      params.get("cotizar") === "1"
+    );
+  });
 
   // Consulta y filtrado de anuncios (Globales e Individuales)
   const fetchAnnouncements = async () => {
@@ -277,7 +290,35 @@ const App: React.FC = () => {
       clearTimeout(safetyTimer);
       window.removeEventListener("unhandledrejection", handleUnhandledRejection);
     };
-  }, []); // Suscripción en tiempo real para sincronización de activación
+  }, []);
+
+  // Carga de datos pública para el modo Cotizador Web Autónomo
+  useEffect(() => {
+    if (!isStandaloneWebQuoter) return;
+    const loadPublicData = async () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const uid = urlParams.get("uid");
+        if (uid && isSupabaseConfigured) {
+          const data = await fetchFromTables(uid);
+          if (data) {
+            hydrateData(data);
+            setAuthLoading(false);
+            return;
+          }
+        }
+        const localData = localStorage.getItem("maicol_engine_data_data_v2");
+        if (localData) {
+          hydrateData(JSON.parse(localData));
+        }
+      } catch (e) {
+        console.warn("Public quoter data load error:", e);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    loadPublicData();
+  }, [isStandaloneWebQuoter]); // Suscripción en tiempo real para sincronización de activación
   useEffect(() => {
     if (!isSupabaseConfigured || !session?.user?.id || !isDataLoaded) return;
     /* Suscribirse a cambios en el perfil (para activación) y en presupuestos */ let channel: any;
@@ -852,10 +893,39 @@ const App: React.FC = () => {
       </div>
     );
   }
+  if (isStandaloneWebQuoter) {
+    return (
+      <PublicWebQuoter
+        config={config}
+        recipes={recipes}
+        treatments={treatments}
+        glasses={glasses}
+        dvhInputs={dvhInputs}
+        blindPanels={blindPanels}
+        aluminum={aluminum}
+        accessories={accessories}
+        tenantId={
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("uid") || session?.user?.id
+            : session?.user?.id
+        }
+        isStandalone={true}
+        onSaveQuote={(newQuote) => {
+          setQuotes((prev) => [newQuote, ...prev.filter((q) => q.id !== newQuote.id)]);
+        }}
+      />
+    );
+  }
+
   if (!session) {
     return <Auth />;
   }
   const isSuperAdmin = session.user.email === "aristastudiouno@gmail.com";
+  const hasWebQuoter = Boolean(
+    isSuperAdmin ||
+    config.webQuoterPlanActive ||
+    profile?.web_quoter_enabled
+  );
   if (deviceLimitReached && !isSuperAdmin) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#f1f5f9] p-4">
@@ -1003,6 +1073,27 @@ const App: React.FC = () => {
               )}
             </button>
           ))}
+          {/* Opción de Cotizador Web (Solo si el cliente tiene el servicio activo o es Super Admin) */}
+          {hasWebQuoter && (
+            <button
+              onClick={() => {
+                setActiveTab("web_quoter");
+                if (window.innerWidth < 1024) setIsSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all group border ${
+                activeTab === "web_quoter"
+                  ? "bg-sky-500 text-white font-black shadow-lg border-sky-600"
+                  : "text-gray-500 hover:bg-slate-50 hover:text-sky-500 border-transparent hover:border-slate-100"
+              }`}
+            >
+              <Globe size={18} />
+              {isSidebarOpen && (
+                <span className="text-[11px] font-black uppercase tracking-wider">
+                  Cotizador Web
+                </span>
+              )}
+            </button>
+          )}
           {/* Opción de Super Admin oculta para todos excepto para ti */}
           {isSuperAdmin && (
             <button
@@ -1199,11 +1290,12 @@ const App: React.FC = () => {
                     STUDIO
                   </span>
                   <span className="ml-2 bg-slate-50 text-slate-400 text-[10px] px-1.5 py-0.5 rounded font-mono border border-slate-200 lowercase">
-                    v1.4.1
+                    v1.4.2
                   </span>
                 </div>
               ) : (
-                MENU_ITEMS.find((m) => m.id === activeTab)?.label || activeTab
+                MENU_ITEMS.find((m) => m.id === activeTab)?.label ||
+                (activeTab === "web_quoter" ? "Cotizador Web" : activeTab)
               )}
             </h1>
             {announcements.length > 0 && (
@@ -1385,9 +1477,34 @@ const App: React.FC = () => {
               onEditQuote={handleEditQuote}
             />
           </div>
-          <div className={activeTab === "admin" ? "h-full" : "hidden"}>
-            <SuperAdminDashboard />
-          </div>
+          {isSuperAdmin && (
+            <div className={activeTab === "admin" ? "h-full" : "hidden"}>
+              <SuperAdminDashboard
+                currentUserId={session.user.id}
+                onCurrentUserDataUpdated={() => {
+                  fetchFromTables(session.user.id).then((freshData) => {
+                    if (freshData) hydrateData(freshData);
+                  });
+                }}
+              />
+            </div>
+          )}
+          {hasWebQuoter && (
+            <div className={activeTab === "web_quoter" ? "h-full" : "hidden"}>
+              <WebQuoterSettings
+                config={config}
+                setConfig={setConfig}
+                recipes={recipes}
+                treatments={treatments}
+                glasses={glasses}
+                dvhInputs={dvhInputs}
+                blindPanels={blindPanels}
+                aluminum={aluminum}
+                userId={session?.user?.id}
+                onOpenPublicPreview={() => setShowPublicPreview(true)}
+              />
+            </div>
+          )}
           <div className={activeTab === "config" ? "h-full" : "hidden"}>
             <div className="max-w-4xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1675,6 +1792,28 @@ const App: React.FC = () => {
           </div>
         </section>
       </main>
+
+      {/* Modal de Previsualización del Cotizador Web */}
+      {showPublicPreview && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs">
+          <PublicWebQuoter
+            config={config}
+            recipes={recipes}
+            treatments={treatments}
+            glasses={glasses}
+            dvhInputs={dvhInputs}
+            blindPanels={blindPanels}
+            aluminum={aluminum}
+            accessories={accessories}
+            tenantId={session?.user?.id}
+            onClosePreview={() => setShowPublicPreview(false)}
+            onSaveQuote={(newQuote) => {
+              setQuotes((prev) => [newQuote, ...prev.filter((q) => q.id !== newQuote.id)]);
+            }}
+          />
+        </div>
+      )}
+
       <style>{` .report-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 12px; transition: all 0.2s; border: 1px solid transparent; } .report-btn:hover { background-color: #f1f5f9; border-color: #e2e8f0; } .dark .report-btn:hover { background-color: #1e293b; border-color: #334155; } .icon-style { color: #64748b; transition: color 0.2s; } .report-btn:hover .icon-style { color: #0ea5e9; } .label-style { font-size: 7px; font-weight: 900; color: #94a3b8; letter-spacing: 0.1em; transition: color 0.2s; } .report-btn:hover .label-style { color: #0ea5e9; } `}</style>
     </div>
   );

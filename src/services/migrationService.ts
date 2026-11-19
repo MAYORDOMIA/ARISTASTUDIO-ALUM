@@ -368,3 +368,169 @@ export const pullUpdatesFromMaster = async (userId: string) => {
 
   return { success: errors.length === 0, added: addedCount, errors };
 };
+
+export interface BulkPriceIncreaseOptions {
+  glassPercentage?: number;
+  aluminumCrudoPercentage?: number;
+  accessoryPercentage?: number;
+}
+
+export interface BulkPriceIncreaseResult {
+  success: boolean;
+  updatedUsers: number;
+  glassesUpdated: number;
+  accessoriesUpdated: number;
+  aluminumConfigsUpdated: number;
+  errors: string[];
+}
+
+const roundPrice2 = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(Math.max(0, value) * 100) / 100;
+};
+
+async function upsertInChunks(table: string, rows: any[], chunkSize = 200): Promise<{ count: number; error: string | null }> {
+  let updated = 0;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const { error } = await supabase.from(table).upsert(chunk, { onConflict: "id" });
+    if (error) {
+      return { count: updated, error: error.message };
+    }
+    updated += chunk.length;
+  }
+  return { count: updated, error: null };
+}
+
+export const applyBulkPriceIncrease = async (
+  userIds: string[],
+  options: BulkPriceIncreaseOptions
+): Promise<BulkPriceIncreaseResult> => {
+  const glassPct = Number(options.glassPercentage || 0);
+  const aluPct = Number(options.aluminumCrudoPercentage || 0);
+  const accPct = Number(options.accessoryPercentage || 0);
+
+  let updatedUsers = 0;
+  let glassesUpdated = 0;
+  let accessoriesUpdated = 0;
+  let aluminumConfigsUpdated = 0;
+  const errors: string[] = [];
+
+  for (const userId of userIds) {
+    let userHadChange = false;
+
+    try {
+      // 1. Base de datos completa de Vidrios ($/m2)
+      if (Number.isFinite(glassPct) && glassPct !== 0) {
+        const { data: glassRows, error: glassFetchErr } = await supabase
+          .from("materiales_vidrios_usuario")
+          .select("*")
+          .eq("user_id", userId)
+          .limit(50000);
+
+        if (glassFetchErr) {
+          errors.push(`Vidrios (${userId}): ${glassFetchErr.message}`);
+        } else if (glassRows && glassRows.length > 0) {
+          const factor = 1 + glassPct / 100;
+          const updatedRows = glassRows.map((row: any) => ({
+            ...row,
+            price_per_m2: roundPrice2((Number(row.price_per_m2) || 0) * factor),
+          }));
+          const { count, error: glassUpsertErr } = await upsertInChunks(
+            "materiales_vidrios_usuario",
+            updatedRows
+          );
+          if (glassUpsertErr) {
+            errors.push(`Vidrios (${userId}): ${glassUpsertErr}`);
+          } else {
+            glassesUpdated += count;
+            if (count > 0) userHadChange = true;
+          }
+        }
+      }
+
+      // 2. Aluminio en el Crudo ($/KG en configuracion_usuario)
+      if (Number.isFinite(aluPct) && aluPct !== 0) {
+        const { data: confRow, error: confFetchErr } = await supabase
+          .from("configuracion_usuario")
+          .select("config_data")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (confFetchErr && confFetchErr.code !== "PGRST116") {
+          errors.push(`Aluminio Crudo (${userId}): ${confFetchErr.message}`);
+        } else {
+          const currentConfig = confRow?.config_data || {};
+          const currentAluPrice =
+            currentConfig.aluminumPricePerKg !== undefined &&
+            currentConfig.aluminumPricePerKg !== null
+              ? Number(currentConfig.aluminumPricePerKg) || 0
+              : 15;
+          const newAluPrice = roundPrice2(currentAluPrice * (1 + aluPct / 100));
+          const updatedConfig = {
+            ...currentConfig,
+            aluminumPricePerKg: newAluPrice,
+          };
+
+          const { error: confSaveErr } = await supabase
+            .from("configuracion_usuario")
+            .upsert([{ user_id: userId, config_data: updatedConfig }], {
+              onConflict: "user_id",
+            });
+
+          if (confSaveErr) {
+            errors.push(`Aluminio Crudo (${userId}): ${confSaveErr.message}`);
+          } else {
+            aluminumConfigsUpdated += 1;
+            userHadChange = true;
+          }
+        }
+      }
+
+      // 3. Base de datos completa de Accesorios (por unidad)
+      if (Number.isFinite(accPct) && accPct !== 0) {
+        const { data: accRows, error: accFetchErr } = await supabase
+          .from("materiales_accesorios_usuario")
+          .select("*")
+          .eq("user_id", userId)
+          .limit(50000);
+
+        if (accFetchErr) {
+          errors.push(`Accesorios (${userId}): ${accFetchErr.message}`);
+        } else if (accRows && accRows.length > 0) {
+          const factor = 1 + accPct / 100;
+          const updatedRows = accRows.map((row: any) => ({
+            ...row,
+            unit_price: roundPrice2((Number(row.unit_price) || 0) * factor),
+          }));
+          const { count, error: accUpsertErr } = await upsertInChunks(
+            "materiales_accesorios_usuario",
+            updatedRows
+          );
+          if (accUpsertErr) {
+            errors.push(`Accesorios (${userId}): ${accUpsertErr}`);
+          } else {
+            accessoriesUpdated += count;
+            if (count > 0) userHadChange = true;
+          }
+        }
+      }
+
+      if (userHadChange) {
+        updatedUsers += 1;
+      }
+    } catch (err: any) {
+      errors.push(`Usuario ${userId}: ${err?.message || "Error inesperado"}`);
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    updatedUsers,
+    glassesUpdated,
+    accessoriesUpdated,
+    aluminumConfigsUpdated,
+    errors,
+  };
+};
+
