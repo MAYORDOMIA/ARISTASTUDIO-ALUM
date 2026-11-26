@@ -66,6 +66,7 @@ import {
 import {
   calculateCompositePrice,
   evaluateFormula,
+  isMosquiteroRecipe,
 } from "../services/calculator"; // CONSTANTES TÉCNICAS PARA RENDERIZADO
 import {
   findDVHRecipe,
@@ -3783,12 +3784,7 @@ const QuotingModule: React.FC<Props> = ({
               </button>
 
               {recipes
-                .filter(
-                  (r) =>
-                    r.type === "Mosquitero" ||
-                    r.visualType?.toLowerCase().includes("mosquitero") ||
-                    r.name.toLowerCase().includes("mosquitero"),
-                )
+                .filter((r) => isMosquiteroRecipe(r))
                 .map((r) => (
                   <button
                     key={r.id}

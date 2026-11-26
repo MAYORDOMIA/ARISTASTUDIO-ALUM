@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { supabase } from "../services/supabaseClient";
-import { saveBulkData, applyBulkPriceIncrease, BulkPriceIncreaseResult } from "../services/migrationService";
+import { saveBulkData, applyBulkPriceIncrease, BulkPriceIncreaseResult, normalizeBulkJsonPayload } from "../services/migrationService";
 import {
   ShieldCheck,
   UserCheck,
@@ -59,11 +59,17 @@ interface Profile {
   registered_count?: number; // Calculado tras fetch
   quotes_count?: number; // Presupuestos / obras guardadas
   recipes_count?: number; // Tipologías / recetas guardadas
+  aluminum_count?: number; // Perfiles en base de datos
   glasses_count?: number; // Vidrios en base de datos
   accessories_count?: number; // Accesorios en base de datos
+  treatments_count?: number; // Tratamientos en base de datos
+  panels_count?: number; // Paneles en base de datos
+  dvh_count?: number; // DVH en base de datos
   aluminum_price_per_kg?: number; // Precio aluminio crudo ($/kg)
   web_quoter_enabled?: boolean; // Habilitación del servicio de cotizador web para clientes
 }
+
+const NO_LINE_KEY = "__SIN_LINEA__";
 
 interface SuperAdminDashboardProps {
   currentUserId?: string;
@@ -87,6 +93,10 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
     perfiles: true,
     accesorios: true,
     vidrios: true,
+    paneles: true,
+    dvh: true,
+    tratamientos: true,
+    config: false,
   });
   const [availableLines, setAvailableLines] = useState<string[]>([]);
   const [selectedLines, setSelectedLines] = useState<string[]>([]);
@@ -242,61 +252,53 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
     /* Traemos perfiles y luego contamos dispositivos y analiticas */
     const {
       data: profs,
-      error,
     } = await supabase
       .from("perfiles_usuarios")
       .select("*")
       .order("created_at", { ascending: false });
     if (profs) {
-      const { data: devices } = await supabase
-        .from("gestion_dispositivos")
-        .select("user_id");
-        
-      const { data: quotes } = await supabase
-        .from("presupuestos")
-        .select("user_id");
-        
-      const { data: recipes } = await supabase
-        .from("recetas_usuario")
-        .select("user_id");
+      const [
+        { data: devices },
+        { data: quotes },
+        { data: recipes },
+        { data: aluminumRows },
+        { data: glassesRows },
+        { data: accessoriesRows },
+        { data: treatmentsRows },
+        { data: panelsRows },
+        { data: dvhRows },
+        { data: configs },
+      ] = await Promise.all([
+        supabase.from("gestion_dispositivos").select("user_id").limit(50000),
+        supabase.from("presupuestos").select("user_id").limit(50000),
+        supabase.from("recetas_usuario").select("user_id").limit(50000),
+        supabase.from("materiales_perfiles_usuario").select("user_id").limit(50000),
+        supabase.from("materiales_vidrios_usuario").select("user_id").limit(50000),
+        supabase.from("materiales_accesorios_usuario").select("user_id").limit(50000),
+        supabase.from("tratamientos_usuario").select("user_id").limit(50000),
+        supabase.from("paneles_usuario").select("user_id").limit(50000),
+        supabase.from("dvh_usuario").select("user_id").limit(50000),
+        supabase.from("configuracion_usuario").select("user_id, config_data").limit(50000),
+      ]);
 
-      const { data: glassesRows } = await supabase
-        .from("materiales_vidrios_usuario")
-        .select("user_id");
+      const countByUser = (rows: any[] | null) => {
+        const map: Record<string, number> = {};
+        (rows || []).forEach((r) => {
+          if (r.user_id) map[r.user_id] = (map[r.user_id] || 0) + 1;
+        });
+        return map;
+      };
 
-      const { data: accessoriesRows } = await supabase
-        .from("materiales_accesorios_usuario")
-        .select("user_id");
+      const counts = countByUser(devices);
+      const quoteCounts = countByUser(quotes);
+      const recipeCounts = countByUser(recipes);
+      const aluCounts = countByUser(aluminumRows);
+      const glassCounts = countByUser(glassesRows);
+      const accessoryCounts = countByUser(accessoriesRows);
+      const treatmentCounts = countByUser(treatmentsRows);
+      const panelCounts = countByUser(panelsRows);
+      const dvhCounts = countByUser(dvhRows);
 
-      const counts: any = {};
-      (devices || []).forEach((d) => {
-        counts[d.user_id] = (counts[d.user_id] || 0) + 1;
-      });
-      
-      const quoteCounts: any = {};
-      (quotes || []).forEach((q) => {
-        quoteCounts[q.user_id] = (quoteCounts[q.user_id] || 0) + 1;
-      });
-      
-      const recipeCounts: any = {};
-      (recipes || []).forEach((r) => {
-        recipeCounts[r.user_id] = (recipeCounts[r.user_id] || 0) + 1;
-      });
-
-      const glassCounts: any = {};
-      (glassesRows || []).forEach((g) => {
-        glassCounts[g.user_id] = (glassCounts[g.user_id] || 0) + 1;
-      });
-
-      const accessoryCounts: any = {};
-      (accessoriesRows || []).forEach((a) => {
-        accessoryCounts[a.user_id] = (accessoryCounts[a.user_id] || 0) + 1;
-      });
-
-      // Mapear configuración de cotizador web y precio aluminio crudo
-      const { data: configs } = await supabase
-        .from("configuracion_usuario")
-        .select("user_id, config_data");
       const configMap: any = {};
       (configs || []).forEach((c) => {
         configMap[c.user_id] = c.config_data;
@@ -308,8 +310,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
           registered_count: counts[p.id] || 0,
           quotes_count: quoteCounts[p.id] || 0,
           recipes_count: recipeCounts[p.id] || 0,
+          aluminum_count: aluCounts[p.id] || 0,
           glasses_count: glassCounts[p.id] || 0,
           accessories_count: accessoryCounts[p.id] || 0,
+          treatments_count: treatmentCounts[p.id] || 0,
+          panels_count: panelCounts[p.id] || 0,
+          dvh_count: dvhCounts[p.id] || 0,
           aluminum_price_per_kg:
             configMap[p.id]?.aluminumPricePerKg !== undefined
               ? Number(configMap[p.id].aluminumPricePerKg)
@@ -454,33 +460,39 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
   
   const handleMasterFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const jsonData = JSON.parse(e.target?.result as string);
-        if (jsonData.perfiles && !jsonData.aluminum) jsonData.aluminum = jsonData.perfiles;
-        if (jsonData.vidrios && !jsonData.glasses) jsonData.glasses = jsonData.vidrios;
-        if (jsonData.accesorios && !jsonData.accessories) jsonData.accessories = jsonData.accesorios;
-        if (jsonData.paneles && !jsonData.blindPanels) jsonData.blindPanels = jsonData.paneles;
-        if (jsonData.dvh && !jsonData.dvhInputs) jsonData.dvhInputs = jsonData.dvh;
-        if (jsonData.recetas && !jsonData.recipes) jsonData.recipes = jsonData.recetas;
-        if (jsonData.recipes && !jsonData.recetas) jsonData.recetas = jsonData.recipes;
+        const rawJson = JSON.parse(e.target?.result as string);
+        const jsonData = normalizeBulkJsonPayload(rawJson);
 
         setBulkData(jsonData);
-        
-        if (jsonData.recetas) {
-          const lines = new Set<string>();
-          jsonData.recetas.forEach((r: any) => {
-            if (r.line) lines.add(r.line);
-          });
-          const uniqueLines = Array.from(lines);
-          setAvailableLines(uniqueLines);
-          setSelectedLines(uniqueLines);
-        }
+
+        const recipesList = Array.isArray(jsonData.recipes) ? jsonData.recipes : [];
+        const lines = new Set<string>();
+        recipesList.forEach((r: any) => {
+          lines.add(r?.line ? String(r.line) : NO_LINE_KEY);
+        });
+        const uniqueLines = Array.from(lines);
+        setAvailableLines(uniqueLines);
+        setSelectedLines(uniqueLines);
+
+        // Activar automáticamente solo las bases que realmente vienen en el JSON para no borrar bases no incluidas
+        setSelectedCategories({
+          recetas: Array.isArray(jsonData.recipes) && jsonData.recipes.length > 0,
+          perfiles: Array.isArray(jsonData.aluminum) && jsonData.aluminum.length > 0,
+          accesorios: Array.isArray(jsonData.accessories) && jsonData.accessories.length > 0,
+          vidrios: Array.isArray(jsonData.glasses) && jsonData.glasses.length > 0,
+          paneles: Array.isArray(jsonData.blindPanels) && jsonData.blindPanels.length > 0,
+          dvh: Array.isArray(jsonData.dvhInputs) && jsonData.dvhInputs.length > 0,
+          tratamientos: Array.isArray(jsonData.treatments) && jsonData.treatments.length > 0,
+          config: Boolean(jsonData.config && typeof jsonData.config === "object"),
+        });
       } catch (err) {
-         console.error("Error cargando JSON Maestro:", err);
-         alert("Error al procesar el archivo maestro.");
+        console.error("Error cargando JSON Maestro:", err);
+        alert("Error al procesar el archivo maestro JSON. Verifica que sea un JSON válido.");
       }
     };
     reader.readAsText(file);
@@ -488,36 +500,97 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
 
   const handleBulkInjection = async () => {
     if (!bulkData || selectedUsers.length === 0) return;
-    if (!confirm(`¿Estás seguro de que deseas inyectar estos datos a ${selectedUsers.length} usuarios? Esto sobreescribirá las categorías seleccionadas.`)) return;
+
+    const dataToInject: any = {};
+    if (selectedCategories.perfiles && Array.isArray(bulkData.aluminum)) {
+      dataToInject.aluminum = bulkData.aluminum;
+    }
+    if (selectedCategories.accesorios && Array.isArray(bulkData.accessories)) {
+      dataToInject.accessories = bulkData.accessories;
+    }
+    if (selectedCategories.vidrios && Array.isArray(bulkData.glasses)) {
+      dataToInject.glasses = bulkData.glasses;
+    }
+    if (selectedCategories.paneles && Array.isArray(bulkData.blindPanels)) {
+      dataToInject.blindPanels = bulkData.blindPanels;
+    }
+    if (selectedCategories.dvh && Array.isArray(bulkData.dvhInputs)) {
+      dataToInject.dvhInputs = bulkData.dvhInputs;
+    }
+    if (selectedCategories.tratamientos && Array.isArray(bulkData.treatments)) {
+      dataToInject.treatments = bulkData.treatments;
+    }
+    if (selectedCategories.config && bulkData.config && typeof bulkData.config === "object") {
+      dataToInject.config = bulkData.config;
+    }
+    if (selectedCategories.recetas && Array.isArray(bulkData.recipes)) {
+      dataToInject.recipes =
+        availableLines.length > 0
+          ? bulkData.recipes.filter((r: any) =>
+              selectedLines.includes(r?.line ? String(r.line) : NO_LINE_KEY)
+            )
+          : bulkData.recipes;
+    }
+
+    const categoriesSummary: string[] = [];
+    if (dataToInject.recipes) categoriesSummary.push(`• Recetas: ${dataToInject.recipes.length}`);
+    if (dataToInject.aluminum) categoriesSummary.push(`• Perfiles: ${dataToInject.aluminum.length}`);
+    if (dataToInject.glasses) categoriesSummary.push(`• Vidrios: ${dataToInject.glasses.length}`);
+    if (dataToInject.blindPanels) categoriesSummary.push(`• Paneles: ${dataToInject.blindPanels.length}`);
+    if (dataToInject.dvhInputs) categoriesSummary.push(`• DVH: ${dataToInject.dvhInputs.length}`);
+    if (dataToInject.accessories) categoriesSummary.push(`• Accesorios: ${dataToInject.accessories.length}`);
+    if (dataToInject.treatments) categoriesSummary.push(`• Tratamientos: ${dataToInject.treatments.length}`);
+    if (dataToInject.config) categoriesSummary.push(`• Configuración Global`);
+
+    if (categoriesSummary.length === 0) {
+      alert("Selecciona al menos una base de datos disponible en el archivo para inyectar.");
+      return;
+    }
+
+    if (
+      !confirm(
+        `¿Estás seguro de que deseas inyectar las siguientes bases a ${selectedUsers.length} usuario(s)?\n\n` +
+          categoriesSummary.join("\n") +
+          `\n\nEsto sobrescribirá únicamente las categorías seleccionadas.`
+      )
+    ) {
+      return;
+    }
 
     setIsDeploying(true);
-    const dataToInject: any = {};
-    if (selectedCategories.perfiles) dataToInject.aluminum = bulkData.aluminum || [];
-    if (selectedCategories.accesorios) dataToInject.accessories = bulkData.accessories || [];
-    if (selectedCategories.vidrios) {
-        dataToInject.glasses = bulkData.glasses || [];
-        dataToInject.blindPanels = bulkData.blindPanels || [];
-        dataToInject.dvhInputs = bulkData.dvhInputs || [];
-    }
-    if (selectedCategories.recetas) {
-        dataToInject.recipes = (bulkData.recetas || []).filter((r: any) => selectedLines.includes(r.line));
-    }
-
     try {
-        let successCount = 0;
-        for (const userId of selectedUsers) {
-          const result = await saveBulkData(userId, dataToInject);
-          if (result.success) successCount++;
+      let successCount = 0;
+      const userErrors: string[] = [];
+
+      for (const userId of selectedUsers) {
+        const userEmail = profiles.find((p) => p.id === userId)?.email || userId;
+        const result = await saveBulkData(userId, dataToInject);
+        if (result.success) {
+          successCount++;
+        } else {
+          userErrors.push(`${userEmail}: ${result.errors.join(" | ")}`);
         }
-        alert(`¡Inyección completada! Se actualizaron ${successCount} usuarios.`);
-        fetchProfiles();
-        if (currentUserId && selectedUsers.includes(currentUserId) && onCurrentUserDataUpdated) {
-          onCurrentUserDataUpdated();
-        }
+      }
+
+      await fetchProfiles();
+      if (currentUserId && selectedUsers.includes(currentUserId) && onCurrentUserDataUpdated) {
+        onCurrentUserDataUpdated();
+      }
+
+      if (userErrors.length === 0) {
+        alert(
+          `¡Inyección completada!\nSe actualizaron correctamente todas las bases seleccionadas en ${successCount} usuario(s).`
+        );
+      } else {
+        alert(
+          `Inyección completada con errores en ${userErrors.length} usuario(s) (${successCount}/${selectedUsers.length} sin errores):\n\n` +
+            userErrors.slice(0, 8).join("\n")
+        );
+      }
     } catch (error: any) {
-        alert("Error durante la inyección: " + error.message);
+      alert("Error durante la inyección: " + (error?.message || error));
     } finally {
-        setIsDeploying(false);
+      setIsDeploying(false);
     }
   };
 
@@ -588,33 +661,47 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file || !targetUserId) return;
-    
-    setToggling(targetUserId);
+
+    const uploadUserId = targetUserId;
+    setToggling(uploadUserId);
     const reader = new FileReader();
 
     reader.onload = async (e) => {
       try {
-        const jsonData = JSON.parse(e.target?.result as string);
-        console.log("Cargando JSON para usuario", targetUserId, jsonData);
+        const rawJson = JSON.parse(e.target?.result as string);
+        const jsonData = normalizeBulkJsonPayload(rawJson);
 
-        // Normalize keys for saveBulkData in case older JSON backups used Spanish top-level keys
-        if (jsonData.perfiles && !jsonData.aluminum) jsonData.aluminum = jsonData.perfiles;
-        if (jsonData.vidrios && !jsonData.glasses) jsonData.glasses = jsonData.vidrios;
-        if (jsonData.accesorios && !jsonData.accessories) jsonData.accessories = jsonData.accesorios;
-        if (jsonData.paneles && !jsonData.blindPanels) jsonData.blindPanels = jsonData.paneles;
-        if (jsonData.dvh && !jsonData.dvhInputs) jsonData.dvhInputs = jsonData.dvh;
+        const loadedSummary: string[] = [];
+        if (Array.isArray(jsonData.aluminum)) loadedSummary.push(`Perfiles: ${jsonData.aluminum.length}`);
+        if (Array.isArray(jsonData.glasses)) loadedSummary.push(`Vidrios: ${jsonData.glasses.length}`);
+        if (Array.isArray(jsonData.blindPanels)) loadedSummary.push(`Paneles: ${jsonData.blindPanels.length}`);
+        if (Array.isArray(jsonData.dvhInputs)) loadedSummary.push(`DVH: ${jsonData.dvhInputs.length}`);
+        if (Array.isArray(jsonData.accessories)) loadedSummary.push(`Accesorios: ${jsonData.accessories.length}`);
+        if (Array.isArray(jsonData.treatments)) loadedSummary.push(`Tratamientos: ${jsonData.treatments.length}`);
+        if (Array.isArray(jsonData.recipes)) loadedSummary.push(`Recetas: ${jsonData.recipes.length}`);
+        if (jsonData.config && typeof jsonData.config === "object") loadedSummary.push("Configuración");
 
-        const result = await saveBulkData(targetUserId, jsonData);
-        
-        if (!result.success) {
-           throw new Error(result.errors.join(", "));
+        if (loadedSummary.length === 0) {
+          throw new Error("El archivo JSON no contiene ninguna base de datos reconocida.");
         }
-        
-        alert("¡Datos cargados exitosamente!");
+
+        const result = await saveBulkData(uploadUserId, jsonData);
+
+        await fetchProfiles();
+        if (currentUserId && uploadUserId === currentUserId && onCurrentUserDataUpdated) {
+          onCurrentUserDataUpdated();
+        }
+
+        if (!result.success) {
+          throw new Error(result.errors.join("\n"));
+        }
+
+        alert(`¡Datos cargados exitosamente!\n\n${loadedSummary.join("\n")}`);
       } catch (err: any) {
         console.error("Error cargando JSON:", err);
-        alert("Error al procesar el archivo: " + err.message);
+        alert("Error al cargar bases de datos desde JSON:\n" + (err?.message || err));
       } finally {
         setToggling(null);
         setTargetUserId(null);
@@ -783,8 +870,12 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                                 })}/kg`
                               : "Sin config ($15 base)"}
                           </span>
+                          <span>• {profile.aluminum_count || 0} perfiles</span>
                           <span>• {profile.glasses_count || 0} vidrios</span>
+                          <span>• {profile.panels_count || 0} paneles</span>
+                          <span>• {profile.dvh_count || 0} dvh</span>
                           <span>• {profile.accessories_count || 0} accesorios</span>
+                          <span>• {profile.treatments_count || 0} tratamientos</span>
                           <span>• {profile.recipes_count || 0} recetas</span>
                         </div>
                       </div>
@@ -1056,21 +1147,27 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex justify-between items-center">
+                  <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                     <div>
                       <p className="text-sm font-bold text-emerald-800 uppercase tracking-widest">
                         Archivo Maestro en Memoria
                       </p>
-                      <p className="text-xs text-emerald-600 mt-1">
-                        Contiene {bulkData.recetas?.length || 0} recetas, {bulkData.aluminum?.length || 0} perfiles,{" "}
-                        {bulkData.accessories?.length || 0} accesorios.
+                      <p className="text-xs text-emerald-700 mt-1 flex flex-wrap gap-x-3 gap-y-1 font-medium">
+                        <span>• {bulkData.recipes?.length || 0} recetas</span>
+                        <span>• {bulkData.aluminum?.length || 0} perfiles</span>
+                        <span>• {bulkData.glasses?.length || 0} vidrios</span>
+                        <span>• {bulkData.blindPanels?.length || 0} paneles</span>
+                        <span>• {bulkData.dvhInputs?.length || 0} DVH</span>
+                        <span>• {bulkData.accessories?.length || 0} accesorios</span>
+                        <span>• {bulkData.treatments?.length || 0} tratamientos</span>
+                        {bulkData.config && <span>• Config incluida</span>}
                       </p>
                     </div>
                     <button
                       onClick={() => {
                         setBulkData(null);
                       }}
-                      className="text-xs font-bold uppercase text-emerald-700 hover:text-emerald-900 px-3 py-1.5 bg-emerald-100 rounded-lg"
+                      className="text-xs font-bold uppercase text-emerald-700 hover:text-emerald-900 px-3 py-1.5 bg-emerald-100 rounded-lg self-start sm:self-center shrink-0"
                     >
                       Cambiar Archivo
                     </button>
@@ -1078,13 +1175,14 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
 
                   <div className="bg-white border border-slate-200 p-5 rounded-2xl">
                     <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-4">
-                      Filtros de Inyección
+                      Filtros de Inyección (Todas las Bases de Datos)
                     </h4>
                     <div className="flex flex-wrap gap-4">
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <label className={`flex items-center gap-2 text-sm font-bold ${Array.isArray(bulkData.recipes) ? "text-slate-700 cursor-pointer" : "text-slate-400 cursor-not-allowed"}`}>
                           <input
                             type="checkbox"
+                            disabled={!Array.isArray(bulkData.recipes)}
                             checked={selectedCategories.recetas}
                             onChange={(e) => {
                               const isChecked = e.target.checked;
@@ -1093,50 +1191,109 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                             }}
                             className="w-4 h-4 rounded text-sky-600 cursor-pointer"
                           />
-                          Recetas
+                          Recetas ({bulkData.recipes?.length || 0})
                         </label>
                         {selectedCategories.recetas && availableLines.length > 0 && (
                           <button
                             onClick={() => setShowLinesModal(true)}
                             className="text-[10px] text-sky-600 font-bold uppercase hover:underline"
                           >
-                            (Seleccionadas: {selectedLines.length}/{availableLines.length}) Editar
+                            (Líneas: {selectedLines.length}/{availableLines.length})
                           </button>
                         )}
                       </div>
-                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+
+                      <label className={`flex items-center gap-2 text-sm font-bold ${Array.isArray(bulkData.aluminum) ? "text-slate-700 cursor-pointer" : "text-slate-400 cursor-not-allowed"}`}>
                         <input
                           type="checkbox"
+                          disabled={!Array.isArray(bulkData.aluminum)}
                           checked={selectedCategories.perfiles}
                           onChange={(e) =>
                             setSelectedCategories((p) => ({ ...p, perfiles: e.target.checked }))
                           }
                           className="w-4 h-4 rounded text-sky-600 cursor-pointer"
                         />
-                        Perfiles
+                        Perfiles ({bulkData.aluminum?.length || 0})
                       </label>
-                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+
+                      <label className={`flex items-center gap-2 text-sm font-bold ${Array.isArray(bulkData.glasses) ? "text-slate-700 cursor-pointer" : "text-slate-400 cursor-not-allowed"}`}>
                         <input
                           type="checkbox"
-                          checked={selectedCategories.accesorios}
-                          onChange={(e) =>
-                            setSelectedCategories((p) => ({ ...p, accesorios: e.target.checked }))
-                          }
-                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
-                        />
-                        Accesorios
-                      </label>
-                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
+                          disabled={!Array.isArray(bulkData.glasses)}
                           checked={selectedCategories.vidrios}
                           onChange={(e) =>
                             setSelectedCategories((p) => ({ ...p, vidrios: e.target.checked }))
                           }
                           className="w-4 h-4 rounded text-sky-600 cursor-pointer"
                         />
-                        Vidrios / Paneles
+                        Vidrios ({bulkData.glasses?.length || 0})
                       </label>
+
+                      <label className={`flex items-center gap-2 text-sm font-bold ${Array.isArray(bulkData.blindPanels) ? "text-slate-700 cursor-pointer" : "text-slate-400 cursor-not-allowed"}`}>
+                        <input
+                          type="checkbox"
+                          disabled={!Array.isArray(bulkData.blindPanels)}
+                          checked={selectedCategories.paneles}
+                          onChange={(e) =>
+                            setSelectedCategories((p) => ({ ...p, paneles: e.target.checked }))
+                          }
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                        />
+                        Paneles ({bulkData.blindPanels?.length || 0})
+                      </label>
+
+                      <label className={`flex items-center gap-2 text-sm font-bold ${Array.isArray(bulkData.dvhInputs) ? "text-slate-700 cursor-pointer" : "text-slate-400 cursor-not-allowed"}`}>
+                        <input
+                          type="checkbox"
+                          disabled={!Array.isArray(bulkData.dvhInputs)}
+                          checked={selectedCategories.dvh}
+                          onChange={(e) =>
+                            setSelectedCategories((p) => ({ ...p, dvh: e.target.checked }))
+                          }
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                        />
+                        DVH ({bulkData.dvhInputs?.length || 0})
+                      </label>
+
+                      <label className={`flex items-center gap-2 text-sm font-bold ${Array.isArray(bulkData.accessories) ? "text-slate-700 cursor-pointer" : "text-slate-400 cursor-not-allowed"}`}>
+                        <input
+                          type="checkbox"
+                          disabled={!Array.isArray(bulkData.accessories)}
+                          checked={selectedCategories.accesorios}
+                          onChange={(e) =>
+                            setSelectedCategories((p) => ({ ...p, accesorios: e.target.checked }))
+                          }
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                        />
+                        Accesorios ({bulkData.accessories?.length || 0})
+                      </label>
+
+                      <label className={`flex items-center gap-2 text-sm font-bold ${Array.isArray(bulkData.treatments) ? "text-slate-700 cursor-pointer" : "text-slate-400 cursor-not-allowed"}`}>
+                        <input
+                          type="checkbox"
+                          disabled={!Array.isArray(bulkData.treatments)}
+                          checked={selectedCategories.tratamientos}
+                          onChange={(e) =>
+                            setSelectedCategories((p) => ({ ...p, tratamientos: e.target.checked }))
+                          }
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                        />
+                        Tratamientos ({bulkData.treatments?.length || 0})
+                      </label>
+
+                      {bulkData.config && typeof bulkData.config === "object" && (
+                        <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedCategories.config}
+                            onChange={(e) =>
+                              setSelectedCategories((p) => ({ ...p, config: e.target.checked }))
+                            }
+                            className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                          />
+                          Configuración Global
+                        </label>
+                      )}
                     </div>
                   </div>
 
@@ -1732,7 +1889,7 @@ CREATE POLICY "Super admins can manage announcements" ON public.anuncios_globale
                               if (e.target.checked) setSelectedLines(p => [...p, line]);
                               else setSelectedLines(p => p.filter(l => l !== line));
                            }} className="w-5 h-5 rounded text-sky-600 cursor-pointer" />
-                           <span className="text-sm font-bold text-slate-700">{line || 'Sin Línea'}</span>
+                           <span className="text-sm font-bold text-slate-700">{line === NO_LINE_KEY || !line ? 'Sin Línea' : line}</span>
                         </label>
                     ))
                  )}

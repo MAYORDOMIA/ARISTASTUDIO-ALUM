@@ -5,42 +5,193 @@ import { supabase } from "./supabaseClient";
  * Procesa JSONs y sube/actualiza a Supabase con control de usuario.
  */
 
-// Helper para realizar upsert resiliente y auto-reparable en caso de columnas faltantes o conflictos de restricción
-async function safeUpsert(table: string, records: any[], onConflict: string): Promise<{ data: any; error: any }> {
-  if (!records || records.length === 0) return { data: [], error: null };
-  const { data, error } = await supabase.from(table).upsert(records, { onConflict });
-  if (error) {
-    console.warn(`[safeUpsert warning] Falló upsert en ${table} (onConflict: ${onConflict}):`, error);
+// Normaliza archivos JSON de respaldo (soporta claves en inglés/español o librerías de recetas en array)
+export const normalizeBulkJsonPayload = (raw: any): Record<string, any> => {
+  if (!raw) return {};
+  if (Array.isArray(raw)) {
+    return { recipes: raw };
+  }
 
-    // Caso 1: Columna no existe (Postgres error 42703)
-    if (error.code === "42703") {
-      const match = error.message.match(/column "([^"]+)"/);
-      if (match && match[1]) {
-        const missingColumn = match[1];
-        console.log(`[Self-Healing] Removiendo columna faltante "${missingColumn}" de la tabla "${table}" y reintentando...`);
-        const cleanedRecords = records.map((rec) => {
-          const copy = { ...rec };
-          delete copy[missingColumn];
-          return copy;
-        });
-        
-        let newOnConflict = onConflict;
-        if (onConflict.includes(missingColumn)) {
-          if (table === "recetas_usuario") {
-            newOnConflict = "user_id,master_ref";
-          }
-        }
-        return safeUpsert(table, cleanedRecords, newOnConflict);
+  const pickArray = (...keys: string[]) => {
+    for (const k of keys) {
+      if (Array.isArray(raw[k])) return raw[k];
+    }
+    return undefined;
+  };
+
+  const pickObject = (...keys: string[]) => {
+    for (const k of keys) {
+      if (raw[k] && typeof raw[k] === "object" && !Array.isArray(raw[k])) {
+        return raw[k];
       }
     }
+    return undefined;
+  };
 
-    // (Caso 2 y Caso 3 de self-healing para receta_id han sido removidos porque la columna ya no existe en el esquema)
+  const normalized: Record<string, any> = { ...raw };
+
+  const aluminum = pickArray("aluminum", "perfiles", "aluminio");
+  const glasses = pickArray("glasses", "vidrios");
+  const accessories = pickArray("accessories", "accesorios");
+  const recipes = pickArray("recipes", "recetas", "tipologias");
+  const treatments = pickArray("treatments", "tratamientos", "pinturas");
+  const blindPanels = pickArray("blindPanels", "paneles", "panelesCiegos");
+  const dvhInputs = pickArray("dvhInputs", "dvh");
+  const quotes = pickArray("quotes", "presupuestos");
+  const config = pickObject("config", "configuracion", "globalConfig");
+
+  if (aluminum !== undefined) normalized.aluminum = aluminum;
+  if (glasses !== undefined) normalized.glasses = glasses;
+  if (accessories !== undefined) normalized.accessories = accessories;
+  if (recipes !== undefined) normalized.recipes = recipes;
+  if (treatments !== undefined) normalized.treatments = treatments;
+  if (blindPanels !== undefined) normalized.blindPanels = blindPanels;
+  if (dvhInputs !== undefined) normalized.dvhInputs = dvhInputs;
+  if (quotes !== undefined) normalized.quotes = quotes;
+  if (config !== undefined) normalized.config = config;
+
+  return normalized;
+};
+
+const toNum = (val: any, fallback = 0): number => {
+  if (val === null || val === undefined || val === "") return fallback;
+  const parsed = typeof val === "string" ? Number(val.replace(",", ".")) : Number(val);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const extractMissingColumn = (error: any): string | null => {
+  const msg = String(error?.message || "");
+  // Postgres 42703: column "foo" of relation "..." does not exist
+  const pgMatch = msg.match(/column "([^"]+)"/);
+  if (pgMatch?.[1]) return pgMatch[1];
+  // PostgREST PGRST204: Could not find the 'foo' column of 'table' in the schema cache
+  const pgrstMatch = msg.match(/Could not find the '([^']+)' column/i);
+  if (pgrstMatch?.[1]) return pgrstMatch[1];
+  return null;
+};
+
+// Helper para realizar upsert resiliente, en lotes y auto-reparable en caso de columnas faltantes
+async function safeUpsert(
+  table: string,
+  records: any[],
+  onConflict: string,
+  chunkSize?: number
+): Promise<{ data: any; error: any }> {
+  if (!records || records.length === 0) return { data: [], error: null };
+
+  const effectiveChunkSize = chunkSize ?? (table === "recetas_usuario" ? 80 : 250);
+  const removedColumns = new Set<string>();
+  let currentOnConflict = onConflict;
+
+  const stripColumns = (batch: any[]) => {
+    if (removedColumns.size === 0) return batch;
+    return batch.map((rec) => {
+      const copy = { ...rec };
+      removedColumns.forEach((col) => {
+        delete copy[col];
+      });
+      return copy;
+    });
+  };
+
+  for (let i = 0; i < records.length; i += effectiveChunkSize) {
+    let chunk = stripColumns(records.slice(i, i + effectiveChunkSize));
+    let attempts = 0;
+
+    while (attempts < 8) {
+      const { error } = await supabase
+        .from(table)
+        .upsert(chunk, { onConflict: currentOnConflict });
+
+      if (!error) break;
+
+      const isMissingCol =
+        error.code === "42703" ||
+        error.code === "PGRST204" ||
+        /Could not find the '[^']+' column/i.test(error.message || "") ||
+        /column "[^"]+" (of relation|does not exist)/i.test(error.message || "");
+
+      if (isMissingCol) {
+        const missingColumn = extractMissingColumn(error);
+        if (missingColumn && !removedColumns.has(missingColumn)) {
+          console.warn(
+            `[Self-Healing] Removiendo columna faltante "${missingColumn}" de "${table}" y reintentando...`
+          );
+          removedColumns.add(missingColumn);
+          chunk = chunk.map((rec) => {
+            const copy = { ...rec };
+            delete copy[missingColumn];
+            return copy;
+          });
+          if (currentOnConflict.includes(missingColumn) && table === "recetas_usuario") {
+            currentOnConflict = "user_id,master_ref";
+          }
+          attempts++;
+          continue;
+        }
+      }
+
+      console.warn(`[safeUpsert error] Falló upsert en ${table} (onConflict: ${currentOnConflict}):`, error);
+      return { data: null, error };
+    }
   }
-  return { data, error };
+
+  return { data: records, error: null };
+}
+
+// Borra de forma segura (sin límites de longitud de URL) los registros obsoletos que no están en validRefs
+async function deleteStaleUserRows(
+  table: string,
+  userId: string,
+  validRefs: string[]
+): Promise<{ error: any }> {
+  if (validRefs.length === 0) {
+    const { error } = await supabase.from(table).delete().eq("user_id", userId);
+    return { error };
+  }
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from(table)
+    .select("id, master_ref")
+    .eq("user_id", userId)
+    .limit(50000);
+
+  if (fetchErr) {
+    return { error: fetchErr };
+  }
+
+  const validSet = new Set(validRefs.map((r) => String(r)));
+  const staleIds = (existing || [])
+    .filter((row: any) => !row.master_ref || !validSet.has(String(row.master_ref)))
+    .map((row: any) => row.id)
+    .filter(Boolean);
+
+  for (let i = 0; i < staleIds.length; i += 100) {
+    const batchIds = staleIds.slice(i, i + 100);
+    const { error: delErr } = await supabase
+      .from(table)
+      .delete()
+      .eq("user_id", userId)
+      .in("id", batchIds);
+    if (delErr) {
+      return { error: delErr };
+    }
+  }
+
+  return { error: null };
+}
+
+function dedupeByMasterRef(rows: any[]): any[] {
+  const map = new Map<string, any>();
+  rows.forEach((row) => {
+    map.set(String(row.master_ref), row);
+  });
+  return Array.from(map.values());
 }
 
 // Guardar datos masivos para el usuario activo
-export const saveBulkData = async (userId: string, data: any) => {
+export const saveBulkData = async (userId: string, rawData: any) => {
+  const data = normalizeBulkJsonPayload(rawData);
   const {
     aluminum,
     glasses,
@@ -49,165 +200,146 @@ export const saveBulkData = async (userId: string, data: any) => {
     treatments,
     blindPanels,
     dvhInputs,
-    quotes,
     config,
   } = data;
 
-  const deleteOps = [];
-  const ops = [];
+  const errors: string[] = [];
 
-  // Mapeos a las tablas que definimos en SQL
-  if (aluminum) {
-    const validRefs = aluminum.map((a: any) => a.id).filter(Boolean);
-    if (validRefs.length > 0) {
-      deleteOps.push(supabase.from("materiales_perfiles_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
-    } else {
-      deleteOps.push(supabase.from("materiales_perfiles_usuario").delete().eq("user_id", userId));
+  const syncTable = async (
+    table: string,
+    rows: any[],
+    onConflict = "user_id,master_ref"
+  ) => {
+    const uniqueRows = dedupeByMasterRef(rows);
+    const validRefs = uniqueRows.map((r) => String(r.master_ref)).filter(Boolean);
+
+    const { error: delErr } = await deleteStaleUserRows(table, userId, validRefs);
+    if (delErr) {
+      errors.push(`${table} (limpieza): ${delErr.message || "Error al limpiar registros antiguos"}`);
+      return;
     }
-    const arr = aluminum.map((a: any) => ({
+
+    if (uniqueRows.length > 0) {
+      const { error: upErr } = await safeUpsert(table, uniqueRows, onConflict);
+      if (upErr) {
+        errors.push(`${table}: ${upErr.message || "Error al guardar registros"}`);
+      }
+    }
+  };
+
+  const tasks: Promise<void>[] = [];
+
+  if (Array.isArray(aluminum)) {
+    const arr = aluminum.map((a: any, idx: number) => ({
       user_id: userId,
-      master_ref: a.id,
-      code: a.code || "",
-      detail: a.detail || "",
-      weight_per_meter: a.weightPerMeter !== undefined ? a.weightPerMeter : a.weight_per_meter || 0,
-      bar_length: a.barLength !== undefined ? a.barLength : a.bar_length || 6000,
-      thickness: a.thickness !== undefined ? a.thickness : a.thickness || 0,
-      is_glazing_bead: a.isGlazingBead !== undefined ? a.isGlazingBead : a.is_glazing_bead || false,
+      master_ref: String(a.id || a.master_ref || `alu-${a.code || idx}-${idx}`),
+      code: String(a.code || ""),
+      detail: String(a.detail || ""),
+      weight_per_meter: toNum(a.weightPerMeter ?? a.weight_per_meter, 0),
+      bar_length: toNum(a.barLength ?? a.bar_length, 6000),
+      thickness: toNum(a.thickness, 0),
+      is_glazing_bead: Boolean(a.isGlazingBead ?? a.is_glazing_bead ?? false),
       glazing_bead_style: a.glazingBeadStyle || a.glazing_bead_style || "Recto",
-      min_glass_thickness: a.minGlassThickness !== undefined ? a.minGlassThickness : a.min_glass_thickness || 0,
-      max_glass_thickness: a.maxGlassThickness !== undefined ? a.maxGlassThickness : a.max_glass_thickness || 0,
-      treatment_cost: a.treatmentCost !== undefined ? a.treatmentCost : a.treatment_cost || 0,
+      min_glass_thickness: toNum(a.minGlassThickness ?? a.min_glass_thickness, 0),
+      max_glass_thickness: toNum(a.maxGlassThickness ?? a.max_glass_thickness, 0),
+      treatment_cost: toNum(a.treatmentCost ?? a.treatment_cost, 0),
     }));
-    ops.push(safeUpsert("materiales_perfiles_usuario", arr, "user_id,master_ref"));
+    tasks.push(syncTable("materiales_perfiles_usuario", arr));
   }
 
-  if (glasses) {
-    const validRefs = glasses.map((a: any) => a.id).filter(Boolean);
-    if (validRefs.length > 0) {
-      deleteOps.push(supabase.from("materiales_vidrios_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
-    } else {
-      deleteOps.push(supabase.from("materiales_vidrios_usuario").delete().eq("user_id", userId));
-    }
-    const arr = glasses.map((g: any) => ({
+  if (Array.isArray(glasses)) {
+    const arr = glasses.map((g: any, idx: number) => ({
       user_id: userId,
-      master_ref: g.id,
-      code: g.code || g.name || "",
-      detail: g.detail || "",
-      thickness: g.thickness || 0,
-      is_mirror: g.is_mirror || g.isMirror || false,
-      price_per_m2: g.price_per_m2 || g.pricePerM2 || 0,
+      master_ref: String(g.id || g.master_ref || `gls-${g.code || g.name || idx}-${idx}`),
+      code: String(g.code || g.name || ""),
+      detail: String(g.detail || ""),
+      thickness: toNum(g.thickness, 0),
+      is_mirror: Boolean(g.is_mirror ?? g.isMirror ?? false),
+      price_per_m2: toNum(g.price_per_m2 ?? g.pricePerM2, 0),
     }));
-    ops.push(safeUpsert("materiales_vidrios_usuario", arr, "user_id,master_ref"));
+    tasks.push(syncTable("materiales_vidrios_usuario", arr));
   }
 
-  if (accessories) {
-    const validRefs = accessories.map((a: any) => a.id).filter(Boolean);
-    if (validRefs.length > 0) {
-      deleteOps.push(supabase.from("materiales_accesorios_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
-    } else {
-      deleteOps.push(supabase.from("materiales_accesorios_usuario").delete().eq("user_id", userId));
-    }
-    const arr = accessories.map((a: any) => ({
+  if (Array.isArray(accessories)) {
+    const arr = accessories.map((a: any, idx: number) => ({
       user_id: userId,
-      master_ref: a.id,
-      code: a.code || "",
-      detail: a.detail || "",
-      unit_price: a.unit_price || a.unitPrice || 0,
+      master_ref: String(a.id || a.master_ref || `acc-${a.code || idx}-${idx}`),
+      code: String(a.code || ""),
+      detail: String(a.detail || ""),
+      unit_price: toNum(a.unit_price ?? a.unitPrice, 0),
     }));
-    ops.push(safeUpsert("materiales_accesorios_usuario", arr, "user_id,master_ref"));
+    tasks.push(syncTable("materiales_accesorios_usuario", arr));
   }
 
-  if (treatments) {
-    const validRefs = treatments.map((a: any) => a.id).filter(Boolean);
-    if (validRefs.length > 0) {
-      deleteOps.push(supabase.from("tratamientos_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
-    } else {
-      deleteOps.push(supabase.from("tratamientos_usuario").delete().eq("user_id", userId));
-    }
-    const arr = treatments.map((t: any) => ({
+  if (Array.isArray(treatments)) {
+    const arr = treatments.map((t: any, idx: number) => ({
       user_id: userId,
-      master_ref: t.id,
-      name: t.name || "Sin nombre",
-      price_per_kg: t.pricePerKg || 0,
-      hex_color: t.hexColor || "",
+      master_ref: String(t.id || t.master_ref || `trt-${t.name || idx}-${idx}`),
+      name: String(t.name || "Sin nombre"),
+      price_per_kg: toNum(t.pricePerKg ?? t.price_per_kg, 0),
+      hex_color: String(t.hexColor ?? t.hex_color ?? ""),
     }));
-    ops.push(safeUpsert("tratamientos_usuario", arr, "user_id,master_ref"));
+    tasks.push(syncTable("tratamientos_usuario", arr));
   }
 
-  if (blindPanels) {
-    const validRefs = blindPanels.map((a: any) => a.id).filter(Boolean);
-    if (validRefs.length > 0) {
-      deleteOps.push(supabase.from("paneles_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
-    } else {
-      deleteOps.push(supabase.from("paneles_usuario").delete().eq("user_id", userId));
-    }
-    const arr = blindPanels.map((p: any) => ({
+  if (Array.isArray(blindPanels)) {
+    const arr = blindPanels.map((p: any, idx: number) => ({
       user_id: userId,
-      master_ref: p.id,
-      code: p.code || "",
-      detail: p.detail || "",
-      price: p.price || 0,
+      master_ref: String(p.id || p.master_ref || `pnl-${p.code || idx}-${idx}`),
+      code: String(p.code || ""),
+      detail: String(p.detail || ""),
+      price: toNum(p.price, 0),
       unit: p.unit || "m2",
-      aluminum_profile_id: p.aluminumProfileId || null,
-      thickness: p.thickness !== undefined ? p.thickness : 0,
-      weight_per_meter: p.weightPerMeter !== undefined ? p.weightPerMeter : 0,
-      bar_length: p.barLength !== undefined ? p.barLength : 6,
+      aluminum_profile_id: p.aluminumProfileId ?? p.aluminum_profile_id ?? null,
+      thickness: toNum(p.thickness, 0),
+      weight_per_meter: toNum(p.weightPerMeter ?? p.weight_per_meter, 0),
+      bar_length: toNum(p.barLength ?? p.bar_length, 6),
     }));
-    ops.push(safeUpsert("paneles_usuario", arr, "user_id,master_ref"));
+    tasks.push(syncTable("paneles_usuario", arr));
   }
 
-  if (dvhInputs) {
-    const validRefs = dvhInputs.map((a: any) => a.id).filter(Boolean);
-    if (validRefs.length > 0) {
-      deleteOps.push(supabase.from("dvh_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
-    } else {
-      deleteOps.push(supabase.from("dvh_usuario").delete().eq("user_id", userId));
-    }
-    const arr = dvhInputs.map((d: any) => ({
+  if (Array.isArray(dvhInputs)) {
+    const arr = dvhInputs.map((d: any, idx: number) => ({
       user_id: userId,
-      master_ref: d.id,
+      master_ref: String(d.id || d.master_ref || `dvh-${d.type || idx}-${idx}`),
       type: d.type || "Cámara",
-      detail: d.detail || "",
-      cost: d.cost || 0,
-      thickness: d.thickness || 0,
+      detail: String(d.detail || ""),
+      cost: toNum(d.cost, 0),
+      thickness: toNum(d.thickness, 0),
     }));
-    ops.push(safeUpsert("dvh_usuario", arr, "user_id,master_ref"));
+    tasks.push(syncTable("dvh_usuario", arr));
   }
 
-  if (recipes) {
-    // Recipes might not be cleanly synced this way if they are large, but let's do it
-    const validRefs = recipes.map((a: any) => a.id).filter(Boolean);
-    if (validRefs.length > 0) {
-      deleteOps.push(supabase.from("recetas_usuario").delete().eq("user_id", userId).not("master_ref", "in", `(${validRefs.join(",")})`));
-    } else {
-      deleteOps.push(supabase.from("recetas_usuario").delete().eq("user_id", userId));
-    }
-    const recetasFormateadas = recipes.map((r: any) => ({
-      user_id: userId,
-      master_ref: r.id,
-      name: r.name || "Sin nombre",
-      data: r,
-    }));
-    ops.push(safeUpsert("recetas_usuario", recetasFormateadas, "user_id,master_ref"));
+  if (Array.isArray(recipes)) {
+    const recetasFormateadas = recipes.map((r: any, idx: number) => {
+      const refId = String(r.id || r.master_ref || `rec-${r.name || idx}-${idx}`);
+      const recipePayload = r.data && !r.profiles ? r.data : { ...r, id: r.id || refId };
+      return {
+        user_id: userId,
+        master_ref: refId,
+        name: String(r.name || recipePayload?.name || "Sin nombre"),
+        data: recipePayload,
+      };
+    });
+    tasks.push(syncTable("recetas_usuario", recetasFormateadas));
   }
 
-  if (quotes && quotes.length > 0) {
-    // Presupuestos no se suben solos aqui habitualmente
-  }
-
-  if (config) {
-    ops.push(
-      safeUpsert("configuracion_usuario", [{ user_id: userId, config_data: config }], "user_id")
+  if (config && typeof config === "object") {
+    tasks.push(
+      (async () => {
+        const { error: confErr } = await safeUpsert(
+          "configuracion_usuario",
+          [{ user_id: userId, config_data: config }],
+          "user_id"
+        );
+        if (confErr) {
+          errors.push(`configuracion_usuario: ${confErr.message || "Error al guardar configuración"}`);
+        }
+      })()
     );
   }
 
-  // Ejecutamos primero los borrados para evitar duplicados residuales o conflictos max limit
-  await Promise.all(deleteOps);
-
-  const results = await Promise.all(ops);
-  const errors = results
-    .filter((r) => r.error)
-    .map((r) => r.error?.message || "Error desconocido");
+  await Promise.all(tasks);
 
   return { success: errors.length === 0, errors };
 };

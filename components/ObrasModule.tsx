@@ -21,7 +21,13 @@ import {
   AluminumProfile,
   BlindPanel,
 } from "../types";
-import { evaluateFormula } from "../services/calculator";
+import {
+  evaluateFormula,
+  isMosquiteroRecipe,
+  isMosquiteroTransomRole,
+  getBaseRecipeMosquiteroSpec,
+  evaluateAssembledMosquiteroProfileCut,
+} from "../services/calculator";
 import { supabase, isSupabaseConfigured } from "../src/services/supabaseClient";
 interface Props {
   items: QuoteItem[];
@@ -209,7 +215,8 @@ const ObrasModule: React.FC<Props> = ({
           }
 
           const isMosq = role.includes("mosquitero") || rp.profileId === recipe.mosquiteroProfileId;
-          if (isMosq && (!item.extras?.mosquitero || item.extras?.mosquiteroRecipeId)) return;
+          if (!isMosquiteroRecipe(recipe) && isMosq && (!item.extras?.mosquitero || item.extras?.mosquiteroRecipeId)) return;
+          if (isMosquiteroRecipe(recipe) && isMosquiteroTransomRole(rp.role) && (!mod.transoms || mod.transoms.length === 0)) return;
           
           const pDef = aluminum.find((a) => a.id === rp.profileId);
           if (!pDef) return;
@@ -417,20 +424,31 @@ const ObrasModule: React.FC<Props> = ({
           }
         }
 
-        // SUMAR MOSQUITERO INDEPENDIENTE
-        if (item.extras?.mosquitero && item.extras?.mosquiteroRecipeId) {
+        // SUMAR MOSQUITERO INDEPENDIENTE / ENSAMBLADO
+        if (item.extras?.mosquitero && item.extras?.mosquiteroRecipeId && !isMosquiteroRecipe(recipe)) {
           const mosqRecipe = recipes.find(r => r.id === item.extras!.mosquiteroRecipeId);
           if (mosqRecipe) {
-            let mosqW = modW;
-            if (visualType.includes("sliding") || numLeaves > 1) {
-                mosqW = modW / Math.max(1, numLeaves);
-            }
-            mosqRecipe.profiles.forEach((rp) => {
+            const spec = getBaseRecipeMosquiteroSpec(
+              recipe,
+              modW,
+              modH,
+              mod.leafAlternative,
+              mod.cols || 1,
+              mod.rows || 1,
+            );
+            (mosqRecipe.profiles || []).forEach((rp) => {
+              if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A")) return;
+              if (isMosquiteroTransomRole(rp.role)) return;
               const pDef = aluminum.find((a) => a.id === rp.profileId);
               if (!pDef) return;
-              const cutLen = evaluateFormula(rp.formula, mosqW, modH);
+              const cutLen = evaluateAssembledMosquiteroProfileCut(
+                rp,
+                spec,
+                mod.cols || 1,
+                mod.rows || 1,
+              );
               const totalCutLen =
-                (cutLen + config.discWidth) * rp.quantity * item.quantity;
+                (cutLen + config.discWidth) * rp.quantity * spec.mosqCount * item.quantity;
               const weight = (totalCutLen / 1000) * pDef.weightPerMeter;
               const existing = summary.get(pDef.id) || {
                 code: pDef.code,

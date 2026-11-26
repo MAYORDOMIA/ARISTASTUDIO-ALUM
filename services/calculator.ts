@@ -122,6 +122,230 @@ export const calculateModuleDimensions = (
   return { modW, modH };
 };
 
+export interface AssembledMosquiteroSpec {
+  mosqW: number;
+  mosqH: number;
+  hasBaseDiscountsW: boolean;
+  hasBaseDiscountsH: boolean;
+  hasBaseDiscounts: boolean;
+  mosqCount: number;
+}
+
+export const isMosquiteroRecipe = (r?: ProductRecipe | null): boolean => {
+  if (!r) return false;
+  return (
+    r.type === "Mosquitero" ||
+    r.complementCategory === "mosquitero" ||
+    r.complementaryType === "mosquitero" ||
+    (r.visualType || "").toLowerCase().includes("mosquitero") ||
+    (r.name || "").toLowerCase().includes("mosq")
+  );
+};
+
+export const isMosquiteroTransomRole = (role?: string): boolean => {
+  const r = (role || "").toLowerCase().trim();
+  return (
+    r === "travesaño" ||
+    r === "travesano" ||
+    r === "travezaño" ||
+    r === "contravidriotravesaño" ||
+    r === "contravidriotravesano"
+  );
+};
+
+export const getBaseRecipeMosquiteroSpec = (
+  baseRecipe: ProductRecipe,
+  modW: number,
+  modH: number,
+  leafAlternative: "A" | "B" = "A",
+  cols: number = 1,
+  rows: number = 1,
+): AssembledMosquiteroSpec => {
+  const baseMosqProfiles = (baseRecipe.profiles || []).filter((rp) => {
+    if (rp.alternative && rp.alternative !== (leafAlternative || "A")) {
+      return false;
+    }
+    const role = (rp.role || "").toLowerCase();
+    return (
+      role.includes("mosquitero") ||
+      rp.profileId === baseRecipe.mosquiteroProfileId
+    );
+  });
+
+  const horizProfiles = baseMosqProfiles.filter((rp) => {
+    const f = (rp.formula || "").toUpperCase();
+    const role = (rp.role || "").toLowerCase();
+    if (f.includes("W") && !f.includes("H")) return true;
+    return (
+      !f.includes("H") &&
+      (role.includes("horiz") ||
+        role.includes("cabezal") ||
+        role.includes("zocalo") ||
+        role.includes("zócalo") ||
+        role.includes("umbral") ||
+        role.includes("dintel") ||
+        role.includes("ancho"))
+    );
+  });
+
+  const vertProfiles = baseMosqProfiles.filter((rp) => {
+    const f = (rp.formula || "").toUpperCase();
+    const role = (rp.role || "").toLowerCase();
+    if (f.includes("H") && !f.includes("W")) return true;
+    return (
+      !f.includes("W") &&
+      (role.includes("vert") ||
+        role.includes("jamba") ||
+        role.includes("lateral") ||
+        role.includes("parante") ||
+        role.includes("alto"))
+    );
+  });
+
+  const visualTypeLower = (baseRecipe.visualType || "").toLowerCase();
+  let numLeaves = baseRecipe.leaves || 1;
+  if (!baseRecipe.leaves) {
+    if (
+      visualTypeLower.includes("sliding_3") ||
+      visualTypeLower.includes("corrediza_3") ||
+      visualTypeLower.includes("triple") ||
+      visualTypeLower.includes("3h")
+    ) {
+      numLeaves = 3;
+    } else if (
+      visualTypeLower.includes("sliding_4") ||
+      visualTypeLower.includes("corrediza_4") ||
+      visualTypeLower.includes("four") ||
+      visualTypeLower.includes("4h")
+    ) {
+      numLeaves = 4;
+    } else if (
+      visualTypeLower.includes("sliding") ||
+      visualTypeLower.includes("corrediza")
+    ) {
+      numLeaves = 2;
+    } else if (
+      visualTypeLower.includes("double") ||
+      visualTypeLower.includes("doble") ||
+      visualTypeLower.includes("2h")
+    ) {
+      numLeaves = 2;
+    }
+  }
+
+  const hasBaseDiscountsW = Boolean(
+    baseRecipe.mosquiteroFormulaW?.trim() || horizProfiles.length > 0,
+  );
+  const hasBaseDiscountsH = Boolean(
+    baseRecipe.mosquiteroFormulaH?.trim() || vertProfiles.length > 0,
+  );
+
+  let mosqW =
+    visualTypeLower.includes("sliding") || numLeaves > 1
+      ? modW / Math.max(1, numLeaves)
+      : modW;
+  if (baseRecipe.mosquiteroFormulaW?.trim()) {
+    mosqW = evaluateFormula(
+      baseRecipe.mosquiteroFormulaW,
+      modW,
+      modH,
+      cols,
+      rows,
+    );
+  } else if (horizProfiles.length > 0) {
+    mosqW = evaluateFormula(horizProfiles[0].formula, modW, modH, cols, rows);
+  }
+
+  let mosqH = modH;
+  if (baseRecipe.mosquiteroFormulaH?.trim()) {
+    mosqH = evaluateFormula(
+      baseRecipe.mosquiteroFormulaH,
+      modW,
+      modH,
+      cols,
+      rows,
+    );
+  } else if (vertProfiles.length > 0) {
+    mosqH = evaluateFormula(vertProfiles[0].formula, modW, modH, cols, rows);
+  }
+
+  const totalHorizQty = horizProfiles.reduce(
+    (sum, rp) => sum + Number(rp.quantity || 0),
+    0,
+  );
+  const totalVertQty = vertProfiles.reduce(
+    (sum, rp) => sum + Number(rp.quantity || 0),
+    0,
+  );
+  const maxAxisQty = Math.max(totalHorizQty, totalVertQty);
+  const mosqCount = maxAxisQty >= 4 ? Math.max(1, Math.round(maxAxisQty / 2)) : 1;
+
+  return {
+    mosqW: Math.max(0, mosqW),
+    mosqH: Math.max(0, mosqH),
+    hasBaseDiscountsW,
+    hasBaseDiscountsH,
+    hasBaseDiscounts: hasBaseDiscountsW || hasBaseDiscountsH,
+    mosqCount,
+  };
+};
+
+export const evaluateAssembledMosquiteroProfileCut = (
+  rp: { formula?: string; role?: string },
+  spec: AssembledMosquiteroSpec,
+  cols: number = 1,
+  rows: number = 1,
+): number => {
+  const formula = rp.formula || "";
+  const formulaUpper = formula.toUpperCase();
+  const roleLower = (rp.role || "").toLowerCase();
+
+  const isInternalDivider =
+    roleLower.includes("trave") ||
+    roleLower.includes("parante") ||
+    roleLower.includes("divisor");
+
+  if (!isInternalDivider) {
+    if (formulaUpper.includes("W") && !formulaUpper.includes("H")) {
+      return spec.hasBaseDiscountsW
+        ? spec.mosqW
+        : evaluateFormula(formula, spec.mosqW, spec.mosqH, cols, rows);
+    }
+    if (formulaUpper.includes("H") && !formulaUpper.includes("W")) {
+      return spec.hasBaseDiscountsH
+        ? spec.mosqH
+        : evaluateFormula(formula, spec.mosqW, spec.mosqH, cols, rows);
+    }
+  }
+
+  return evaluateFormula(formula, spec.mosqW, spec.mosqH, cols, rows);
+};
+
+export const getAssembledMosquiteroMeshDimensions = (
+  mosqRecipe: ProductRecipe | undefined | null,
+  spec: AssembledMosquiteroSpec,
+  cols: number = 1,
+  rows: number = 1,
+): { meshW: number; meshH: number } => {
+  if (!mosqRecipe) {
+    return {
+      meshW: Math.max(0, spec.mosqW),
+      meshH: Math.max(0, spec.mosqH),
+    };
+  }
+  const adjW = Math.max(0, spec.mosqW - Number(mosqRecipe.glassDeductionW || 0));
+  const adjH = Math.max(0, spec.mosqH - Number(mosqRecipe.glassDeductionH || 0));
+  const meshW = Math.max(
+    0,
+    evaluateFormula(mosqRecipe.glassFormulaW || "W", adjW, adjH, cols, rows),
+  );
+  const meshH = Math.max(
+    0,
+    evaluateFormula(mosqRecipe.glassFormulaH || "H", adjW, adjH, cols, rows),
+  );
+  return { meshW, meshH };
+};
+
 export const calculateCompositePrice = (
   item: QuoteItem,
   recipes: ProductRecipe[],
@@ -257,59 +481,69 @@ export const calculateCompositePrice = (
     totalAluWeight += result.totalAluWeight;
     
     // Si tiene mosquitero y una receta de mosquitero seleccionada
-    if (item.extras?.mosquitero && item.extras?.mosquiteroRecipeId) {
+    if (item.extras?.mosquitero && item.extras?.mosquiteroRecipeId && !isMosquiteroRecipe(recipe)) {
       const mosqRecipe = recipes.find(r => r.id === item.extras!.mosquiteroRecipeId);
       if (mosqRecipe) {
-        let mosqW = modW;
-        const visualTypeLower = (recipe.visualType || "").toLowerCase();
-        let numLeaves = recipe.leaves || 1;
-        if (!recipe.leaves) {
-          if (visualTypeLower.includes("sliding_3") || visualTypeLower.includes("corrediza_3")) numLeaves = 3;
-          else if (visualTypeLower.includes("sliding_4") || visualTypeLower.includes("corrediza_4")) numLeaves = 4;
-          else if (visualTypeLower.includes("sliding") || visualTypeLower.includes("corrediza")) numLeaves = 2;
-          else if (visualTypeLower.includes("double") || visualTypeLower.includes("doble")) numLeaves = 2;
-        }
-
-        if (visualTypeLower.includes("sliding") || numLeaves > 1) {
-            mosqW = modW / Math.max(1, numLeaves);
-        }
-        
-        const mosqResult = calculateItemPrice(
-           mosqRecipe,
-           recipes,
-           mosqW,
-           modH,
-           profiles,
-           config,
-           treatment,
-           glasses,
-           accessories,
-           dvhInputs,
-           false, // isDVH
-           mod.glassOuterId,
-           undefined,
-           undefined,
-           { 
-             mosquitero: true, 
-             tapajuntas: false, 
-             tapajuntasSides: { top: false, bottom: false, left: false, right: false } 
-           }, // extras
-           undefined, // coupling
-           [], // transoms
-           [], // mullions
-           [], // overridden
-           [],
-           {},
-           blindPanels,
-           false, // isSet
-           {},
-           glazingBeadStylePreference,
+        const assembledMosqSpec = getBaseRecipeMosquiteroSpec(
+          recipe,
+          modW,
+          modH,
+          mod.leafAlternative,
+          mod.cols || 1,
+          mod.rows || 1,
         );
 
-        totalAluCost += mosqResult.aluCost;
-        totalGlassCost += mosqResult.glassCost;
-        totalAccCost += mosqResult.accCost;
-        totalAluWeight += mosqResult.totalAluWeight;
+        const mosqResult = calculateItemPrice(
+          mosqRecipe,
+          recipes,
+          assembledMosqSpec.mosqW,
+          assembledMosqSpec.mosqH,
+          profiles,
+          config,
+          treatment,
+          glasses,
+          accessories,
+          dvhInputs,
+          false, // isDVH
+          mod.glassOuterId,
+          undefined,
+          undefined,
+          {
+            mosquitero: true,
+            tapajuntas: false,
+            tapajuntasSides: { top: false, bottom: false, left: false, right: false },
+          }, // extras
+          undefined, // coupling
+          [], // transoms
+          [], // mullions
+          [], // overridden
+          [],
+          {},
+          blindPanels,
+          false, // isSet
+          {},
+          glazingBeadStylePreference,
+          undefined,
+          undefined,
+          undefined,
+          mod.leafAlternative,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          mod.cols || 1,
+          mod.rows || 1,
+          undefined,
+          undefined,
+          assembledMosqSpec,
+        );
+
+        totalAluCost += mosqResult.aluCost * assembledMosqSpec.mosqCount;
+        totalGlassCost += mosqResult.glassCost * assembledMosqSpec.mosqCount;
+        totalAccCost += mosqResult.accCost * assembledMosqSpec.mosqCount;
+        totalAluWeight += mosqResult.totalAluWeight * assembledMosqSpec.mosqCount;
       }
     }
   });
@@ -643,7 +877,8 @@ export const calculateItemPrice = (
   cols: number = 1,
   rows: number = 1,
   mullionProfileId?: string,
-  transomProfileId?: string
+  transomProfileId?: string,
+  assembledMosqSpec?: AssembledMosquiteroSpec
 ) => {
   // Ajustar la cantidad de filas (NY) si hay travesaños personalizados (especialmente para Piel de Vidrio)
   if (transoms && transoms.length > 0 && recipe.type === "Piel de Vidrio") {
@@ -799,8 +1034,9 @@ export const calculateItemPrice = (
 
     const isMosq =
       role.includes("mosquitero") || p.id === recipe.mosquiteroProfileId;
-    const isMosqRecipe = recipe.type === "Mosquitero" || (recipe.visualType || "").toLowerCase().includes("mosquitero") || (recipe.name || "").toLowerCase().includes("mosq");
-    if (!isMosqRecipe && isMosq && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return false;
+    const isMosqRec = Boolean(assembledMosqSpec) || isMosquiteroRecipe(recipe);
+    if (!isMosqRec && isMosq && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return false;
+    if (isMosqRec && isMosquiteroTransomRole(rp.role) && (!transoms || transoms.length === 0)) return false;
 
     if (quotingMode === "Solo Marcos") {
       if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return false;
@@ -999,7 +1235,9 @@ export const calculateItemPrice = (
             weight = ((cutMeasure + Number(config.discWidth || 0)) / 1000) * Number(rp.quantity || 0) * Number(profile.weightPerMeter || 0);
           }
         } else {
-          let cutMeasure = evaluateFormula(rp.formula, width, height, cols, rows);
+          let cutMeasure = assembledMosqSpec
+            ? evaluateAssembledMosquiteroProfileCut(rp, assembledMosqSpec, cols, rows)
+            : evaluateFormula(rp.formula, width, height, cols, rows);
           let finalQty = Number(rp.quantity || 0);
 
           
@@ -1113,8 +1351,8 @@ export const calculateItemPrice = (
     ? Math.max(leftHeight!, rightHeight!) - Number(recipe.glassDeductionH || 0)
     : height - Number(recipe.glassDeductionH || 0);
   const visualType = (recipe.visualType || "").toLowerCase();
-  let numLeaves = recipe.leaves || 1;
-  if (!recipe.leaves) {
+  let numLeaves = assembledMosqSpec ? 1 : (recipe.leaves || 1);
+  if (!assembledMosqSpec && !recipe.leaves) {
     if (visualType.includes("sliding_3") || visualType.includes("corrediza_3"))
       numLeaves = 3;
     else if (
@@ -1132,7 +1370,7 @@ export const calculateItemPrice = (
       numLeaves = 2;
   }
   let leafBaseW = adjustedW;
-  if (visualType.includes("sliding") || numLeaves > 1)
+  if (!assembledMosqSpec && (visualType.includes("sliding") || numLeaves > 1))
     leafBaseW = adjustedW / numLeaves;
   const gW = evaluateFormula(getFormulaW(), leafBaseW, adjustedH, cols, rows);
   const transomGlassDeduction =
@@ -1267,7 +1505,15 @@ export const calculateItemPrice = (
     recipe.type === "Baranda" && handrailType === "inclinada"
       ? evaluateFormula(getFormulaW(), w, adjustedH, cols, rows) + 1000
       : evaluateFormula(getFormulaW(), w, adjustedH, cols, rows);
-  if (recipe.type === "Piel de Vidrio") {
+  if (assembledMosqSpec) {
+    const { meshW, meshH } = getAssembledMosquiteroMeshDimensions(
+      recipe,
+      assembledMosqSpec,
+      cols,
+      rows,
+    );
+    glassPanes.push({ w: meshW, h: meshH });
+  } else if (recipe.type === "Piel de Vidrio") {
     const effectiveCols = (mullions && mullions.length > 0) ? mullions.length + 1 : Math.max(1, cols);
     const effectiveRows = (transoms && transoms.length > 0) ? transoms.length + 1 : Math.max(1, rows);
 
@@ -1369,8 +1615,8 @@ export const calculateItemPrice = (
       }
 
       const isMosqAcc = acc.detail.toLowerCase().includes("mosquitero") || acc.code.toLowerCase().includes("mosquitero") || acc.detail.toLowerCase().includes("malla");
-      const isMosqRecipe = recipe.type === "Mosquitero" || (recipe.visualType || "").toLowerCase().includes("mosquitero") || (recipe.name || "").toLowerCase().includes("mosq");
-      if (!isMosqRecipe && isMosqAcc && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return;
+      const isMosqRec = Boolean(assembledMosqSpec) || isMosquiteroRecipe(recipe);
+      if (!isMosqRec && isMosqAcc && (!extras?.mosquitero || extras?.mosquiteroRecipeId)) return;
 
       const uPrice = Number(acc.unitPrice || 0);
       let calcPrice = uPrice;
@@ -1407,11 +1653,11 @@ export const calculateItemPrice = (
     const leafMultiplier = (leafWidths && leafWidths.length > 0) ? 1 : numLeaves;
     const panesCountPerLeaf = (transoms && transoms.length > 0) ? transoms.length + 1 : 1;
     glassPanes.forEach((pane, index) => {
-      const areaM2 = (pane.w * pane.h) / 1000000;
+      const areaM2 = (Math.max(0, pane.w) * Math.max(0, pane.h)) / 1000000;
       const billingAreaPerPiece = areaM2;
       const totalBillingArea = billingAreaPerPiece * leafMultiplier;
 
-      if (visualType.includes("mosquitero") || recipe.type === "Mosquitero") {
+      if (assembledMosqSpec || isMosquiteroRecipe(recipe)) {
         glassCost += Number(config.meshPricePerM2 || 25.0) * totalBillingArea;
         return;
       }
@@ -1523,13 +1769,17 @@ export const calculateItemPrice = (
       }
     });
 
-    // Lógica de Tela Mosquitera como Extra (Costo de Malla)
-    if (extras?.mosquitero && visualType !== "mosquitero" && !extras?.mosquiteroRecipeId) {
-      let meshArea = (width * height) / 1000000;
-      // Ajuste para corredizas (generalmente la mitad)
-      if (visualType.includes("sliding")) {
-        meshArea = meshArea / 2;
-      }
+    // Lógica de Tela Mosquitera como Extra Estándar (Costo de Malla con descuentos de la tipología base)
+    if (!assembledMosqSpec && extras?.mosquitero && !isMosquiteroRecipe(recipe) && !extras?.mosquiteroRecipeId) {
+      const stdSpec = getBaseRecipeMosquiteroSpec(
+        recipe,
+        width,
+        height,
+        leafAlternative,
+        cols,
+        rows,
+      );
+      const meshArea = ((stdSpec.mosqW * stdSpec.mosqH) / 1000000) * stdSpec.mosqCount;
       // Mínimo de facturación
       const billingArea = Math.max(meshArea, 0.5);
       glassCost += Number(config.meshPricePerM2 || 25.0) * billingArea;

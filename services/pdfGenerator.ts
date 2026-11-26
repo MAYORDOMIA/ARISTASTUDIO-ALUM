@@ -13,7 +13,47 @@ import {
   BlindPanel,
   MeasurementModule,
 } from "../types";
-import { evaluateFormula, calculateModuleDimensions } from "./calculator";
+import {
+  evaluateFormula,
+  calculateModuleDimensions,
+  isMosquiteroRecipe,
+  isMosquiteroTransomRole,
+  getBaseRecipeMosquiteroSpec,
+  evaluateAssembledMosquiteroProfileCut,
+  getAssembledMosquiteroMeshDimensions,
+} from "./calculator";
+
+const getModuleDimsInItem = (
+  item: QuoteItem,
+  mod: MeasurementModule,
+  aluminum: AluminumProfile[],
+): { modW: number; modH: number } => {
+  const { isManualDim, colRatios, rowRatios, couplingDeduction } =
+    item.composition;
+  const validModules = (item.composition.modules || []).filter(
+    (m) => m && typeof m.x === "number" && typeof m.y === "number",
+  );
+  if (validModules.length === 0) return { modW: item.width, modH: item.height };
+  const minX = Math.min(...validModules.map((m) => m.x));
+  const minY = Math.min(...validModules.map((m) => m.y));
+  const maxX = Math.max(...validModules.map((m) => m.x));
+  const maxY = Math.max(...validModules.map((m) => m.y));
+  const cProfile = item.couplingProfileId
+    ? aluminum.find((p) => p.id === item.couplingProfileId)
+    : null;
+  const realDeduction = Number(cProfile?.thickness ?? couplingDeduction ?? 0);
+  return calculateModuleDimensions(
+    mod,
+    colRatios,
+    rowRatios,
+    minX,
+    maxX,
+    minY,
+    maxY,
+    realDeduction,
+    isManualDim,
+  );
+};
 import {
   filterDVHProfiles,
   calculateSalesGrams,
@@ -633,7 +673,7 @@ export const generateBarOptimizationPDF = (
 
         const isMosq =
           role.includes("mosquitero") || pDef.id === recipe.mosquiteroProfileId;
-        if (isMosq && !item.extras.mosquitero) return;
+        if (!isMosquiteroRecipe(recipe) && isMosq && (!item.extras.mosquitero || item.extras.mosquiteroRecipeId)) return;
 
         if (item.quotingMode === "Solo Marcos") {
            if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return;
@@ -889,21 +929,32 @@ export const generateBarOptimizationPDF = (
         });
       }
       
-      // Calculate independent mosquito recipe profiles
-      if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
+      // Calculate assembled/selected mosquito recipe profiles using base opening discounts
+      if (item.extras.mosquitero && item.extras.mosquiteroRecipeId && !isMosquiteroRecipe(recipe)) {
         const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
         if (mosqRecipe) {
-          let mosqW = modW;
-          if (visualType.includes("sliding") || numLeaves > 1) {
-            mosqW = modW / Math.max(1, numLeaves);
-          }
-          mosqRecipe.profiles.forEach(rp => {
+          const spec = getBaseRecipeMosquiteroSpec(
+            recipe,
+            modW,
+            modH,
+            mod.leafAlternative,
+            mod.cols || 1,
+            mod.rows || 1,
+          );
+          (mosqRecipe.profiles || []).forEach(rp => {
+            if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A")) return;
+            if (isMosquiteroTransomRole(rp.role)) return;
             const pDef = aluminum.find(a => a.id === rp.profileId);
             if (!pDef) return;
-            const cutLen = evaluateFormula(rp.formula, mosqW, modH);
+            const cutLen = evaluateAssembledMosquiteroProfileCut(
+              rp,
+              spec,
+              mod.cols || 1,
+              mod.rows || 1,
+            );
             if (cutLen > 0) {
               const list = cutsByProfile.get(pDef.id) || [];
-              for (let k = 0; k < rp.quantity * item.quantity; k++) {
+              for (let k = 0; k < rp.quantity * spec.mosqCount * item.quantity; k++) {
                 list.push({
                   len: cutLen,
                   type: mosqRecipe.type,
@@ -1824,7 +1875,7 @@ export const generateMaterialsOrderPDF = (
 
         const isMosq =
           role.includes("mosquitero") || p.id === recipe.mosquiteroProfileId;
-        if (isMosq && !item.extras.mosquitero) return;
+        if (!isMosquiteroRecipe(recipe) && isMosq && (!item.extras.mosquitero || item.extras.mosquiteroRecipeId)) return;
 
         if (item.quotingMode === "Solo Marcos") {
            if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return;
@@ -2153,19 +2204,30 @@ export const generateMaterialsOrderPDF = (
         }
       }
 
-      // Lógica de Mosquitero Independiente (Aluminio)
-      if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
+      // Lógica de Mosquitero Ensamblado (Aluminio usando descuentos de la abertura base)
+      if (item.extras.mosquitero && item.extras.mosquiteroRecipeId && !isMosquiteroRecipe(recipe)) {
         const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
         if (mosqRecipe) {
-          let mosqW = modW;
-          if (visualType.includes("sliding") || numLeaves > 1) {
-             mosqW = modW / Math.max(1, numLeaves);
-          }
-          mosqRecipe.profiles.forEach(rp => {
+          const spec = getBaseRecipeMosquiteroSpec(
+            recipe,
+            modW,
+            modH,
+            mod.leafAlternative,
+            mod.cols || 1,
+            mod.rows || 1,
+          );
+          (mosqRecipe.profiles || []).forEach(rp => {
+            if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A")) return;
+            if (isMosquiteroTransomRole(rp.role)) return;
             const mp = aluminum.find(a => a.id === rp.profileId);
             if (!mp) return;
-            const len = evaluateFormula(rp.formula, mosqW, modH);
-            const totalMm = (len + config.discWidth) * rp.quantity * item.quantity;
+            const len = evaluateAssembledMosquiteroProfileCut(
+              rp,
+              spec,
+              mod.cols || 1,
+              mod.rows || 1,
+            );
+            const totalMm = (len + config.discWidth) * rp.quantity * spec.mosqCount * item.quantity;
             const key = `${mp.id}_${item.colorId || "default"}`;
             const existing = aluSummary.get(key) || {
               code: mp.code, 
@@ -2681,20 +2743,43 @@ export const generateMaterialsOrderPDF = (
       }
       
       if (item.extras?.mosquitero) {
-        const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
-        let telaW = item.width;
-        if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
-          telaW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
-        }
+        const mosqRecipe = item.extras.mosquiteroRecipeId
+          ? recipes.find((r) => r.id === item.extras!.mosquiteroRecipeId)
+          : undefined;
         let specName = "TELA MOSQUITERA";
-        if (item.extras.mosquiteroRecipeId) {
-           const mosqRecipe = recipes.find(r => r.id === item.extras!.mosquiteroRecipeId);
-           specName = "TELA MOSQUITERA (" + (mosqRecipe?.name || "ADICIONAL") + ")";
+        if (mosqRecipe) {
+          specName = "TELA MOSQUITERA (" + (mosqRecipe.name || "ADICIONAL") + ")";
         }
-        const key = `${specName}-${telaW}-${item.height}`;
-        const existing = fillSummary.get(key) || { spec: specName, w: telaW, h: item.height, qty: 0 };
-        existing.qty += item.quantity;
-        fillSummary.set(key, existing);
+        item.composition.modules.forEach((mod) => {
+          const baseRecipe = recipes.find((r) => r.id === mod.recipeId);
+          if (!baseRecipe || isMosquiteroRecipe(baseRecipe)) return;
+          const { modW, modH } = getModuleDimsInItem(item, mod, aluminum);
+          const spec = getBaseRecipeMosquiteroSpec(
+            baseRecipe,
+            modW,
+            modH,
+            mod.leafAlternative,
+            mod.cols || 1,
+            mod.rows || 1,
+          );
+          const { meshW, meshH } = getAssembledMosquiteroMeshDimensions(
+            mosqRecipe,
+            spec,
+            mod.cols || 1,
+            mod.rows || 1,
+          );
+          const telaW = Math.round(meshW);
+          const telaH = Math.round(meshH);
+          const key = `${specName}-${telaW}-${telaH}`;
+          const existing = fillSummary.get(key) || {
+            spec: specName,
+            w: telaW,
+            h: telaH,
+            qty: 0,
+          };
+          existing.qty += spec.mosqCount * item.quantity;
+          fillSummary.set(key, existing);
+        });
       }
     });
   });
@@ -2762,6 +2847,18 @@ export const generateMaterialsOrderPDF = (
           }
         }
         if (!acc) return;
+
+        const isMosqAcc =
+          acc.detail.toLowerCase().includes("mosquitero") ||
+          acc.code.toLowerCase().includes("mosquitero") ||
+          acc.detail.toLowerCase().includes("malla");
+        if (
+          !isMosquiteroRecipe(recipe) &&
+          isMosqAcc &&
+          (!item.extras?.mosquitero || item.extras?.mosquiteroRecipeId)
+        ) {
+          return;
+        }
         
         // Calculate sales, escuadras and butilo quantities
         let calculatedQty = Number(ra.quantity || 0);
@@ -2841,31 +2938,39 @@ export const generateMaterialsOrderPDF = (
     if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
        const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
        if (mosqRecipe) {
-           let mosqW = item.width;
-           const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
-           if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
-             mosqW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
-           }
-           
+         item.composition.modules.forEach((mod) => {
+           const baseRecipe = recipes.find((r) => r.id === mod.recipeId);
+           if (!baseRecipe || isMosquiteroRecipe(baseRecipe)) return;
+           const { modW, modH } = getModuleDimsInItem(item, mod, aluminum);
+           const spec = getBaseRecipeMosquiteroSpec(
+             baseRecipe,
+             modW,
+             modH,
+             mod.leafAlternative,
+             mod.cols || 1,
+             mod.rows || 1,
+           );
+
            (mosqRecipe.accessories || []).forEach(ra => {
              if (ra.isAlternative) return;
              if ((ra.quantity || 0) <= 0) return;
              const acc = accessories.find(a => a.id === ra.accessoryId || a.code === ra.accessoryId);
              if (!acc) return;
              const existing = accSummary.get(acc.id) || { code: acc.code, detail: acc.detail, qty: 0, isLinear: ra.isLinear || false };
-             
+
              if (ra.isLinear && ra.formula) {
-                 const lengthMm = evaluateFormula(ra.formula, mosqW, item.height);
-                 existing.qty += (lengthMm / 1000) * ra.quantity * item.quantity;
+                 const lengthMm = evaluateFormula(ra.formula, spec.mosqW, spec.mosqH);
+                 existing.qty += (lengthMm / 1000) * ra.quantity * spec.mosqCount * item.quantity;
              } else if (ra.isSpaced && ra.spacingMm && ra.formula) {
-                 const lengthMm = evaluateFormula(ra.formula, mosqW, item.height);
+                 const lengthMm = evaluateFormula(ra.formula, spec.mosqW, spec.mosqH);
                  const count = Math.ceil(lengthMm / ra.spacingMm);
-                 existing.qty += count * (ra.quantity || 1) * item.quantity;
+                 existing.qty += count * (ra.quantity || 1) * spec.mosqCount * item.quantity;
              } else {
-                 existing.qty += ra.quantity * item.quantity;
+                 existing.qty += ra.quantity * spec.mosqCount * item.quantity;
              }
              accSummary.set(acc.id, existing);
            });
+         });
        }
     }
   });
@@ -3711,7 +3816,7 @@ export const generateAssemblyOrderPDF = (
 
         const isMosq =
           role.includes("mosquitero") || p?.id === recipe.mosquiteroProfileId;
-        if (isMosq && !item.extras.mosquitero) return;
+        if (!isMosquiteroRecipe(recipe) && isMosq && (!item.extras.mosquitero || item.extras.mosquiteroRecipeId)) return;
 
         if (item.quotingMode === "Solo Marcos") {
            if (role.includes("hoja") || role.includes("contravidrio") || isMosq) return;
@@ -4333,22 +4438,38 @@ export const generateAssemblyOrderPDF = (
     if (item.extras.mosquitero && item.extras.mosquiteroRecipeId) {
       const mosqRecipe = recipes.find((r) => r.id === item.extras.mosquiteroRecipeId);
       if (mosqRecipe) {
-        let mosqW = item.width;
-        const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
-        if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
-          mosqW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
-        }
-        mosqRecipe.profiles.forEach(rp => {
-          const p = aluminum.find(a => a.id === rp.profileId);
-          if (!p) return;
-          const cutLen = evaluateFormula(rp.formula, mosqW, item.height);
-          profileCuts.push([
-             p.code,
-             "MOSQ: " + p.detail,
-             Math.round(cutLen),
-             rp.quantity,
-             `${rp.cutStart}° / ${rp.cutEnd}°`
-          ]);
+        validModules.forEach((mod, modIdx) => {
+          const baseRecipe = recipes.find((r) => r.id === mod.recipeId);
+          if (!baseRecipe || isMosquiteroRecipe(baseRecipe)) return;
+          const { modW, modH } = getModuleDimsInItem(item, mod, aluminum);
+          const spec = getBaseRecipeMosquiteroSpec(
+            baseRecipe,
+            modW,
+            modH,
+            mod.leafAlternative,
+            mod.cols || 1,
+            mod.rows || 1,
+          );
+          const modLabel = getModuleLabel(item.itemCode || `POS#${idx + 1}`, isSet, modIdx);
+          (mosqRecipe.profiles || []).forEach(rp => {
+            if (rp.alternative && rp.alternative !== (mod.leafAlternative || "A")) return;
+            if (isMosquiteroTransomRole(rp.role)) return;
+            const p = aluminum.find(a => a.id === rp.profileId);
+            if (!p) return;
+            const cutLen = evaluateAssembledMosquiteroProfileCut(
+              rp,
+              spec,
+              mod.cols || 1,
+              mod.rows || 1,
+            );
+            profileCuts.push([
+               p.code,
+               isSet ? `MOSQ: ${p.detail} (${modLabel})` : `MOSQ: ${p.detail}`,
+               Math.round(cutLen),
+               rp.quantity * spec.mosqCount,
+               `${rp.cutStart}° / ${rp.cutEnd}°`
+            ]);
+          });
         });
       }
     }
@@ -4457,23 +4578,40 @@ export const generateAssemblyOrderPDF = (
     });
     }
     
-    if (item.extras.mosquitero) {
-      let telaW = item.width;
-      const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
-      if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
-        telaW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
-      }
+    if (item.extras.mosquitero && item.quotingMode !== "Solo Marcos") {
+      const mosqRecipe = item.extras.mosquiteroRecipeId
+        ? recipes.find(r => r.id === item.extras.mosquiteroRecipeId)
+        : undefined;
       let specName = "TELA MOSQUITERA";
-      if (item.extras.mosquiteroRecipeId) {
-         const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
-         specName = "TELA MOSQUITERA (" + (mosqRecipe?.name || "ADICIONAL") + ")";
+      if (mosqRecipe) {
+        specName = "TELA MOSQUITERA (" + (mosqRecipe.name || "ADICIONAL") + ")";
       }
-      glassPieces.push([
-         "Mosquitero",
-         specName,
-         `${telaW} x ${item.height}`,
-         1
-      ]);
+      validModules.forEach((mod, modIdx) => {
+        const baseRecipe = recipes.find((r) => r.id === mod.recipeId);
+        if (!baseRecipe || isMosquiteroRecipe(baseRecipe)) return;
+        const { modW, modH } = getModuleDimsInItem(item, mod, aluminum);
+        const spec = getBaseRecipeMosquiteroSpec(
+          baseRecipe,
+          modW,
+          modH,
+          mod.leafAlternative,
+          mod.cols || 1,
+          mod.rows || 1,
+        );
+        const { meshW, meshH } = getAssembledMosquiteroMeshDimensions(
+          mosqRecipe,
+          spec,
+          mod.cols || 1,
+          mod.rows || 1,
+        );
+        const modLabel = getModuleLabel(item.itemCode || `POS#${idx + 1}`, isSet, modIdx);
+        glassPieces.push([
+          isSet ? `${modLabel} - Mosquitero` : "Mosquitero",
+          specName,
+          `${Math.round(meshW)} x ${Math.round(meshH)}`,
+          spec.mosqCount,
+        ]);
+      });
     }
 
     autoTable(doc, {
@@ -4759,34 +4897,52 @@ export const generateGlassOptimizationPDF = (
     });
     
     if (item.extras?.mosquitero) {
-      let telaW = item.width;
-      const baseRecipe = recipes.find(r => r.id === item.composition.modules[0]?.recipeId);
-      if (baseRecipe?.visualType && (baseRecipe.visualType.toLowerCase().includes("sliding") || (baseRecipe.leaves || 1) > 1)) {
-        telaW = Math.round(item.width / Math.max(1, (baseRecipe.leaves || 2)));
-      }
+      const mosqRecipe = item.extras.mosquiteroRecipeId
+        ? recipes.find(r => r.id === item.extras.mosquiteroRecipeId)
+        : undefined;
       let specName = "TELA MOSQUITERA";
-      if (item.extras.mosquiteroRecipeId) {
-         const mosqRecipe = recipes.find(r => r.id === item.extras.mosquiteroRecipeId);
-         if (mosqRecipe) {
-           specName = "TELA MOSQUITERA (" + mosqRecipe.name + ")";
-         }
+      if (mosqRecipe) {
+        specName = "TELA MOSQUITERA (" + mosqRecipe.name + ")";
       }
-      listTableData.push([
-         item.itemCode || `POS#${itemIdx + 1}`,
-         specName,
-         `${telaW} x ${Math.round(item.height)}`,
-         item.quantity,
-      ]);
-      for (let i = 0; i < item.quantity; i++) {
-        allPieces.push({
-          id: `${item.id}-mosq-${i}-${Math.random()}`,
-          itemCode: item.itemCode || `POS#${itemIdx + 1}`,
-          spec: specName,
-          w: telaW,
-          h: Math.round(item.height),
-          glassId: item.extras.mosquiteroRecipeId || "mosquitero-generico",
-        });
-      }
+      item.composition.modules.forEach((mod, modIdx) => {
+        const baseRecipe = recipes.find((r) => r.id === mod.recipeId);
+        if (!baseRecipe || isMosquiteroRecipe(baseRecipe)) return;
+        const { modW, modH } = getModuleDimsInItem(item, mod, aluminum);
+        const spec = getBaseRecipeMosquiteroSpec(
+          baseRecipe,
+          modW,
+          modH,
+          mod.leafAlternative,
+          mod.cols || 1,
+          mod.rows || 1,
+        );
+        const { meshW, meshH } = getAssembledMosquiteroMeshDimensions(
+          mosqRecipe,
+          spec,
+          mod.cols || 1,
+          mod.rows || 1,
+        );
+        const telaW = Math.round(meshW);
+        const telaH = Math.round(meshH);
+        const modLabel = getModuleLabel(item.itemCode || `POS#${itemIdx + 1}`, isSet, modIdx);
+        const totalQty = spec.mosqCount * item.quantity;
+        listTableData.push([
+          modLabel,
+          specName,
+          `${telaW} x ${telaH}`,
+          totalQty,
+        ]);
+        for (let i = 0; i < totalQty; i++) {
+          allPieces.push({
+            id: `${item.id}-mosq-${modIdx}-${i}-${Math.random()}`,
+            itemCode: modLabel,
+            spec: specName,
+            w: telaW,
+            h: telaH,
+            glassId: item.extras.mosquiteroRecipeId || "mosquitero-generico",
+          });
+        }
+      });
     }
   });
   if (allPieces.length === 0) return;
