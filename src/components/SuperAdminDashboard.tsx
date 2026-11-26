@@ -247,38 +247,56 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
     }
   }, [activeTab]);
 
+  const fetchAllTableRows = async (table: string, selectCols = "user_id") => {
+    const allRows: any[] = [];
+    const pageSize = 1000;
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from(table)
+        .select(selectCols)
+        .range(from, from + pageSize - 1);
+
+      if (error || !data || data.length === 0) break;
+      allRows.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+
+    return allRows;
+  };
+
   const fetchProfiles = async () => {
     setLoading(true);
-    /* Traemos perfiles y luego contamos dispositivos y analiticas */
-    const {
-      data: profs,
-    } = await supabase
+    /* Traemos perfiles y luego contamos dispositivos y analiticas paginando por completo */
+    const { data: profs } = await supabase
       .from("perfiles_usuarios")
       .select("*")
       .order("created_at", { ascending: false });
     if (profs) {
       const [
-        { data: devices },
-        { data: quotes },
-        { data: recipes },
-        { data: aluminumRows },
-        { data: glassesRows },
-        { data: accessoriesRows },
-        { data: treatmentsRows },
-        { data: panelsRows },
-        { data: dvhRows },
-        { data: configs },
+        devices,
+        quotes,
+        recipes,
+        aluminumRows,
+        glassesRows,
+        accessoriesRows,
+        treatmentsRows,
+        panelsRows,
+        dvhRows,
+        configs,
       ] = await Promise.all([
-        supabase.from("gestion_dispositivos").select("user_id").limit(50000),
-        supabase.from("presupuestos").select("user_id").limit(50000),
-        supabase.from("recetas_usuario").select("user_id").limit(50000),
-        supabase.from("materiales_perfiles_usuario").select("user_id").limit(50000),
-        supabase.from("materiales_vidrios_usuario").select("user_id").limit(50000),
-        supabase.from("materiales_accesorios_usuario").select("user_id").limit(50000),
-        supabase.from("tratamientos_usuario").select("user_id").limit(50000),
-        supabase.from("paneles_usuario").select("user_id").limit(50000),
-        supabase.from("dvh_usuario").select("user_id").limit(50000),
-        supabase.from("configuracion_usuario").select("user_id, config_data").limit(50000),
+        fetchAllTableRows("gestion_dispositivos", "user_id"),
+        fetchAllTableRows("presupuestos", "user_id"),
+        fetchAllTableRows("recetas_usuario", "user_id"),
+        fetchAllTableRows("materiales_perfiles_usuario", "user_id"),
+        fetchAllTableRows("materiales_vidrios_usuario", "user_id"),
+        fetchAllTableRows("materiales_accesorios_usuario", "user_id"),
+        fetchAllTableRows("tratamientos_usuario", "user_id"),
+        fetchAllTableRows("paneles_usuario", "user_id"),
+        fetchAllTableRows("dvh_usuario", "user_id"),
+        fetchAllTableRows("configuracion_usuario", "user_id, config_data"),
       ]);
 
       const countByUser = (rows: any[] | null) => {
@@ -305,8 +323,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
       });
 
       setProfiles(
-        profs.map((p) => ({ 
-          ...p, 
+        profs.map((p) => ({
+          ...p,
           registered_count: counts[p.id] || 0,
           quotes_count: quoteCounts[p.id] || 0,
           recipes_count: recipeCounts[p.id] || 0,
@@ -320,11 +338,102 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
             configMap[p.id]?.aluminumPricePerKg !== undefined
               ? Number(configMap[p.id].aluminumPricePerKg)
               : undefined,
-          web_quoter_enabled: p.web_quoter_enabled || Boolean(configMap[p.id]?.webQuoterPlanActive),
+          web_quoter_enabled:
+            p.web_quoter_enabled || Boolean(configMap[p.id]?.webQuoterPlanActive),
         })),
       );
     }
     setLoading(false);
+  };
+
+  const getUserDatabaseMetrics = (profile: Profile) => [
+    {
+      key: "aluminum",
+      label: "Perfiles",
+      count: profile.aluminum_count || 0,
+      missing: (profile.aluminum_count || 0) === 0,
+      text: `${profile.aluminum_count || 0} perfiles`,
+    },
+    {
+      key: "glasses",
+      label: "Vidrios",
+      count: profile.glasses_count || 0,
+      missing: (profile.glasses_count || 0) === 0,
+      text: `${profile.glasses_count || 0} vidrios`,
+    },
+    {
+      key: "panels",
+      label: "Paneles",
+      count: profile.panels_count || 0,
+      missing: (profile.panels_count || 0) === 0,
+      text: `${profile.panels_count || 0} paneles`,
+    },
+    {
+      key: "dvh",
+      label: "DVH",
+      count: profile.dvh_count || 0,
+      missing: (profile.dvh_count || 0) === 0,
+      text: `${profile.dvh_count || 0} DVH`,
+    },
+    {
+      key: "accessories",
+      label: "Accesorios",
+      count: profile.accessories_count || 0,
+      missing: (profile.accessories_count || 0) === 0,
+      text: `${profile.accessories_count || 0} accesorios`,
+    },
+    {
+      key: "treatments",
+      label: "Tratamientos",
+      count: profile.treatments_count || 0,
+      missing: (profile.treatments_count || 0) === 0,
+      text: `${profile.treatments_count || 0} tratam.`,
+    },
+    {
+      key: "recipes",
+      label: "Recetas",
+      count: profile.recipes_count || 0,
+      missing: (profile.recipes_count || 0) === 0,
+      text: `${profile.recipes_count || 0} recetas`,
+    },
+    {
+      key: "config",
+      label: "Alu Crudo",
+      count: profile.aluminum_price_per_kg !== undefined ? 1 : 0,
+      missing: profile.aluminum_price_per_kg === undefined,
+      text:
+        profile.aluminum_price_per_kg !== undefined
+          ? `Alu Crudo: $${profile.aluminum_price_per_kg.toLocaleString("es-AR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}/kg`
+          : "Alu Crudo: Sin config",
+    },
+  ];
+
+  const getMissingDbCount = (profile: Profile) =>
+    getUserDatabaseMetrics(profile).filter((m) => m.missing).length;
+
+  const renderDatabaseBadges = (profile: Profile) => {
+    const metrics = getUserDatabaseMetrics(profile);
+    return (
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {metrics.map((m) => (
+          <span
+            key={m.key}
+            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${
+              m.missing
+                ? "bg-rose-50 text-rose-700 border-rose-200"
+                : m.key === "config"
+                ? "bg-sky-50 text-sky-700 border-sky-200"
+                : "bg-slate-100 text-slate-700 border-slate-200"
+            }`}
+          >
+            {m.missing ? `Falta ${m.label} (${m.key === "config" ? "Sin config" : "0"})` : m.text}
+          </span>
+        ))}
+      </div>
+    );
   };
 
   const toggleWebQuoter = async (id: string, currentVal: boolean) => {
@@ -791,6 +900,22 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                   >
                     Solo Activos
                   </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedUsers(profiles.filter((p) => getMissingDbCount(p) > 0).map((p) => p.id))
+                    }
+                    className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors"
+                  >
+                    Solo Incompletos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fetchProfiles}
+                    className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-sky-100 text-sky-700 hover:bg-sky-200 transition-colors flex items-center gap-1"
+                  >
+                    <RefreshCw size={11} /> Actualizar
+                  </button>
                   {selectedUsers.length > 0 && (
                     <button
                       type="button"
@@ -859,25 +984,24 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                           >
                             {profile.is_active ? "Activo" : "Inactivo"}
                           </span>
+                          {(() => {
+                            const missingCount = getMissingDbCount(profile);
+                            return (
+                              <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${
+                                  missingCount > 0
+                                    ? "bg-rose-100 text-rose-700"
+                                    : "bg-emerald-100 text-emerald-700"
+                                }`}
+                              >
+                                {missingCount > 0
+                                  ? `Faltan ${missingCount} base(s)`
+                                  : "Bases completas"}
+                              </span>
+                            );
+                          })()}
                         </div>
-                        <div className="text-[10px] text-slate-500 uppercase font-black tracking-wider mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
-                          <span className="text-sky-700">
-                            Alu Crudo:{" "}
-                            {profile.aluminum_price_per_kg !== undefined
-                              ? `$${profile.aluminum_price_per_kg.toLocaleString("es-AR", {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })}/kg`
-                              : "Sin config ($15 base)"}
-                          </span>
-                          <span>• {profile.aluminum_count || 0} perfiles</span>
-                          <span>• {profile.glasses_count || 0} vidrios</span>
-                          <span>• {profile.panels_count || 0} paneles</span>
-                          <span>• {profile.dvh_count || 0} dvh</span>
-                          <span>• {profile.accessories_count || 0} accesorios</span>
-                          <span>• {profile.treatments_count || 0} tratamientos</span>
-                          <span>• {profile.recipes_count || 0} recetas</span>
-                        </div>
+                        {renderDatabaseBadges(profile)}
                       </div>
                     </label>
                   ))}
@@ -1328,8 +1452,24 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                 className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 gap-4"
               >
                 <div className="flex-1">
-                  <div className="font-bold text-sm text-slate-800 ">
-                    {profile.email}
+                  <div className="font-bold text-sm text-slate-800 flex flex-wrap items-center gap-2">
+                    <span>{profile.email}</span>
+                    {(() => {
+                      const missingCount = getMissingDbCount(profile);
+                      return (
+                        <span
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${
+                            missingCount > 0
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {missingCount > 0
+                            ? `Faltan ${missingCount} base(s)`
+                            : "Bases completas"}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <div className="flex items-center gap-2">
@@ -1353,10 +1493,8 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                     <div className="flex items-center gap-2 text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
                       <span className="font-bold text-slate-600">{profile.quotes_count || 0}</span> obras
                     </div>
-                    <div className="flex items-center gap-2 text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                      <span className="font-bold text-slate-600">{profile.recipes_count || 0}</span> tipologías
-                    </div>
                   </div>
+                  {renderDatabaseBadges(profile)}
                   {profile.role !== "super_admin" && (
                     <div className="mt-3 flex flex-wrap items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 ">
                       <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
